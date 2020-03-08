@@ -58,9 +58,7 @@ class TestParameters(UnittestBase, unittest.TestCase):
         self.finished_test()
 
     def long_unittest(self, horizon):
-        agent, environment = self.prepare(
-            min_timesteps=3, reward_estimation=dict(horizon=horizon), memory=20
-        )
+        agent, environment = self.prepare(min_timesteps=3, reward_estimation=dict(horizon=horizon))
 
         states = environment.reset()
         actions = agent.act(states=states)
@@ -68,16 +66,12 @@ class TestParameters(UnittestBase, unittest.TestCase):
         _, horizon_output1 = agent.observe(terminal=terminal, reward=reward, query='horizon')
         self.assertIsInstance(horizon_output1, util.np_dtype(dtype='long'))
 
+        actions = agent.act(states=states)
+        states, terminal, reward = environment.execute(actions=actions)
+        _, horizon_output2 = agent.observe(terminal=terminal, reward=reward, query='horizon')
         if not isinstance(horizon, dict) or horizon['type'] == 'constant':
-            actions = agent.act(states=states)
-            states, terminal, reward = environment.execute(actions=actions)
-            _, horizon_output2 = agent.observe(terminal=terminal, reward=reward, query='horizon')
             self.assertEqual(horizon_output2, horizon_output1)
-
         else:
-            actions = agent.act(states=states)
-            states, terminal, reward = environment.execute(actions=actions)
-            _, horizon_output2 = agent.observe(terminal=terminal, reward=reward, query='horizon')
             self.assertNotEqual(horizon_output2, horizon_output1)
 
         actions = agent.act(states=states)
@@ -102,7 +96,7 @@ class TestParameters(UnittestBase, unittest.TestCase):
         exploration = 0.1
         self.float_unittest(exploration=exploration)
 
-        horizon = 1
+        horizon = 4
         self.long_unittest(horizon=horizon)
 
     def test_decaying(self):
@@ -124,7 +118,7 @@ class TestParameters(UnittestBase, unittest.TestCase):
     def test_ornstein_uhlenbeck(self):
         self.start_tests(name='ornstein-uhlenbeck')
 
-        exploration = dict(type='ornstein_uhlenbeck')
+        exploration = dict(type='ornstein_uhlenbeck', absolute=True)
         self.float_unittest(exploration=exploration)
 
     def test_piecewise_constant(self):
@@ -146,5 +140,5 @@ class TestParameters(UnittestBase, unittest.TestCase):
     def test_random(self):
         self.start_tests(name='random')
 
-        exploration = dict(type='random', distribution='normal')
+        exploration = dict(type='random', distribution='uniform')
         self.float_unittest(exploration=exploration)

@@ -105,7 +105,7 @@ setup(
     extras_require=dict(
         tf=['tensorflow==2.0.1'],
         tf_gpu=['tensorflow-gpu==2.0.1'],
-        tfa=['tensorflow-addons'],
+        tfa=['tensorflow-addons==0.6.0'],
         docs=['m2r', 'recommonmark', 'sphinx', 'sphinx-rtd-theme'],
         tune=['hpbandster'],
         envs=['gym[all]', 'gym-retro', 'mazeexp', 'vizdoom'],

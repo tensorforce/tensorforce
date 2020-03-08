@@ -56,15 +56,17 @@ class DeepQNetwork(TensorforceAgent):
             (<span style="color:#00C000"><b>default</b></span>: not given, better implicitly
             specified via `environment` argument for `Agent.create(...)`).
 
+        memory (int > 0): Replay memory capacity, has to fit at least maximum batch_size + maximum
+            network/estimator horizon + 1 timesteps
+            (<span style="color:#C00000"><b>required</b></span>).
+        batch_size (parameter, long > 0): Number of timesteps per update batch
+            (<span style="color:#C00000"><b>required</b></span>).
+
         network ("auto" | specification): Policy network configuration, see
             [networks](../modules/networks.html)
             (<span style="color:#00C000"><b>default</b></span>: "auto", automatically configured
             network).
 
-        memory (int): Replay memory capacity, has to fit at least around batch_size + one episode
-            (<span style="color:#C00000"><b>required</b></span>).
-        batch_size (parameter, long > 0): Number of timesteps per update batch
-            (<span style="color:#00C000"><b>default</b></span>: 32 timesteps).
         update_frequency ("never" | parameter, long > 0): Frequency of updates
             (<span style="color:#00C000"><b>default</b></span>: batch_size).
         start_updating (parameter, long >= batch_size): Number of timesteps before first update
@@ -152,6 +154,11 @@ class DeepQNetwork(TensorforceAgent):
             summary writer (<span style="color:#00C000"><b>default</b></span>: 10).</li>
             <li><b>max-summaries</b> (<i>int > 0</i>) &ndash; maximum number of summaries to keep
             (<span style="color:#00C000"><b>default</b></span>: 5).</li>
+            <li><b>custom</b> (<i>dict[spec]</i>) &ndash; custom summaries which are recorded via
+            `agent.summarize(...)`, specification with either type "scalar", type "histogram" with
+            optional "buckets", type "image" with optional "max_outputs"
+            (<span style="color:#00C000"><b>default</b></span>: 3), or type "audio"
+            (<span style="color:#00C000"><b>default</b></span>: no custom summaries).</li>
             <li><b>labels</b> (<i>"all" | iter[string]</i>) &ndash; all excluding "*-histogram"
             labels, or list of summaries to record, from the following labels
             (<span style="color:#00C000"><b>default</b></span>: only "graph"):</li>
@@ -176,8 +183,9 @@ class DeepQNetwork(TensorforceAgent):
             <li>"variables": variable mean and variance scalars</li>
             <li>"variables-histogram": variable histograms</li>
             </ul>
-        recorder (specification): Experience traces recorder configuration with the following
-            attributes (<span style="color:#00C000"><b>default</b></span>: no recorder):
+        recorder (specification): Experience traces recorder configuration, currently not including
+            internal states, with the following attributes
+            (<span style="color:#00C000"><b>default</b></span>: no recorder):
             <ul>
             <li><b>directory</b> (<i>path</i>) &ndash; recorder directory
             (<span style="color:#C00000"><b>required</b></span>).</li>
@@ -193,14 +201,13 @@ class DeepQNetwork(TensorforceAgent):
 
     def __init__(
         # Required
-        self, states, actions, memory,
+        self, states, actions, memory, batch_size,
         # Environment
         max_episode_timesteps=None,
         # Network
         network='auto',
         # Optimization
-        batch_size=32, update_frequency=None, start_updating=None, learning_rate=3e-4,
-        huber_loss=0.0,
+        update_frequency=None, start_updating=None, learning_rate=3e-4, huber_loss=0.0,
         # Reward estimation
         horizon=0, discount=0.99, estimate_terminal=False,  # double_q_model=False !!!!!!!!!!!!!!!!!!!!!!!!!!!!
         # Target network
@@ -217,24 +224,23 @@ class DeepQNetwork(TensorforceAgent):
     ):
         self.spec = OrderedDict(
             agent='dqn',
-            states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
+            states=states, actions=actions, memory=memory, batch_size=batch_size,
+            max_episode_timesteps=max_episode_timesteps,
             network=network,
-            memory=memory, batch_size=batch_size, update_frequency=update_frequency,
-            start_updating=start_updating, learning_rate=learning_rate, huber_loss=huber_loss,
+            update_frequency=update_frequency, start_updating=start_updating,
+                learning_rate=learning_rate, huber_loss=huber_loss,
             horizon=horizon, discount=discount, estimate_terminal=estimate_terminal,
             target_sync_frequency=target_sync_frequency, target_update_weight=target_update_weight,
             preprocessing=preprocessing,
             exploration=exploration, variable_noise=variable_noise,
             l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
             name=name, device=device, parallel_interactions=parallel_interactions, seed=seed,
-            execution=execution, saver=saver, summarizer=summarizer, recorder=recorder,
-            config=config
+                execution=execution, saver=saver, summarizer=summarizer, recorder=recorder,
+                config=config
         )
 
         # Action value doesn't exist for Beta
         policy = dict(network=network, distributions=dict(float='gaussian'), temperature=0.0)
-        assert max_episode_timesteps is None or \
-            memory >= batch_size + max_episode_timesteps + horizon
         memory = dict(type='replay', capacity=memory)
         update = dict(unit='timesteps', batch_size=batch_size)
         if update_frequency is not None:

@@ -28,7 +28,7 @@ class Decaying(Parameter):
         name (string): Module name
             (<span style="color:#0000C0"><b>internal use</b></span>).
         dtype ("bool" | "int" | "long" | "float"): Tensor type
-            (<span style="color:#C00000"><b>required</b></span>).
+            (<span style="color:#0000C0"><b>internal use</b></span>).
         unit ("timesteps" | "episodes" | "updates"): Unit of decay schedule
             (<span style="color:#C00000"><b>required</b></span>).
         decay ("cosine" | "cosine_restarts" | "exponential" | "inverse_time" | "linear_cosine" | "linear_cosine_noisy" | "polynomial"):
@@ -45,6 +45,10 @@ class Decaying(Parameter):
             (<span style="color:#00C000"><b>default</b></span>: false).
         scale (float): Scaling factor for (inverse) decayed value
             (<span style="color:#00C000"><b>default</b></span>: 1.0).
+        min_value (dtype-compatible value): Lower parameter value bound
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        max_value (dtype-compatible value): Upper parameter value bound
+            (<span style="color:#0000C0"><b>internal use</b></span>).
         summary_labels ("all" | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         kwargs: Additional arguments depend on decay mechanism.<br>
@@ -127,10 +131,8 @@ class Decaying(Parameter):
 
     def __init__(
         self, name, dtype, unit, decay, initial_value, decay_steps, increasing=False,
-        inverse=False, scale=1.0, summary_labels=None, **kwargs
+        inverse=False, scale=1.0, min_value=None, max_value=None, summary_labels=None, **kwargs
     ):
-        super().__init__(name=name, dtype=dtype, unit=unit, summary_labels=summary_labels)
-
         assert unit in ('timesteps', 'episodes', 'updates')
         assert decay in (
             'cosine', 'cosine_restarts', 'exponential', 'inverse_time', 'linear_cosine',
@@ -147,7 +149,177 @@ class Decaying(Parameter):
         self.scale = scale
         self.kwargs = kwargs
 
-    def get_parameter_value(self, step):
+        super().__init__(
+            name=name, dtype=dtype, unit=unit, min_value=min_value, max_value=max_value,
+            summary_labels=summary_labels
+        )
+
+    def min_value(self):
+        if self.decay == 'cosine' or self.decay == 'cosine_restarts':
+            assert 0.0 <= self.kwargs.get('alpha', 0.0) <= 1.0
+            if self.initial_value >= 0.0:
+                min_value = self.initial_value * self.kwargs.get('alpha', 0.0)
+                max_value = self.initial_value
+            else:
+                min_value = self.initial_value
+                max_value = self.initial_value * self.kwargs.get('alpha', 0.0)
+
+        elif self.decay == 'exponential' or self.decay == 'inverse_time':
+            assert 0.0 <= self.kwargs['decay_rate'] <= 1.0
+            if self.kwargs['decay_rate'] == 1.0:
+                min_value = max_value = self.initial_value
+            elif self.initial_value >= 0.0:
+                min_value = 0.0
+                max_value = self.initial_value
+            else:
+                min_value = self.initial_value
+                max_value = 0.0
+
+        elif self.decay == 'linear_cosine' or self.decay == 'linear_cosine_noisy':
+            assert 0.0 <= self.kwargs.get('alpha', 0.0) <= 1.0
+            assert 0.0 <= self.kwargs.get('beta', 0.0) <= 1.0
+            if self.initial_value >= 0.0:
+                min_value = self.initial_value * self.kwargs.get('beta', 0.001)
+                max_value = self.initial_value * (
+                    1.0 + self.kwargs.get('alpha', 0.0) + self.kwargs.get('beta', 0.001)
+                )
+            else:
+                min_value = self.initial_value * (
+                    1.0 + self.kwargs.get('alpha', 0.0) + self.kwargs.get('beta', 0.001)
+                )
+                max_value = self.initial_value * self.kwargs.get('beta', 0.001)
+
+        elif self.decay == 'polynomial':
+            if self.kwargs.get('power', 1.0) == 0.0:
+                min_value = max_value = self.initial_value
+            elif self.initial_value >= self.kwargs['final_value']:
+                min_value = self.kwargs['final_value']
+                max_value = self.initial_value
+            else:
+                min_value = self.initial_value
+                max_value = self.kwargs['final_value']
+
+        assert min_value <= max_value
+
+        if self.increasing:
+            assert 0.0 <= min_value <= max_value <= 1.0
+            min_value, max_value = 1.0 - max_value, 1.0 - min_value
+
+        if self.inverse:
+            assert 0.0 < min_value <= max_value
+            min_value, max_value = 1.0 / max_value, 1.0 / min_value
+
+        if self.scale == 1.0:
+            pass
+        elif self.scale >= 0.0:
+            min_value, max_value = self.scale * min_value, self.scale * max_value
+        else:
+            min_value, max_value = self.scale * max_value, self.scale * min_value
+
+        return util.py_dtype(dtype=self.dtype)(min_value)
+
+    def max_value(self):
+        if self.decay == 'cosine' or self.decay == 'cosine_restarts':
+            assert 0.0 <= self.kwargs.get('alpha', 0.0) <= 1.0
+            if self.initial_value >= 0.0:
+                min_value = self.initial_value * self.kwargs.get('alpha', 0.0)
+                max_value = self.initial_value
+            else:
+                min_value = self.initial_value
+                max_value = self.initial_value * self.kwargs.get('alpha', 0.0)
+
+        elif self.decay == 'exponential' or self.decay == 'inverse_time':
+            assert 0.0 <= self.kwargs['decay_rate'] <= 1.0
+            if self.kwargs['decay_rate'] == 1.0:
+                min_value = max_value = self.initial_value
+            elif self.initial_value >= 0.0:
+                min_value = 0.0
+                max_value = self.initial_value
+            else:
+                min_value = self.initial_value
+                max_value = 0.0
+
+        elif self.decay == 'linear_cosine' or self.decay == 'linear_cosine_noisy':
+            assert 0.0 <= self.kwargs.get('alpha', 0.0) <= 1.0
+            assert 0.0 <= self.kwargs.get('beta', 0.0) <= 1.0
+            if self.initial_value >= 0.0:
+                min_value = self.initial_value * self.kwargs.get('beta', 0.001)
+                max_value = self.initial_value * (
+                    1.0 + self.kwargs.get('alpha', 0.0) + self.kwargs.get('beta', 0.001)
+                )
+            else:
+                min_value = self.initial_value * (
+                    1.0 + self.kwargs.get('alpha', 0.0) + self.kwargs.get('beta', 0.001)
+                )
+                max_value = self.initial_value * self.kwargs.get('beta', 0.001)
+
+        elif self.decay == 'polynomial':
+            if self.kwargs.get('power', 1.0) == 0.0:
+                min_value = max_value = self.initial_value
+            elif self.initial_value >= self.kwargs['final_value']:
+                min_value = self.kwargs['final_value']
+                max_value = self.initial_value
+            else:
+                min_value = self.initial_value
+                max_value = self.kwargs['final_value']
+
+        assert min_value <= max_value
+
+        if self.increasing:
+            assert 0.0 <= min_value <= max_value <= 1.0
+            min_value, max_value = 1.0 - max_value, 1.0 - min_value
+
+        if self.inverse:
+            assert 0.0 < min_value <= max_value
+            min_value, max_value = 1.0 / max_value, 1.0 / min_value
+
+        if self.scale == 1.0:
+            pass
+        elif self.scale >= 0.0:
+            min_value, max_value = self.scale * min_value, self.scale * max_value
+        else:
+            min_value, max_value = self.scale * max_value, self.scale * min_value
+
+        return util.py_dtype(dtype=self.dtype)(max_value)
+
+    def final_value(self):
+        if self.decay == 'cosine' or self.decay == 'cosine_restarts':
+            assert 0.0 <= self.kwargs['decay_rate'] <= 1.0
+            value = self.initial_value * self.kwargs.get('alpha', 0.0)
+
+        elif self.decay == 'exponential' or self.decay == 'inverse_time':
+            assert 0.0 <= self.kwargs['decay_rate'] <= 1.0
+            if self.kwargs['decay_rate'] == 1.0:
+                value = self.initial_value
+            else:
+                value = 0.0
+
+        elif self.decay == 'linear_cosine' or self.decay == 'linear_cosine_noisy':
+            assert 0.0 <= self.kwargs.get('alpha', 0.0) <= 1.0
+            assert 0.0 <= self.kwargs.get('beta', 0.0) <= 1.0
+            value = self.initial_value * self.kwargs.get('beta', 0.001)
+
+        elif self.decay == 'polynomial':
+            if self.kwargs.get('power', 1.0) == 0.0:
+                value = self.initial_value
+            else:
+                value = self.kwargs['final_value']
+
+        if self.increasing:
+            assert 0.0 <= value <= 1.0
+            value = 1.0 - value
+
+        if self.inverse:
+            assert value > 0.0
+            value = 1.0 / value
+
+        if self.scale != 1.0:
+            value = value * self.scale
+
+        return util.py_dtype(dtype=self.dtype)(value)
+
+
+    def parameter_value(self, step):
         initial_value = tf.constant(value=self.initial_value, dtype=util.tf_dtype(dtype='float'))
 
         if self.decay == 'cosine':
@@ -221,34 +393,3 @@ class Decaying(Parameter):
             parameter = tf.dtypes.cast(x=parameter, dtype=util.tf_dtype(dtype=self.dtype))
 
         return parameter
-
-    def get_final_value(self):
-        if self.decay == 'cosine' or self.decay == 'cosine_restarts':
-            value = self.initial_value * self.kwargs.get('alpha', 0.0)
-
-        elif self.decay == 'exponential' or self.decay == 'inverse_time':
-            assert self.kwargs['decay_rate'] <= 1.0
-            if self.kwargs['decay_rate'] == 1.0:
-                value = self.initial_value
-            else:
-                value = 0.0
-
-        elif self.decay == 'linear_cosine' or self.decay == 'linear_cosine_noisy':
-            value = self.kwargs.get('beta', 0.001)
-
-        elif self.decay == 'polynomial':
-            if self.kwargs.get('power', 1.0) == 0.0:
-                value = self.initial_value
-            else:
-                value = self.kwargs['final_value']
-
-        if self.increasing:
-            value = 1.0 - value
-
-        if self.inverse:
-            value = 1.0 / value
-
-        if self.scale != 1.0:
-            value = value * self.scale
-
-        return value, tf.constant(value=value, dtype=util.tf_dtype(dtype=self.dtype))

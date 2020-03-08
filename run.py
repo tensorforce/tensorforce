@@ -21,10 +21,7 @@ import os
 import matplotlib
 import numpy as np
 
-from tensorforce.agents import Agent
-from tensorforce.core.utils.json_encoder import NumpyJSONEncoder
-from tensorforce.environments import Environment
-from tensorforce.execution import Runner
+from tensorforce import Agent, Environment, Runner
 
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -141,10 +138,10 @@ def main():
         agent_seconds = [list() for _ in range(args.episodes)]
 
         def callback(r, p):
-            rewards[r.episodes - 1].append(r.episode_rewards[-1])
-            timesteps[r.episodes - 1].append(r.episode_timesteps[-1])
-            seconds[r.episodes - 1].append(r.episode_seconds[-1])
-            agent_seconds[r.episodes - 1].append(r.episode_agent_seconds[-1])
+            rewards[r.episodes - 1].append(float(r.episode_rewards[-1]))
+            timesteps[r.episodes - 1].append(int(r.episode_timesteps[-1]))
+            seconds[r.episodes - 1].append(float(r.episode_seconds[-1]))
+            agent_seconds[r.episodes - 1].append(float(r.episode_agent_seconds[-1]))
             return True
 
     if args.environment is None:
@@ -203,7 +200,7 @@ def main():
                 json.dumps(dict(
                     rewards=rewards, timesteps=timesteps, seconds=seconds,
                     agent_seconds=agent_seconds
-                ), cls=NumpyJSONEncoder)
+                ))
             )
 
         if args.seaborn:

@@ -20,13 +20,12 @@ from test.unittest_base import UnittestBase
 
 class TestObjectives(UnittestBase, unittest.TestCase):
 
-    exclude_bounded_action = True  # TODO: shouldn't be necessary!
     require_observe = True
 
     def test_deterministic_policy_gradient(self):
         self.start_tests(name='deterministic-policy-gradient')
 
-        objective = dict(type='det_policy_gradient')
+        objective = dict(type='deterministic_policy_gradient')
         self.unittest(actions=dict(type='float', shape=()), objective=objective)
 
     def test_plus(self):

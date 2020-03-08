@@ -22,8 +22,8 @@ from tensorforce.core.objectives.value import Value
 
 
 objective_modules = dict(
-    det_policy_gradient=DeterministicPolicyGradient, plus=Plus, policy_gradient=PolicyGradient,
-    value=Value
+    deterministic_policy_gradient=DeterministicPolicyGradient, plus=Plus,
+    policy_gradient=PolicyGradient, value=Value
 )
 
 

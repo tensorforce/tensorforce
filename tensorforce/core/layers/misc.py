@@ -42,9 +42,7 @@ class Activation(Layer):
     def __init__(
         self, name, nonlinearity, input_spec=None, summary_labels=None
     ):
-        super().__init__(
-            name=name, input_spec=input_spec, summary_labels=summary_labels, l2_regularization=0.0
-        )
+        super().__init__(name=name, input_spec=input_spec, summary_labels=summary_labels)
 
         # Nonlinearity
         if nonlinearity not in (
@@ -126,9 +124,7 @@ class Block(Layer):
         self._input_spec = input_spec
         self.layers = layers
 
-        super().__init__(
-            name=name, input_spec=input_spec, summary_labels=None, l2_regularization=0.0
-        )
+        super().__init__(name=name, input_spec=input_spec, summary_labels=None)
 
     def default_input_spec(self):
         layer_counter = Counter()
@@ -180,13 +176,12 @@ class Dropout(Layer):
     """
 
     def __init__(self, name, rate, input_spec=None, summary_labels=None):
-        super().__init__(
-            name=name, input_spec=input_spec, summary_labels=summary_labels, l2_regularization=0.0
-        )
+        super().__init__(name=name, input_spec=input_spec, summary_labels=summary_labels)
 
         # Rate
         self.rate = self.add_module(
-            name='rate', module=rate, modules=parameter_modules, dtype='float'
+            name='rate', module=rate, modules=parameter_modules, dtype='float', min_value=0.0,
+            max_value=1.0
         )
 
     def default_input_spec(self):
@@ -293,9 +288,7 @@ class Register(Layer):
 
         self.tensor = tensor
 
-        super().__init__(
-            name=name, input_spec=input_spec, summary_labels=summary_labels, l2_regularization=0.0
-        )
+        super().__init__(name=name, input_spec=input_spec, summary_labels=summary_labels)
 
         Module.register_tensor(name=self.tensor, spec=self.input_spec, batched=True)
 
@@ -333,9 +326,7 @@ class Reshape(Layer):
         else:
             self.shape = tuple(shape)
 
-        super().__init__(
-            name=name, input_spec=input_spec, summary_labels=summary_labels, l2_regularization=0.0
-        )
+        super().__init__(name=name, input_spec=input_spec, summary_labels=summary_labels)
 
     def default_input_spec(self):
         return dict(type=None, shape=None)
@@ -395,9 +386,7 @@ class Retrieve(Layer):
         self.aggregation = aggregation
         self.axis = axis
 
-        super().__init__(
-            name=name, input_spec=input_spec, summary_labels=summary_labels, l2_regularization=0.0
-        )
+        super().__init__(name=name, input_spec=input_spec, summary_labels=summary_labels)
 
         self.input_spec = None
 

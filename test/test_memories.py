@@ -20,30 +20,30 @@ from test.unittest_base import UnittestBase
 
 class TestMemories(UnittestBase, unittest.TestCase):
 
-    num_episodes = 2
+    require_observe = True
 
     def test_recent(self):
         self.start_tests(name='recent')
 
-        memory = dict(type='recent', capacity=9)
+        memory = dict(type='recent')
         update = dict(unit='timesteps', batch_size=4)
         self.unittest(update=update, memory=memory)
 
-        memory = dict(type='recent', capacity=10)
+        memory = dict(type='recent')
         update = dict(unit='episodes', batch_size=1)
         self.unittest(update=update, memory=memory)
 
     def test_replay(self):
         self.start_tests(name='replay')
 
-        memory = dict(type='replay', capacity=9)
+        memory = dict(type='replay')
         update = dict(unit='timesteps', batch_size=4)
         self.unittest(update=update, memory=memory)
 
-        memory = dict(type='replay', capacity=10)
+        memory = dict(type='replay')
         update = dict(unit='episodes', batch_size=1)
         self.unittest(update=update, memory=memory)
 
-        memory = 9
+        memory = 100
         update = 4
         self.unittest(update=update, memory=memory)

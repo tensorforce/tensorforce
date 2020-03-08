@@ -30,13 +30,13 @@ class OptimizingStep(MetaOptimizer):
             (<span style="color:#0000C0"><b>internal use</b></span>).
         optimizer (specification): Optimizer configuration
             (<span style="color:#C00000"><b>required</b></span>).
-        ls_max_iterations (parameter, int > 0): Maximum number of line search iterations
+        ls_max_iterations (parameter, int >= 0): Maximum number of line search iterations
             (<span style="color:#00C000"><b>default</b></span>: 10).
-        ls_accept_ratio (parameter, float > 0.0): Line search acceptance ratio
+        ls_accept_ratio (parameter, 0.0 <= float <= 1.0): Line search acceptance ratio
             (<span style="color:#00C000"><b>default</b></span>: 0.9).
         ls_mode ('exponential' | 'linear'): Line search mode, see line search solver
             (<span style="color:#00C000"><b>default</b></span>: 'exponential').
-        ls_parameter (parameter, float > 0.0): Line search parameter, see line search solver
+        ls_parameter (parameter, 0.0 <= float <= 1.0): Line search parameter, see line search solver
             (<span style="color:#00C000"><b>default</b></span>: 0.5).
         ls_unroll_loop (bool): Whether to unroll the line search loop
             (<span style="color:#00C000"><b>default</b></span>: false).

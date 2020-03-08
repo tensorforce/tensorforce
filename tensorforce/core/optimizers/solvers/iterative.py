@@ -29,7 +29,7 @@ class Iterative(Solver):
         Creates a new iterative solver instance.
 
         Args:
-            max_iterations: Maximum number of iterations before termination.
+            max_iterations (parameter, int >= 0): Maximum number of iterations before termination.
             unroll_loop: Unrolls the TensorFlow while loop if true.
         """
         super().__init__(name=name)
@@ -42,7 +42,7 @@ class Iterative(Solver):
         else:
             self.max_iterations = self.add_module(
                 name='max-iterations', module=max_iterations, modules=parameter_modules,
-                dtype='int'
+                dtype='int', min_value=0
             )
 
     def tf_solve(self, fn_x, x_init, *args):

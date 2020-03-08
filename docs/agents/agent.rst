@@ -31,6 +31,11 @@ Get and assign variables
 .. automethod:: tensorforce.agents.TensorforceAgent.get_variable
 .. automethod:: tensorforce.agents.TensorforceAgent.assign_variable
 
+Custom summaries
+----------------
+
+.. automethod:: tensorforce.agents.TensorforceAgent.summarize
+
 Advanced functions for specialized use cases
 --------------------------------------------
 

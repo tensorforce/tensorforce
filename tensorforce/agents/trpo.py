@@ -57,20 +57,23 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
             (<span style="color:#00C000"><b>default</b></span>: not given, better implicitly
             specified via `environment` argument for `Agent.create(...)`).
 
+        batch_size (parameter, long > 0): Number of episodes per update batch
+            (<span style="color:#C00000"><b>required</b></span>).
+
         network ("auto" | specification): Policy network configuration, see
             [networks](../modules/networks.html)
             (<span style="color:#00C000"><b>default</b></span>: "auto", automatically configured
             network).
 
-        batch_size (parameter, long > 0): Number of episodes per update batch
-            (<span style="color:#00C000"><b>default</b></span>: 10 episodes).
+        memory (int > 0): Batch memory capacity, has to fit at least maximum batch_size + 1 episodes
+            (<span style="color:#00C000"><b>default</b></span>: minimum capacity, usually does not
+            need to be changed).
+
         update_frequency ("never" | parameter, long > 0): Frequency of updates
             (<span style="color:#00C000"><b>default</b></span>: batch_size).
         learning_rate (parameter, float > 0.0): Optimizer learning rate
             (<span style="color:#00C000"><b>default</b></span>: 1e-3).
 
-        likelihood_ratio_clipping (parameter, float > 0.0): Likelihood-ratio clipping threshold
-            (<span style="color:#00C000"><b>default</b></span>: 0.2).
         discount (parameter, 0.0 <= float <= 1.0): Discount factor for future rewards of
             discounted-sum reward estimation
             (<span style="color:#00C000"><b>default</b></span>: 0.99).
@@ -84,9 +87,6 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
             [optimizers](../modules/optimizers.html), main optimizer will be used for critic if
             none, a float implies none and specifies a custom weight for the critic loss
             (<span style="color:#00C000"><b>default</b></span>: none).
-
-        memory (int > 0): Memory capacity, has to fit at least around batch_size + 1 episodes
-            (<span style="color:#00C000"><b>default</b></span>: minimum required size).
 
         preprocessing (dict[specification]): Preprocessing as layer or list of layers, see
             [preprocessing](../modules/preprocessing.html), specified per state-type or -name and
@@ -152,6 +152,11 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
             summary writer (<span style="color:#00C000"><b>default</b></span>: 10).</li>
             <li><b>max-summaries</b> (<i>int > 0</i>) &ndash; maximum number of summaries to keep
             (<span style="color:#00C000"><b>default</b></span>: 5).</li>
+            <li><b>custom</b> (<i>dict[spec]</i>) &ndash; custom summaries which are recorded via
+            `agent.summarize(...)`, specification with either type "scalar", type "histogram" with
+            optional "buckets", type "image" with optional "max_outputs"
+            (<span style="color:#00C000"><b>default</b></span>: 3), or type "audio"
+            (<span style="color:#00C000"><b>default</b></span>: no custom summaries).</li>
             <li><b>labels</b> (<i>"all" | iter[string]</i>) &ndash; all excluding "*-histogram"
             labels, or list of summaries to record, from the following labels
             (<span style="color:#00C000"><b>default</b></span>: only "graph"):</li>
@@ -176,8 +181,9 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
             <li>"variables": variable mean and variance scalars</li>
             <li>"variables-histogram": variable histograms</li>
             </ul>
-        recorder (specification): Experience traces recorder configuration with the following
-            attributes (<span style="color:#00C000"><b>default</b></span>: no recorder):
+        recorder (specification): Experience traces recorder configuration, currently not including
+            internal states, with the following attributes
+            (<span style="color:#00C000"><b>default</b></span>: no recorder):
             <ul>
             <li><b>directory</b> (<i>path</i>) &ndash; recorder directory
             (<span style="color:#C00000"><b>required</b></span>).</li>
@@ -190,18 +196,18 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
     """
 
     def __init__(
-        # Environment
-        self, states, actions, max_episode_timesteps,
+        # Required
+        self, states, actions, max_episode_timesteps, batch_size,
         # Network
         network='auto',
-        # Optimization
-        batch_size=10, update_frequency=None, learning_rate=1e-3,
-        # Reward estimation
-        likelihood_ratio_clipping=0.2, discount=0.99, estimate_terminal=False,
-        # Critic
-        critic_network=None, critic_optimizer=None,
         # Memory
         memory=None,
+        # Optimization
+        update_frequency=None, learning_rate=1e-3,
+        # Reward estimation
+        discount=0.99, estimate_terminal=False,
+        # Critic
+        critic_network=None, critic_optimizer=None,
         # Preprocessing
         preprocessing=None,
         # Exploration
@@ -215,22 +221,23 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
         self.spec = OrderedDict(
             agent='trpo',
             states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
+                batch_size=batch_size,
             network=network,
-            batch_size=batch_size, update_frequency=update_frequency, learning_rate=learning_rate,
-            likelihood_ratio_clipping=likelihood_ratio_clipping, discount=discount,
-            estimate_terminal=estimate_terminal,
+            memory=memory,
+            update_frequency=update_frequency, learning_rate=learning_rate,
+            discount=discount, estimate_terminal=estimate_terminal,
             critic_network=critic_network, critic_optimizer=critic_optimizer,
             preprocessing=preprocessing,
             exploration=exploration, variable_noise=variable_noise,
             l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
             name=name, device=device, parallel_interactions=parallel_interactions, seed=seed,
-            execution=execution, saver=saver, summarizer=summarizer, recorder=recorder,
-            config=config
+                execution=execution, saver=saver, summarizer=summarizer, recorder=recorder,
+                config=config
         )
 
         policy = dict(network=network, temperature=1.0)
         if memory is None:
-            memory = dict(type='recent', capacity=((batch_size + 1) * max_episode_timesteps))
+            memory = dict(type='recent')
         else:
             memory = dict(type='recent', capacity=memory)
         if update_frequency is None:
@@ -243,12 +250,9 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
         )
         optimizer = dict(
             type='optimizing_step', optimizer=optimizer, ls_max_iterations=10, ls_accept_ratio=0.9,
-            ls_mode='exponential',  # !!!!!!!!!!!!!
-            ls_parameter=0.5,  # !!!!!!!!!!!!!
+            ls_mode='exponential', ls_parameter=0.5  # !!!!!!!!!!!!!
         )
-        objective = dict(
-            type='policy_gradient', ratio_based=True, clipping_value=likelihood_ratio_clipping
-        )
+        objective = dict(type='policy_gradient', ratio_based=True)
         if critic_network is None:
             reward_estimation = dict(horizon='episode', discount=discount)
             baseline_policy = None
@@ -260,8 +264,7 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
                 estimate_horizon=(False if critic_network is None else 'early'),
                 estimate_terminal=estimate_terminal, estimate_advantage=True
             )
-            # State value doesn't exist for Beta
-            baseline_policy = dict(network=critic_network, distributions=dict(float='gaussian'))
+            baseline_policy = dict(network=critic_network)
             assert critic_optimizer is not None
             baseline_objective = dict(type='value', value='state')
 

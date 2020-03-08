@@ -61,13 +61,13 @@ class Stochastic(Policy):
                 if name in temperature:
                     self.temperature[name] = self.add_module(
                         name=(name + '-temperature'), module=temperature[name],
-                        modules=parameter_modules, is_trainable=False, dtype='float'
+                        modules=parameter_modules, is_trainable=False, dtype='float', min_value=0.0
                     )
         else:
             # Same temperature for all actions
             self.temperature = self.add_module(
                 name='temperature', module=temperature, modules=parameter_modules,
-                is_trainable=False, dtype='float'
+                is_trainable=False, dtype='float', min_value=0.0
             )
 
     def tf_act(self, states, internals, auxiliaries, return_internals):

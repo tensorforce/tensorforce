@@ -31,10 +31,11 @@ class TensorforceModel(Model):
         self,
         # Model
         name, device, parallel_interactions, buffer_observe, seed, execution, saver, summarizer,
-        config, states, actions, preprocessing, exploration, variable_noise, l2_regularization,
+        config, states, actions, preprocessing, exploration, variable_noise,
+        l2_regularization,
         # TensorforceModel
         policy, memory, update, optimizer, objective, reward_estimation, baseline_policy,
-        baseline_optimizer, baseline_objective, entropy_regularization
+        baseline_optimizer, baseline_objective, entropy_regularization, max_episode_timesteps
     ):
         # Policy internals specification
         policy_cls, first_arg, kwargs = Module.get_module_class_and_kwargs(
@@ -45,7 +46,7 @@ class TensorforceModel(Model):
             internals = policy_cls.internals_spec(name='policy', **kwargs)
         else:
             internals = policy_cls.internals_spec(first_arg, name='policy', **kwargs)
-        if any(name.startswith('baseline-') for name in internals):
+        if any(internal.startswith('baseline-') for internal in internals):
             raise TensorforceError.value(
                 name='model', argument='internals', value=list(internals),
                 hint='starts with baseline-'
@@ -65,12 +66,12 @@ class TensorforceModel(Model):
                 baseline_internals = baseline_cls.internals_spec(
                     first_arg, name='baseline', **kwargs
                 )
-            for name, spec in baseline_internals.items():
-                if name in internals:
+            for internal, spec in baseline_internals.items():
+                if internal in internals:
                     raise TensorforceError.collision(
                         name='model', value='internals', group1='policy', group2='baseline'
                     )
-                internals[name] = spec
+                internals[internal] = spec
 
         super().__init__(
             # Model
@@ -85,13 +86,7 @@ class TensorforceModel(Model):
         self.policy = self.add_module(
             name='policy', module=policy, modules=policy_modules, states_spec=self.states_spec,
             actions_spec=self.actions_spec
-        )
-
-        # Memory
-        self.memory = self.add_module(
-            name='memory', module=memory, modules=memory_modules, is_trainable=False,
-            values_spec=self.values_spec
-        )
+        )        
 
         # Update mode
         if not all(key in ('batch_size', 'frequency', 'start', 'unit') for key in update):
@@ -114,18 +109,19 @@ class TensorforceModel(Model):
         self.update_unit = update['unit']
         self.update_batch_size = self.add_module(
             name='update-batch-size', module=update['batch_size'], modules=parameter_modules,
-            is_trainable=False, dtype='long'
+            is_trainable=False, dtype='long', min_value=1
         )
         if 'frequency' in update and update['frequency'] == 'never':
-            self.update_frequency = 'never'
+            self.update_frequency = None
         else:
             self.update_frequency = self.add_module(
                 name='update-frequency', module=update.get('frequency', update['batch_size']),
-                modules=parameter_modules, is_trainable=False, dtype='long'
+                modules=parameter_modules, is_trainable=False, dtype='long', min_value=1,
+                max_value=max(2, self.update_batch_size.max_value())
             )
             self.update_start = self.add_module(
                 name='update-start', module=update.get('start', 0), modules=parameter_modules,
-                is_trainable=False, dtype='long'
+                is_trainable=False, dtype='long', min_value=0
             )
 
         # Optimizer
@@ -138,35 +134,12 @@ class TensorforceModel(Model):
             name='objective', module=objective, modules=objective_modules, is_trainable=False
         )
 
-        # Estimator
-        if not all(key in (
-            'capacity', 'discount', 'estimate_actions', 'estimate_advantage', 'estimate_horizon',
-            'estimate_terminal', 'horizon'
-        ) for key in reward_estimation):
-            raise TensorforceError.value(
-                name='agent', argument='reward_estimation', value=reward_estimation,
-                hint='not from {capacity,discount,estimate_actions,estimate_advantage,'
-                     'estimate_horizon,estimate_terminal,horizon}'
-            )
-        if baseline_policy is None and baseline_optimizer is None and baseline_objective is None:
-            estimate_horizon = False
-        else:
-            estimate_horizon = 'late'
-        self.estimator = self.add_module(
-            name='estimator', module=Estimator, is_trainable=False, values_spec=self.values_spec,
-            horizon=reward_estimation['horizon'], discount=reward_estimation.get('discount', 1.0),
-            estimate_horizon=reward_estimation.get('estimate_horizon', estimate_horizon),
-            estimate_actions=reward_estimation.get('estimate_actions', False),
-            estimate_terminal=reward_estimation.get('estimate_terminal', False),
-            estimate_advantage=reward_estimation.get('estimate_advantage', False),
-            capacity=reward_estimation['capacity']
-        )
-
         # Baseline
         if (baseline_policy is not None or baseline_objective is not None) and \
                 (baseline_optimizer is None or isinstance(baseline_optimizer, float)):
             # since otherwise not part of training
-            assert self.estimator.estimate_advantage or baseline_objective is not None
+            assert reward_estimation.get('estimate_advantage', False) or \
+                baseline_objective is not None
             is_trainable = True
         else:
             is_trainable = False
@@ -201,11 +174,58 @@ class TensorforceModel(Model):
                 is_trainable=False, is_subscope=True
             )
 
+        # Estimator
+        if not all(key in (
+            'discount', 'estimate_actions', 'estimate_advantage', 'estimate_horizon',
+            'estimate_terminal', 'horizon'
+        ) for key in reward_estimation):
+            raise TensorforceError.value(
+                name='agent', argument='reward_estimation', value=reward_estimation,
+                hint='not from {discount,estimate_actions,estimate_advantage,estimate_horizon,'
+                     'estimate_terminal,horizon}'
+            )
+        if baseline_policy is None and baseline_optimizer is None and baseline_objective is None:
+            estimate_horizon = False
+        else:
+            estimate_horizon = 'late'
+        self.estimator = self.add_module(
+            name='estimator', module=Estimator, is_trainable=False, is_saved=False,
+            values_spec=self.values_spec, horizon=reward_estimation['horizon'],
+            discount=reward_estimation.get('discount', 1.0),
+            estimate_horizon=reward_estimation.get('estimate_horizon', estimate_horizon),
+            estimate_actions=reward_estimation.get('estimate_actions', False),
+            estimate_terminal=reward_estimation.get('estimate_terminal', False),
+            estimate_advantage=reward_estimation.get('estimate_advantage', False),
+            # capacity=reward_estimation['capacity']
+            min_capacity=self.buffer_observe,
+            max_past_horizon=self.baseline_policy.max_past_horizon(is_optimization=False)
+        )
+
+        # Memory
+        if self.update_unit == 'timesteps':
+            policy_horizon = self.policy.max_past_horizon(is_optimization=True)
+            baseline_horizon = self.baseline_policy.max_past_horizon(is_optimization=True) - \
+                self.estimator.min_future_horizon()
+            min_capacity = self.update_batch_size.max_value() + 1 + \
+                self.estimator.max_future_horizon() + max(policy_horizon, baseline_horizon)
+        elif self.update_unit == 'episodes':
+            if max_episode_timesteps is None:
+                min_capacity = 0
+            else:
+                min_capacity = (self.update_batch_size.max_value() + 1) * max_episode_timesteps 
+        else:
+            assert False
+
+        self.memory = self.add_module(
+            name='memory', module=memory, modules=memory_modules, is_trainable=False,
+            values_spec=self.values_spec, min_capacity=min_capacity
+        )
+
         # Entropy regularization
         entropy_regularization = 0.0 if entropy_regularization is None else entropy_regularization
         self.entropy_regularization = self.add_module(
             name='entropy-regularization', module=entropy_regularization,
-            modules=parameter_modules, is_trainable=False, dtype='float'
+            modules=parameter_modules, is_trainable=False, dtype='float', min_value=0.0
         )
 
         # Internals initialization
@@ -232,6 +252,11 @@ class TensorforceModel(Model):
             self.actions_input[name] = self.add_placeholder(
                 name=name, dtype=action_spec['type'], shape=action_spec['shape'], batched=True
             )
+
+        # Last update
+        self.last_update = self.add_variable(
+            name='last-update', dtype='long', shape=(), initializer=-1, is_trainable=False
+        )
 
     def api_experience(self):
         # Inputs
@@ -421,28 +446,28 @@ class TensorforceModel(Model):
         zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
 
         # Dependency horizon
-        dependency_horizon = self.policy.dependency_horizon(is_optimization=False)
-        dependency_horizon = tf.math.maximum(
-            x=dependency_horizon, y=self.baseline_policy.dependency_horizon(is_optimization=False)
+        past_horizon = self.policy.past_horizon(is_optimization=False)
+        past_horizon = tf.math.maximum(
+            x=past_horizon, y=self.baseline_policy.past_horizon(is_optimization=False)
         )
 
         # TODO: handle arbitrary non-optimization horizons!
-        assertion = tf.debugging.assert_equal(
-            x=dependency_horizon, y=zero,
-            message="Temporary: policy and baseline cannot depend on previous states unless "
-                    "optimization."
-        )
-        with tf.control_dependencies(control_inputs=(assertion,)):
-            some_state = next(iter(states.values()))
-            if util.tf_dtype(dtype='long') in (tf.int32, tf.int64):
-                batch_size = tf.shape(input=some_state, out_type=util.tf_dtype(dtype='long'))[0]
-            else:
-                batch_size = tf.dtypes.cast(
-                    x=tf.shape(input=some_state)[0], dtype=util.tf_dtype(dtype='long')
-                )
-            starts = tf.range(start=batch_size, dtype=util.tf_dtype(dtype='long'))
-            lengths = tf.ones(shape=(batch_size,), dtype=util.tf_dtype(dtype='long'))
-            Module.update_tensors(dependency_starts=starts, dependency_lengths=lengths)
+        # assertion = tf.debugging.assert_equal(
+        #     x=past_horizon, y=zero,
+        #     message="Temporary: policy and baseline cannot depend on previous states unless "
+        #             "optimization."
+        # )
+        # with tf.control_dependencies(control_inputs=(assertion,)):
+        some_state = next(iter(states.values()))
+        if util.tf_dtype(dtype='long') in (tf.int32, tf.int64):
+            batch_size = tf.shape(input=some_state, out_type=util.tf_dtype(dtype='long'))[0]
+        else:
+            batch_size = tf.dtypes.cast(
+                x=tf.shape(input=some_state)[0], dtype=util.tf_dtype(dtype='long')
+            )
+        starts = tf.range(start=batch_size, dtype=util.tf_dtype(dtype='long'))
+        lengths = tf.ones(shape=(batch_size,), dtype=util.tf_dtype(dtype='long'))
+        Module.update_tensors(dependency_starts=starts, dependency_lengths=lengths)
 
         # Policy act
         actions, next_internals = self.policy.act(
@@ -461,6 +486,7 @@ class TensorforceModel(Model):
 
     def tf_core_observe(self, states, internals, auxiliaries, actions, terminal, reward):
         zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
+        one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
 
         # Experience
         experienced = self.core_experience(
@@ -469,7 +495,7 @@ class TensorforceModel(Model):
         )
 
         # If no periodic update
-        if self.update_frequency == 'never':
+        if self.update_frequency is None:
             return experienced
 
         # Periodic update
@@ -480,34 +506,32 @@ class TensorforceModel(Model):
 
             if self.update_unit == 'timesteps':
                 # Timestep-based batch
-                one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
-                past_horizon = self.policy.dependency_horizon(is_optimization=True)
+                past_horizon = self.policy.past_horizon(is_optimization=True)
                 past_horizon = tf.math.maximum(
-                    x=past_horizon, y=self.baseline_policy.dependency_horizon(is_optimization=True)
+                    x=past_horizon, y=self.baseline_policy.past_horizon(is_optimization=True)
                 )
-                future_horizon = self.estimator.horizon.value() + one
-                start = tf.math.maximum(x=start, y=(batch_size + past_horizon + future_horizon))
-                timestep = Module.retrieve_tensor(name='timestep')
-                timestep = timestep - self.estimator.capacity
-                is_frequency = tf.math.equal(x=tf.math.mod(x=timestep, y=frequency), y=zero)
-                at_least_start = tf.math.greater_equal(x=timestep, y=start)
+                future_horizon = self.estimator.horizon.value()
+                start = tf.math.maximum(
+                    x=start, y=(frequency + past_horizon + future_horizon + one)
+                )
+                unit = Module.retrieve_tensor(name='timestep')
 
             elif self.update_unit == 'episodes':
                 # Episode-based batch
-                start = tf.math.maximum(x=start, y=batch_size)
-                episode = Module.retrieve_tensor(name='episode')
-                is_frequency = tf.math.equal(x=tf.math.mod(x=episode, y=frequency), y=zero)
-                # Only update once per episode increment
-                terminal = tf.concat(values=((zero,), terminal), axis=0)
-                is_frequency = tf.math.logical_and(x=is_frequency, y=(terminal[-1] > zero))
-                at_least_start = tf.math.greater_equal(x=episode, y=start)
+                start = tf.math.maximum(x=start, y=frequency)
+                unit = Module.retrieve_tensor(name='episode')
+
+            unit = unit - start
+            is_frequency = tf.math.equal(x=tf.math.mod(x=unit, y=frequency), y=zero)
+            is_frequency = tf.math.logical_and(x=is_frequency, y=(unit > self.last_update))
 
             def perform_update():
-                return self.core_update()
+                assignment = self.last_update.assign(value=unit, read_value=False)
+                with tf.control_dependencies(control_inputs=(assignment,)):
+                    return self.core_update()
 
             is_updated = self.cond(
-                pred=tf.math.logical_and(x=is_frequency, y=at_least_start), true_fn=perform_update,
-                false_fn=util.no_operation
+                pred=is_frequency, true_fn=perform_update, false_fn=util.no_operation
             )
 
         return is_updated
@@ -571,13 +595,13 @@ class TensorforceModel(Model):
         if self.update_unit == 'timesteps':
             # Timestep-based batch
             # Dependency horizon
-            past_horizon = self.policy.dependency_horizon(is_optimization=True)
+            past_horizon = self.policy.past_horizon(is_optimization=True)
             past_horizon = tf.math.maximum(
-                x=past_horizon, y=self.baseline_policy.dependency_horizon(is_optimization=True)
+                x=past_horizon, y=self.baseline_policy.past_horizon(is_optimization=True)
             )
-            future_horizon = self.estimator.horizon.value() + one
+            future_horizon = self.estimator.future_horizon()
             indices = self.memory.retrieve_timesteps(
-                n=batch_size, past_padding=past_horizon, future_padding=future_horizon
+                n=batch_size, past_horizon=past_horizon, future_horizon=future_horizon
             )
         elif self.update_unit == 'episodes':
             # Episode-based batch
@@ -622,20 +646,20 @@ class TensorforceModel(Model):
             reward = tf.stop_gradient(input=reward)
 
         # Retrieve states, internals and actions
-        dependency_horizon = self.policy.dependency_horizon(is_optimization=True)
+        past_horizon = self.policy.past_horizon(is_optimization=True)
         if self.baseline_optimizer is None:
             assertion = tf.debugging.assert_equal(
-                x=dependency_horizon,
-                y=self.baseline_policy.dependency_horizon(is_optimization=True),
+                x=past_horizon,
+                y=self.baseline_policy.past_horizon(is_optimization=True),
                 message="Policy and baseline depend on a different number of previous states."
             )
         else:
-            assertion = dependency_horizon
+            assertion = past_horizon
 
         with tf.control_dependencies(control_inputs=(assertion,)):
             # horizon change: see timestep-based batch sampling
             starts, lengths, states, internals = self.memory.predecessors(
-                indices=indices, horizon=dependency_horizon, sequence_values='states',
+                indices=indices, horizon=past_horizon, sequence_values='states',
                 initial_values='internals'
             )
             Module.update_tensors(dependency_starts=starts, dependency_lengths=lengths)
@@ -875,10 +899,10 @@ class TensorforceModel(Model):
 
     def tf_optimize_baseline(self, indices):
         # Retrieve states, internals, actions and reward
-        dependency_horizon = self.baseline_policy.dependency_horizon(is_optimization=True)
+        past_horizon = self.baseline_policy.past_horizon(is_optimization=True)
         # horizon change: see timestep-based batch sampling
         starts, lengths, states, internals = self.memory.predecessors(
-            indices=indices, horizon=dependency_horizon, sequence_values='states',
+            indices=indices, horizon=past_horizon, sequence_values='states',
             initial_values='internals'
         )
         Module.update_tensors(dependency_starts=starts, dependency_lengths=lengths)

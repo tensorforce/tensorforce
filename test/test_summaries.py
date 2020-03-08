@@ -16,6 +16,8 @@
 import os
 import unittest
 
+import numpy as np
+
 from test.unittest_base import UnittestBase
 
 
@@ -32,6 +34,15 @@ class TestSummaries(UnittestBase, unittest.TestCase):
 
         # Remove directory if exists
         if os.path.exists(path=self.__class__.directory):
+            for directory in os.listdir(path=self.__class__.directory):
+                directory = os.path.join(self.__class__.directory, directory)
+                for filename in os.listdir(path=directory):
+                    os.remove(path=os.path.join(directory, filename))
+                os.rmdir(path=directory)
+            os.rmdir(path=self.__class__.directory)
+
+        # Remove directory if exists
+        if os.path.exists(path=self.__class__.directory):
             for filename in os.listdir(path=self.__class__.directory):
                 os.remove(path=os.path.join(self.__class__.directory, filename))
             os.rmdir(path=self.__class__.directory)
@@ -42,11 +53,33 @@ class TestSummaries(UnittestBase, unittest.TestCase):
         baseline_objective = 'policy_gradient'
         baseline_optimizer = 'adam'
 
-        self.unittest(
-            summarizer=dict(directory=self.__class__.directory, labels='all', frequency=2),
-            reward_estimation=reward_estimation, baseline_policy=baseline_policy,
+        agent, environment = self.prepare(
+            summarizer=dict(
+                directory=self.__class__.directory, labels='all', frequency=2, custom=dict(
+                    audio=dict(type='audio', sample_rate=44100, max_outputs=1),
+                    histogram=dict(type='histogram'),
+                    image=dict(type='image', max_outputs=1),
+                    scalar=dict(type='scalar')
+                )
+            ), reward_estimation=reward_estimation, baseline_policy=baseline_policy,
             baseline_objective=baseline_objective, baseline_optimizer=baseline_optimizer
         )
+
+        updated = False
+        while not updated:
+            states = environment.reset()
+            terminal = False
+            while not terminal:
+                actions = agent.act(states=states)
+                states, terminal, reward = environment.execute(actions=actions)
+                updated = agent.observe(terminal=terminal, reward=reward) or updated
+
+        agent.summarize(summary='image', value=np.zeros(shape=(2, 4, 2, 3)))
+        agent.summarize(summary='scalar', value=1.0, step=0)
+        agent.summarize(summary='scalar', value=2.0, step=1)
+        agent.close()
+        environment.close()
+        self.finished_test()
 
         for directory in os.listdir(path=self.__class__.directory):
             directory = os.path.join(self.__class__.directory, directory)

@@ -76,9 +76,6 @@ class Preprocessor(LayerbasedNetwork):
     def internals_init(self):
         raise NotImplementedError
 
-    def tf_dependency_horizon(self, is_optimization=False):
-        raise NotImplementedError
-
     def add_module(self, *args, **kwargs):
         layer = super().add_module(*args, **kwargs)
 

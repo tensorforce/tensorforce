@@ -30,7 +30,7 @@ class MultiStep(MetaOptimizer):
             (<span style="color:#0000C0"><b>internal use</b></span>).
         optimizer (specification): Optimizer configuration
             (<span style="color:#C00000"><b>required</b></span>).
-        num_steps (parameter, int > 0): Number of optimization steps
+        num_steps (parameter, int >= 0): Number of optimization steps
             (<span style="color:#C00000"><b>required</b></span>).
         unroll_loop (bool): Whether to unroll the repetition loop
             (<span style="color:#00C000"><b>default</b></span>: false).
@@ -48,7 +48,8 @@ class MultiStep(MetaOptimizer):
             self.num_steps = num_steps
         else:
             self.num_steps = self.add_module(
-                name='num-steps', module=num_steps, modules=parameter_modules, dtype='int'
+                name='num-steps', module=num_steps, modules=parameter_modules, dtype='int',
+                min_value=0
             )
 
     def tf_step(self, variables, arguments, fn_reference=None, **kwargs):

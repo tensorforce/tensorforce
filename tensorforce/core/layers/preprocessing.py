@@ -44,19 +44,19 @@ class Clipping(Layer):
     """
 
     def __init__(self, name, upper, lower=None, input_spec=None, summary_labels=None):
-        super().__init__(
-            name=name, input_spec=input_spec, summary_labels=summary_labels, l2_regularization=0.0
-        )
-
-        self.upper = self.add_module(
-            name='upper', module=lower, modules=parameter_modules, dtype='float'
-        )
+        super().__init__(name=name, input_spec=input_spec, summary_labels=summary_labels)
 
         if lower is None:
             self.lower = None
+            self.upper = self.add_module(
+                name='upper', module=lower, modules=parameter_modules, dtype='float', min_value=0.0
+            )
         else:
             self.lower = self.add_module(
                 name='lower', module=lower, modules=parameter_modules, dtype='float'
+            )
+            self.upper = self.add_module(
+                name='upper', module=lower, modules=parameter_modules, dtype='float'
             )
 
     def default_input_spec(self):
@@ -97,9 +97,7 @@ class Deltafier(PreprocessingLayer):
     def __init__(self, name, concatenate=False, input_spec=None, summary_labels=None):
         self.concatenate = concatenate
 
-        super().__init__(
-            name=name, input_spec=input_spec, summary_labels=summary_labels, l2_regularization=0.0
-        )
+        super().__init__(name=name, input_spec=input_spec, summary_labels=summary_labels)
 
     def default_input_spec(self):
         return dict(type='float', shape=None)
@@ -180,9 +178,7 @@ class Image(Layer):
         self.width = width
         self.grayscale = grayscale
 
-        super().__init__(
-            name=name, input_spec=input_spec, summary_labels=summary_labels, l2_regularization=0.0
-        )
+        super().__init__(name=name, input_spec=input_spec, summary_labels=summary_labels)
 
     def default_input_spec(self):
         return dict(type='float', shape=(0, 0, 0))
@@ -245,9 +241,7 @@ class Sequence(PreprocessingLayer):
         self.axis = axis
         self.concatenate = concatenate
 
-        super().__init__(
-            name=name, input_spec=input_spec, summary_labels=summary_labels, l2_regularization=0.0
-        )
+        super().__init__(name=name, input_spec=input_spec, summary_labels=summary_labels)
 
     def default_input_spec(self):
         return dict(type=None, shape=None)

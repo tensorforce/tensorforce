@@ -20,7 +20,6 @@ import os
 import h5py
 import numpy as np
 import tensorflow as tf
-from tensorflow.python.tools.freeze_graph import freeze_graph
 
 from tensorforce import TensorforceError, util
 from tensorforce.core import Module, parameter_modules
@@ -111,12 +110,12 @@ class Model(Module):
         if summarizer is None:
             self.summarizer_spec = None
         elif not all(
-            key in ('directory', 'flush', 'frequency', 'labels', 'max-summaries')
+            key in ('custom', 'directory', 'flush', 'frequency', 'labels', 'max-summaries')
             for key in summarizer
         ):
             raise TensorforceError.value(
                 name='agent', argument='summarizer', value=list(summarizer),
-                hint='not from {directory,flush,frequency,labels,max-summaries}'
+                hint='not from {custom,directory,flush,frequency,labels,max-summaries}'
             )
         elif summarizer.get('directory') is None:
             self.summarizer_spec = None
@@ -210,15 +209,23 @@ class Model(Module):
             self.exploration = OrderedDict()
             for name in self.actions_spec:
                 if name in exploration:
-                    self.exploration[name] = self.add_module(
-                        name=(name + '-exploration'), module=exploration[name],
-                        modules=parameter_modules, is_trainable=False, dtype='float'
-                    )
+                    if self.actions_spec[name]['type'] in ('bool', 'int'):
+                        self.exploration[name] = self.add_module(
+                            name=(name + '-exploration'), module=exploration[name],
+                            modules=parameter_modules, is_trainable=False, dtype='float',
+                            min_value=0.0, max_value=1.0
+                        )
+                    else:
+                        self.exploration[name] = self.add_module(
+                            name=(name + '-exploration'), module=exploration[name],
+                            modules=parameter_modules, is_trainable=False, dtype='float',
+                            min_value=0.0
+                        )
         else:
             # Same exploration for all actions
             self.exploration = self.add_module(
                 name='exploration', module=exploration, modules=parameter_modules,
-                is_trainable=False, dtype='float'
+                is_trainable=False, dtype='float', min_value=0.0
             )
 
         # Variable noise
@@ -226,7 +233,7 @@ class Model(Module):
         variable_noise = 0.0 if variable_noise is None else variable_noise
         self.variable_noise = self.add_module(
             name='variable-noise', module=variable_noise, modules=parameter_modules,
-            is_trainable=False, dtype='float'
+            is_trainable=False, dtype='float', min_value=0.0
         )
 
         # Register global tensors
@@ -761,7 +768,6 @@ class Model(Module):
         states = OrderedDict(self.states_input)
         internals = OrderedDict(self.internals_input)
         auxiliaries = OrderedDict(self.auxiliaries_input)
-        deterministic = self.deterministic_input
 
         true = tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
         zero_float = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
@@ -770,101 +776,31 @@ class Model(Module):
             input=next(iter(states.values())), out_type=util.tf_dtype(dtype='long')
         )[:1]
 
-        # Assertions
-        assertions = list()
-        # states: type and shape
-        for name, spec in self.states_spec.items():
-            tf.debugging.assert_type(
-                tensor=states[name], tf_type=util.tf_dtype(dtype=spec['type']),
-                message="Agent.act: invalid type for {} state input.".format(name)
-            )
-            shape = tf.constant(
-                value=self.unprocessed_state_shape.get(name, spec['shape']),
-                dtype=util.tf_dtype(dtype='long')
-            )
-            assertions.append(
-                tf.debugging.assert_equal(
-                    x=tf.shape(input=states[name], out_type=util.tf_dtype(dtype='long')),
-                    y=tf.concat(values=(batch_size, shape), axis=0),
-                    message="Agent.act: invalid shape for {} state input.".format(name)
-                )
-            )
-        # internals: type and shape
-        for name, spec in self.internals_spec.items():
-            tf.debugging.assert_type(
-                tensor=internals[name], tf_type=util.tf_dtype(dtype=spec['type']),
-                message="Agent.act: invalid type for {} internal input.".format(name)
-            )
-            shape = tf.constant(value=spec['shape'], dtype=util.tf_dtype(dtype='long'))
-            assertions.append(
-                tf.debugging.assert_equal(
-                    x=tf.shape(input=internals[name], out_type=util.tf_dtype(dtype='long')),
-                    y=tf.concat(values=(batch_size, shape), axis=0),
-                    message="Agent.act: invalid shape for {} internal input.".format(name)
-                )
-            )
-        # action_masks: type and shape
-        for name, spec in self.actions_spec.items():
-            if spec['type'] == 'int':
-                name = name + '_mask'
-                tf.debugging.assert_type(
-                    tensor=auxiliaries[name], tf_type=util.tf_dtype(dtype='bool'),
-                    message="Agent.act: invalid type for {} action-mask input.".format(name)
-                )
-                shape = tf.constant(
-                    value=(spec['shape'] + (spec['num_values'],)),
-                    dtype=util.tf_dtype(dtype='long')
-                )
-                assertions.append(
-                    tf.debugging.assert_equal(
-                        x=tf.shape(input=auxiliaries[name], out_type=util.tf_dtype(dtype='long')),
-                        y=tf.concat(values=(batch_size, shape), axis=0),
-                        message="Agent.act: invalid shape for {} action-mask input.".format(name)
-                    )
-                )
-                assertions.append(
-                    tf.debugging.assert_equal(
-                        x=tf.reduce_all(
-                            input_tensor=tf.reduce_any(
-                                input_tensor=auxiliaries[name], axis=(len(spec['shape']) + 1)
-                            ), axis=tuple(range(len(spec['shape']) + 1))
-                        ),
-                        y=true, message="Agent.act: at least one action has to be valid for {} "
-                                        "action-mask input.".format(name)
-                    )
-                )
-        # deterministic: type and shape
-        tf.debugging.assert_type(
-            tensor=deterministic, tf_type=util.tf_dtype(dtype='bool'),
-            message="Agent.act: invalid type for deterministic input."
-        )
-        tf.debugging.assert_scalar(
-            tensor=deterministic, message="Agent.act: deterministic input has to be a scalar."
-        )
-
         # Set global tensors
         Module.update_tensors(
             independent=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool')),
-            deterministic=deterministic, timestep=self.global_timestep, episode=self.global_episode,
-            update=self.global_update
+            deterministic=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool')),
+            timestep=self.global_timestep, episode=self.global_episode, update=self.global_update
         )
 
         one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
 
-        dependencies = assertions
-
         # Preprocessing states
         if any(name in self.preprocessing for name in self.states_spec):
-            with tf.control_dependencies(control_inputs=dependencies):
-                for name in self.states_spec:
-                    if name in self.preprocessing:
-                        states[name] = self.preprocessing[name].apply(x=states[name])
+            for name in self.states_spec:
+                if name in self.preprocessing:
+                    states[name] = self.preprocessing[name].apply(x=states[name])
             dependencies = util.flatten(xs=states)
+        else:
+            dependencies = ()
 
         # Variable noise
         variables = self.get_variables(only_trainable=True)
-        py_variable_noise, variable_noise = self.variable_noise.get_final_value()
-        if len(variables) > 0 and py_variable_noise > 0.0:
+        variable_noise = self.variable_noise.final_value()
+        if len(variables) > 0 and variable_noise > 0.0:
+            variable_noise = tf.constant(
+                value=variable_noise, dtype=util.tf_dtype(dtype=self.variable_noise.dtype)
+            )
             with tf.control_dependencies(control_inputs=dependencies):
                 dependencies = list()
                 variable_noise_tensors = list()
@@ -882,6 +818,8 @@ class Model(Module):
                         )
                     variable_noise_tensors.append(noise)
                     dependencies.append(variable.assign_add(delta=noise, read_value=False))
+        else:
+            variable_noise = None
 
         # Core act: retrieve actions and internals
         with tf.control_dependencies(control_inputs=dependencies):
@@ -890,34 +828,31 @@ class Model(Module):
             )
             dependencies = util.flatten(xs=actions) + util.flatten(xs=internals)
 
-        # Check action masks
-        # TODO: also check float bounds, move after exploration?
-        assertions = list()
-        for name, spec in self.actions_spec.items():
-            if spec['type'] == 'int':
-                indices = tf.dtypes.cast(x=actions[name], dtype=util.tf_dtype(dtype='long'))
-                indices = tf.expand_dims(input=indices, axis=-1)
-                is_unmasked = tf.gather(
-                    params=auxiliaries[name + '_mask'], indices=indices, batch_dims=-1
-                )
-                assertions.append(tf.debugging.assert_equal(
-                    x=tf.math.reduce_all(input_tensor=is_unmasked), y=true,
-                    message="Action mask check."
-                ))
-        dependencies += assertions
-
         # Exploration
         if not isinstance(self.exploration, dict):
-            py_exploration, exploration = self.exploration.get_final_value()
+            exploration = self.exploration.final_value()
+            if exploration > 0.0:
+                exploration = tf.constant(
+                    value=exploration, dtype=util.tf_dtype(dtype=self.exploration.dtype)
+                )
+            else:
+                exploration = None
 
         for name, spec in self.actions_spec.items():
             if isinstance(self.exploration, dict):
                 if name in self.exploration:
-                    py_exploration, exploration = self.exploration[name].get_final_value()
+                    exploration = self.exploration[name].final_value()
+                    if exploration > 0.0:
+                        exploration = tf.constant(
+                            value=exploration,
+                            dtype=util.tf_dtype(dtype=self.exploration[name].dtype)
+                        )
+                    else:
+                        exploration = None
                 else:
                     continue
 
-            if py_exploration <= 0.0:
+            if exploration is None:
                 continue
 
             with tf.control_dependencies(control_inputs=dependencies):
@@ -983,7 +918,7 @@ class Model(Module):
                 dependencies = util.flatten(xs=actions)
 
         # Variable noise
-        if len(variables) > 0 and py_variable_noise > 0.0:
+        if variable_noise is not None:
             with tf.control_dependencies(control_inputs=dependencies):
                 dependencies = list()
                 for variable, noise in zip(variables, variable_noise_tensors):
@@ -1413,6 +1348,23 @@ class Model(Module):
                 reward = self.preprocessing['reward'].apply(x=reward)
             dependencies = (reward,)
 
+        # Increment episode
+        def increment_episode():
+            assignments = list()
+            one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
+            assignments.append(self.episode.scatter_nd_add(
+                indices=tf.expand_dims(input=parallel, axis=1), updates=[one])
+            )
+            assignments.append(self.global_episode.assign_add(delta=one, read_value=False))
+            with tf.control_dependencies(control_inputs=assignments):
+                return util.no_operation()
+
+        with tf.control_dependencies(control_inputs=dependencies):
+            incremented_episode = self.cond(
+                pred=(terminal[-1] > zero), true_fn=increment_episode, false_fn=util.no_operation
+            )
+            dependencies = (incremented_episode,)
+
         # Core observe: retrieve observe operation
         with tf.control_dependencies(control_inputs=dependencies):
             states = OrderedDict()
@@ -1459,24 +1411,8 @@ class Model(Module):
                 )
                 dependencies = (preprocessors_reset,)
 
-        # Increment episode
-        def increment_episode():
-            assignments = list()
-            one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
-            assignments.append(self.episode.scatter_nd_add(
-                indices=tf.expand_dims(input=parallel, axis=1), updates=[one])
-            )
-            assignments.append(self.global_episode.assign_add(delta=one, read_value=False))
-            with tf.control_dependencies(control_inputs=assignments):
-                return util.no_operation()
-
-        with tf.control_dependencies(control_inputs=dependencies):
-            incremented_episode = self.cond(
-                pred=(terminal[-1] > zero), true_fn=increment_episode, false_fn=util.no_operation
-            )
-
         # Return episode
-        with tf.control_dependencies(control_inputs=(incremented_episode,)):
+        with tf.control_dependencies(control_inputs=dependencies):
             # Function-level identity operation for retrieval (plus enforce dependency)
             updated = util.identity_operation(x=is_updated, operation_name='updated-output')
             episode = util.identity_operation(
@@ -1513,6 +1449,13 @@ class Model(Module):
         fetches = util.join_scopes(self.name, variable) + '-assign'
         dtype = util.dtype(x=module.variables[scope[0]])
         feed_dict = {util.join_scopes(self.name, 'assignment-') + dtype + '-input:0': value}
+        self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
+
+    def summarize(self, summary, value, step=None):
+        fetches = util.join_scopes(self.name, summary, 'write_summary', 'Const:0')
+        feed_dict = {util.join_scopes(self.name, 'summarize-input:0'): value}
+        if step is not None:
+            feed_dict[util.join_scopes(self.name, 'summarize-step-input:0')] = step
         self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
 
     def save(self, directory, filename, format, append=None, no_act_pb=False):

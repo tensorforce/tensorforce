@@ -19,8 +19,9 @@ import time
 import unittest
 
 import numpy as np
+import tensorflow as tf
 
-from tensorforce import Agent, Environment
+from tensorforce import Agent, Environment, util
 from test.unittest_base import UnittestBase
 
 
@@ -117,6 +118,12 @@ class TestSaving(UnittestBase, unittest.TestCase):
     @pytest.mark.skip(reason='currently takes too long')
     def test_config_extended(self):
         self.start_tests(name='config extended')
+
+        # Remove directory if exists
+        if os.path.exists(path=self.__class__.directory):
+            for filename in os.listdir(path=self.__class__.directory):
+                os.remove(path=os.path.join(self.__class__.directory, filename))
+            os.rmdir(path=self.__class__.directory)
 
         # filename
         saver = dict(directory=self.__class__.directory, filename='test')
@@ -248,7 +255,10 @@ class TestSaving(UnittestBase, unittest.TestCase):
                 os.remove(path=os.path.join(self.__class__.directory, filename))
             os.rmdir(path=self.__class__.directory)
 
-        agent, environment = self.prepare(memory=50)
+        agent, environment = self.prepare(
+            policy=dict(network=dict(type='auto', internal_rnn=False)), memory=50
+            # TODO: shouldn't be necessary!
+        )
         states = environment.reset()
 
         # save: default tensorflow format
@@ -277,7 +287,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
         # load: numpy format and directory
         agent = Agent.load(
-            directory=self.__class__.directory,  format='numpy', environment=environment
+            directory=self.__class__.directory, format='numpy', environment=environment
         )
         x = agent.get_variable(variable='policy/policy-network/dense0/weights')
         self.assertTrue((x == weights1).all())
@@ -361,6 +371,20 @@ class TestSaving(UnittestBase, unittest.TestCase):
         agent.close()
         self.finished_test()
 
+        # load: pb-actonly format
+        agent = Agent.load(directory=self.__class__.directory, format='pb-actonly')
+        x = agent.session.run(fetches='agent/policy/policy-network/dense0/weights:0')
+        self.assertTrue((x == weights0).all())
+
+        # one episode
+        states = environment.reset()
+        internals = agent.initial_internals()
+        terminal = False
+        while not terminal:
+            actions, internals = agent.act(states=states, internals=internals)
+            states, terminal, _ = environment.execute(actions=actions)
+
+        agent.close()
         environment.close()
 
         os.remove(path=os.path.join(self.__class__.directory, 'agent.json'))

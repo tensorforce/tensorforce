@@ -22,9 +22,6 @@ class Solver(Module):
     equation/optimization problem.
     """
 
-    def __init__(self, name):
-        super().__init__(name=name, l2_regularization=0.0)
-
     def tf_solve(self, fn_x, *args):
         """
         Solves an equation/optimization for $x$ involving an expression $f(x)$.

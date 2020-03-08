@@ -72,8 +72,8 @@ class TensorforceAgent(Agent):
             parametrized by an automatically configured network).
         memory (int | specification): Memory configuration, see
             [memories](../modules/memories.html)
-            (<span style="color:#00C000"><b>default</b></span>: replay memory with given or
-            inferred capacity).
+            (<span style="color:#00C000"><b>default</b></span>: replay memory with either given or
+            minimum capacity).
         update (int | specification): Model update configuration with the following attributes
             (<span style="color:#C00000"><b>required</b>,
             <span style="color:#00C000"><b>default</b></span>: timesteps batch size</span>):
@@ -85,7 +85,7 @@ class TensorforceAgent(Agent):
             <li><b>frequency</b> (<i>"never" | parameter, long > 0</i>) &ndash; frequency of
             updates (<span style="color:#00C000"><b>default</b></span>: batch_size).</li>
             <li><b>start</b> (<i>parameter, long >= batch_size</i>) &ndash; number of units
-            before first update (<span style="color:#00C000"><b>default</b></span>: 0).</li>
+            before first update (<span style="color:#00C000"><b>default</b></span>: none).</li>
             </ul>
         optimizer (specification): Optimizer configuration, see
             [optimizers](../modules/optimizers.html)
@@ -197,6 +197,11 @@ class TensorforceAgent(Agent):
             summary writer (<span style="color:#00C000"><b>default</b></span>: 10).</li>
             <li><b>max-summaries</b> (<i>int > 0</i>) &ndash; maximum number of summaries to keep
             (<span style="color:#00C000"><b>default</b></span>: 5).</li>
+            <li><b>custom</b> (<i>dict[spec]</i>) &ndash; custom summaries which are recorded via
+            `agent.summarize(...)`, specification with either type "scalar", type "histogram" with
+            optional "buckets", type "image" with optional "max_outputs"
+            (<span style="color:#00C000"><b>default</b></span>: 3), or type "audio"
+            (<span style="color:#00C000"><b>default</b></span>: no custom summaries).</li>
             <li><b>labels</b> (<i>"all" | iter[string]</i>) &ndash; all excluding "*-histogram"
             labels, or list of summaries to record, from the following labels
             (<span style="color:#00C000"><b>default</b></span>: only "graph"):</li>
@@ -221,8 +226,9 @@ class TensorforceAgent(Agent):
             <li>"variables": variable mean and variance scalars</li>
             <li>"variables-histogram": variable histograms</li>
             </ul>
-        recorder (specification): Experience traces recorder configuration with the following
-            attributes (<span style="color:#00C000"><b>default</b></span>: no recorder):
+        recorder (specification): Experience traces recorder configuration, currently not including
+            internal states, with the following attributes
+            (<span style="color:#00C000"><b>default</b></span>: no recorder):
             <ul>
             <li><b>directory</b> (<i>path</i>) &ndash; recorder directory
             (<span style="color:#C00000"><b>required</b></span>).</li>
@@ -230,20 +236,13 @@ class TensorforceAgent(Agent):
             traces (<span style="color:#00C000"><b>default</b></span>: every episode).</li>
             <li><b>start</b> (<i>int >= 0</i>) &ndash; how many episodes to skip before starting to
             record traces (<span style="color:#00C000"><b>default</b></span>: 0).</li>
-            <li><b>start</b> (<i>int >= 0</i>) &ndash; how many episodes to skip before starting to
-            record traces (<span style="color:#00C000"><b>default</b></span>: 0).</li>
             <li><b>max-traces</b> (<i>int > 0</i>) &ndash; maximum number of traces to keep
             (<span style="color:#00C000"><b>default</b></span>: all).</li>
     """
 
     def __init__(
-        self,
-        # --- required ---
-        # Environment
-        states, actions,
-        # Agent
-        update, objective, reward_estimation,
-        # --- default ---
+        # Required
+        self, states, actions, update, objective, reward_estimation,
         # Environment
         max_episode_timesteps=None,
         # Agent
@@ -308,52 +307,19 @@ class TensorforceAgent(Agent):
                     condition='max_episode_timesteps is None'
                 )
             reward_estimation['horizon'] = max_episode_timesteps
-        if 'capacity' not in reward_estimation:
-            # TODO: Doesn't take network horizon into account, needs to be set internally to max
-            # if isinstance(reward_estimation['horizon'], int):
-            #     reward_estimation['capacity'] = max(
-            #         self.buffer_observe, reward_estimation['horizon'] + 2
-            #     )
-            if max_episode_timesteps is None:
-                raise TensorforceError.required(
-                    name='agent', argument='reward_estimation[capacity]',
-                    condition='max_episode_timesteps is None'
-                )
-            if isinstance(reward_estimation['horizon'], int):
-                reward_estimation['capacity'] = max(
-                    max_episode_timesteps, reward_estimation['horizon']
-                )
-            else:
-                reward_estimation['capacity'] = max_episode_timesteps
-        self.experience_size = reward_estimation['capacity']
 
-        if memory is None or (isinstance(memory, dict) and 'capacity' not in memory):
-            # predecessor/successor?
-            if max_episode_timesteps is None:
-                raise TensorforceError.required(
-                    name='agent', argument='memory', condition='max_episode_timesteps is None'
-                )
-            elif not isinstance(update['batch_size'], int):
-                raise TensorforceError.required(
-                    name='agent', argument='memory', condition='update[batch_size] not int'
-                )
-            elif not isinstance(reward_estimation['horizon'], int):
-                raise TensorforceError.required(
-                    name='agent', argument='memory', condition='reward_estimation[horizon] not int'
-                )
-            if update['unit'] == 'timesteps':
-                capacity = update['batch_size'] + max_episode_timesteps + \
-                    reward_estimation['horizon']
-                # capacity = ceil(update['batch_size'] / max_episode_timesteps) * max_episode_timesteps
-                # capacity += int(update['batch_size'] / max_episode_timesteps >= 1.0)
-            elif update['unit'] == 'episodes':
-                capacity = update['batch_size'] * max_episode_timesteps + \
-                    max(reward_estimation['horizon'], max_episode_timesteps)
-            capacity = max(capacity, min(self.buffer_observe, max_episode_timesteps))
-            if memory is None:
-                memory = capacity
-            else:
-                memory['capacity'] = capacity
+        # TEMPORARY TODO: State value doesn't exist for Beta
+        if isinstance(baseline_policy, dict) and \
+                baseline_policy.get('type') in (None, 'default', 'parametrized_distributions') and \
+                'distributions' not in baseline_policy:
+            baseline_policy['distributions'] = dict(float='gaussian')
+        if (reward_estimation.get('estimate_horizon') is not False or \
+                reward_estimation.get('estimate_advantage') is not False or \
+                baseline_policy is not None or baseline_optimizer is not None or \
+                baseline_objective is not None) and isinstance(policy, dict) and \
+                policy.get('type') in (None, 'default', 'parametrized_distributions') and \
+                'distributions' not in policy:
+            policy['distributions'] = dict(float='gaussian')
 
         self.model = TensorforceModel(
             # Model
@@ -366,15 +332,11 @@ class TensorforceAgent(Agent):
             policy=policy, memory=memory, update=update, optimizer=optimizer, objective=objective,
             reward_estimation=reward_estimation, baseline_policy=baseline_policy,
             baseline_optimizer=baseline_optimizer, baseline_objective=baseline_objective,
-            entropy_regularization=entropy_regularization
+            entropy_regularization=entropy_regularization,
+            max_episode_timesteps=max_episode_timesteps
         )
 
-        if max_episode_timesteps is not None and \
-                self.model.memory.capacity <= max_episode_timesteps:
-            raise TensorforceError.value(
-                name='agent', argument='memory.capacity', value=self.model.memory.capacity,
-                hint='<= max_episode_timesteps'
-            )
+        self.experience_size = self.model.estimator.capacity
 
     def experience(
         self, states, actions, terminal, reward, internals=None, query=None, **kwargs
@@ -423,11 +385,13 @@ class TensorforceAgent(Agent):
 
         if isinstance(terminal, (bool, int)):
             states = util.fmap(function=(lambda x: [x]), xs=states, depth=1)
+            internals = util.fmap(function=(lambda x: [x]), xs=internals, depth=1)
             actions = util.fmap(function=(lambda x: [x]), xs=actions, depth=1)
             terminal = [terminal]
             reward = [reward]
 
         states = util.fmap(function=np.asarray, xs=states, depth=1)
+        internals = util.fmap(function=np.asarray, xs=internals, depth=1)
         actions = util.fmap(function=np.asarray, xs=actions, depth=1)
 
         if isinstance(terminal, np.ndarray):

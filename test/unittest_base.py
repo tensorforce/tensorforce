@@ -38,7 +38,7 @@ class UnittestBase(object):
     num_timesteps = None
 
     # Environment
-    min_timesteps = 1
+    min_timesteps = 2
     states = dict(
         bool_state=dict(type='bool', shape=(1,)),
         int_state=dict(type='int', shape=(2,), num_values=4),
@@ -61,7 +61,7 @@ class UnittestBase(object):
 
     # Agent
     agent = dict(
-        update=4, policy=dict(network=dict(type='auto', size=8, depth=1, internal_rnn=2)),
+        policy=dict(network=dict(type='auto', size=8, depth=1, internal_rnn=2)), update=4,
         objective='policy_gradient', reward_estimation=dict(horizon=3)
     )
 
@@ -124,7 +124,7 @@ class UnittestBase(object):
             min_timesteps = self.__class__.min_timesteps
 
         if max_episode_timesteps is None:
-            max_episode_timesteps = self.__class__.max_episode_timesteps
+            max_episode_timesteps = min_timesteps + self.__class__.max_episode_timesteps
 
         return dict(
             environment=UnittestEnvironment, max_episode_timesteps=max_episode_timesteps,
@@ -169,17 +169,18 @@ class UnittestBase(object):
                 exclude_int_action=exclude_int_action, exclude_float_action=exclude_float_action,
                 exclude_bounded_action=exclude_bounded_action
             )
-            environment.pop('max_episode_timesteps')  # given separately below
+            environment = Environment.create(environment=environment)
 
-        elif min_timesteps is not None:
+        elif min_timesteps is None:
+            if max_episode_timesteps is None:
+                max_episode_timesteps = self.__class__.max_episode_timesteps
+
+            environment = Environment.create(
+                environment=environment, max_episode_timesteps=max_episode_timesteps
+            )
+
+        else:
             raise TensorforceError.unexpected()
-
-        if max_episode_timesteps is None:
-            max_episode_timesteps = self.__class__.max_episode_timesteps
-
-        environment = Environment.create(
-            environment=environment, max_episode_timesteps=max_episode_timesteps
-        )
 
         agent = self.agent_spec(require_observe=require_observe, require_all=require_all, **agent)
 
@@ -211,12 +212,12 @@ class UnittestBase(object):
                 exclude_int_action=exclude_int_action, exclude_float_action=exclude_float_action,
                 exclude_bounded_action=exclude_bounded_action
             )
-            environment.pop('max_episode_timesteps')  # given separately below
+            max_episode_timesteps = environment.pop('max_episode_timesteps')  # runner argument
 
         elif min_timesteps is not None:
             raise TensorforceError.unexpected()
 
-        if max_episode_timesteps is None:
+        elif max_episode_timesteps is None:
             max_episode_timesteps = self.__class__.max_episode_timesteps
 
         agent = self.agent_spec(require_observe=require_observe, require_all=require_all, **agent)

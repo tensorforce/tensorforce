@@ -30,7 +30,7 @@ class ClippingStep(MetaOptimizer):
             (<span style="color:#0000C0"><b>internal use</b></span>).
         optimizer (specification): Optimizer configuration
             (<span style="color:#C00000"><b>required</b></span>).
-        threshold (parameter, float > 0.0): Clipping threshold
+        threshold (parameter, float >= 0.0): Clipping threshold
             (<span style="color:#C00000"><b>required</b></span>).
         mode ('global_norm' | 'norm' | 'value'): Clipping mode
             (<span style="color:#00C000"><b>default</b></span>: 'global_norm').
@@ -42,7 +42,8 @@ class ClippingStep(MetaOptimizer):
         super().__init__(name=name, optimizer=optimizer, summary_labels=summary_labels)
 
         self.threshold = self.add_module(
-            name='threshold', module=threshold, modules=parameter_modules, dtype='float'
+            name='threshold', module=threshold, modules=parameter_modules, dtype='float',
+            min_value=0.0
         )
 
         assert mode in ('global_norm', 'norm', 'value')

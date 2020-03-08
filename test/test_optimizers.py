@@ -21,7 +21,6 @@ from test.unittest_base import UnittestBase
 class TestOptimizers(UnittestBase, unittest.TestCase):
 
     require_observe = True
-    num_updates = 10
 
     def test_evolutionary(self):
         self.start_tests(name='evolutionary')
@@ -36,23 +35,15 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
             optimizer='adam', learning_rate=1e-3, multi_step=5, subsampling_fraction=0.5,
             clipping_threshold=1e-2, optimizing_iterations=3
         )
-        agent, environment = self.prepare(
-            optimizer=optimizer,
-            policy=dict(network=dict(type='auto', size=8, internal_rnn=False))
-            # TODO: shouldn't be necessary!
-        )
-        agent.close()
-        environment.close()
+        self.unittest(optimizer=optimizer)
+        # agent.close()
+        # environment.close()
 
     def test_natural_gradient(self):
         self.start_tests(name='natural-gradient')
 
         optimizer = dict(type='natural_gradient', learning_rate=1e-3)
-        self.unittest(
-            optimizer=optimizer,
-            policy=dict(network=dict(type='auto', size=8, internal_rnn=False))
-            # TODO: shouldn't be necessary!
-        )
+        self.unittest(optimizer=optimizer)
 
     def test_plus(self):
         self.start_tests(name='plus')
@@ -67,7 +58,7 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
         self.start_tests(name='synchronization')
 
         optimizer = dict(type='synchronization')
-        self.unittest(exclude_bounded_action=True, baseline_optimizer=optimizer)  # TODO: shouldn't be necessary!
+        self.unittest(baseline_optimizer=optimizer)
 
     def test_tf_optimizer(self):
         self.start_tests(name='tf-optimizer')

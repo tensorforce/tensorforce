@@ -30,7 +30,7 @@ class PolicyGradient(Objective):
             (<span style="color:#0000C0"><b>internal use</b></span>).
         ratio_based (bool): Whether to scale the likelihood-ratio instead of the log-likelihood
             (<span style="color:#00C000"><b>default</b></span>: false).
-        clipping_value (parameter, float > 0.0): Clipping threshold for the maximized value
+        clipping_value (parameter, float >= 0.0): Clipping threshold for the maximized value
             (<span style="color:#00C000"><b>default</b></span>: no clipping).
         early_reduce (bool): Whether to compute objective for reduced likelihoods instead of per
             likelihood (<span style="color:#00C000"><b>default</b></span>: false).
@@ -48,7 +48,8 @@ class PolicyGradient(Objective):
 
         clipping_value = 0.0 if clipping_value is None else clipping_value
         self.clipping_value = self.add_module(
-            name='clipping-value', module=clipping_value, modules=parameter_modules, dtype='float'
+            name='clipping-value', module=clipping_value, modules=parameter_modules, dtype='float',
+            min_value=0.0
         )
 
         self.early_reduce = early_reduce

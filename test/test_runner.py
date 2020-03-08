@@ -24,7 +24,6 @@ from test.unittest_base import UnittestBase
 class TestRunner(UnittestBase, unittest.TestCase):
 
     min_timesteps = 6
-    max_episode_timesteps = 10
     agent = dict(
         update=dict(unit='episodes', batch_size=12),
         policy=dict(network=dict(type='auto', size=8, depth=1, internal_rnn=2)),

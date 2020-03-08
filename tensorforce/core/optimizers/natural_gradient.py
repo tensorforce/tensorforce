@@ -28,11 +28,11 @@ class NaturalGradient(Optimizer):
     Args:
         name (string): Module name
             (<span style="color:#0000C0"><b>internal use</b></span>).
-        learning_rate (parameter, float > 0.0): Learning rate as KL-divergence of distributions
+        learning_rate (parameter, float >= 0.0): Learning rate as KL-divergence of distributions
             between optimization steps (<span style="color:#C00000"><b>required</b></span>).
-        cg_max_iterations (int > 0): Maximum number of conjugate gradient iterations.
+        cg_max_iterations (int >= 0): Maximum number of conjugate gradient iterations.
             (<span style="color:#00C000"><b>default</b></span>: 10).
-        cg_damping (float > 0.0): Conjugate gradient damping factor.
+        cg_damping (0.0 <= float <= 1.0): Conjugate gradient damping factor.
             (<span style="color:#00C000"><b>default</b></span>: 1e-3).
         cg_unroll_loop (bool): Whether to unroll the conjugate gradient loop
             (<span style="color:#00C000"><b>default</b></span>: false).
@@ -47,7 +47,8 @@ class NaturalGradient(Optimizer):
         super().__init__(name=name, summary_labels=summary_labels)
 
         self.learning_rate = self.add_module(
-            name='learning-rate', module=learning_rate, modules=parameter_modules, dtype='float'
+            name='learning-rate', module=learning_rate, modules=parameter_modules, dtype='float',
+            min_value=0.0
         )
 
         self.solver = self.add_module(

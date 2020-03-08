@@ -28,18 +28,25 @@ class PiecewiseConstant(Parameter):
         name (string): Module name
             (<span style="color:#0000C0"><b>internal use</b></span>).
         dtype ("bool" | "int" | "long" | "float"): Tensor type
-            (<span style="color:#C00000"><b>required</b></span>).
+            (<span style="color:#0000C0"><b>internal use</b></span>).
         unit ("timesteps" | "episodes" | "updates"): Unit of interval boundaries
             (<span style="color:#C00000"><b>required</b></span>).
         boundaries (iter[long]): Strictly increasing interval boundaries for constant segments
             (<span style="color:#C00000"><b>required</b></span>).
         values (iter[dtype-dependent]): Interval values of constant segments, one more than
             (<span style="color:#C00000"><b>required</b></span>).
+        min_value (dtype-compatible value): Lower parameter value bound
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        max_value (dtype-compatible value): Upper parameter value bound
+            (<span style="color:#0000C0"><b>internal use</b></span>).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
-    def __init__(self, name, dtype, unit, boundaries, values, summary_labels=None):
+    def __init__(
+        self, name, dtype, unit, boundaries, values, min_value=None, max_value=None,
+        summary_labels=None
+    ):
         if isinstance(values[0], bool):
             if dtype != 'bool':
                 raise TensorforceError.unexpected()
@@ -52,8 +59,6 @@ class PiecewiseConstant(Parameter):
         else:
             raise TensorforceError.unexpected()
 
-        super().__init__(name=name, dtype=dtype, unit=unit, summary_labels=summary_labels)
-
         assert unit in ('timesteps', 'episodes', 'updates')
         assert len(values) == len(boundaries) + 1
         assert all(isinstance(value, type(values[0])) for value in values)
@@ -61,7 +66,21 @@ class PiecewiseConstant(Parameter):
         self.boundaries = boundaries
         self.values = values
 
-    def get_parameter_value(self, step):
+        super().__init__(
+            name=name, dtype=dtype, unit=unit, min_value=min_value, max_value=max_value,
+            summary_labels=summary_labels
+        )
+
+    def min_value(self):
+        return min(self.values)
+
+    def max_value(self):
+        return max(self.values)
+
+    def final_value(self):
+        return self.values[-1]
+
+    def parameter_value(self, step):
         parameter = tf.keras.optimizers.schedules.PiecewiseConstantDecay(
             boundaries=self.boundaries, values=self.values
         )(step=step)
@@ -70,7 +89,3 @@ class PiecewiseConstant(Parameter):
             parameter = tf.dtypes.cast(x=parameter, dtype=util.tf_dtype(dtype=self.dtype))
 
         return parameter
-
-    def get_final_value(self):
-        return self.values[-1], \
-            tf.constant(value=self.values[-1], dtype=util.tf_dtype(dtype=self.dtype))

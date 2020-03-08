@@ -29,13 +29,17 @@ class Constant(Parameter):
         value (dtype-dependent): Constant hyperparameter value
             (<span style="color:#C00000"><b>required</b></span>).
         dtype ("bool" | "int" | "long" | "float"): Tensor type
-            (<span style="color:#C00000"><b>required</b></span>).
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        min_value (dtype-compatible value): Lower parameter value bound
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        max_value (dtype-compatible value): Upper parameter value bound
+            (<span style="color:#0000C0"><b>internal use</b></span>).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
     # Argument 'value' first for default specification
-    def __init__(self, name, value, dtype, summary_labels=None):
+    def __init__(self, name, value, dtype, min_value=None, max_value=None, summary_labels=None):
         if isinstance(value, bool):
             if dtype != 'bool':
                 raise TensorforceError.unexpected()
@@ -48,15 +52,23 @@ class Constant(Parameter):
         else:
             raise TensorforceError.unexpected()
 
-        super().__init__(name=name, dtype=dtype, shape=(), summary_labels=summary_labels)
-
         self.constant_value = value
 
-    def get_parameter_value(self, step):
+        super().__init__(
+            name=name, dtype=dtype, min_value=min_value, max_value=max_value,
+            summary_labels=summary_labels
+        )
+
+    def min_value(self):
+        return self.constant_value
+
+    def max_value(self):
+        return self.constant_value
+
+    def final_value(self):
+        return self.constant_value
+
+    def parameter_value(self, step):
         parameter = tf.constant(value=self.constant_value, dtype=util.tf_dtype(dtype=self.dtype))
 
         return parameter
-
-    def get_final_value(self):
-        return self.constant_value, \
-            tf.constant(value=self.constant_value, dtype=util.tf_dtype(dtype=self.dtype))

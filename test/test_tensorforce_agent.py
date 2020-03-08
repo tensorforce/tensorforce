@@ -16,6 +16,7 @@
 import os
 import unittest
 
+from tensorforce import Agent
 from test.unittest_agent import UnittestAgent
 
 
@@ -32,8 +33,6 @@ class TestTensorforceAgent(UnittestAgent, unittest.TestCase):
         agent, environment = self.prepare(
             states=states, actions=actions, require_all=True,
             update=dict(unit='episodes', batch_size=1),
-            policy=dict(network=dict(type='auto', size=8, depth=1, internal_rnn=False))
-            # TODO: shouldn't be necessary!
         )
 
         for n in range(2):
@@ -60,9 +59,7 @@ class TestTensorforceAgent(UnittestAgent, unittest.TestCase):
         actions = dict(type=self.__class__.replacement_action, shape=())
 
         agent, environment = self.prepare(
-            states=states, actions=actions, require_all=True, update=1,
-            policy=dict(network=dict(type='auto', size=8, depth=1, internal_rnn=False)),
-            # TODO: shouldn't be necessary!
+            states=states, actions=actions, require_all=True,
             recorder=dict(directory=self.__class__.directory)
         )
 
@@ -73,6 +70,14 @@ class TestTensorforceAgent(UnittestAgent, unittest.TestCase):
                 actions = agent.act(states=states)
                 states, terminal, reward = environment.execute(actions=actions)
                 agent.observe(terminal=terminal, reward=reward)
+
+        agent.close()
+
+        # recorder currently does not include internal states
+        agent = Agent.create(agent=self.agent_spec(
+            require_all=True,
+            policy=dict(network=dict(type='auto', size=8, depth=1, internal_rnn=False))
+        ), environment=environment)
 
         agent.pretrain(
             directory=self.__class__.directory, num_iterations=2, num_traces=2, num_updates=3

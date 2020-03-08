@@ -138,8 +138,11 @@ class ParametrizedDistributions(Stochastic, ActionValue):
     def internals_init(self):
         return self.network.internals_init()
 
-    def tf_dependency_horizon(self, is_optimization=False):
-        return self.network.dependency_horizon(is_optimization=is_optimization)
+    def max_past_horizon(self, is_optimization):
+        return self.network.max_past_horizon(is_optimization=is_optimization)
+
+    def tf_past_horizon(self, is_optimization):
+        return self.network.past_horizon(is_optimization=is_optimization)
 
     def tf_act(self, states, internals, auxiliaries, return_internals):
         return Stochastic.tf_act(

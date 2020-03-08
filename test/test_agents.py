@@ -28,59 +28,54 @@ class TestAgents(UnittestBase, unittest.TestCase):
     def test_ac(self):
         self.start_tests(name='AC')
         self.unittest(
-            agent='ac', network=dict(type='auto', size=8, depth=1, internal_rnn=2), batch_size=2,
+            agent='ac', batch_size=4, network=dict(type='auto', size=8, depth=1, internal_rnn=2),
             critic_network=dict(type='auto', size=8, depth=1, internal_rnn=2)
         )
 
     def test_a2c(self):
         self.start_tests(name='A2C')
         self.unittest(
-            agent='a2c', network=dict(type='auto', size=8, depth=1, internal_rnn=2), batch_size=2,
+            agent='a2c', batch_size=4, network=dict(type='auto', size=8, depth=1, internal_rnn=2),
             critic_network=dict(type='auto', size=8, depth=1, internal_rnn=2)
         )
 
     def test_dpg(self):
         self.start_tests(name='DPG')
         self.unittest(
-            actions=dict(type='float', shape=()), exclude_bool_action=True,
-            exclude_int_action=True, agent='dpg',
-            network=dict(type='auto', size=8, depth=1, internal_rnn=False), memory=100,
-            batch_size=4, critic_network=dict(type='auto', size=8, depth=1, internal_rnn=False)
-            # TODO: shouldn't be necessary!
+            actions=dict(type='float', shape=()),
+            agent='dpg', memory=100, batch_size=4,
+            network=dict(type='auto', size=8, depth=1, internal_rnn=2),
+            critic_network=dict(type='auto', size=8, depth=1, internal_rnn=2)
         )
 
     def test_dqn(self):
         self.start_tests(name='DQN')
         self.unittest(
-            agent='dqn', network=dict(type='auto', size=8, depth=1, internal_rnn=2), memory=100,
-            batch_size=4
+            agent='dqn', memory=100, batch_size=4,
+            network=dict(type='auto', size=8, depth=1, internal_rnn=2)
         )
 
     def test_dueling_dqn(self):
         self.start_tests(name='DuelingDQN')
         self.unittest(
-            agent='dueling_dqn', network=dict(type='auto', size=8, depth=1, internal_rnn=2),
-            memory=100, batch_size=4
+            agent='dueling_dqn', memory=100, batch_size=4,
+            network=dict(type='auto', size=8, depth=1, internal_rnn=2)
         )
 
     def test_ppo(self):
         self.start_tests(name='PPO')
         self.unittest(
-            agent='ppo', network=dict(type='auto', size=8, depth=1, internal_rnn=False),
-            batch_size=2
-            # TODO: shouldn't be necessary!  # TODO: shouldn't be necessary!
+            agent='ppo', batch_size=2, network=dict(type='auto', size=8, depth=1, internal_rnn=2)
         )
 
     def test_trpo(self):
         self.start_tests(name='TRPO')
         self.unittest(
-            agent='trpo', network=dict(type='auto', size=8, depth=1, internal_rnn=False),
-            batch_size=2
-            # TODO: shouldn't be necessary!  # TODO: shouldn't be necessary!
+            agent='trpo', batch_size=2, network=dict(type='auto', size=8, depth=1, internal_rnn=2)
         )
 
     def test_vpg(self):
         self.start_tests(name='VPG')
         self.unittest(
-            agent='vpg', network=dict(type='auto', size=8, depth=1, internal_rnn=2), batch_size=2
+            agent='vpg', batch_size=2, network=dict(type='auto', size=8, depth=1, internal_rnn=2)
         )

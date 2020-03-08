@@ -57,13 +57,18 @@ class ActorCritic(TensorforceAgent):
             (<span style="color:#00C000"><b>default</b></span>: not given, better implicitly
             specified via `environment` argument for `Agent.create(...)`).
 
+        batch_size (parameter, long > 0): Number of timesteps per update batch
+            (<span style="color:#C00000"><b>required</b></span>).
+
         network ("auto" | specification): Policy network configuration, see
             [networks](../modules/networks.html)
             (<span style="color:#00C000"><b>default</b></span>: "auto", automatically configured
             network).
 
-        batch_size (parameter, long > 0): Number of episodes per update batch
-            (<span style="color:#00C000"><b>default</b></span>: 10 episodes).
+        memory (int > 0): Batch memory capacity, has to fit at least maximum batch_size + maximum
+            network/estimator horizon + 1 timesteps
+            (<span style="color:#00C000"><b>default</b></span>: minimum capacity, usually does not
+            need to be changed).
         update_frequency ("never" | parameter, long > 0): Frequency of updates
             (<span style="color:#00C000"><b>default</b></span>: batch_size).
         learning_rate (parameter, float > 0.0): Optimizer learning rate
@@ -87,9 +92,6 @@ class ActorCritic(TensorforceAgent):
             [optimizers](../modules/optimizers.html), a float instead specifies a custom weight for
             the critic loss
             (<span style="color:#00C000"><b>default</b></span>: 1.0).
-
-        memory (int > 0): Memory capacity, has to fit at least around batch_size + one episode
-            (<span style="color:#00C000"><b>default</b></span>: minimum required size).
 
         preprocessing (dict[specification]): Preprocessing as layer or list of layers, see
             [preprocessing](../modules/preprocessing.html), specified per state-type or -name and
@@ -155,6 +157,11 @@ class ActorCritic(TensorforceAgent):
             summary writer (<span style="color:#00C000"><b>default</b></span>: 10).</li>
             <li><b>max-summaries</b> (<i>int > 0</i>) &ndash; maximum number of summaries to keep
             (<span style="color:#00C000"><b>default</b></span>: 5).</li>
+            <li><b>custom</b> (<i>dict[spec]</i>) &ndash; custom summaries which are recorded via
+            `agent.summarize(...)`, specification with either type "scalar", type "histogram" with
+            optional "buckets", type "image" with optional "max_outputs"
+            (<span style="color:#00C000"><b>default</b></span>: 3), or type "audio"
+            (<span style="color:#00C000"><b>default</b></span>: no custom summaries).</li>
             <li><b>labels</b> (<i>"all" | iter[string]</i>) &ndash; all excluding "*-histogram"
             labels, or list of summaries to record, from the following labels
             (<span style="color:#00C000"><b>default</b></span>: only "graph"):</li>
@@ -179,8 +186,9 @@ class ActorCritic(TensorforceAgent):
             <li>"variables": variable mean and variance scalars</li>
             <li>"variables-histogram": variable histograms</li>
             </ul>
-        recorder (specification): Experience traces recorder configuration with the following
-            attributes (<span style="color:#00C000"><b>default</b></span>: no recorder):
+        recorder (specification): Experience traces recorder configuration, currently not including
+            internal states, with the following attributes
+            (<span style="color:#00C000"><b>default</b></span>: no recorder):
             <ul>
             <li><b>directory</b> (<i>path</i>) &ndash; recorder directory
             (<span style="color:#C00000"><b>required</b></span>).</li>
@@ -193,18 +201,20 @@ class ActorCritic(TensorforceAgent):
     """
 
     def __init__(
+        # Required
+        self, states, actions, batch_size,
         # Environment
-        self, states, actions, max_episode_timesteps,
+        max_episode_timesteps=None,
         # Network
         network='auto',
+        # Memory
+        memory=None,
         # Optimization
-        batch_size=10, update_frequency=None, learning_rate=3e-4,
+        update_frequency=None, learning_rate=3e-4,
         # Reward estimation
         horizon=0, discount=0.99, state_action_value=False, estimate_terminal=False,
         # Critic
         critic_network='auto', critic_optimizer=1.0,
-        # Memory
-        memory=None,
         # Preprocessing
         preprocessing=None,
         # Exploration
@@ -217,23 +227,25 @@ class ActorCritic(TensorforceAgent):
     ):
         self.spec = OrderedDict(
             agent='ac',
-            states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
+            states=states, actions=actions, batch_size=batch_size,
+            max_episode_timesteps=max_episode_timesteps,
             network=network,
-            batch_size=batch_size, update_frequency=update_frequency, learning_rate=learning_rate,
+            memory=memory,
+            update_frequency=update_frequency, learning_rate=learning_rate,
             horizon=horizon, discount=discount, state_action_value=state_action_value,
-            estimate_terminal=estimate_terminal,
+                estimate_terminal=estimate_terminal,
             critic_network=critic_network, critic_optimizer=critic_optimizer,
             preprocessing=preprocessing,
             exploration=exploration, variable_noise=variable_noise,
             l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
             name=name, device=device, parallel_interactions=parallel_interactions, seed=seed,
-            execution=execution, saver=saver, summarizer=summarizer, recorder=recorder,
-            config=config
+                execution=execution, saver=saver, summarizer=summarizer, recorder=recorder,
+                config=config
         )
 
         policy = dict(network=network, temperature=1.0)
         if memory is None:
-            memory = dict(type='recent', capacity=(batch_size + max_episode_timesteps + horizon))
+            memory = dict(type='recent')
         else:
             memory = dict(type='recent', capacity=memory)
         if update_frequency is None:
@@ -246,8 +258,7 @@ class ActorCritic(TensorforceAgent):
             horizon=horizon, discount=discount, estimate_horizon='early',
             estimate_actions=state_action_value, estimate_terminal=estimate_terminal
         )
-        # State value doesn't exist for Beta
-        baseline_policy = dict(network=critic_network, distributions=dict(float='gaussian'))
+        baseline_policy = dict(network=critic_network)
         if state_action_value:
             baseline_objective = dict(type='value', value='action')
         else:

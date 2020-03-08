@@ -62,9 +62,9 @@ class TFOptimizer(Optimizer):
             and `TensorFlow Addons docs
             <https://www.tensorflow.org/addons/api_docs/python/tfa/optimizers>`__
             (<span style="color:#C00000"><b>required</b></span> unless given by specification key).
-        learning_rate (parameter, float > 0.0): Learning rate
+        learning_rate (parameter, float >= 0.0): Learning rate
             (<span style="color:#00C000"><b>default</b></span>: 3e-4).
-        gradient_norm_clipping (parameter, float > 0.0): Clip gradients by the ratio of the sum
+        gradient_norm_clipping (parameter, float >= 0.0): Clip gradients by the ratio of the sum
             of their norms (<span style="color:#00C000"><b>default</b></span>: 1.0).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
@@ -84,11 +84,12 @@ class TFOptimizer(Optimizer):
         assert optimizer in tensorflow_optimizers
         self.optimizer = tensorflow_optimizers[optimizer]
         self.learning_rate = self.add_module(
-            name='learning-rate', module=learning_rate, modules=parameter_modules, dtype='float'
+            name='learning-rate', module=learning_rate, modules=parameter_modules, dtype='float',
+            min_value=0.0
         )
         self.gradient_norm_clipping = self.add_module(
             name='gradient-norm-clipping', module=gradient_norm_clipping,
-            modules=parameter_modules, dtype='float'
+            modules=parameter_modules, dtype='float', min_value=0.0
         )
         self.optimizer_kwargs = kwargs
 

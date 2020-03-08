@@ -6,8 +6,13 @@ This file records all major updates and new features, starting from version 0.5.
 
 ### Latest
 
-- Changed independent mode of `agent.act` to use final values of parameters and avoid TensorFlow conditions
-- Extended `"tensorflow"` format of `agent.save` to include an optimized Protobuf model with an act-only graph as `.pb` file
+- Changed independent mode of `agent.act` to use final values of dynamic hyperparameters and avoid TensorFlow conditions
+- Extended `"tensorflow"` format of `agent.save` to include an optimized Protobuf model with an act-only graph as `.pb` file, and `Agent.load` format `"pb-actonly"` to load act-only agent based on Protobuf model
+- Support for custom summaries via new `summarizer` argument value `custom` to specify summary type, and `Agent.summarize(...)` to record summary values
+- Added min/max-bounds for dynamic hyperparameters min/max-bounds to assert valid range and infer other arguments
+- Argument `batch_size` now mandatory for all agent classes
+- Removed `Estimator` argument `capacity`, now always automatically inferred
+- Internal changes related to agent arguments `memory`, `update` and `reward_estimation`
 
 
 

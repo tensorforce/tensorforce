@@ -60,8 +60,11 @@ class Network(Module):
     def internals_init(self):
         return OrderedDict()
 
-    def tf_dependency_horizon(self, is_optimization=False):
-        return tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
+    def max_past_horizon(self, is_optimization=False):
+        raise NotImplementedError
+
+    def tf_past_horizon(self, is_optimization=False):
+        raise NotImplementedError
 
     def tf_apply(self, x, internals, return_internals=False):
         Module.update_tensors(**x)
@@ -197,11 +200,18 @@ class LayerbasedNetwork(Network):
 
         return layer
 
-    def tf_dependency_horizon(self, is_optimization=False):
-        dependencies = [super().tf_dependency_horizon()]
+    def max_past_horizon(self, is_optimization):
+        past_horizons = [0]
         for layer in self.modules.values():
             if isinstance(layer, TemporalLayer):
                 if not isinstance(layer, StatefulLayer) or is_optimization:
-                    dependencies.append(layer.dependency_horizon.value())
+                    past_horizons.append(layer.dependency_horizon.max_value())
+        return max(past_horizons)
 
-        return tf.math.reduce_max(input_tensor=tf.stack(values=dependencies, axis=0), axis=0)
+    def tf_past_horizon(self, is_optimization):
+        past_horizons = [tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))]
+        for layer in self.modules.values():
+            if isinstance(layer, TemporalLayer):
+                if not isinstance(layer, StatefulLayer) or is_optimization:
+                    past_horizons.append(layer.dependency_horizon.value())
+        return tf.math.reduce_max(input_tensor=tf.stack(values=past_horizons, axis=0), axis=0)

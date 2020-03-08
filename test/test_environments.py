@@ -31,29 +31,21 @@ class TestEnvironments(UnittestBase, unittest.TestCase):
     def test_remote_environments(self):
         self.start_tests(name='remote-environments')
 
-        agent, _ = self.prepare(
+        agent = self.agent_spec(
             require_observe=True, update=dict(unit='episodes', batch_size=1),
             parallel_interactions=2
         )
-        environment = dict(
-            environment=UnittestEnvironment, states=self.__class__.states,
-            actions=self.__class__.actions, min_timesteps=self.__class__.min_timesteps
-        )
+        environment = self.environment_spec()
 
         runner = Runner(
-            agent=agent, environment=environment, num_parallel=2, max_episode_timesteps=5,
-            remote='multiprocessing'
+            agent=agent, environment=environment, num_parallel=2, remote='multiprocessing'
         )
         runner.run(num_episodes=self.__class__.num_episodes, use_tqdm=False)
         runner.close()
         self.finished_test()
 
         def server(port):
-            Environment.create(
-                environment=environment, max_episode_timesteps=5, remote='socket-server',
-                port=port, states=self.__class__.states, actions=self.__class__.actions,
-                min_timesteps=self.__class__.min_timesteps
-            )
+            Environment.create(environment=environment, remote='socket-server', port=port)
 
         server1 = Thread(target=server, kwargs=dict(port=65432))
         server2 = Thread(target=server, kwargs=dict(port=65433))
@@ -67,7 +59,6 @@ class TestEnvironments(UnittestBase, unittest.TestCase):
         server1.join()
         server2.join()
 
-        agent.close()
         self.finished_test()
 
     # @pytest.mark.skip(reason='not installed as part of travis')

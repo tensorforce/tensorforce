@@ -20,19 +20,20 @@ import tensorflow as tf
 
 from tensorforce import TensorforceError, util
 from tensorforce.core.memories import Memory
-from tensorforce.core.utils import CircularBuffer
 
 
-class Queue(CircularBuffer, Memory):
+class Queue(Memory):
     """
     Base class for memories organized as a queue / circular buffer.
 
     Args:
         name (string): Memory name
             (<span style="color:#0000C0"><b>internal use</b></span>).
-        capacity (int > 0): Memory capacity, in experience timesteps
-            (<span style="color:#C00000"><b>required</b></span>).
         values_spec (specification): Values specification
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        capacity (int > 0): Memory capacity
+            (<span style="color:#00C000"><b>default</b></span>: minimum capacity).
+        min_capacity (int >= 0): Minimum memory capacity
             (<span style="color:#0000C0"><b>internal use</b></span>).
         device (string): Device name
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
@@ -40,19 +41,65 @@ class Queue(CircularBuffer, Memory):
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
-    def __init__(self, name, capacity, values_spec, device=None, summary_labels=None):
-        # Terminal initialization has to agree with terminal_indices
-        terminal_initializer = np.zeros(shape=(capacity,), dtype=util.np_dtype(dtype='long'))
-        terminal_initializer[-1] = 1
-        initializers = OrderedDict(terminal=terminal_initializer)
-
+    def __init__(
+        self, name, capacity=None, values_spec=None, min_capacity=0, device=None,
+        summary_labels=None
+    ):
         super().__init__(
-            name=name, capacity=capacity, values_spec=values_spec, initializers=initializers,
-            device=device, summary_labels=summary_labels
+            name=name, values_spec=values_spec, min_capacity=min_capacity, device=device,
+            summary_labels=summary_labels
         )
+
+        if capacity is None:
+            if min_capacity == 0:
+                raise TensorforceError.required(
+                    name='memory', argument='capacity', condition='unknown minimum capacity'
+                )
+            else:
+                self.capacity = min_capacity
+        elif capacity < min_capacity:
+            raise TensorforceError.value(
+                name='memory', argument='capacity', value=capacity,
+                hint=('< minimum capacity ' + str(min_capacity))
+            )
+        else:
+            self.capacity = capacity
 
     def tf_initialize(self):
         super().tf_initialize()
+
+        # Value buffers
+        self.buffers = OrderedDict()
+        for name, spec in self.values_spec.items():
+            if util.is_nested(name=name):
+                self.buffers[name] = OrderedDict()
+                for inner_name, spec in spec.items():
+                    shape = (self.capacity,) + spec['shape']
+                    self.buffers[name][inner_name] = self.add_variable(
+                        name=(inner_name + '-buffer'), dtype=spec['type'], shape=shape,
+                        is_trainable=False
+                    )
+            else:
+                shape = (self.capacity,) + spec['shape']
+                if name == 'terminal':
+                    # Terminal initialization has to agree with terminal_indices
+                    initializer = np.zeros(
+                        shape=(self.capacity,), dtype=util.np_dtype(dtype='long')
+                    )
+                    initializer[-1] = 1
+                    self.buffers[name] = self.add_variable(
+                        name=(name + '-buffer'), dtype=spec['type'], shape=shape,
+                        is_trainable=False, initializer=initializer
+                    )
+                else:
+                    self.buffers[name] = self.add_variable(
+                        name=(name + '-buffer'), dtype=spec['type'], shape=shape, is_trainable=False
+                    )
+
+        # Buffer index (modulo capacity, next index to write to)
+        self.buffer_index = self.add_variable(
+            name='buffer-index', dtype='long', shape=(), is_trainable=False, initializer='zeros'
+        )
 
         # Terminal indices
         # (oldest episode terminals first, initially the only terminal is last index)
@@ -71,84 +118,86 @@ class Queue(CircularBuffer, Memory):
     def tf_enqueue(self, states, internals, auxiliaries, actions, terminal, reward):
         zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
         one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
+        three = tf.constant(value=3, dtype=util.tf_dtype(dtype='long'))
         capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))
-        num_timesteps = tf.shape(input=terminal, out_type=util.tf_dtype(dtype='long'))[0]
+        if util.tf_dtype(dtype='long') in (tf.int32, tf.int64):
+            num_timesteps = tf.shape(input=terminal, out_type=util.tf_dtype(dtype='long'))[0]
+        else:
+            num_timesteps = tf.dtypes.cast(
+                x=tf.shape(input=terminal)[0], dtype=util.tf_dtype(dtype='long')
+            )
 
-        # Max capacity
-        latest_terminal_index = self.terminal_indices[self.episode_count]
-        max_capacity = self.buffer_index - latest_terminal_index - one
-        max_capacity = capacity - (tf.math.mod(x=max_capacity, y=capacity) + one)
+        # # Max capacity
+        # latest_terminal_index = self.terminal_indices[self.episode_count]
+        # max_capacity = self.buffer_index - latest_terminal_index - one
+        # max_capacity = capacity - (tf.math.mod(x=max_capacity, y=capacity) + one)
+
+        # Remove last observation terminal marker
+        last_index = tf.math.mod(x=(self.buffer_index - one), y=capacity)
+        last_terminal = tf.gather(params=self.buffers['terminal'], indices=(last_index,))[0]
+        corrected_terminal = tf.where(
+            condition=tf.math.equal(x=last_terminal, y=three), x=zero, y=last_terminal
+        )
+        assignment = tf.compat.v1.assign(
+            ref=self.buffers['terminal'][last_index], value=corrected_terminal
+        )
 
         # Assertions
-        assertions = [
-            # check: number of timesteps fit into effectively available buffer
-            tf.debugging.assert_less_equal(
-                x=num_timesteps, y=max_capacity, message="Memory does not have enough capacity."
-            ),
-            # at most one terminal
-            tf.debugging.assert_less_equal(
-                x=tf.math.count_nonzero(input=terminal, dtype=util.tf_dtype(dtype='long')), y=one,
-                message="Timesteps contain more than one terminal."
-            ),
-            # if terminal, last timestep in batch
-            tf.debugging.assert_equal(
-                x=tf.math.reduce_any(input_tensor=tf.math.greater(x=terminal, y=zero)),
-                y=tf.math.greater(x=terminal[-1], y=zero),
-                message="Terminal is not the last timestep."
-            ),
-            # general check: all terminal indices true
-            tf.debugging.assert_equal(
-                x=tf.reduce_all(
-                    input_tensor=tf.gather(
-                        params=tf.math.greater(x=self.buffers['terminal'], y=zero),
-                        indices=self.terminal_indices[:self.episode_count + one]
-                    )
+        with tf.control_dependencies(control_inputs=(assignment,)):
+            assertions = [
+                # check: number of timesteps fit into effectively available buffer
+                tf.debugging.assert_less_equal(
+                    x=num_timesteps, y=capacity, message="Memory does not have enough capacity."
                 ),
-                y=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool')),
-                message="Memory consistency check."
-            ),
-            # general check: only terminal indices true
-            tf.debugging.assert_equal(
-                x=tf.math.count_nonzero(
-                    input=self.buffers['terminal'], dtype=util.tf_dtype(dtype='long')
+                # at most one terminal
+                tf.debugging.assert_less_equal(
+                    x=tf.math.count_nonzero(input=terminal, dtype=util.tf_dtype(dtype='long')),
+                    y=one, message="Timesteps contain more than one terminal."
                 ),
-                y=(self.episode_count + one), message="Memory consistency check."
-            ),
-            # # general check: no terminal after last
-            # tf.debugging.assert_equal(
-            #     x=tf.reduce_any(
-            #         input_tensor=tf.gather(
-            #             params=self.buffers['terminal'], indices=tf.mathmod(
-            #                 x=(self.terminal_indices[self.episode_count] + one + tf.range(
-            #                     start=tf.math.mod(
-            #                         x=(self.buffer_index - self.terminal_indices[self.episode_count] - one),
-            #                         y=capacity
-            #                     )
-            #                 )),
-            #                 y=capacity
-            #             )
-            #         )
-            #     ),
-            #     y=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool'))
-            # )
-        ]
+                # if terminal, last timestep in batch
+                tf.debugging.assert_equal(
+                    x=tf.math.reduce_any(input_tensor=tf.math.greater(x=terminal, y=zero)),
+                    y=tf.math.greater(x=terminal[-1], y=zero),
+                    message="Terminal is not the last timestep."
+                ),
+                # general check: all terminal indices true
+                tf.debugging.assert_equal(
+                    x=tf.reduce_all(
+                        input_tensor=tf.gather(
+                            params=tf.math.greater(x=self.buffers['terminal'], y=zero),
+                            indices=self.terminal_indices[:self.episode_count + one]
+                        )
+                    ),
+                    y=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool')),
+                    message="Memory consistency check."
+                ),
+                # general check: only terminal indices true
+                tf.debugging.assert_equal(
+                    x=tf.math.count_nonzero(
+                        input=self.buffers['terminal'], dtype=util.tf_dtype(dtype='long')
+                    ),
+                    y=(self.episode_count + one), message="Memory consistency check."
+                )
+            ]
 
         # Buffer indices to overwrite
         with tf.control_dependencies(control_inputs=assertions):
-            indices = tf.range(start=self.buffer_index, limit=(self.buffer_index + num_timesteps))
-            indices = tf.math.mod(x=indices, y=capacity)
+            overwritten_indices = tf.range(
+                start=self.buffer_index, limit=(self.buffer_index + num_timesteps)
+            )
+            overwritten_indices = tf.math.mod(x=overwritten_indices, y=capacity)
 
             # Count number of overwritten episodes
             num_episodes = tf.math.count_nonzero(
-                input=tf.gather(params=self.buffers['terminal'], indices=indices), axis=0,
-                dtype=util.tf_dtype(dtype='long')
+                input=tf.gather(params=self.buffers['terminal'], indices=overwritten_indices),
+                axis=0, dtype=util.tf_dtype(dtype='long')
             )
 
-        # Shift remaining terminal indices accordingly
-        limit_index = self.episode_count + one
-        assertion = tf.debugging.assert_greater_equal(
-            x=limit_index, y=num_episodes, message="Memory episode overwriting check."
-        )
+            # Shift remaining terminal indices accordingly
+            limit_index = self.episode_count + one
+            assertion = tf.debugging.assert_greater_equal(
+                x=limit_index, y=num_episodes, message="Memory episode overwriting check."
+            )
 
         with tf.control_dependencies(control_inputs=(assertion,)):
             assignment = tf.compat.v1.assign(
@@ -160,39 +209,40 @@ class Queue(CircularBuffer, Memory):
         with tf.control_dependencies(control_inputs=(assignment,)):
             assignment = self.episode_count.assign_sub(delta=num_episodes, read_value=False)
 
-        # # Write new observations
+        # Write new observations
         with tf.control_dependencies(control_inputs=(assignment,)):
-            assignment = super().tf_enqueue(
+            indices = tf.range(start=self.buffer_index, limit=(self.buffer_index + num_timesteps))
+            indices = tf.math.mod(x=indices, y=capacity)
+            indices = tf.expand_dims(input=indices, axis=1)
+            values = dict(
                 states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
                 terminal=terminal, reward=reward
             )
+            assignments = list()
+            for name, buffer in self.buffers.items():
+                if util.is_nested(name=name):
+                    for inner_name, buffer in buffer.items():
+                        assignment = buffer.scatter_nd_update(
+                            indices=indices, updates=values[name][inner_name]
+                        )
+                        assignments.append(assignment)
+                else:
+                    if name == 'terminal':
+                        # Add last observation terminal marker
+                        corrected_terminal = tf.where(
+                            condition=tf.math.equal(x=terminal[-1], y=zero), x=three, y=terminal[-1]
+                        )
+                        assignment = buffer.scatter_nd_update(
+                            indices=indices,
+                            updates=tf.concat(values=(terminal[:-1], (corrected_terminal,)), axis=0)
+                        )
+                    else:
+                        assignment = buffer.scatter_nd_update(indices=indices, updates=values[name])
+                    assignments.append(assignment)
 
-        # # Write new observations
-        # with tf.control_dependencies(control_inputs=(assignment,)):
-        #     assignments = list()
-        #     for name, state in states.items():
-        #         assignments.append(
-        #             tf.scatter_update(ref=self.memories[name], indices=indices, updates=state)
-        #         )
-        #     for name, internal in internals.items():
-        #         assignments.append(
-        #             tf.scatter_update(ref=self.memories[name], indices=indices, updates=internal)
-        #         )
-        #     for name, action in actions.items():
-        #         assignments.append(
-        #             tf.scatter_update(ref=self.memories[name], indices=indices, updates=action)
-        #         )
-        #     assignments.append(
-        #         tf.scatter_update(ref=self.memories['terminal'], indices=indices, updates=terminal)
-        #     )
-        #     assignments.append(
-        #         tf.scatter_update(ref=self.memories['reward'], indices=indices, updates=reward)
-        #     )
-
-        # # Increment memory index
-        # with tf.control_dependencies(control_inputs=assignments):
-        #     new_memory_index = tf.math.mod(x=(self.memory_index + num_timesteps), y=capacity)
-        #     assignment = self.memory_index.assign(value=new_memory_index)
+        # Increment buffer index
+        with tf.control_dependencies(control_inputs=assignments):
+            assignment = self.buffer_index.assign_add(delta=num_timesteps, read_value=False)
 
         # Count number of new episodes
         with tf.control_dependencies(control_inputs=(assignment,)):
@@ -204,7 +254,9 @@ class Queue(CircularBuffer, Memory):
             limit_index = self.episode_count + one
             assignment = tf.compat.v1.assign(
                 ref=self.terminal_indices[limit_index: limit_index + num_new_episodes],
-                value=tf.boolean_mask(tensor=indices, mask=tf.math.greater(x=terminal, y=zero))
+                value=tf.boolean_mask(
+                    tensor=overwritten_indices, mask=tf.math.greater(x=terminal, y=zero)
+                )
             )
 
         # Increment episode count accordingly

@@ -42,9 +42,7 @@ class Pooling(Layer):
             raise TensorforceError.value(name='pooling', argument='reduction', value=reduction)
         self.reduction = reduction
 
-        super().__init__(
-            name=name, input_spec=input_spec, summary_labels=summary_labels, l2_regularization=0.0
-        )
+        super().__init__(name=name, input_spec=input_spec, summary_labels=summary_labels)
 
     def default_input_spec(self):
         return dict(type='float', shape=None)
@@ -147,9 +145,7 @@ class Pool1d(Layer):
             raise TensorforceError("Invalid stride argument for pool1d layer: {}.".format(stride))
         self.padding = padding
 
-        super().__init__(
-            name=name, input_spec=input_spec, summary_labels=summary_labels, l2_regularization=0.0
-        )
+        super().__init__(name=name, input_spec=input_spec, summary_labels=summary_labels)
 
     def default_input_spec(self):
         return dict(type='float', shape=(0, 0))
@@ -227,9 +223,7 @@ class Pool2d(Layer):
             raise TensorforceError("Invalid stride argument for pool2d layer: {}.".format(stride))
         self.padding = padding
 
-        super().__init__(
-            name=name, input_spec=input_spec, summary_labels=summary_labels, l2_regularization=0.0
-        )
+        super().__init__(name=name, input_spec=input_spec, summary_labels=summary_labels)
 
     def default_input_spec(self):
         return dict(type='float', shape=(0, 0, 0))

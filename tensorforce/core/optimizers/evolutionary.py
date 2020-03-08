@@ -29,9 +29,9 @@ class Evolutionary(Optimizer):
     Args:
         name (string): Module name
             (<span style="color:#0000C0"><b>internal use</b></span>).
-        learning_rate (parameter, float > 0.0): Learning rate
+        learning_rate (parameter, float >= 0.0): Learning rate
             (<span style="color:#C00000"><b>required</b></span>).
-        num_samples (parameter, int > 0): Number of sampled perturbations
+        num_samples (parameter, int >= 0): Number of sampled perturbations
             (<span style="color:#00C000"><b>default</b></span>: 1).
         unroll_loop (bool): Whether to unroll the sampling loop
             (<span style="color:#00C000"><b>default</b></span>: false).
@@ -45,7 +45,8 @@ class Evolutionary(Optimizer):
         super().__init__(name=name, summary_labels=summary_labels)
 
         self.learning_rate = self.add_module(
-            name='learning-rate', module=learning_rate, modules=parameter_modules, dtype='float'
+            name='learning-rate', module=learning_rate, modules=parameter_modules, dtype='float',
+            min_value=0.0
         )
 
         assert isinstance(unroll_loop, bool)
@@ -55,7 +56,8 @@ class Evolutionary(Optimizer):
             self.num_samples = num_samples
         else:
             self.num_samples = self.add_module(
-                name='num-samples', module=num_samples, modules=parameter_modules, dtype='int'
+                name='num-samples', module=num_samples, modules=parameter_modules, dtype='int',
+                min_value=0
             )
 
     def tf_step(self, variables, arguments, fn_loss, **kwargs):

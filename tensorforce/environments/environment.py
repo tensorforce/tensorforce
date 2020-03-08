@@ -425,6 +425,8 @@ class RemoteEnvironment(Environment):
         except BaseException:
             try:
                 environment.close()
+            except BaseException:
+                pass
             finally:
                 etype, value, traceback = sys.exc_info()
                 cls.remote_send(

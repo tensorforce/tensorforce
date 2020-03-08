@@ -41,12 +41,11 @@ class ExponentialNormalization(Layer):
     """
 
     def __init__(self, name, decay=0.999, axes=None, input_spec=None, summary_labels=None):
-        super().__init__(
-            name=name, input_spec=input_spec, summary_labels=summary_labels, l2_regularization=0.0
-        )
+        super().__init__(name=name, input_spec=input_spec, summary_labels=summary_labels)
 
         self.decay = self.add_module(
-            name='decay', module=decay, modules=parameter_modules, dtype='float'
+            name='decay', module=decay, modules=parameter_modules, dtype='float', min_value=0.0,
+            max_value=1.0
         )
 
         self.axes = axes if axes is None else tuple(axes)
@@ -162,9 +161,7 @@ class InstanceNormalization(Layer):
     """
 
     def __init__(self, name, axes=None, input_spec=None, summary_labels=None):
-        super().__init__(
-            name=name, input_spec=input_spec, summary_labels=summary_labels, l2_regularization=0.0
-        )
+        super().__init__(name=name, input_spec=input_spec, summary_labels=summary_labels)
 
         self.axes = axes if axes is None else tuple(axes)
 

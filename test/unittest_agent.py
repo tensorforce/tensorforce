@@ -27,7 +27,6 @@ class UnittestAgent(UnittestBase):
     has_experience = True
     has_update = True
 
-
     def test_single_state_action(self):
         self.start_tests(name='single-state-action')
 
@@ -50,9 +49,10 @@ class UnittestAgent(UnittestBase):
 
         if self.__class__.has_update:
             agent, environment = self.prepare(
-                min_timesteps=2,  # too few steps for update otherwise
-                states=states, actions=actions, require_all=True, update=1,
-                policy=dict(network=dict(type='auto', size=8, internal_rnn=False))
+                # min_timesteps=2,  # too few steps for update otherwise
+                states=states, actions=actions, require_all=True,
+                # policy=dict(network=dict(type='auto', size=8, depth=1, internal_rnn=2)),
+                # update=1
                 # TODO: shouldn't be necessary!
             )
 
@@ -76,6 +76,7 @@ class UnittestAgent(UnittestBase):
             agent.observe(terminal=terminal, reward=reward, query=query)
 
         states_batch = list()
+        internals_batch = list()
         actions_batch = list()
         terminal_batch = list()
         reward_batch = list()
@@ -86,6 +87,7 @@ class UnittestAgent(UnittestBase):
             terminal = False
             while not terminal:
                 states_batch.append(states)
+                internals_batch.append(internals)
                 actions, internals = agent.act(states=states, internals=internals, independent=True)
                 actions_batch.append(actions)
                 states, terminal, reward = environment.execute(actions=actions)
@@ -95,8 +97,8 @@ class UnittestAgent(UnittestBase):
         if self.__class__.has_experience:
             query = agent.get_query_tensors(function='experience')
             queried = agent.experience(
-                states=states_batch, actions=actions_batch, terminal=terminal_batch,
-                reward=reward_batch, query=query
+                states=states_batch, internals=internals_batch, actions=actions_batch,
+                terminal=terminal_batch, reward=reward_batch, query=query
             )
             self.assertEqual(first=len(queried), second=len(query))
 

@@ -30,7 +30,7 @@ class Value(Objective):
             (<span style="color:#0000C0"><b>internal use</b></span>).
         value ("state" | "action"): Whether to approximate the state- or state-action-value
             (<span style="color:#00C000"><b>default</b></span>: "state").
-        huber_loss (parameter, float > 0.0): Huber loss threshold
+        huber_loss (parameter, float >= 0.0): Huber loss threshold
             (<span style="color:#00C000"><b>default</b></span>: no huber loss).
         early_reduce (bool): Whether to compute objective for reduced values instead of value per
             action (<span style="color:#00C000"><b>default</b></span>: false).
@@ -48,7 +48,8 @@ class Value(Objective):
 
         huber_loss = 0.0 if huber_loss is None else huber_loss
         self.huber_loss = self.add_module(
-            name='huber-loss', module=huber_loss, modules=parameter_modules, dtype='float'
+            name='huber-loss', module=huber_loss, modules=parameter_modules, dtype='float',
+            min_value=0.0
         )
 
         self.early_reduce = early_reduce

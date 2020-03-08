@@ -261,7 +261,7 @@ class TemporalLayer(Layer):
 
         self.dependency_horizon = self.add_module(
             name='dependency-horizon', module=dependency_horizon, modules=parameter_modules,
-            is_trainable=False, dtype='long'
+            is_trainable=False, dtype='long', min_value=0
         )
 
     def tf_apply(self, x, initial=None):

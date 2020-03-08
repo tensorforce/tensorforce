@@ -34,19 +34,21 @@ class LineSearch(Iterative):
         Creates a new line search solver instance.
 
         Args:
-            max_iterations: Maximum number of iterations before termination.
-            accept_ratio: Lower limit of what improvement ratio over $x = x'$ is acceptable  
-                (based either on a given estimated improvement or with respect to the value at  
-                $x = x'$).
+            max_iterations (parameter, int >= 0): Maximum number of iterations before termination.
+            accept_ratio (parameter, 0.0 <= float <= 1.0): Lower limit of what improvement ratio
+                over $x = x'$ is acceptable (based either on a given estimated improvement or with
+                respect to the value at   $x = x'$).
             mode: Mode of movement between $x_0$ and $x'$, either 'linear' or 'exponential'.
-            parameter: Movement mode parameter, additive or multiplicative, respectively.
+            parameter (parameter, 0.0 <= float <= 1.0): Movement mode parameter, additive or
+                multiplicative, respectively.
             unroll_loop: Unrolls the TensorFlow while loop if true.
         """
         super().__init__(name=name, max_iterations=max_iterations, unroll_loop=unroll_loop)
 
         assert accept_ratio >= 0.0
         self.accept_ratio = self.add_module(
-            name='accept-ratio', module=accept_ratio, modules=parameter_modules, dtype='float'
+            name='accept-ratio', module=accept_ratio, modules=parameter_modules, dtype='float',
+            min_value=0.0, max_value=1.0
         )
 
         # TODO: Implement such sequences more generally, also useful for learning rate decay or so.
@@ -57,7 +59,8 @@ class LineSearch(Iterative):
         self.mode = mode
 
         self.parameter = self.add_module(
-            name='parameter', module=parameter, modules=parameter_modules, dtype='float'
+            name='parameter', module=parameter, modules=parameter_modules, dtype='float',
+            min_value=0.0, max_value=1.0
         )
 
     def tf_solve(self, fn_x, x_init, base_value, target_value, estimated_improvement=None):

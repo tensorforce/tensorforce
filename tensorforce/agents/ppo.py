@@ -57,13 +57,18 @@ class ProximalPolicyOptimization(TensorforceAgent):
             (<span style="color:#00C000"><b>default</b></span>: not given, better implicitly
             specified via `environment` argument for `Agent.create(...)`).
 
+        batch_size (parameter, long > 0): Number of episodes per update batch
+            (<span style="color:#C00000"><b>required</b></span>).
+
         network ("auto" | specification): Policy network configuration, see
             [networks](../modules/networks.html)
             (<span style="color:#00C000"><b>default</b></span>: "auto", automatically configured
             network).
 
-        batch_size (parameter, long > 0): Number of episodes per update batch
-            (<span style="color:#00C000"><b>default</b></span>: 10 episodes).
+        memory (int > 0): Batch memory capacity, has to fit at least maximum batch_size + 1 episodes
+            (<span style="color:#00C000"><b>default</b></span>: minimum capacity, usually does not
+            need to be changed).
+
         update_frequency ("never" | parameter, long > 0): Frequency of updates
             (<span style="color:#00C000"><b>default</b></span>: batch_size).
         learning_rate (parameter, float > 0.0): Optimizer learning rate
@@ -88,9 +93,6 @@ class ProximalPolicyOptimization(TensorforceAgent):
             [optimizers](../modules/optimizers.html), main optimizer will be used for critic if
             none, a float implies none and specifies a custom weight for the critic loss
             (<span style="color:#00C000"><b>default</b></span>: none).
-
-        memory (int > 0): Memory capacity, has to fit at least around batch_size + 1 episodes
-            (<span style="color:#00C000"><b>default</b></span>: minimum required size).
 
         preprocessing (dict[specification]): Preprocessing as layer or list of layers, see
             [preprocessing](../modules/preprocessing.html), specified per state-type or -name and
@@ -156,6 +158,11 @@ class ProximalPolicyOptimization(TensorforceAgent):
             summary writer (<span style="color:#00C000"><b>default</b></span>: 10).</li>
             <li><b>max-summaries</b> (<i>int > 0</i>) &ndash; maximum number of summaries to keep
             (<span style="color:#00C000"><b>default</b></span>: 5).</li>
+            <li><b>custom</b> (<i>dict[spec]</i>) &ndash; custom summaries which are recorded via
+            `agent.summarize(...)`, specification with either type "scalar", type "histogram" with
+            optional "buckets", type "image" with optional "max_outputs"
+            (<span style="color:#00C000"><b>default</b></span>: 3), or type "audio"
+            (<span style="color:#00C000"><b>default</b></span>: no custom summaries).</li>
             <li><b>labels</b> (<i>"all" | iter[string]</i>) &ndash; all excluding "*-histogram"
             labels, or list of summaries to record, from the following labels
             (<span style="color:#00C000"><b>default</b></span>: only "graph"):</li>
@@ -180,8 +187,9 @@ class ProximalPolicyOptimization(TensorforceAgent):
             <li>"variables": variable mean and variance scalars</li>
             <li>"variables-histogram": variable histograms</li>
             </ul>
-        recorder (specification): Experience traces recorder configuration with the following
-            attributes (<span style="color:#00C000"><b>default</b></span>: no recorder):
+        recorder (specification): Experience traces recorder configuration, currently not including
+            internal states, with the following attributes
+            (<span style="color:#00C000"><b>default</b></span>: no recorder):
             <ul>
             <li><b>directory</b> (<i>path</i>) &ndash; recorder directory
             (<span style="color:#C00000"><b>required</b></span>).</li>
@@ -194,19 +202,18 @@ class ProximalPolicyOptimization(TensorforceAgent):
     """
 
     def __init__(
-        # Environment
-        self, states, actions, max_episode_timesteps,
+        # Required
+        self, states, actions, max_episode_timesteps, batch_size,
         # Network
         network='auto',
+        # Memory
+        memory=None,
         # Optimization
-        batch_size=10, update_frequency=None, learning_rate=3e-4, subsampling_fraction=0.33,
-        optimization_steps=10,
+        update_frequency=None, learning_rate=3e-4, subsampling_fraction=0.33, optimization_steps=10,
         # Reward estimation
         likelihood_ratio_clipping=0.2, discount=0.99, estimate_terminal=False,
         # Critic
         critic_network=None, critic_optimizer=None,
-        # Memory
-        memory=None,
         # Preprocessing
         preprocessing=None,
         # Exploration
@@ -220,22 +227,25 @@ class ProximalPolicyOptimization(TensorforceAgent):
         self.spec = OrderedDict(
             agent='ppo',
             states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
+                batch_size=batch_size,
             network=network,
-            batch_size=batch_size, update_frequency=update_frequency, learning_rate=learning_rate,
+            memory=memory,
+            update_frequency=update_frequency, learning_rate=learning_rate,
+                subsampling_fraction=subsampling_fraction, optimization_steps=optimization_steps,
             likelihood_ratio_clipping=likelihood_ratio_clipping, discount=discount,
-            estimate_terminal=estimate_terminal,
+                estimate_terminal=estimate_terminal,
             critic_network=critic_network, critic_optimizer=critic_optimizer,
             preprocessing=preprocessing,
             exploration=exploration, variable_noise=variable_noise,
             l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
             name=name, device=device, parallel_interactions=parallel_interactions, seed=seed,
-            execution=execution, saver=saver, summarizer=summarizer, recorder=recorder,
-            config=config
+                execution=execution, saver=saver, summarizer=summarizer, recorder=recorder,
+                config=config
         )
 
         policy = dict(network=network, temperature=1.0)
         if memory is None:
-            memory = dict(type='recent', capacity=((batch_size + 1) * max_episode_timesteps))
+            memory = dict(type='recent')
         else:
             memory = dict(type='recent', capacity=memory)
         if update_frequency is None:
@@ -261,8 +271,7 @@ class ProximalPolicyOptimization(TensorforceAgent):
                 estimate_horizon=(False if critic_network is None else 'early'),
                 estimate_terminal=estimate_terminal, estimate_advantage=True
             )
-            # State value doesn't exist for Beta
-            baseline_policy = dict(network=critic_network, distributions=dict(float='gaussian'))
+            baseline_policy = dict(network=critic_network)
             assert critic_optimizer is not None
             baseline_objective = dict(type='value', value='state')
 

@@ -58,15 +58,17 @@ class DeterministicPolicyGradient(TensorforceAgent):
             (<span style="color:#00C000"><b>default</b></span>: not given, better implicitly
             specified via `environment` argument for `Agent.create(...)`).
 
+        memory (int > 0): Replay memory capacity, has to fit at least maximum batch_size + maximum
+            network/estimator horizon + 1 timesteps
+            (<span style="color:#C00000"><b>required</b></span>).
+        batch_size (parameter, long > 0): Number of timesteps per update batch
+            (<span style="color:#C00000"><b>required</b></span>).
+
         network ("auto" | specification): Policy network configuration, see
             [networks](../modules/networks.html)
             (<span style="color:#00C000"><b>default</b></span>: "auto", automatically configured
             network).
 
-        memory (int): Replay memory capacity, has to fit at least around batch_size + one episode
-            (<span style="color:#C00000"><b>required</b></span>).
-        batch_size (parameter, long > 0): Number of timesteps per update batch
-            (<span style="color:#00C000"><b>default</b></span>: 32 timesteps).
         update_frequency ("never" | parameter, long > 0): Frequency of updates
             (<span style="color:#00C000"><b>default</b></span>: batch_size).
         start_updating (parameter, long >= batch_size): Number of timesteps before first update
@@ -155,6 +157,11 @@ class DeterministicPolicyGradient(TensorforceAgent):
             summary writer (<span style="color:#00C000"><b>default</b></span>: 10).</li>
             <li><b>max-summaries</b> (<i>int > 0</i>) &ndash; maximum number of summaries to keep
             (<span style="color:#00C000"><b>default</b></span>: 5).</li>
+            <li><b>custom</b> (<i>dict[spec]</i>) &ndash; custom summaries which are recorded via
+            `agent.summarize(...)`, specification with either type "scalar", type "histogram" with
+            optional "buckets", type "image" with optional "max_outputs"
+            (<span style="color:#00C000"><b>default</b></span>: 3), or type "audio"
+            (<span style="color:#00C000"><b>default</b></span>: no custom summaries).</li>
             <li><b>labels</b> (<i>"all" | iter[string]</i>) &ndash; all excluding "*-histogram"
             labels, or list of summaries to record, from the following labels
             (<span style="color:#00C000"><b>default</b></span>: only "graph"):</li>
@@ -179,8 +186,9 @@ class DeterministicPolicyGradient(TensorforceAgent):
             <li>"variables": variable mean and variance scalars</li>
             <li>"variables-histogram": variable histograms</li>
             </ul>
-        recorder (specification): Experience traces recorder configuration with the following
-            attributes (<span style="color:#00C000"><b>default</b></span>: no recorder):
+        recorder (specification): Experience traces recorder configuration, currently not including
+            internal states, with the following attributes
+            (<span style="color:#00C000"><b>default</b></span>: no recorder):
             <ul>
             <li><b>directory</b> (<i>path</i>) &ndash; recorder directory
             (<span style="color:#C00000"><b>required</b></span>).</li>
@@ -194,13 +202,13 @@ class DeterministicPolicyGradient(TensorforceAgent):
 
     def __init__(
         # Required
-        self, states, actions, memory,
+        self, states, actions, memory, batch_size,
         # Environment
         max_episode_timesteps=None,
         # Network
         network='auto',
         # Optimization
-        batch_size=32, update_frequency=None, start_updating=None, learning_rate=3e-4,
+        update_frequency=None, start_updating=None, learning_rate=3e-4,
         # Reward estimation
         horizon=0, discount=0.99, estimate_terminal=False,
         # Critic
@@ -217,24 +225,23 @@ class DeterministicPolicyGradient(TensorforceAgent):
     ):
         self.spec = OrderedDict(
             agent='dpg',
-            states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
+            states=states, actions=actions, memory=memory, batch_size=batch_size,
+            max_episode_timesteps=max_episode_timesteps,
             network=network,
-            memory=memory, batch_size=batch_size, update_frequency=update_frequency,
-            start_updating=start_updating, learning_rate=learning_rate,
+            update_frequency=update_frequency, start_updating=start_updating,
+                learning_rate=learning_rate,
             horizon=horizon, discount=discount, estimate_terminal=estimate_terminal,
             critic_network=critic_network, critic_optimizer=critic_optimizer,
             preprocessing=preprocessing,
             exploration=exploration, variable_noise=variable_noise,
             l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
             name=name, device=device, parallel_interactions=parallel_interactions, seed=seed,
-            execution=execution, saver=saver, summarizer=summarizer, recorder=recorder,
-            config=config
+                execution=execution, saver=saver, summarizer=summarizer, recorder=recorder,
+                config=config
         )
 
         # TODO: action type and shape
 
-        assert max_episode_timesteps is None or \
-            memory >= batch_size + max_episode_timesteps + horizon
         policy = dict(network=network, temperature=0.0)
         memory = dict(type='replay', capacity=memory)
         update = dict(unit='timesteps', batch_size=batch_size)
@@ -243,13 +250,12 @@ class DeterministicPolicyGradient(TensorforceAgent):
         if start_updating is not None:
             update['start'] = start_updating
         optimizer = dict(type='adam', learning_rate=learning_rate)
-        objective = 'det_policy_gradient'
+        objective = 'deterministic_policy_gradient'
         reward_estimation = dict(
             horizon=horizon, discount=discount, estimate_horizon='late',
             estimate_terminal=estimate_terminal, estimate_actions=True
         )
-        # Action value doesn't exist for Beta
-        baseline_policy = dict(network=critic_network, distributions=dict(float='gaussian'))
+        baseline_policy = dict(network=critic_network)
         baseline_objective = dict(type='value', value='action')
 
         super().__init__(

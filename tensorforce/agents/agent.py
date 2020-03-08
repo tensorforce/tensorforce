@@ -25,7 +25,6 @@ import tensorflow as tf
 
 import tensorforce.agents
 from tensorforce import util, TensorforceError
-from tensorforce.core.utils.json_encoder import NumpyJSONEncoder
 
 
 class Agent(object):
@@ -132,14 +131,15 @@ class Agent(object):
                 (<span style="color:#00C000"><b>default</b></span>: current directory ".").
             filename (str): Checkpoint filename, with or without append and extension
                 (<span style="color:#00C000"><b>default</b></span>: "agent").
-            format ("tensorflow" | "numpy" | "hdf5"): File format
+            format ("tensorflow" | "numpy" | "hdf5" | "pb-actonly"): File format, "pb-actonly" loads
+                an act-only agent based on a Protobuf model
                 (<span style="color:#00C000"><b>default</b></span>: format matching directory and
                 filename, required to be unambiguous).
             environment (Environment object): Environment which the agent is supposed to be trained
                 on, environment-related arguments like state/action space specifications and
                 maximum episode length will be extract if given
-                (<span style="color:#00C000"><b>recommended</b></span>).
-            kwargs: Additional arguments.
+                (<span style="color:#00C000"><b>recommended</b></span> unless "pb-actonly" format).
+            kwargs: Additional arguments, invalid for "pb-actonly" format.
         """
         if directory is None:
             # default directory: current directory "."
@@ -151,7 +151,7 @@ class Agent(object):
 
         agent = os.path.join(directory, os.path.splitext(filename)[0] + '.json')
         if not os.path.isfile(agent):
-            assert agent[agent.rindex('-') + 1: -5].isdigit()
+            assert agent[agent.rfind('-') + 1: -5].isdigit()
             agent = agent[:agent.rindex('-')] + '.json'
         with open(agent, 'r') as fp:
             agent = json.load(fp=fp)
@@ -166,8 +166,21 @@ class Agent(object):
         if 'parallel_interactions' in kwargs and kwargs['parallel_interactions'] > 1:
             agent['parallel_interactions'] = kwargs['parallel_interactions']
 
-        agent = Agent.create(agent=agent, environment=environment, **kwargs)
-        agent.restore(directory=directory, filename=filename, format=format)
+        if format == 'pb-actonly':
+            assert environment is None
+            assert len(kwargs) == 0
+            agent = ActonlyAgent(
+                path=os.path.join(directory, os.path.splitext(filename)[0] + '.pb'),
+                states=agent['states'], actions=agent['actions'], internals=agent.get('internals'),
+                initial_internals=agent.get('initial_internals')
+            )
+
+        else:
+            agent.pop('internals')
+            agent.pop('initial_internals')
+            agent = Agent.create(agent=agent, environment=environment, **kwargs)
+            agent.restore(directory=directory, filename=filename, format=format)
+
         return agent
 
     def __init__(
@@ -333,13 +346,21 @@ class Agent(object):
             raise TensorforceError(message="Missing agent attribute model.")
 
         self.model.initialize()
+
+        self.internals_spec = self.model.internals_spec
+        self.auxiliaries_spec = self.model.auxiliaries_spec
+
         if self.model.saver_directory is not None:
-            file = os.path.join(self.model.saver_directory, self.model.saver_filename + '.json')
+            path = os.path.join(self.model.saver_directory, self.model.saver_filename + '.json')
             try:
-                with open(file, 'w') as fp:
-                    json.dump(obj=self.spec, fp=fp, cls=NumpyJSONEncoder)
+                with open(path, 'w') as fp:
+                    spec = OrderedDict(self.spec)
+                    spec['internals'] = self.internals_spec
+                    spec['initial_internals'] = self.initial_internals()
+                    json.dump(obj=spec, fp=fp, cls=TensorforceJSONEncoder)
             except BaseException:
-                os.remove(file)
+                os.remove(path)
+                raise
 
         self.reset()
 
@@ -786,7 +807,10 @@ class Agent(object):
         spec_path = os.path.join(directory, filename + '.json')
         try:
             with open(spec_path, 'w') as fp:
-                json.dump(obj=self.spec, fp=fp, cls=NumpyJSONEncoder)
+                spec = OrderedDict(self.spec)
+                spec['internals'] = self.internals_spec
+                spec['initial_internals'] = self.initial_internals()
+                json.dump(obj=spec, fp=fp, cls=TensorforceJSONEncoder)
         except BaseException:
             os.remove(spec_path)
 
@@ -936,6 +960,20 @@ class Agent(object):
         """
         self.model.assign_variable(variable=variable, value=value)
 
+    def summarize(self, summary, value, step=None):
+        """
+        Records a value for the given custom summary label.
+
+        Args:
+            variable (string): Custom summary label
+                (<span style="color:#C00000"><b>required</b></span>).
+            value (summary-compatible value): Summary value to record
+                (<span style="color:#C00000"><b>required</b></span>).
+            step (int): Summary recording step
+                (<span style="color:#00C000"><b>default</b></span>: current timestep).
+        """
+        self.model.summarize(summary=summary, value=value, step=step)
+
     def get_output_tensors(self, function):
         """
         Returns the names of output tensors for the given function.
@@ -980,3 +1018,147 @@ class Agent(object):
             raise TensorforceError.value(
                 name='agent.get_query_tensors', argument='function', value=function
             )
+
+
+class ActonlyAgent(object):
+
+    def __init__(self, path, states, actions, internals=None, initial_internals=None):
+        self.states_spec = states
+        self.actions_spec = actions
+        if internals is None:
+            assert initial_internals is None
+            self.internals_spec = OrderedDict()
+            self._initial_internals = OrderedDict()
+        else:
+            assert list(internals) == list(initial_internals)
+            self.internals_spec = internals
+            self._initial_internals = initial_internals
+
+        with tf.io.gfile.GFile(name=path, mode='rb') as filehandle:
+            graph_def = tf.compat.v1.GraphDef()
+            graph_def.ParseFromString(filehandle.read())
+        graph = tf.Graph()
+        with graph.as_default():
+            tf.graph_util.import_graph_def(graph_def=graph_def, name='')
+        graph.finalize()
+        self.session = tf.compat.v1.Session(graph=graph)
+        self.session.__enter__()
+
+    def close(self):
+        self.session.__exit__(None, None, None)
+        tf.compat.v1.reset_default_graph()
+
+    def initial_internals(self):
+        return OrderedDict(**self._initial_internals)
+
+    def act(
+        self, states, internals=None, parallel=0, independent=True, deterministic=True,
+        evaluation=True, query=None, **kwargs
+    ):
+        # Invalid arguments
+        assert parallel == 0 and independent and deterministic and evaluation and \
+            query is None and len(kwargs) == 0
+
+        assert util.reduce_all(predicate=util.not_nan_inf, xs=states)
+        internals_is_none = (internals is None)
+        if internals_is_none:
+            if len(self.internals_spec) > 0:
+                raise TensorforceError.required(name='agent.act', argument='internals')
+            internals = OrderedDict()
+
+        # Batch states
+        name = next(iter(self.states_spec))
+        batched = (np.asarray(states[name]).ndim > len(self.states_spec[name]['shape']))
+        if batched:
+            if isinstance(states[0], dict):
+                states = OrderedDict((
+                    (name, np.asarray([states[n][name] for n in range(len(parallel))]))
+                    for name in states[0]
+                ))
+            else:
+                states = np.asarray(states)
+            internals = OrderedDict((
+                (name, np.asarray([internals[n][name] for n in range(len(parallel))]))
+                for name in internals[0]
+            ))
+        else:
+            states = util.fmap(
+                function=(lambda x: np.asarray([x])), xs=states,
+                depth=int(isinstance(states, dict))
+            )
+            internals = util.fmap(function=(lambda x: np.asarray([x])), xs=internals, depth=1)
+
+        # Auxiliaries
+        auxiliaries = OrderedDict()
+        if isinstance(states, dict):
+            states = dict(states)
+            for name, spec in self.actions_spec.items():
+                if spec['type'] == 'int' and name + '_mask' in states:
+                    auxiliaries[name + '_mask'] = states.pop(name + '_mask')
+
+        # Normalize states dictionary
+        states = util.normalize_values(
+            value_type='state', values=states, values_spec=self.states_spec
+        )
+
+        # Model.act()
+        fetches = (
+            {
+                name: util.join_scopes('agent.independent_act', name + '-output:0')
+                for name in self.actions_spec
+            }, {
+                name: util.join_scopes('agent.independent_act', name + '-output:0')
+                for name in self.internals_spec
+            }
+        )
+
+        feed_dict = dict()
+        for name, state in states.items():
+            feed_dict[util.join_scopes('agent', name + '-input:0')] = state
+        for name, auxiliary in auxiliaries.items():
+            feed_dict[util.join_scopes('agent', name + '-input:0')] = auxiliary
+        for name, internal in internals.items():
+            feed_dict[util.join_scopes('agent', name + '-input:0')] = internal
+
+        actions, internals = self.session.run(fetches=fetches, feed_dict=feed_dict)
+
+        # Reverse normalized actions dictionary
+        actions = util.unpack_values(
+            value_type='action', values=actions, values_spec=self.actions_spec
+        )
+
+        # Unbatch actions
+        if batched:
+            if isinstance(actions, dict):
+                actions = [
+                    OrderedDict(((name, actions[name][n]) for name in actions))
+                    for n in range(len(parallel))
+                ]
+        else:
+            actions = util.fmap(
+                function=(lambda x: x[0]), xs=actions, depth=int(isinstance(actions, dict))
+            )
+            internals = util.fmap(function=(lambda x: x[0]), xs=internals, depth=1)
+
+        if internals_is_none:
+            if len(internals) > 0:
+                raise TensorforceError.unexpected()
+            return actions
+        else:
+            return actions, internals
+
+
+class TensorforceJSONEncoder(json.JSONEncoder):
+    """
+    Custom JSON encoder which is NumPy-compatible.
+    """
+
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        else:
+            return super().default(obj)

@@ -203,7 +203,7 @@ class Module(object):
             self.l2_regularization = None  # for first module
             self.l2_regularization = self.add_module(
                 name='l2-regularization', module=l2_regularization, modules=parameter_modules,
-                is_trainable=False, dtype='float'
+                is_trainable=False, dtype='float', min_value=0.0
             )
         else:
             # Otherwise inherit arguments
@@ -358,6 +358,48 @@ class Module(object):
                 )
 
                 if self.summarizer_spec is not None:
+                    if len(self.summarizer_spec.get('custom', ())) > 0:
+                        self.summarize_input = self.add_placeholder(
+                            name='summarize', dtype='float', shape=None, batched=False
+                        )
+                        self.summarize_step_input = self.add_placeholder(
+                            name='summarize-step', dtype='long', shape=(), batched=False,
+                            default=tf.identity(input=self.global_timestep)
+                        )
+                        self.custom_summaries = OrderedDict()
+                        for name, summary in self.summarizer_spec['custom'].items():
+                            if summary['type'] == 'audio':
+                                self.custom_summaries[name] = tf.summary.audio(
+                                    name=name, data=self.summarize_input,
+                                    sample_rate=summary['sample_rate'],
+                                    step=self.summarize_step_input,
+                                    max_outputs=summary.get('max_outputs', 3),
+                                    encoding=summary.get('encoding')
+                                )
+                            elif summary['type'] == 'histogram':
+                                self.custom_summaries[name] = tf.summary.histogram(
+                                    name=name, data=self.summarize_input,
+                                    step=self.summarize_step_input,
+                                    buckets=summary.get('buckets')
+                                )
+                            elif summary['type'] == 'image':
+                                self.custom_summaries[name] = tf.summary.image(
+                                    name=name, data=self.summarize_input,
+                                    step=self.summarize_step_input,
+                                    max_outputs=summary.get('max_outputs', 3)
+                                )
+                            elif summary['type'] == 'scalar':
+                                self.custom_summaries[name] = tf.summary.scalar(
+                                    name=name,
+                                    data=tf.reshape(tensor=self.summarize_input, shape=()),
+                                    step=self.summarize_step_input
+                                )
+                            else:
+                                raise TensorforceError.value(
+                                    name='custom summary', argument='type', value=summary['type'],
+                                    hint='not in {audio,histogram,image,scalar}'
+                                )
+
                     record_summaries.__exit__(None, None, None)
 
                     Module.global_summary_step = 'update'

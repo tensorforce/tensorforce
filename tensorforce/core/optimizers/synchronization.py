@@ -30,9 +30,9 @@ class Synchronization(Optimizer):
             (<span style="color:#0000C0"><b>internal use</b></span>).
         optimizer (specification): Optimizer configuration
             (<span style="color:#C00000"><b>required</b></span>).
-        sync_frequency (parameter, int > 0): Interval between updates which also perform a
+        sync_frequency (parameter, int >= 1): Interval between updates which also perform a
             synchronization step (<span style="color:#00C000"><b>default</b></span>: every update).
-        update_weight (parameter, 0.0 < float <= 1.0): Update weight
+        update_weight (parameter, 0.0 <= float <= 1.0): Update weight
             (<span style="color:#00C000"><b>default</b></span>: 1.0).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
@@ -42,11 +42,13 @@ class Synchronization(Optimizer):
         super().__init__(name=name, summary_labels=summary_labels)
 
         self.sync_frequency = self.add_module(
-            name='sync-frequency', module=sync_frequency, modules=parameter_modules, dtype='long'
+            name='sync-frequency', module=sync_frequency, modules=parameter_modules, dtype='long',
+            min_value=1
         )
 
         self.update_weight = self.add_module(
-            name='update-weight', module=update_weight, modules=parameter_modules, dtype='float'
+            name='update-weight', module=update_weight, modules=parameter_modules, dtype='float',
+            min_value=0.0, max_value=1.0
         )
 
     def tf_initialize(self):

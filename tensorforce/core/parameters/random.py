@@ -27,11 +27,15 @@ class Random(Parameter):
         name (string): Module name
             (<span style="color:#0000C0"><b>internal use</b></span>).
         dtype ("bool" | "int" | "long" | "float"): Tensor type
-            (<span style="color:#C00000"><b>required</b></span>).
+            (<span style="color:#0000C0"><b>internal use</b></span>).
         distribution ("normal" | "uniform"): Distribution type for random hyperparameter value
             (<span style="color:#C00000"><b>required</b></span>).
         shape (iter[int > 0]): Tensor shape
-            (<span style="color:#00C000"><b>default</b></span>: scalar).
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        min_value (dtype-compatible value): Lower parameter value bound
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        max_value (dtype-compatible value): Upper parameter value bound
+            (<span style="color:#0000C0"><b>internal use</b></span>).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         kwargs: Additional arguments dependent on distribution type.<br>
@@ -52,15 +56,56 @@ class Random(Parameter):
             </ul>
         """
 
-    def __init__(self, name, dtype, distribution, shape=(), summary_labels=None, **kwargs):
-        super().__init__(name=name, dtype=dtype, shape=shape, summary_labels=summary_labels)
-
+    def __init__(
+        self, name, dtype, distribution, shape=(), min_value=None, max_value=None,
+        summary_labels=None, **kwargs
+    ):
+        assert dtype in ('int', 'long', 'float')
         assert distribution in ('normal', 'uniform')
 
         self.distribution = distribution
         self.kwargs = kwargs
 
-    def get_parameter_value(self, step):
+        super().__init__(
+            name=name, dtype=dtype, shape=shape, min_value=min_value, max_value=max_value,
+            summary_labels=summary_labels
+        )
+
+    def min_value(self):
+        if self.distribution == 'uniform':
+            if self.dtype == 'int' or self.dtype == 'long':
+                return int(self.kwargs.get('minval', 0))
+            elif self.dtype == 'float':
+                return int(self.kwargs.get('minval', 0.0))
+        else:
+            return super().min_value()
+
+    def max_value(self):
+        if self.distribution == 'uniform':
+            if self.dtype == 'int' or self.dtype == 'long':
+                return float(self.kwargs['maxval'])
+            elif self.dtype == 'float':
+                return float(self.kwargs.get('maxval', 1.0))
+        else:
+            return super().max_value()
+
+    def final_value(self):
+        if self.distribution == 'normal':
+            return util.py_dtype(dtype=self.dtype)(self.kwargs.get('mean', 0.0))
+
+        elif self.distribution == 'uniform':
+            if self.kwargs.get('maxval', None) is None:
+                return 0.5
+
+            else:
+                return util.py_dtype(dtype=self.dtype)(
+                    self.kwargs['maxval'] - self.kwargs.get('minval', 0)
+                )
+
+        else:
+            assert False
+
+    def parameter_value(self, step):
         if self.distribution == 'normal':
             parameter = tf.random.normal(
                 shape=self.shape, dtype=util.tf_dtype(dtype=self.dtype),
@@ -74,17 +119,3 @@ class Random(Parameter):
             )
 
         return parameter
-
-    def get_final_value(self):
-        if self.distribution == 'normal':
-            return self.kwargs.get('mean', 0.0), tf.constant(
-                value=self.kwargs.get('mean', 0.0), dtype=util.tf_dtype(dtype=self.dtype)
-            )
-
-        elif self.distribution == 'uniform':
-            if self.kwargs.get('maxval', None) is None:
-                return 0.5, tf.constant(value=0.5, dtype=util.tf_dtype(dtype=self.dtype))
-
-            else:
-                value = self.kwargs['maxval'] - self.kwargs.get('minval', 0)
-                return value, tf.constant(value=value, dtype=util.tf_dtype(dtype=self.dtype))

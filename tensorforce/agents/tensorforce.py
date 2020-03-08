@@ -386,12 +386,14 @@ class TensorforceAgent(Agent):
         if isinstance(terminal, (bool, int)):
             states = util.fmap(function=(lambda x: [x]), xs=states, depth=1)
             internals = util.fmap(function=(lambda x: [x]), xs=internals, depth=1)
+            auxiliaries = util.fmap(function=(lambda x: [x]), xs=auxiliaries, depth=1)
             actions = util.fmap(function=(lambda x: [x]), xs=actions, depth=1)
             terminal = [terminal]
             reward = [reward]
 
         states = util.fmap(function=np.asarray, xs=states, depth=1)
         internals = util.fmap(function=np.asarray, xs=internals, depth=1)
+        auxiliaries = util.fmap(function=np.asarray, xs=auxiliaries, depth=1)
         actions = util.fmap(function=np.asarray, xs=actions, depth=1)
 
         if isinstance(terminal, np.ndarray):

@@ -220,6 +220,18 @@ def dtype(x):
             raise TensorforceError.value(name='util.dtype', argument='x', value=x.dtype)
 
 
+def is_dtype(x, dtype):
+    for str_dtype, tf_dtype in tf_dtype_mapping.items():
+        if x.dtype == tf_dtype and dtype == str_dtype:
+            return True
+    else:
+        return False
+        # if x.dtype == tf.float32:
+        #     return 'float'
+        # else:
+        #     raise TensorforceError.value(name='util.dtype', argument='x', value=x.dtype)
+
+
 def rank(x):
     return x.get_shape().ndims
 
@@ -236,7 +248,7 @@ def no_operation():
 
 def identity_operation(x, operation_name=None):
     zero = tf.zeros_like(input=x)
-    if dtype(x=zero) == 'bool':
+    if is_dtype(x=zero, dtype='bool'):
         x = tf.math.logical_or(x=x, y=zero, name=operation_name)
     elif dtype(x=zero) in ('int', 'long', 'float'):
         x = tf.math.add(x=x, y=zero, name=operation_name)
@@ -718,9 +730,10 @@ def unify_value_specs(value_spec1, value_spec2):
 def is_consistent_with_value_spec(value_spec, x):
     if value_spec['type'] is None:
         pass
-    elif is_iterable(x=value_spec['type']) and dtype(x=x) in value_spec['type']:
+    elif is_iterable(x=value_spec['type']) and \
+            any(is_dtype(x=x, dtype=dtype) for dtype in value_spec['type']):
         pass
-    elif dtype(x=x) == value_spec['type']:
+    elif is_dtype(x=x, dtype=value_spec['type']):
         pass
     else:
         return False

@@ -85,7 +85,7 @@ class PiecewiseConstant(Parameter):
             boundaries=self.boundaries, values=self.values
         )(step=step)
 
-        if util.dtype(x=parameter) != self.dtype:
+        if not util.is_dtype(x=parameter, dtype=self.dtype):
             parameter = tf.dtypes.cast(x=parameter, dtype=util.tf_dtype(dtype=self.dtype))
 
         return parameter

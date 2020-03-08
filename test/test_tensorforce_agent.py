@@ -27,12 +27,8 @@ class TestTensorforceAgent(UnittestAgent, unittest.TestCase):
     def test_act_experience_update(self):
         self.start_tests(name='act-experience-update')
 
-        states = dict(type='float', shape=(1,))
-        actions = dict(type=self.__class__.replacement_action, shape=())
-
         agent, environment = self.prepare(
-            states=states, actions=actions, require_all=True,
-            update=dict(unit='episodes', batch_size=1),
+            require_all=True, update=dict(unit='episodes', batch_size=1)
         )
 
         for n in range(2):
@@ -55,12 +51,8 @@ class TestTensorforceAgent(UnittestAgent, unittest.TestCase):
         # FEATURES.MD
         self.start_tests(name='pretrain')
 
-        states = dict(type='float', shape=(1,))
-        actions = dict(type=self.__class__.replacement_action, shape=())
-
         agent, environment = self.prepare(
-            states=states, actions=actions, require_all=True,
-            recorder=dict(directory=self.__class__.directory)
+            require_all=True, recorder=dict(directory=self.__class__.directory)
         )
 
         for _ in range(3):

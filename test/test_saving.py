@@ -255,9 +255,9 @@ class TestSaving(UnittestBase, unittest.TestCase):
                 os.remove(path=os.path.join(self.__class__.directory, filename))
             os.rmdir(path=self.__class__.directory)
 
+        # TODO: currently Protobuf saving is not compatible with internal state RNNs
         agent, environment = self.prepare(
-            policy=dict(network=dict(type='auto', internal_rnn=False)), memory=50
-            # TODO: shouldn't be necessary!
+            policy=dict(network=dict(type='auto', size=8, depth=1, internal_rnn=False)), memory=50
         )
         states = environment.reset()
 

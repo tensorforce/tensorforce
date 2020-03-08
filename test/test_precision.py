@@ -25,24 +25,26 @@ from test.unittest_base import UnittestBase
 
 class TestPrecision(UnittestBase, unittest.TestCase):
 
-    exclude_bounded_action = True  # TODO: shouldn't be necessary!
     require_observe = True
 
     def test_precision(self):
         self.start_tests()
 
         try:
+            # TODO: long=int32 since some operations like tf.math.maximum expect >= int32
             util.np_dtype_mapping = dict(
-                bool=np.bool_, int=np.int16, long=np.int32, float=np.float32  # TODO: float16
+                bool=np.bool_, int=np.int16, long=np.int32, float=np.float16
             )
             util.tf_dtype_mapping = dict(
-                bool=tf.bool, int=tf.int16, long=tf.int32, float=tf.float32  # TODO: float16
+                bool=tf.bool, int=tf.int16, long=tf.int32, float=tf.float16
             )
 
-            self.unittest(policy=dict(network=dict(type='auto', internal_rnn=False)))
-            # TODO: shouldn't be necessary!
+            # TODO: Keras RNNs use float32 which causes mismatch during optimization
+            self.unittest(
+                policy=dict(network=dict(type='auto', size=8, depth=1, internal_rnn=False))
+            )
 
-        except Exception as exc:
+        except BaseException as exc:
             raise exc
             self.assertTrue(expr=False)
 

@@ -28,7 +28,6 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
     )
     require_observe = True
 
-    @pytest.mark.skip(reason='temporary')
     def test_no_horizon_estimate(self):
         self.start_tests(name='no horizon estimate')
 
@@ -40,7 +39,6 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         reward_estimation = dict(horizon=10, discount=0.99, estimate_horizon=False)
         self.unittest(reward_estimation=reward_estimation)
 
-    @pytest.mark.skip(reason='temporary')
     def test_early_horizon_estimate(self):
         self.start_tests(name='early horizon estimate')
 
@@ -48,11 +46,15 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         self.unittest(reward_estimation=reward_estimation)
 
         reward_estimation = dict(horizon=2, estimate_horizon='early', estimate_actions=True)
+        baseline_objective = 'policy_gradient'
         baseline_optimizer = 'adam'
-        self.unittest(reward_estimation=reward_estimation, baseline_optimizer=baseline_optimizer)
+        self.unittest(
+            reward_estimation=reward_estimation, baseline_objective=baseline_objective,
+            baseline_optimizer=baseline_optimizer
+        )
 
         reward_estimation = dict(horizon=2, estimate_horizon='early', estimate_terminal=True)
-        # requires same internal_rnn as main policy
+        # TODO: currently requires same internal RNN horizon
         baseline_policy = dict(network=dict(type='auto', size=7, depth=1, internal_rnn=2))
         baseline_objective = 'policy_gradient'
         self.unittest(
@@ -71,7 +73,6 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
             baseline_objective=baseline_objective, baseline_optimizer=baseline_optimizer
         )
 
-    @pytest.mark.skip(reason='temporary')
     def test_late_horizon_estimate(self):
         self.start_tests(name='late horizon estimate')
 
@@ -106,7 +107,6 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
             baseline_objective=baseline_objective, baseline_optimizer=baseline_optimizer
         )
 
-    @pytest.mark.skip(reason='temporary')
     def test_advantage_estimate(self):
         self.start_tests(name='advantage estimate')
 
@@ -116,8 +116,9 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         reward_estimation = dict(
             horizon=2, estimate_horizon='early', estimate_actions=True, estimate_advantage=True
         )
-        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, internal_rnn=1))
-        self.unittest(reward_estimation=reward_estimation)
+        # TODO: currently requires same internal RNN horizon
+        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, internal_rnn=2))
+        self.unittest(reward_estimation=reward_estimation, baseline_policy=baseline_policy)
 
         reward_estimation = dict(
             horizon=2, estimate_horizon='late', estimate_terminal=True, estimate_advantage=True

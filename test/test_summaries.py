@@ -23,7 +23,6 @@ from test.unittest_base import UnittestBase
 
 class TestSummaries(UnittestBase, unittest.TestCase):
 
-    exclude_bounded_action = True  # TODO: shouldn't be necessary!
     require_observe = True
 
     directory = 'test/test-summaries'
@@ -49,7 +48,7 @@ class TestSummaries(UnittestBase, unittest.TestCase):
 
         # TODO: 'dropout'
         reward_estimation = dict(horizon=2, estimate_horizon='late')
-        baseline_policy = dict(network=dict(type='auto', size=8, internal_rnn=1))
+        baseline_policy = dict(network=dict(type='auto', size=8, depth=1, internal_rnn=1))
         baseline_objective = 'policy_gradient'
         baseline_optimizer = 'adam'
 

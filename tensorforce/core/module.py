@@ -887,7 +887,7 @@ class Module(object):
             #     raise TensorforceError.unexpected()
             if not isinstance(default, tf.Tensor):
                 raise TensorforceError.unexpected()
-            elif util.dtype(x=default) != dtype:
+            elif not util.is_dtype(x=default, dtype=dtype):
                 raise TensorforceError.unexpected()
 
         # Placeholder

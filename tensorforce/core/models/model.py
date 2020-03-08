@@ -640,20 +640,22 @@ class Model(Module):
                 # default = tf.constant(
                 #     value=True, dtype=util.tf_dtype(dtype='bool'), shape=((1,) + shape)
                 # )
-                shape = tf.concat(
-                    values=(
-                        tf.shape(
-                            input=next(iter(self.states_input.values())),
-                            out_type=util.tf_dtype(dtype='long')
-                        )[:1],
-                        tf.constant(
-                            value=(action_spec['shape'] + (action_spec['num_values'],)),
-                            dtype=util.tf_dtype(dtype='long')
-                        )
-                    ), axis=0
+                if util.tf_dtype(dtype='long') in (tf.int32, tf.int64):
+                    batch_size = tf.shape(
+                        input=next(iter(self.states_input.values())),
+                        out_type=util.tf_dtype(dtype='long')
+                    )[:1]
+                else:
+                    batch_size = tf.dtypes.cast(
+                        x=tf.shape(input=next(iter(self.states_input.values())))[:1],
+                        dtype=util.tf_dtype(dtype='long')
+                    )
+                tf_shape = tf.constant(
+                    value=(action_spec['shape'] + (action_spec['num_values'],)),
+                    dtype=util.tf_dtype(dtype='long')
                 )
-                default = tf.ones(shape=shape, dtype=util.tf_dtype(dtype='bool'))
-                shape = action_spec['shape'] + (action_spec['num_values'],)
+                tf_shape = tf.concat(values=(batch_size, tf_shape), axis=0)
+                default = tf.ones(shape=((1,) + shape), dtype=util.tf_dtype(dtype='bool'))
                 self.auxiliaries_input[name] = self.add_placeholder(
                     name=name, dtype='bool', shape=shape, batched=True, default=default
                 )
@@ -947,7 +949,12 @@ class Model(Module):
         true = tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
         zero_float = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
 
-        parallel_shape = tf.shape(input=parallel, out_type=util.tf_dtype(dtype='long'))
+        if util.tf_dtype(dtype='long') in (tf.int32, tf.int64):
+            parallel_shape = tf.shape(input=parallel, out_type=util.tf_dtype(dtype='long'))
+        else:
+            parallel_shape = tf.dtypes.cast(
+                x=tf.shape(input=parallel), dtype=util.tf_dtype(dtype='long')
+            )
 
         # Assertions
         assertions = list()
@@ -961,10 +968,15 @@ class Model(Module):
                 value=self.unprocessed_state_shape.get(name, spec['shape']),
                 dtype=util.tf_dtype(dtype='long')
             )
+            if util.tf_dtype(dtype='long') in (tf.int32, tf.int64):
+                actual_shape = tf.shape(input=states[name], out_type=util.tf_dtype(dtype='long'))
+            else:
+                actual_shape = tf.dtypes.cast(
+                    x=tf.shape(input=states[name]), dtype=util.tf_dtype(dtype='long')
+                )
             assertions.append(
                 tf.debugging.assert_equal(
-                    x=tf.shape(input=states[name], out_type=util.tf_dtype(dtype='long')),
-                    y=tf.concat(values=(parallel_shape, shape), axis=0),
+                    x=actual_shape, y=tf.concat(values=(parallel_shape, shape), axis=0),
                     message="Agent.act: invalid shape for {} state input.".format(name)
                 )
             )
@@ -980,10 +992,17 @@ class Model(Module):
                     value=(spec['shape'] + (spec['num_values'],)),
                     dtype=util.tf_dtype(dtype='long')
                 )
+                if util.tf_dtype(dtype='long') in (tf.int32, tf.int64):
+                    actual_shape = tf.shape(
+                        input=auxiliaries[name], out_type=util.tf_dtype(dtype='long')
+                    )
+                else:
+                    actual_shape = tf.dtypes.cast(
+                        x=tf.shape(input=auxiliaries[name]), dtype=util.tf_dtype(dtype='long')
+                    )
                 assertions.append(
                     tf.debugging.assert_equal(
-                        x=tf.shape(input=auxiliaries[name], out_type=util.tf_dtype(dtype='long')),
-                        y=tf.concat(values=(parallel_shape, shape), axis=0),
+                        x=actual_shape, y=tf.concat(values=(parallel_shape, shape), axis=0),
                         message="Agent.act: invalid shape for {} action-mask input.".format(name)
                     )
                 )

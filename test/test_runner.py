@@ -25,8 +25,8 @@ class TestRunner(UnittestBase, unittest.TestCase):
 
     min_timesteps = 6
     agent = dict(
-        update=dict(unit='episodes', batch_size=12),
         policy=dict(network=dict(type='auto', size=8, depth=1, internal_rnn=2)),
+        update=dict(unit='episodes', batch_size=12),
         objective='policy_gradient', reward_estimation=dict(horizon=3)
     )
     require_observe = True

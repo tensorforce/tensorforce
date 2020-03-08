@@ -283,7 +283,7 @@ class Estimator(Module):
             return tf.math.greater_equal(x=horizon, y=zero)
 
         def body(discounted_sum, horizon):
-            # discounted_sum = tf.Print(
+            # discounted_sum = tf.compat.v1.Print(
             #     discounted_sum, (horizon, discounted_sum, rewards[horizon:]), summarize=10
             # )
             discounted_sum = discount * discounted_sum
@@ -422,7 +422,7 @@ class Estimator(Module):
                 return tf.math.greater_equal(x=horizon, y=zero)
 
             def body(discounted_sum, horizon):
-                # discounted_sum = tf.Print(
+                # discounted_sum = tf.compat.v1.Print(
                 #     discounted_sum, (horizon, discounted_sum, rewards[horizon:]), summarize=10
                 # )
                 discounted_sum = discount * discounted_sum
@@ -582,27 +582,23 @@ class Estimator(Module):
 
         return reward
 
-    def tf_estimate(self, baseline, memory, indices, reward):
+    def tf_estimate(self, baseline, memory, indices, reward, is_baseline_optimized):
         if self.estimate_advantage:
             assert baseline is not None
             zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
 
             # Baseline dependencies
-            past_horizon = baseline.past_horizon(is_optimization=False)
-            assertion = tf.debugging.assert_equal(
-                x=past_horizon, y=zero,
-                message="Temporary: baseline cannot depend on previous states."
-            )
-            with tf.control_dependencies(control_inputs=(assertion,)):
-                if util.tf_dtype(dtype='long') in (tf.int32, tf.int64):
-                    batch_size = tf.shape(input=reward, out_type=util.tf_dtype(dtype='long'))[0]
-                else:
-                    batch_size = tf.dtypes.cast(
-                        x=tf.shape(input=reward)[0], dtype=util.tf_dtype(dtype='long')
-                    )
-                starts = tf.range(start=batch_size, dtype=util.tf_dtype(dtype='long'))
-                lengths = tf.ones(shape=(batch_size,), dtype=util.tf_dtype(dtype='long'))
-                Module.update_tensors(dependency_starts=starts, dependency_lengths=lengths)
+            past_horizon = baseline.past_horizon(is_optimization=is_baseline_optimized)
+            # with tf.control_dependencies(control_inputs=(assertion,)):
+            if util.tf_dtype(dtype='long') in (tf.int32, tf.int64):
+                batch_size = tf.shape(input=reward, out_type=util.tf_dtype(dtype='long'))[0]
+            else:
+                batch_size = tf.dtypes.cast(
+                    x=tf.shape(input=reward)[0], dtype=util.tf_dtype(dtype='long')
+                )
+            starts = tf.range(start=batch_size, dtype=util.tf_dtype(dtype='long'))
+            lengths = tf.ones(shape=(batch_size,), dtype=util.tf_dtype(dtype='long'))
+            Module.update_tensors(dependency_starts=starts, dependency_lengths=lengths)
 
             if self.estimate_actions:
                 states, internals, auxiliaries, actions = memory.retrieve(

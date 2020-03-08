@@ -211,7 +211,7 @@ class TransformationBase(Layer):
         # shape = self.get_output_spec()['shape']
         # if self.squeeze:
         #     shape = shape + (1,)
-        # if util.dtype(x=x) != 'float' or util.shape(x=x)[1:] != shape:
+        # if not util.is_dtype(x=x, dtype='float') or util.shape(x=x)[1:] != shape:
         #     raise TensorforceError("Invalid input tensor for generic layer: {}.".format(x))
 
         if self.bias is not None:

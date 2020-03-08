@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
+from collections import OrderedDict
+
 from test.unittest_base import UnittestBase
 
 
@@ -50,7 +52,8 @@ class UnittestAgent(UnittestBase):
         if self.__class__.has_update:
             agent, environment = self.prepare(
                 # min_timesteps=2,  # too few steps for update otherwise
-                states=states, actions=actions, require_all=True,
+                # states=states, actions=actions,
+                require_all=True,
                 # policy=dict(network=dict(type='auto', size=8, depth=1, internal_rnn=2)),
                 # update=1
                 # TODO: shouldn't be necessary!
@@ -93,6 +96,19 @@ class UnittestAgent(UnittestBase):
                 states, terminal, reward = environment.execute(actions=actions)
                 terminal_batch.append(terminal)
                 reward_batch.append(reward)
+        if isinstance(states_batch[0], dict):
+            states_batch = OrderedDict(
+                (name, [states[name] for states in states_batch]) for name in states_batch[0]
+            )
+        if isinstance(internals_batch[0], dict):
+            internals_batch = OrderedDict(
+                (name, [internals[name] for internals in internals_batch])
+                for name in internals_batch[0]
+            )
+        if isinstance(actions_batch[0], dict):
+            actions_batch = OrderedDict(
+                (name, [actions[name] for actions in actions_batch]) for name in actions_batch[0]
+            )
 
         if self.__class__.has_experience:
             query = agent.get_query_tensors(function='experience')

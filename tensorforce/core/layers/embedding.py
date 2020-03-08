@@ -114,7 +114,7 @@ class Embedding(TransformationBase):
     def tf_apply(self, x):
         if util.tf_dtype('int') not in (tf.int32, tf.int64):
             x = tf.dtypes.cast(x=x, dtype=tf.int32)
-        elif util.dtype(x=x) == 'bool':
+        elif util.is_dtype(x=x, dtype='bool'):
             x = tf.dtypes.cast(x=x, dtype=util.tf_dtype('int'))
 
         x = tf.nn.embedding_lookup(params=self.weights, ids=x, max_norm=self.max_norm)

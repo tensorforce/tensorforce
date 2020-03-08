@@ -962,7 +962,7 @@ class Agent(object):
 
     def summarize(self, summary, value, step=None):
         """
-        Records a value for the given custom summary label.
+        Records a value for the given custom summary label (as specified via summarizer[custom]).
 
         Args:
             variable (string): Custom summary label

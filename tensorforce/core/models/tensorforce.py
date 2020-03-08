@@ -134,36 +134,20 @@ class TensorforceModel(Model):
             name='objective', module=objective, modules=objective_modules, is_trainable=False
         )
 
-        # Baseline
-        if (baseline_policy is not None or baseline_objective is not None) and \
-                (baseline_optimizer is None or isinstance(baseline_optimizer, float)):
-            # since otherwise not part of training
-            assert reward_estimation.get('estimate_advantage', False) or \
-                baseline_objective is not None
-            is_trainable = True
-        else:
-            is_trainable = False
-        if baseline_policy is None:
-            self.baseline_policy = self.policy
-        else:
-            self.baseline_policy = self.add_module(
-                name='baseline', module=baseline_policy, modules=policy_modules,
-                is_trainable=is_trainable, is_subscope=True, states_spec=self.states_spec,
-                actions_spec=self.actions_spec
-            )
-
-        # Baseline optimizer
-        if baseline_optimizer is None:
-            self.baseline_optimizer = None
-            self.baseline_loss_weight = 1.0
-        elif isinstance(baseline_optimizer, float):
-            self.baseline_optimizer = None
-            self.baseline_loss_weight = baseline_optimizer
-        else:
-            self.baseline_optimizer = self.add_module(
-                name='baseline-optimizer', module=baseline_optimizer, modules=optimizer_modules,
-                is_trainable=False, is_subscope=True
-            )
+        # Baseline optimization overview:
+        # Policy    Objective   Optimizer   Config
+        #   n         n           n           estimate_horizon=False
+        #   n         n           f           invalid!!!
+        #   n         n           y           invalid!!!
+        #   n         y           n           bl trainable, weighted 1.0
+        #   n         y           f           bl trainable, weighted
+        #   n         y           y           separate, use main policy
+        #   y         n           n           bl trainable, estimate_advantage=True, equal horizon
+        #   y         n           f           invalid!!!
+        #   y         n           y           separate, use main objective
+        #   y         y           n           bl trainable, weighted 1.0, equal horizon
+        #   y         y           f           bl trainable, weighted, equal horizon
+        #   y         y           y           separate
 
         # Baseline objective
         if baseline_objective is None:
@@ -173,6 +157,45 @@ class TensorforceModel(Model):
                 name='baseline-objective', module=baseline_objective, modules=objective_modules,
                 is_trainable=False, is_subscope=True
             )
+
+        # Baseline optimizer
+        if baseline_optimizer is None:
+            self.baseline_optimizer = None
+            if self.baseline_objective is None:
+                self.baseline_loss_weight = None
+            else:
+                self.baseline_loss_weight = 1.0
+        elif isinstance(baseline_optimizer, float):
+            assert self.baseline_objective is not None
+            self.baseline_optimizer = None
+            self.baseline_loss_weight = baseline_optimizer
+        else:
+            assert self.baseline_objective is not None or baseline_policy is not None
+            self.baseline_optimizer = self.add_module(
+                name='baseline-optimizer', module=baseline_optimizer, modules=optimizer_modules,
+                is_trainable=False, is_subscope=True
+            )
+            self.baseline_loss_weight = None
+
+        # Baseline
+        if (baseline_policy is not None or self.baseline_objective is not None) and \
+                self.baseline_optimizer is None:
+            # since otherwise not part of training
+            assert self.baseline_objective is not None or \
+                reward_estimation.get('estimate_advantage', True)
+            is_trainable = True
+        else:
+            is_trainable = False
+        if baseline_policy is None:
+            self.baseline_policy = self.policy
+            self.separate_baseline_policy = False
+        else:
+            self.baseline_policy = self.add_module(
+                name='baseline', module=baseline_policy, modules=policy_modules,
+                is_trainable=is_trainable, is_subscope=True, states_spec=self.states_spec,
+                actions_spec=self.actions_spec
+            )
+            self.separate_baseline_policy = True
 
         # Estimator
         if not all(key in (
@@ -184,10 +207,16 @@ class TensorforceModel(Model):
                 hint='not from {discount,estimate_actions,estimate_advantage,estimate_horizon,'
                      'estimate_terminal,horizon}'
             )
-        if baseline_policy is None and baseline_optimizer is None and baseline_objective is None:
+        if not self.separate_baseline_policy and self.baseline_optimizer is None and \
+                self.baseline_objective is None:
             estimate_horizon = False
         else:
             estimate_horizon = 'late'
+        if self.separate_baseline_policy and self.baseline_objective is None and \
+                self.baseline_optimizer is None:
+            estimate_advantage = True
+        else:
+            estimate_advantage = False
         self.estimator = self.add_module(
             name='estimator', module=Estimator, is_trainable=False, is_saved=False,
             values_spec=self.values_spec, horizon=reward_estimation['horizon'],
@@ -195,7 +224,7 @@ class TensorforceModel(Model):
             estimate_horizon=reward_estimation.get('estimate_horizon', estimate_horizon),
             estimate_actions=reward_estimation.get('estimate_actions', False),
             estimate_terminal=reward_estimation.get('estimate_terminal', False),
-            estimate_advantage=reward_estimation.get('estimate_advantage', False),
+            estimate_advantage=reward_estimation.get('estimate_advantage', estimate_advantage),
             # capacity=reward_estimation['capacity']
             min_capacity=self.buffer_observe,
             max_past_horizon=self.baseline_policy.max_past_horizon(is_optimization=False)
@@ -506,11 +535,11 @@ class TensorforceModel(Model):
 
             if self.update_unit == 'timesteps':
                 # Timestep-based batch
-                past_horizon = self.policy.past_horizon(is_optimization=True)
-                past_horizon = tf.math.maximum(
-                    x=past_horizon, y=self.baseline_policy.past_horizon(is_optimization=True)
-                )
-                future_horizon = self.estimator.horizon.value()
+                policy_horizon = self.policy.past_horizon(is_optimization=True)
+                baseline_horizon = self.baseline_policy.past_horizon(is_optimization=True) - \
+                    self.estimator.future_horizon()
+                past_horizon = tf.math.maximum(x=policy_horizon, y=baseline_horizon)
+                future_horizon = self.estimator.future_horizon()
                 start = tf.math.maximum(
                     x=start, y=(frequency + past_horizon + future_horizon + one)
                 )
@@ -634,20 +663,23 @@ class TensorforceModel(Model):
             reward = self.add_summary(
                 label=('empirical-reward', 'rewards'), name='empirical-reward', tensor=reward
             )
+            is_baseline_optimized = self.separate_baseline_policy and \
+                self.baseline_optimizer is None and self.baseline_objective is None
             reward = self.estimator.estimate(
-                baseline=self.baseline_policy, memory=self.memory, indices=indices, reward=reward
+                baseline=self.baseline_policy, memory=self.memory, indices=indices, reward=reward,
+                is_baseline_optimized=is_baseline_optimized
             )
             reward = self.add_summary(
                 label=('estimated-reward', 'rewards'), name='estimated-reward', tensor=reward
             )
 
         # Stop gradients of estimated rewards if separate baseline optimization
-        if self.baseline_optimizer is not None or self.baseline_objective is not None:
+        if not is_baseline_optimized:
             reward = tf.stop_gradient(input=reward)
 
         # Retrieve states, internals and actions
         past_horizon = self.policy.past_horizon(is_optimization=True)
-        if self.baseline_optimizer is None:
+        if self.separate_baseline_policy and self.baseline_optimizer is None:
             assertion = tf.debugging.assert_equal(
                 x=past_horizon,
                 y=self.baseline_policy.past_horizon(is_optimization=True),
@@ -699,7 +731,6 @@ class TensorforceModel(Model):
         kwargs = self.objective.optimizer_arguments(
             policy=self.policy, baseline=self.baseline_policy
         )
-
         if self.baseline_optimizer is None and self.baseline_objective is not None:
             util.deep_disjoint_update(
                 target=kwargs,
@@ -867,6 +898,8 @@ class TensorforceModel(Model):
                 states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
                 reward=reward
             )
+        else:
+            assert self.baseline_loss_weight is None
 
         return loss
 

@@ -143,6 +143,7 @@ For more information check out the [documentation](http://tensorforce.readthedoc
 - **TensorBoard support**.
 
 By combining these modular components in different ways, a variety of popular deep reinforcement learning models/features can be replicated:
+
 - Q-learning: [Deep Q-learning](https://www.nature.com/articles/nature14236), [Double-DQN](https://arxiv.org/abs/1509.06461), [Dueling DQN](https://arxiv.org/abs/1511.06581), [n-step DQN](https://arxiv.org/abs/1602.01783), [Normalised Advantage Function (NAF)](https://arxiv.org/abs/1603.00748)
 - Policy gradient: [vanilla policy-gradient / REINFORCE](http://www-anw.cs.umass.edu/~barto/courses/cs687/williams92simple.pdf), [Actor-critic and A3C](https://arxiv.org/abs/1602.01783), [Proximal Policy Optimization](https://arxiv.org/abs/1707.06347), [Trust Region Policy Optimization](https://arxiv.org/abs/1502.05477), [Deterministic Policy Gradient](https://arxiv.org/abs/1509.02971)
 - Features: [Generalized Advantage estimation (GAE)](https://arxiv.org/abs/1506.02438), etc.

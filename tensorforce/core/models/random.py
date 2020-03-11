@@ -55,7 +55,7 @@ class RandomModel(Model):
 
             if spec['type'] == 'bool':
                 actions[name] = tf.math.less(
-                    x=tf.random_uniform(shape=shape, dtype=util.tf_dtype(dtype='float')),
+                    x=tf.random.uniform(shape=shape, dtype=util.tf_dtype(dtype='float')),
                     y=tf.constant(value=0.5, dtype=util.tf_dtype(dtype='float'))
                 )
 
@@ -92,12 +92,12 @@ class RandomModel(Model):
                 if 'min_value' in spec:
                     min_value = tf.constant(value=spec['min_value'], dtype=dtype)
                     max_value = tf.constant(value=spec['max_value'], dtype=dtype)
-                    actions[name] = tf.random_uniform(
+                    actions[name] = tf.random.uniform(
                         shape=shape, minval=min_value, maxval=max_value, dtype=dtype
                     )
 
                 else:
-                    actions[name] = tf.random_uniform(shape=shape, dtype=dtype)
+                    actions[name] = tf.random.uniform(shape=shape, dtype=dtype)
 
         return actions, OrderedDict()
 

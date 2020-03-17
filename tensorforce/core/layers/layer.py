@@ -72,6 +72,10 @@ class Layer(Module):
         #     raise TensorforceError.unexpected()
         Layer.layers[self.name] = self
 
+    @classmethod
+    def output_spec(cls, input_spec, **kwargs):
+        return input_spec
+
     def default_input_spec(self):
         """
         Returns the general, context-independent input tensor specification of this layer.

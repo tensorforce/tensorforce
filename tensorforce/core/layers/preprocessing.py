@@ -180,6 +180,20 @@ class Image(Layer):
 
         super().__init__(name=name, input_spec=input_spec, summary_labels=summary_labels)
 
+    @classmethod
+    def output_spec(cls, height=None, width=None, grayscale=False, input_spec=None, **kwargs):
+        if height is not None:
+            if width is None:
+                width = round(height * input_spec['shape'][1] / input_spec['shape'][0])
+            input_spec['shape'] = (height, width, input_spec['shape'][2])
+        elif width is not None:
+            height = round(width * input_spec['shape'][0] / input_spec['shape'][1])
+            input_spec['shape'] = (height, width, input_spec['shape'][2])
+        if not isinstance(grayscale, bool) or grayscale:
+            input_spec['shape'] = input_spec['shape'][:2] + (1,)
+
+        return input_spec
+
     def default_input_spec(self):
         return dict(type='float', shape=(0, 0, 0))
 

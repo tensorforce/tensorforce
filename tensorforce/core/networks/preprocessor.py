@@ -18,7 +18,8 @@ from collections import Counter, OrderedDict
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core.layers import PreprocessingLayer, StatefulLayer, TemporalLayer
+from tensorforce.core import Module
+from tensorforce.core.layers import layer_modules, PreprocessingLayer, StatefulLayer, TemporalLayer
 from tensorforce.core.networks import LayerbasedNetwork
 
 
@@ -72,6 +73,34 @@ class Preprocessor(LayerbasedNetwork):
     @classmethod
     def internals_spec(cls, network=None, **kwargs):
         raise NotImplementedError
+
+    @classmethod
+    def output_spec(cls, input_spec, layers, **kwargs):
+        input_spec = dict(input_spec)
+        if isinstance(layers, (dict, str)):
+            layers = [layers]
+
+        layer_counter = Counter()
+        for layer_spec in layers:
+            if 'name' in layer_spec:
+                layer_name = layer_spec['name']
+            else:
+                if isinstance(layer_spec, dict) and isinstance(layer_spec.get('type'), str):
+                    layer_type = layer_spec['type']
+                else:
+                    layer_type = 'layer'
+                layer_name = layer_type + str(layer_counter[layer_type])
+                layer_counter[layer_type] += 1
+
+            layer_cls, first_arg, kwargs = Module.get_module_class_and_kwargs(
+                name=layer_name, module=layer_spec, modules=layer_modules, input_spec=input_spec
+            )
+            if first_arg is None:
+                input_spec = layer_cls.output_spec(**kwargs)
+            else:
+                input_spec = layer_cls.output_spec(first_arg, **kwargs)
+
+        return input_spec
 
     def internals_init(self):
         raise NotImplementedError

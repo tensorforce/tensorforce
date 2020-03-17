@@ -168,30 +168,30 @@ class LayerbasedNetwork(Network):
             kwargs['modules'] = layer_modules
             kwargs['is_subscope'] = True
 
-        if 'input_spec' in kwargs:
-            layer = super().add_module(*args, **kwargs)
-            self.output_spec = layer.output_spec
+        # if 'input_spec' in kwargs:
+        #     layer = super().add_module(*args, **kwargs)
+        #     self.output_spec = layer.output_spec
 
-        else:
-            if self.output_spec is None:
-                if util.is_atomic_values_spec(values_spec=self.inputs_spec):
-                    self.output_spec = self.inputs_spec
-                elif len(self.inputs_spec) == 1:
-                    self.output_spec = next(iter(self.inputs_spec.values()))
-                else:
-                    self.output_spec = None
+        # else:
+        if self.output_spec is None:
+            if util.is_atomic_values_spec(values_spec=self.inputs_spec):
+                self.output_spec = self.inputs_spec
+            elif len(self.inputs_spec) == 1:
+                self.output_spec = next(iter(self.inputs_spec.values()))
+            else:
+                self.output_spec = None
 
-            if self.output_spec is not None:
-                if 'input_spec' in kwargs:
-                    kwargs['input_spec'] = util.unify_value_specs(
-                        value_spec1=kwargs['input_spec'], value_spec2=self.output_spec
-                    )
-                else:
-                    kwargs['input_spec'] = self.output_spec
+        if self.output_spec is not None:
+            if 'input_spec' in kwargs:
+                kwargs['input_spec'] = util.unify_value_specs(
+                    value_spec1=kwargs['input_spec'], value_spec2=self.output_spec
+                )
+            else:
+                kwargs['input_spec'] = self.output_spec
 
-            layer = super().add_module(*args, **kwargs)
+        layer = super().add_module(*args, **kwargs)
 
-            self.output_spec = layer.output_spec
+        self.output_spec = layer.output_spec
 
         if not isinstance(layer, (Layer, Parameter)):
             raise TensorforceError.type(

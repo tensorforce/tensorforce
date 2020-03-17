@@ -359,7 +359,7 @@ class TensorforceModel(Model):
         ))
         # states: type and shape
         for name, spec in self.states_spec.items():
-            spec = self.unprocessed_state_shape.get(name, spec)
+            spec = self.unprocessed_state_spec.get(name, spec)
             tf.debugging.assert_type(
                 tensor=states[name], tf_type=util.tf_dtype(dtype=spec['type']),
                 message="Agent.experience: invalid type for {} state input.".format(name)

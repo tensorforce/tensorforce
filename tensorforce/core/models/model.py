@@ -22,7 +22,7 @@ import numpy as np
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core import Module, parameter_modules
+from tensorforce.core import Module, parameter_modules, tf_function
 from tensorforce.core.networks import Preprocessor
 
 
@@ -41,7 +41,7 @@ class Model(Module):
             summary_labels = summarizer.get('labels', ('graph',))
 
         super().__init__(
-            name=name, device=device, summary_labels=summary_labels,
+            name=name, is_root=True, device=device, summary_labels=summary_labels,
             l2_regularization=l2_regularization
         )
 
@@ -185,14 +185,14 @@ class Model(Module):
             if layers is not None:
                 self.unprocessed_state_shape[name] = spec['shape']
                 self.preprocessing[name] = self.add_module(
-                    name=(name + '-preprocessing'), module=Preprocessor, input_spec=spec,
+                    name=(name + '_preprocessing'), module=Preprocessor, input_spec=spec,
                     layers=layers
                 )
                 self.states_spec[name] = self.preprocessing[name].get_output_spec()
         if preprocessing is not None and 'reward' in preprocessing:
             reward_spec = dict(type='float', shape=())
             self.preprocessing['reward'] = self.add_module(
-                name=('reward-preprocessing'), module=Preprocessor, input_spec=reward_spec,
+                name='reward_preprocessing', module=Preprocessor, input_spec=reward_spec,
                 layers=preprocessing['reward']
             )
             if self.preprocessing['reward'].get_output_spec() != reward_spec:
@@ -211,13 +211,13 @@ class Model(Module):
                 if name in exploration:
                     if self.actions_spec[name]['type'] in ('bool', 'int'):
                         self.exploration[name] = self.add_module(
-                            name=(name + '-exploration'), module=exploration[name],
+                            name=(name + '_exploration'), module=exploration[name],
                             modules=parameter_modules, is_trainable=False, dtype='float',
                             min_value=0.0, max_value=1.0
                         )
                     else:
                         self.exploration[name] = self.add_module(
-                            name=(name + '-exploration'), module=exploration[name],
+                            name=(name + '_exploration'), module=exploration[name],
                             modules=parameter_modules, is_trainable=False, dtype='float',
                             min_value=0.0
                         )
@@ -232,26 +232,42 @@ class Model(Module):
         assert variable_noise is None or isinstance(variable_noise, dict) or variable_noise >= 0.0
         variable_noise = 0.0 if variable_noise is None else variable_noise
         self.variable_noise = self.add_module(
-            name='variable-noise', module=variable_noise, modules=parameter_modules,
+            name='variable_noise', module=variable_noise, modules=parameter_modules,
             is_trainable=False, dtype='float', min_value=0.0
         )
 
         # Register global tensors
+        # for name, spec in self.states_spec.items():
+        #     Module.register_tensor(name=name, spec=spec, batched=True)
+        # for name, spec in self.internals_spec.items():
+        #     Module.register_tensor(name=name, spec=spec, batched=True)
+        # for name, spec in self.actions_spec.items():
+        #     Module.register_tensor(name=name, spec=spec, batched=True)
+        # Module.register_tensor(name='terminal', spec=dict(type='long', shape=()), batched=True)
+        # Module.register_tensor(name='reward', spec=dict(type='float', shape=()), batched=True)
+        # Module.register_tensor(name='independent', spec=dict(type='bool', shape=()), batched=False)
+        # Module.register_tensor(
+        #     name='deterministic', spec=dict(type='bool', shape=()), batched=False
+        # )
+        # Module.register_tensor(name='timestep', spec=dict(type='long', shape=()), batched=False)
+        # Module.register_tensor(name='episode', spec=dict(type='long', shape=()), batched=False)
+        # Module.register_tensor(name='update', spec=dict(type='long', shape=()), batched=False)
+
+        # Register global tensors
         for name, spec in self.states_spec.items():
-            Module.register_tensor(name=name, spec=spec, batched=True)
+            self.register_global_tensor(name=name, spec=spec, batched=True)
         for name, spec in self.internals_spec.items():
-            Module.register_tensor(name=name, spec=spec, batched=True)
+            self.register_global_tensor(name=name, spec=spec, batched=True)
         for name, spec in self.actions_spec.items():
-            Module.register_tensor(name=name, spec=spec, batched=True)
-        Module.register_tensor(name='terminal', spec=dict(type='long', shape=()), batched=True)
-        Module.register_tensor(name='reward', spec=dict(type='float', shape=()), batched=True)
-        Module.register_tensor(name='independent', spec=dict(type='bool', shape=()), batched=False)
-        Module.register_tensor(
+            self.register_global_tensor(name=name, spec=spec, batched=True)
+        self.register_global_tensor(name='terminal', spec=dict(type='long', shape=()), batched=True)
+        self.register_global_tensor(name='reward', spec=dict(type='float', shape=()), batched=True)
+        self.register_global_tensor(
+            name='independent', spec=dict(type='bool', shape=()), batched=False
+        )
+        self.register_global_tensor(
             name='deterministic', spec=dict(type='bool', shape=()), batched=False
         )
-        Module.register_tensor(name='timestep', spec=dict(type='long', shape=()), batched=False)
-        Module.register_tensor(name='episode', spec=dict(type='long', shape=()), batched=False)
-        Module.register_tensor(name='update', spec=dict(type='long', shape=()), batched=False)
 
     def initialize(self):
         """
@@ -294,10 +310,10 @@ class Model(Module):
         # Saver/Summary -> Scaffold.
         # Creates the tf.compat.v1.train.Saver object and stores it in self.saver.
         # if self.execution_spec is None or self.execution_type == "single":
-        if True:
-            saved_variables = self.get_variables(only_saved=True)
-        else:
-            saved_variables = self.global_model.get_variables(only_saved=True)
+        # if True:
+        #     saved_variables = self.get_variables(only_saved=True)
+        # else:
+        #     saved_variables = self.global_model.get_variables(only_saved=True)
 
         # global_variables += [self.global_episode, self.global_timestep]
 
@@ -313,7 +329,7 @@ class Model(Module):
         else:
             max_to_keep = self.saver_spec.get('max-checkpoints', 5)
         self.saver = tf.compat.v1.train.Saver(
-            var_list=saved_variables,  # should be given?
+            var_list=self.saved_variables,  # should be given?
             reshape=False,
             sharded=False,
             max_to_keep=max_to_keep,
@@ -421,27 +437,26 @@ class Model(Module):
         """
         # if self.execution_spec is None or self.execution_type == "single":
         if True:
-            global_variables = self.get_variables()
             # global_variables += [self.global_episode, self.global_timestep]
-            init_op = tf.compat.v1.variables_initializer(var_list=global_variables)
+            init_op = tf.compat.v1.variables_initializer(var_list=tf.compat.v1.global_variables())
             if self.summarizer_spec is not None:
                 init_op = tf.group(init_op, self.summarizer_init)
             if self.graph_summary is None:
-                ready_op = tf.compat.v1.report_uninitialized_variables(var_list=global_variables)
+                ready_op = tf.compat.v1.report_uninitialized_variables(var_list=self.variables)
                 ready_for_local_init_op = None
                 local_init_op = None
             else:
                 ready_op = None
                 ready_for_local_init_op = tf.compat.v1.report_uninitialized_variables(
-                    var_list=global_variables
+                    var_list=self.variables
                 )
                 local_init_op = self.graph_summary
 
         else:
             # Global and local variable initializers.
-            global_variables = self.global_model.get_variables()
+            global_variables = self.global_model.variables
             # global_variables += [self.global_episode, self.global_timestep]
-            local_variables = self.get_variables()
+            local_variables = self.variables
             init_op = tf.compat.v1.variables_initializer(var_list=global_variables)
             if self.summarizer_spec is not None:
                 init_op = tf.group(init_op, self.summarizer_init)
@@ -456,8 +471,7 @@ class Model(Module):
                     tf.compat.v1.variables_initializer(var_list=local_variables),
                     # Synchronize values of trainable variables.
                     *(tf.assign(ref=local_var, value=global_var) for local_var, global_var in zip(
-                        self.get_variables(only_trainable=True),
-                        self.global_model.get_variables(only_trainable=True)
+                        self.trainable_variables, self.global_model.trainable_variables
                     ))
                 )
             else:
@@ -466,8 +480,7 @@ class Model(Module):
                     self.graph_summary,
                     # Synchronize values of trainable variables.
                     *(tf.assign(ref=local_var, value=global_var) for local_var, global_var in zip(
-                        self.get_variables(only_trainable=True),
-                        self.global_model.get_variables(only_trainable=True)
+                        self.trainable_variables, self.global_model.trainable_variables
                     ))
                 )
 
@@ -682,16 +695,16 @@ class Model(Module):
             default=tf.constant(value=0, dtype=util.tf_dtype(dtype='long'), shape=(1,))
         )
 
-        # Local timestep
-        self.timestep = self.add_variable(
-            name='timestep', dtype='long', shape=(self.parallel_interactions,),
+        # Parallel timestep counter
+        self.parallel_timestep = self.add_variable(
+            name='parallel-timestep', dtype='long', shape=(self.parallel_interactions,),
             initializer='zeros', is_trainable=False
         )
 
-        # Local episode
-        self.episode = self.add_variable(
-            name='episode', dtype='long', shape=(self.parallel_interactions,), initializer='zeros',
-            is_trainable=False
+        # Parallel episode counter
+        self.parallel_episode = self.add_variable(
+            name='parallel-episode', dtype='long', shape=(self.parallel_interactions,),
+            initializer='zeros', is_trainable=False
         )
 
         # Episode reward
@@ -754,13 +767,13 @@ class Model(Module):
 
         with tf.control_dependencies(control_inputs=(assignment,)):
             timestep = util.identity_operation(
-                x=self.global_timestep, operation_name='timestep-output'
+                x=self.global_tensor(name='timestep'), operation_name='timestep-output'
             )
             episode = util.identity_operation(
-                x=self.global_episode, operation_name='episode-output'
+                x=self.global_tensor(name='episode'), operation_name='episode-output'
             )
             update = util.identity_operation(
-                x=self.global_update, operation_name='update-output'
+                x=self.global_tensor(name='update'), operation_name='update-output'
             )
 
         return timestep, episode, update
@@ -779,10 +792,11 @@ class Model(Module):
         )[:1]
 
         # Set global tensors
-        Module.update_tensors(
-            independent=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool')),
-            deterministic=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool')),
-            timestep=self.global_timestep, episode=self.global_episode, update=self.global_update
+        self.set_global_tensor(
+            name='independent', tensor=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
+        )
+        self.set_global_tensor(
+            name='deterministic', tensor=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
         )
 
         one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
@@ -797,7 +811,7 @@ class Model(Module):
             dependencies = ()
 
         # Variable noise
-        variables = self.get_variables(only_trainable=True)
+        variables = self.trainable_variables
         variable_noise = self.variable_noise.final_value()
         if len(variables) > 0 and variable_noise > 0.0:
             variable_noise = tf.constant(
@@ -1037,10 +1051,11 @@ class Model(Module):
         )
 
         # Set global tensors
-        Module.update_tensors(
-            independent=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool')),
-            deterministic=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool')),
-            timestep=self.global_timestep, episode=self.global_episode, update=self.global_update
+        self.set_global_tensor(
+            name='independent', tensor=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool'))
+        )
+        self.set_global_tensor(
+            name='deterministic', tensor=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool'))
         )
 
         one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
@@ -1056,13 +1071,12 @@ class Model(Module):
             dependencies = util.flatten(xs=states)
 
         # Variable noise
-        variables = self.get_variables(only_trainable=True)
-        if len(variables) > 0:
+        if len(self.trainable_variables) > 0:
             with tf.control_dependencies(control_inputs=dependencies):
                 dependencies = list()
                 variable_noise_tensors = list()
                 variable_noise = self.variable_noise.value()
-                for variable in variables:
+                for variable in self.trainable_variables:
                     if variable.dtype == util.tf_dtype(dtype='float'):
                         noise = tf.random.normal(
                             shape=util.shape(variable), mean=0.0, stddev=variable_noise,
@@ -1092,6 +1106,8 @@ class Model(Module):
 
         # Core act: retrieve actions and internals
         with tf.control_dependencies(control_inputs=dependencies):
+            for name, state in states.items():
+                self.set_global_tensor(name=name, tensor=state)
             actions, internals = self.core_act(
                 states=states, internals=internals, auxiliaries=auxiliaries
             )
@@ -1186,10 +1202,10 @@ class Model(Module):
             dependencies = util.flatten(xs=actions)
 
         # Variable noise
-        if len(variables) > 0:
+        if len(self.trainable_variables) > 0:
             with tf.control_dependencies(control_inputs=dependencies):
                 dependencies = list()
-                for variable, noise in zip(variables, variable_noise_tensors):
+                for variable, noise in zip(self.trainable_variables, variable_noise_tensors):
                     dependencies.append(variable.assign_sub(delta=noise, read_value=False))
 
         # Update states/internals/actions buffers
@@ -1234,14 +1250,12 @@ class Model(Module):
         with tf.control_dependencies(control_inputs=(incremented_buffer_index,)):
             assignments = list()
             assignments.append(
-                self.timestep.scatter_nd_add(
+                self.parallel_timestep.scatter_nd_add(
                     indices=tf.expand_dims(input=parallel, axis=1),
                     updates=tf.fill(dims=parallel_shape, value=one)
                 )
             )
-            assignments.append(self.global_timestep.assign_add(
-                delta=parallel_shape[0], read_value=False
-            ))
+            assignments.append(self.timestep.assign_add(delta=parallel_shape[0], read_value=False))
 
         # Return timestep
         with tf.control_dependencies(control_inputs=assignments):
@@ -1251,7 +1265,7 @@ class Model(Module):
                     x=actions[name], operation_name=(name + '-output')
                 )
             timestep = util.identity_operation(
-                x=self.global_timestep, operation_name='timestep-output'
+                x=self.global_tensor(name='timestep'), operation_name='timestep-output'
             )
 
         return actions, timestep
@@ -1326,10 +1340,11 @@ class Model(Module):
         ))
 
         # Set global tensors
-        Module.update_tensors(
-            independent=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool')),
-            deterministic=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool')),
-            timestep=self.global_timestep, episode=self.global_episode, update=self.global_update
+        self.set_global_tensor(
+            name='independent', tensor=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool'))
+        )
+        self.set_global_tensor(
+            name='deterministic', tensor=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
         )
 
         with tf.control_dependencies(control_inputs=assertions):
@@ -1371,10 +1386,10 @@ class Model(Module):
         def increment_episode():
             assignments = list()
             one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
-            assignments.append(self.episode.scatter_nd_add(
+            assignments.append(self.parallel_episode.scatter_nd_add(
                 indices=tf.expand_dims(input=parallel, axis=1), updates=[one])
             )
-            assignments.append(self.global_episode.assign_add(delta=one, read_value=False))
+            assignments.append(self.episode.assign_add(delta=one, read_value=False))
             with tf.control_dependencies(control_inputs=assignments):
                 return util.no_operation()
 
@@ -1435,10 +1450,10 @@ class Model(Module):
             # Function-level identity operation for retrieval (plus enforce dependency)
             updated = util.identity_operation(x=is_updated, operation_name='updated-output')
             episode = util.identity_operation(
-                x=self.global_episode, operation_name='episode-output'
+                x=self.global_tensor(name='episode'), operation_name='episode-output'
             )
             update = util.identity_operation(
-                x=self.global_update, operation_name='update-output'
+                x=self.global_tensor(name='update'), operation_name='update-output'
             )
 
         return updated, episode, update
@@ -1449,8 +1464,9 @@ class Model(Module):
     def tf_core_observe(self, states, internals, auxiliaries, actions, terminal, reward):
         raise NotImplementedError
 
-    def tf_regularize(self, states, internals, auxiliaries):
-        return super().tf_regularize()
+    @tf_function(num_args=3)
+    def regularize(self, states, internals, auxiliaries):
+        return super().regularize()
 
     def get_variable(self, variable):
         if not variable.startswith(self.name):
@@ -1480,14 +1496,8 @@ class Model(Module):
     def save(self, directory, filename, format, append=None, no_act_pb=False):
         path = os.path.join(directory, filename)
 
-        if append == 'timesteps':
-            append = self.global_timestep
-        elif append == 'episodes':
-            append = self.global_episode
-        elif append == 'updates':
-            append = self.global_update
-        else:
-            assert append is None
+        if append is not None:
+            append = self.global_tensor(name=append)
 
         if format == 'tensorflow':
             if self.summarizer_spec is not None:
@@ -1529,7 +1539,7 @@ class Model(Module):
                 path += '-' + str(append)
             path += '.npz'
             variables = dict()
-            for variable in self.get_variables(only_saved=True):
+            for variable in self.saved_variables:
                 name = variable.name[len(self.name) + 1: -2]
                 variables[name] = self.get_variable(variable=name)
             np.savez(file=path, **variables)
@@ -1540,7 +1550,7 @@ class Model(Module):
                 path += '-' + str(append)
             path += '.hdf5'
             with h5py.File(name=path, mode='w') as filehandle:
-                for variable in self.get_variables(only_saved=True):
+                for variable in self.saved_variables:
                     name = variable.name[len(self.name) + 1: -2]
                     filehandle.create_dataset(name=name, data=self.get_variable(variable=name))
 
@@ -1557,7 +1567,7 @@ class Model(Module):
 
         elif format == 'numpy':
             variables = np.load(file=(path + '.npz'))
-            for variable in self.get_variables(only_saved=True):
+            for variable in self.saved_variables:
                 name = variable.name[len(self.name) + 1: -2]
                 self.assign_variable(variable=name, value=variables[name])
 
@@ -1567,12 +1577,15 @@ class Model(Module):
             else:
                 path = path + '.h5'
             with h5py.File(name=path, mode='r') as filehandle:
-                for variable in self.get_variables(only_saved=True):
+                for variable in self.saved_variables:
                     name = variable.name[len(self.name) + 1: -2]
                     self.assign_variable(variable=name, value=filehandle[name])
 
         else:
             assert False
 
-        fetches = (self.global_timestep, self.global_episode, self.global_update)
+        fetches = (
+            self.global_tensor(name='timestep'), self.global_tensor(name='episode'),
+            self.global_tensor(name='update')
+        )
         return self.monitored_session.run(fetches=fetches)

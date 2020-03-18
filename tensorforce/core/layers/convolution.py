@@ -19,6 +19,7 @@ import tensorflow as tf
 from tensorflow.python.keras.utils.conv_utils import conv_output_length, deconv_output_length
 
 from tensorforce import TensorforceError
+from tensorforce.core import tf_function
 from tensorforce.core.layers import TransformationBase
 
 
@@ -108,13 +109,14 @@ class Conv1d(TransformationBase):
             is_trainable=self.is_trainable, initializer=initializer
         )
 
-    def tf_apply(self, x):
+    @tf_function(num_args=1)
+    def apply(self, x):
         x = tf.nn.conv1d(
             input=x, filters=self.weights, stride=self.stride, padding=self.padding.upper(),
             dilations=self.dilation
         )
 
-        return super().tf_apply(x=x)
+        return super().apply(x=x)
 
 
 class Conv2d(TransformationBase):
@@ -223,13 +225,14 @@ class Conv2d(TransformationBase):
             is_trainable=self.is_trainable, initializer=initializer
         )
 
-    def tf_apply(self, x):
+    @tf_function(num_args=1)
+    def apply(self, x):
         x = tf.nn.conv2d(
             input=x, filters=self.weights, strides=self.stride, padding=self.padding.upper(),
             dilations=self.dilation
         )
 
-        return super().tf_apply(x=x)
+        return super().apply(x=x)
 
 
 # class Conv1dTranspose(TransformationBase):
@@ -325,13 +328,14 @@ class Conv2d(TransformationBase):
 #             is_trainable=self.is_trainable, initializer=initializer
 #         )
 
-#     def tf_apply(self, x):
+    # @tf_function(num_args=1)
+    # def apply(self, x):
 #         x = tf.nn.conv1d_transpose(
 #             input=x, filters=self.weights, output_shape=(1, self.output_width, self.size),
 #             strides=self.stride, padding=self.padding.upper(), dilations=self.dilation
 #         )
 
-#         return super().tf_apply(x=x)
+#         return super().apply(x=x)
 
 
 # class Conv2dTranspose(TransformationBase):
@@ -461,10 +465,11 @@ class Conv2d(TransformationBase):
 #             is_trainable=self.is_trainable, initializer=initializer
 #         )
 
-#     def tf_apply(self, x):
+    # @tf_function(num_args=1)
+    # def apply(self, x):
 #         x = tf.nn.conv2d_transpose(
 #             input=x, filters=self.weights, output_shape=self.output_shape, strides=self.stride,
 #             padding=self.padding.upper(), dilations=self.dilation
 #         )
 
-#         return super().tf_apply(x=x)
+#         return super().apply(x=x)

@@ -35,5 +35,5 @@ class MetaOptimizer(Optimizer):
         super().__init__(name=name, summary_labels=summary_labels)
 
         self.optimizer = self.add_module(
-            name='inner-optimizer', module=optimizer, modules=tensorforce.core.optimizer_modules
+            name='optimizer', module=optimizer, modules=tensorforce.core.optimizer_modules
         )

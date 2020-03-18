@@ -16,6 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
+from tensorforce.core import tf_function
 from tensorforce.core.layers import TransformationBase
 
 
@@ -111,7 +112,8 @@ class Embedding(TransformationBase):
             is_trainable=self.is_trainable, initializer=initializer
         )
 
-    def tf_apply(self, x):
+    @tf_function(num_args=1)
+    def apply(self, x):
         if util.tf_dtype('int') not in (tf.int32, tf.int64):
             x = tf.dtypes.cast(x=x, dtype=tf.int32)
         elif util.is_dtype(x=x, dtype='bool'):
@@ -119,4 +121,4 @@ class Embedding(TransformationBase):
 
         x = tf.nn.embedding_lookup(params=self.weights, ids=x, max_norm=self.max_norm)
 
-        return super().tf_apply(x=x)
+        return super().apply(x=x)

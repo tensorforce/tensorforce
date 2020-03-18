@@ -16,8 +16,8 @@
 from collections import Counter, OrderedDict
 
 from tensorforce import TensorforceError
-from tensorforce.core import Module
-from tensorforce.core.layers import layer_modules, StatefulLayer
+from tensorforce.core import tf_function
+from tensorforce.core.layers import layer_modules
 from tensorforce.core.networks import LayerbasedNetwork
 
 
@@ -29,31 +29,31 @@ class LayeredNetwork(LayerbasedNetwork):
     sequential layer-stacks (specification key: `custom` or `layered`).
 
     Args:
-        name (string): Network name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         layers (iter[specification] | iter[iter[specification]]): Layers configuration, see
             [layers](../modules/layers.html)
             (<span style="color:#C00000"><b>required</b></span>).
-        inputs_spec (specification): Input tensors specification
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         device (string): Device name
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): <span style="color:#0000C0"><b>internal use</b></span>.
+        inputs_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     # (requires layers as first argument)
     def __init__(
-        self, name, layers, inputs_spec, device=None, summary_labels=None, l2_regularization=None
+        self, layers, device=None, summary_labels=None, l2_regularization=None, name=None,
+        inputs_spec=None
     ):
         super().__init__(
-            name=name, inputs_spec=inputs_spec, device=device, summary_labels=summary_labels,
-            l2_regularization=l2_regularization
+            device=device, summary_labels=summary_labels, l2_regularization=l2_regularization,
+            name=name, inputs_spec=inputs_spec
         )
 
         self.layers_spec = layers
+        self.layers = list()
 
         self.parse_layers_spec(layers_spec=self.layers_spec, layer_counter=Counter())
 
@@ -75,7 +75,7 @@ class LayeredNetwork(LayerbasedNetwork):
                 layer_counter[layer_type] += 1
 
             # layer_name = self.name + '-' + layer_name
-            self.add_module(name=layer_name, module=layers_spec)
+            self.layers.append(self.add_module(name=layer_name, module=layers_spec))
 
     # (requires layers as first argument)
     @classmethod
@@ -121,7 +121,7 @@ class LayeredNetwork(LayerbasedNetwork):
             layer_cls, first_arg, kwargs = Module.get_module_class_and_kwargs(
                 name=layer_name, module=layers_spec, modules=layer_modules
             )
-            if issubclass(layer_cls, StatefulLayer):
+            if issubclass(layer_cls, TemporalLayer):
                 if first_arg is None:
                     internals_spec = layer_cls.internals_spec(**kwargs)
                 else:
@@ -130,22 +130,22 @@ class LayeredNetwork(LayerbasedNetwork):
                     name = '{}-{}'.format(layer_name, name)
                     yield name, spec
 
-    def tf_apply(self, x, internals, return_internals=False):
-        super().tf_apply(x=x, internals=internals, return_internals=return_internals)
-
+    @tf_function(num_args=2)
+    def apply(self, x, internals, return_internals):
         if isinstance(x, dict):
             x = x[next(iter(x))]
 
         next_internals = OrderedDict()
-        for layer in self.modules.values():
-            if isinstance(layer, StatefulLayer):
-                layer_internals = {
-                    name: internals['{}-{}-{}'.format(self.name, layer.name, name)]
+        # for layer in self.modules.values():
+        for layer in self.layers:
+            if isinstance(layer, TemporalLayer):
+                layer_internals = [
+                    internals['{}-{}-{}'.format(self.name, layer.name, name)]
                     for name in layer.__class__.internals_spec(layer=layer)
-                }
+                ]
                 assert len(layer_internals) > 0
                 x, layer_internals = layer.apply(x=x, initial=layer_internals)
-                for name, internal in layer_internals.items():
+                for name, internal in zip(layer.__class__.internals_spec(layer=layer), layer_internals):
                     next_internals['{}-{}-{}'.format(self.name, layer.name, name)] = internal
 
             else:

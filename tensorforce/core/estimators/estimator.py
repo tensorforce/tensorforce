@@ -105,6 +105,7 @@ class Estimator(Module):
             return self.horizon.value() + tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
         else:
             return self.horizon.value()
+
     def tf_initialize(self):
         super().tf_initialize()
 
@@ -196,7 +197,7 @@ class Estimator(Module):
         if self.estimate_horizon == 'early' and baseline is not None:
             # Dependency horizon
             # TODO: handle arbitrary non-optimization horizons!
-            past_horizon = baseline.past_horizon(is_optimization=False)
+            past_horizon = baseline.past_horizon(on_policy=False)
             assertion = tf.debugging.assert_equal(
                 x=past_horizon, y=zero,
                 message="Temporary: baseline cannot depend on previous states."
@@ -208,8 +209,8 @@ class Estimator(Module):
             for name, state in states.items():
                 _states[name] = state[horizon_start:]
             _internals = OrderedDict()
-            for name, internal in internals.items():
-                _internals[name] = internal[horizon_start:]
+            for name in baseline.__class__.get_internals_spec(policy=baseline):
+                _internals[name] = internals[name][horizon_start:]
             _auxiliaries = OrderedDict()
             for name, auxiliary in auxiliaries.items():
                 _auxiliaries[name] = auxiliary[horizon_start:]
@@ -225,18 +226,25 @@ class Estimator(Module):
                 batch_size = num_values - horizon_start
                 starts = tf.range(start=batch_size, dtype=util.tf_dtype(dtype='long'))
                 lengths = tf.ones(shape=(batch_size,), dtype=util.tf_dtype(dtype='long'))
-                Module.update_tensors(dependency_starts=starts, dependency_lengths=lengths)
+
+                # Set global tensors
+                for name, state in states.items():
+                    self.set_global_tensor(name=name, tensor=state)
+                self.set_global_tensor(name='dependency_starts', tensor=starts)
+                self.set_global_tensor(name='dependency_lengths', tensor=lengths)
 
             if self.estimate_actions:
                 _actions = OrderedDict()
                 for name, action in actions.items():
                     _actions[name] = action[horizon_start:]
                 horizon_estimate = baseline.actions_value(
-                    states=_states, internals=_internals, auxiliaries=_auxiliaries, actions=_actions
+                    states=_states, internals=_internals, auxiliaries=_auxiliaries,
+                    actions=_actions, reduced=True, return_per_action=False
                 )
             else:
                 horizon_estimate = baseline.states_value(
-                    states=_states, internals=_internals, auxiliaries=_auxiliaries
+                    states=_states, internals=_internals, auxiliaries=_auxiliaries, reduced=True,
+                    return_per_action=False
                 )
 
             # Expand rewards beyond terminal
@@ -364,8 +372,10 @@ class Estimator(Module):
                         values=(state, states[name][:values_limit + one]), axis=0
                     )
                 _internals = OrderedDict()
-                for name, buffer in self.buffers['internals'].items():
-                    internal = tf.gather(params=buffer, indices=buffer_indices)
+                for name in baseline.__class__.get_internals_spec(policy=baseline):
+                    internal = tf.gather(
+                        params=self.buffers['internals'][name], indices=buffer_indices
+                    )
                     _internals[name] = tf.concat(
                         values=(internal, internals[name][:values_limit + one]), axis=0
                     )
@@ -378,7 +388,7 @@ class Estimator(Module):
 
                 # Dependency horizon
                 # TODO: handle arbitrary non-optimization horizons!
-                past_horizon = baseline.past_horizon(is_optimization=False)
+                past_horizon = baseline.past_horizon(on_policy=False)
                 assertion = tf.debugging.assert_equal(
                     x=past_horizon, y=zero,
                     message="Temporary: baseline cannot depend on previous states."
@@ -393,7 +403,12 @@ class Estimator(Module):
                         )
                     starts = tf.range(start=batch_size, dtype=util.tf_dtype(dtype='long'))
                     lengths = tf.ones(shape=(batch_size,), dtype=util.tf_dtype(dtype='long'))
-                    Module.update_tensors(dependency_starts=starts, dependency_lengths=lengths)
+
+                    # Set global tensors
+                    for name, state in states.items():
+                        self.set_global_tensor(name=name, tensor=state)
+                    self.set_global_tensor(name='dependency_starts', tensor=starts)
+                    self.set_global_tensor(name='dependency_lengths', tensor=lengths)
 
                 if self.estimate_actions:
                     _actions = OrderedDict()
@@ -404,11 +419,12 @@ class Estimator(Module):
                         )
                     horizon_estimate = baseline.actions_value(
                         states=_states, internals=_internals, auxiliaries=_auxiliaries,
-                        actions=_actions
+                        actions=_actions, reduced=True, return_per_action=False
                     )
                 else:
                     horizon_estimate = baseline.states_value(
-                        states=_states, internals=_internals, auxiliaries=_auxiliaries
+                        states=_states, internals=_internals, auxiliaries=_auxiliaries,
+                        reduced=True, return_per_action=False
                     )
 
             else:
@@ -525,7 +541,7 @@ class Estimator(Module):
             one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
 
             # Baseline dependencies
-            past_horizon = baseline.past_horizon(is_optimization=False)
+            past_horizon = baseline.past_horizon(on_policy=False)
             assertion = tf.debugging.assert_equal(
                 x=past_horizon, y=zero,
                 message="Temporary: baseline cannot depend on previous states."
@@ -539,7 +555,10 @@ class Estimator(Module):
                     )
                 starts = tf.range(start=batch_size, dtype=util.tf_dtype(dtype='long'))
                 lengths = tf.ones(shape=(batch_size,), dtype=util.tf_dtype(dtype='long'))
-                Module.update_tensors(dependency_starts=starts, dependency_lengths=lengths)
+
+                # Set global tensors
+                self.set_global_tensor(name='dependency_starts', tensor=starts)
+                self.set_global_tensor(name='dependency_lengths', tensor=lengths)
 
             horizon = self.horizon.value()
             discount = self.discount.value()
@@ -556,7 +575,8 @@ class Estimator(Module):
                     return_internals=False
                 )
                 horizon_estimate = baseline.actions_value(
-                    states=states, internals=internals, auxiliaries=auxiliaries, actions=actions
+                    states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
+                    reduced=True, return_per_action=False
                 )
             else:
                 # horizon change: see timestep-based batch sampling
@@ -565,7 +585,8 @@ class Estimator(Module):
                     final_values=('states', 'internals', 'auxiliaries', 'terminal')
                 )
                 horizon_estimate = baseline.states_value(
-                    states=states, internals=internals, auxiliaries=auxiliaries
+                    states=states, internals=internals, auxiliaries=auxiliaries, reduced=True,
+                    return_per_action=False
                 )
 
             exponent = tf.dtypes.cast(x=horizons, dtype=util.tf_dtype(dtype='float'))
@@ -588,7 +609,7 @@ class Estimator(Module):
             zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
 
             # Baseline dependencies
-            past_horizon = baseline.past_horizon(is_optimization=is_baseline_optimized)
+            past_horizon = baseline.past_horizon(on_policy=is_baseline_optimized)
             # with tf.control_dependencies(control_inputs=(assertion,)):
             if util.tf_dtype(dtype='long') in (tf.int32, tf.int64):
                 batch_size = tf.shape(input=reward, out_type=util.tf_dtype(dtype='long'))[0]
@@ -598,21 +619,26 @@ class Estimator(Module):
                 )
             starts = tf.range(start=batch_size, dtype=util.tf_dtype(dtype='long'))
             lengths = tf.ones(shape=(batch_size,), dtype=util.tf_dtype(dtype='long'))
-            Module.update_tensors(dependency_starts=starts, dependency_lengths=lengths)
+
+            # Set global tensors
+            self.set_global_tensor(name='dependency_starts', tensor=starts)
+            self.set_global_tensor(name='dependency_lengths', tensor=lengths)
 
             if self.estimate_actions:
                 states, internals, auxiliaries, actions = memory.retrieve(
                     indices=indices, values=('states', 'internals', 'auxiliaries', 'actions')
                 )
                 critic_estimate = baseline.actions_value(
-                    states=states, internals=internals, auxiliaries=auxiliaries, actions=actions
+                    states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
+                    reduced=True, return_per_action=False
                 )
             else:
                 states, internals, auxiliaries = memory.retrieve(
                     indices=indices, values=('states', 'internals', 'auxiliaries')
                 )
                 critic_estimate = baseline.states_value(
-                    states=states, internals=internals, auxiliaries=auxiliaries
+                    states=states, internals=internals, auxiliaries=auxiliaries, reduced=True,
+                    return_per_action=False
                 )
 
             reward = reward - critic_estimate

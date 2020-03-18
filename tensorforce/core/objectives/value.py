@@ -16,7 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core import parameter_modules
+from tensorforce.core import parameter_modules, tf_function
 from tensorforce.core.objectives import Objective
 
 
@@ -26,8 +26,6 @@ class Value(Objective):
     estimate and the target reward value (specification key: `value`).
 
     Args:
-        name (string): Module name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         value ("state" | "action"): Whether to approximate the state- or state-action-value
             (<span style="color:#00C000"><b>default</b></span>: "state").
         huber_loss (parameter, float >= 0.0): Huber loss threshold
@@ -36,37 +34,39 @@ class Value(Objective):
             action (<span style="color:#00C000"><b>default</b></span>: false).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
-        self, name, value='state', huber_loss=0.0, early_reduce=False, summary_labels=None
+        self, value='state', huber_loss=0.0, early_reduce=False, summary_labels=None, name=None
     ):
-        super().__init__(name=name, summary_labels=summary_labels)
+        super().__init__(summary_labels=summary_labels, name=name)
 
         assert value in ('state', 'action')
         self.value = value
 
         huber_loss = 0.0 if huber_loss is None else huber_loss
         self.huber_loss = self.add_module(
-            name='huber-loss', module=huber_loss, modules=parameter_modules, dtype='float',
+            name='huber_loss', module=huber_loss, modules=parameter_modules, dtype='float',
             min_value=0.0
         )
 
         self.early_reduce = early_reduce
 
-    def tf_loss_per_instance(self, policy, states, internals, auxiliaries, actions, reward):
+    @tf_function(num_args=5)
+    def loss_per_instance(self, states, internals, auxiliaries, actions, reward):
         if not self.early_reduce:
             reward = tf.expand_dims(input=reward, axis=1)
 
         if self.value == 'state':
             value = policy.states_value(
                 states=states, internals=internals, auxiliaries=auxiliaries,
-                reduced=self.early_reduce
+                reduced=self.early_reduce, return_per_action=False
             )
         elif self.value == 'action':
             value = policy.actions_value(
                 states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
-                reduced=self.early_reduce
+                reduced=self.early_reduce, return_per_action=False
             )
 
         difference = value - reward

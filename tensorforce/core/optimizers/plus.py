@@ -38,10 +38,10 @@ class Plus(Optimizer):
         super().__init__(name=name, summary_labels=summary_labels)
 
         self.optimizer1 = self.add_module(
-            name='first-optimizer', module=optimizer1, modules=tensorforce.core.optimizer_modules
+            name='optimizer1', module=optimizer1, modules=tensorforce.core.optimizer_modules
         )
         self.optimizer2 = self.add_module(
-            name='second-optimizer', module=optimizer2, modules=tensorforce.core.optimizer_modules
+            name='optimizer2', module=optimizer2, modules=tensorforce.core.optimizer_modules
         )
 
     def tf_step(self, **kwargs):

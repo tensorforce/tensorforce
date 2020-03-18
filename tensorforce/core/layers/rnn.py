@@ -16,6 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
+from tensorforce.core import tf_function
 from tensorforce.core.layers import TransformationBase
 
 
@@ -117,7 +118,8 @@ class Rnn(TransformationBase):
             name = variable.name[variable.name.rindex(self.name + '/') + len(self.name) + 1: -2]
             self.variables[name] = variable
 
-    def tf_regularize(self):
+    @tf_function(num_args=0)
+    def regularize(self):
         regularization_loss = super().tf_regularize()
 
         if len(self.rnn.losses) > 0:
@@ -125,7 +127,8 @@ class Rnn(TransformationBase):
 
         return regularization_loss
 
-    def tf_apply(self, x, sequence_length=None):
+    @tf_function(num_args=1)
+    def apply(self, x):
         x = self.rnn(inputs=x, initial_state=None)
 
         if self.return_final_state:
@@ -136,7 +139,7 @@ class Rnn(TransformationBase):
         else:
             x = x[0]
 
-        return super().tf_apply(x=x)
+        return super().apply(x=x)
 
 
 class Gru(Rnn):

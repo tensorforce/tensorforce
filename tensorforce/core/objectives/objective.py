@@ -15,7 +15,8 @@
 
 from collections import OrderedDict
 
-from tensorforce.core import Module
+from tensorforce import util
+from tensorforce.core import Module, tf_function
 
 
 class Objective(Module):
@@ -23,16 +24,29 @@ class Objective(Module):
     Base class for optimization objectives.
 
     Args:
-        name (string): Module name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(self, name, summary_labels=None):
+    def __init__(self, summary_labels=None, name=None, policy=None):
         super().__init__(name=name, summary_labels=summary_labels)
 
-    def tf_loss_per_instance(self, policy, states, internals, auxiliaries, actions, reward):
+    def input_signature(self, function):
+        if function == 'loss_per_instance':
+            return [
+                util.to_tensor_spec(value_spec=self.parent.states_spec, batched=True),
+                util.to_tensor_spec(value_spec=self.parent.internals_spec, batched=True),
+                util.to_tensor_spec(value_spec=self.parent.auxiliaries_spec, batched=True),
+                util.to_tensor_spec(value_spec=self.parent.actions_spec, batched=True),
+                util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=True)
+            ]
+
+        else:
+            return super().input_signature(function=function)
+
+    @tf_function(num_args=5)
+    def loss_per_instance(self, states, internals, auxiliaries, actions, reward):
         raise NotImplementedError
 
     def optimizer_arguments(self, **kwargs):

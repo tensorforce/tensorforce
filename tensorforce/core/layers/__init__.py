@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce.core.layers.layer import Layer, StatefulLayer, TemporalLayer, TransformationBase
+from tensorforce.core.layers.layer import Layer, TemporalLayer, TransformationBase
 
 from tensorforce.core.layers.convolution import Conv1d, Conv2d  # Conv1dTranspose, Conv2dTranspose
 from tensorforce.core.layers.dense import Dense
@@ -48,5 +48,5 @@ __all__ = [
     'Function', 'GRU', 'Image', 'InstanceNormalization', 'InternalGru', 'InternalLayer',
     'InternalLstm', 'InternalRnn', 'Keras', 'Layer', 'layer_modules', 'Linear', 'Lstm',
     'Nonlinearity', 'Pooling', 'Pool1d', 'Pool2d', 'PreprocessingLayer', 'Register', 'Reshape',
-    'Retrieve', 'Rnn', 'Sequence', 'StatefulLayer', 'TemporalLayer', 'TransformationBase'
+    'Retrieve', 'Rnn', 'Sequence', 'TemporalLayer', 'TransformationBase'
 ]

@@ -22,7 +22,7 @@ from test.unittest_base import UnittestBase
 class TestRewardEstimation(UnittestBase, unittest.TestCase):
 
     agent = dict(
-        policy=dict(network=dict(type='auto', size=8, depth=1, internal_rnn=2)),
+        policy=dict(network=dict(type='auto', size=8, depth=1, rnn=2)),
         update=dict(unit='episodes', batch_size=1),
         objective='policy_gradient'
     )
@@ -55,7 +55,7 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
 
         reward_estimation = dict(horizon=2, estimate_horizon='early', estimate_terminal=True)
         # TODO: currently requires same internal RNN horizon
-        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, internal_rnn=2))
+        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=2))
         baseline_objective = 'policy_gradient'
         self.unittest(
             reward_estimation=reward_estimation, baseline_policy=baseline_policy,
@@ -65,7 +65,7 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         reward_estimation = dict(
             horizon=2, estimate_horizon='early', estimate_actions=True, estimate_terminal=True
         )
-        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, internal_rnn=1))
+        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=1))
         baseline_objective = 'policy_gradient'
         baseline_optimizer = 'adam'
         self.unittest(
@@ -89,7 +89,7 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         )
 
         reward_estimation = dict(horizon=2, estimate_horizon='late', estimate_terminal=True)
-        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, internal_rnn=1))
+        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=1))
         baseline_optimizer = 'adam'
         self.unittest(
             reward_estimation=reward_estimation, baseline_policy=baseline_policy,
@@ -99,7 +99,7 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         reward_estimation = dict(
             horizon=2, estimate_horizon='late', estimate_actions=True, estimate_terminal=True
         )
-        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, internal_rnn=1))
+        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=1))
         baseline_objective = 'policy_gradient'
         baseline_optimizer = 'adam'
         self.unittest(
@@ -117,13 +117,13 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
             horizon=2, estimate_horizon='early', estimate_actions=True, estimate_advantage=True
         )
         # TODO: currently requires same internal RNN horizon
-        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, internal_rnn=2))
+        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=2))
         self.unittest(reward_estimation=reward_estimation, baseline_policy=baseline_policy)
 
         reward_estimation = dict(
             horizon=2, estimate_horizon='late', estimate_terminal=True, estimate_advantage=True
         )
-        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, internal_rnn=1))
+        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=1))
         baseline_objective = 'policy_gradient'
         baseline_optimizer = 'adam'
         self.unittest(

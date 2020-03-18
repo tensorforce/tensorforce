@@ -258,7 +258,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
         # TODO: currently Protobuf saving is not compatible with internal state RNNs
         # episodes update to guarantee inequality between weights2 and weights3
         agent, environment = self.prepare(
-            policy=dict(network=dict(type='auto', size=8, depth=1, internal_rnn=False)), memory=50,
+            policy=dict(network=dict(type='auto', size=8, depth=1, rnn=False)), memory=50,
             update=dict(unit='episodes', batch_size=1)
         )
         states = environment.reset()

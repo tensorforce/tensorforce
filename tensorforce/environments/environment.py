@@ -400,6 +400,7 @@ class RemoteEnvironment(Environment):
     @classmethod
     def remote(cls, connection, environment, max_episode_timesteps=None, **kwargs):
         try:
+            environment = None
             environment = Environment.create(
                 environment=environment, max_episode_timesteps=max_episode_timesteps, **kwargs
             )
@@ -423,8 +424,15 @@ class RemoteEnvironment(Environment):
                     break
 
         except BaseException:
+            etype, value, traceback = sys.exc_info()
+            cls.remote_send(
+                connection=connection, success=False,
+                result=(str(etype), str(value), format_tb(traceback))
+            )
+
             try:
-                environment.close()
+                if environment is not None:
+                    environment.close()
             except BaseException:
                 pass
             finally:

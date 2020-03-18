@@ -82,41 +82,61 @@ def tf_always_true(*args, **kwargs):
     return tf.constant(value=True, dtype=tf_dtype(dtype='bool'))
 
 
-def fmap(function, xs, depth=-1, map_keys=False):
-    if xs is None:
+def fmap(function, xs, depth=-1, map_keys=False, map_types=()):
+    if xs is None and None not in map_types:
         assert depth <= 0
         return None
-    elif isinstance(xs, tuple) and depth != 0:
-        return tuple(fmap(function=function, xs=x, depth=(depth - 1), map_keys=map_keys) for x in xs)
-    elif isinstance(xs, list) and depth != 0:
-        return [fmap(function=function, xs=x, depth=(depth - 1), map_keys=map_keys) for x in xs]
-    elif isinstance(xs, set) and depth != 0:
-        return {fmap(function=function, xs=x, depth=(depth - 1), map_keys=map_keys) for x in xs}
-    elif isinstance(xs, OrderedDict) and depth != 0:
+    elif isinstance(xs, tuple) and depth != 0 and tuple not in map_types:
+        return tuple(
+            fmap(function=function, xs=x, depth=(depth - 1), map_keys=map_keys, map_types=map_types)
+            for x in xs
+        )
+    elif isinstance(xs, list) and depth != 0 and list not in map_types:
+        return [
+            fmap(function=function, xs=x, depth=(depth - 1), map_keys=map_keys, map_types=map_types)
+            for x in xs
+        ]
+    elif isinstance(xs, set) and depth != 0 and set not in map_types:
+        return {
+            fmap(function=function, xs=x, depth=(depth - 1), map_keys=map_keys, map_types=map_types)
+            for x in xs
+        }
+    elif isinstance(xs, OrderedDict) and depth != 0 and OrderedDict not in map_types:
         if map_keys:
             return OrderedDict((
-                (function(key), fmap(function=function, xs=x, depth=(depth - 1), map_keys=map_keys))
-                for key, x in xs.items()
+                (function(key), fmap(
+                    function=function, xs=x, depth=(depth - 1), map_keys=map_keys,
+                    map_types=map_types
+                )) for key, x in xs.items()
             ))
         else:
             return OrderedDict((
-                (key, fmap(function=function, xs=x, depth=(depth - 1), map_keys=map_keys))
-                for key, x in xs.items()
+                (key, fmap(
+                    function=function, xs=x, depth=(depth - 1), map_keys=map_keys,
+                    map_types=map_types
+                )) for key, x in xs.items()
             ))
-    elif isinstance(xs, dict) and depth != 0:
+    elif isinstance(xs, dict) and depth != 0 and dict not in map_types:
         if map_keys:
             return {
-                function(key): fmap(function=function, xs=x, depth=(depth - 1), map_keys=map_keys)
-                for key, x in xs.items()
+                function(key): fmap(
+                    function=function, xs=x, depth=(depth - 1), map_keys=map_keys,
+                    map_types=map_types
+                ) for key, x in xs.items()
             }
         else:
             return {
-                key: fmap(function=function, xs=x, depth=(depth - 1), map_keys=map_keys)
-                for key, x in xs.items()
+                key: fmap(
+                    function=function, xs=x, depth=(depth - 1), map_keys=map_keys,
+                    map_types=map_types
+                ) for key, x in xs.items()
             }
     else:
-        assert depth <= 0
-        return function(xs)
+        if map_keys:  # or depth <= 0?
+            return xs
+        else:
+            assert depth <= 0
+            return function(xs)
 
 
 def not_nan_inf(x):
@@ -373,6 +393,17 @@ def is_valid_value_type(value_type):
 
 def is_atomic_values_spec(values_spec):
     return 'type' in values_spec or 'shape' in values_spec
+
+
+def to_tensor_spec(value_spec, batched):
+    if isinstance(value_spec, OrderedDict):
+        return [to_tensor_spec(value_spec=spec, batched=batched) for spec in value_spec.values()]
+    else:
+        dtype = value_spec['type']
+        shape = value_spec['shape']
+        if batched and shape is not None:
+            shape = (None,) + shape
+        return tf.TensorSpec(shape=tf.TensorShape(dims=shape), dtype=tf_dtype(dtype=dtype))
 
 
 def valid_values_spec(values_spec, value_type='tensor', return_normalized=False):

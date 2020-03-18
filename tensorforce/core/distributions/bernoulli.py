@@ -13,10 +13,12 @@
 # limitations under the License.
 # ==============================================================================
 
+from collections import OrderedDict
+
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core import layer_modules, Module
+from tensorforce.core import layer_modules, Module, tf_function
 from tensorforce.core.distributions import Distribution
 
 
@@ -36,9 +38,16 @@ class Bernoulli(Distribution):
     """
 
     def __init__(self, name, action_spec, embedding_shape, summary_labels=None):
+        parameters_spec = OrderedDict(
+            true_logit=dict(type='float', shape=action_spec['shape']),
+            false_logit=dict(type='float', shape=action_spec['shape']),
+            probability_logit=dict(type='float', shape=action_spec['shape']),
+            states_value=dict(type='float', shape=action_spec['shape'])
+        )
+
         super().__init__(
             name=name, action_spec=action_spec, embedding_shape=embedding_shape,
-            summary_labels=summary_labels
+            parameters_spec=parameters_spec, summary_labels=summary_labels
         )
 
         input_spec = dict(type='float', shape=self.embedding_shape)
@@ -70,12 +79,13 @@ class Bernoulli(Distribution):
                 input_spec=input_spec
             )
 
-        Module.register_tensor(
+        self.register_global_tensor(
             name=(self.name + '-probability'),
             spec=dict(type='float', shape=self.action_spec['shape']), batched=True
         )
 
-    def tf_parametrize(self, x):
+    @tf_function(num_args=1)
+    def parametrize(self, x):
         one = tf.constant(value=1.0, dtype=util.tf_dtype(dtype='float'))
         epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
         shape = (-1,) + self.action_spec['shape']
@@ -100,11 +110,12 @@ class Bernoulli(Distribution):
         true_logit = tf.math.log(x=probability)
         false_logit = tf.math.log(x=(one - probability))
 
-        Module.update_tensor(name=(self.name + '-probability'), tensor=probability)
+        self.set_global_tensor(name=(self.name + '-probability'), tensor=probability)
 
-        return true_logit, false_logit, probability, states_value
+        return [true_logit, false_logit, probability, states_value]
 
-    def tf_sample(self, parameters, temperature):
+    @tf_function(num_args=2)
+    def sample(self, parameters, temperature):
         true_logit, false_logit, probability, _ = parameters
 
         summary_probability = probability
@@ -133,19 +144,22 @@ class Bernoulli(Distribution):
 
         return tf.where(condition=(temperature < epsilon), x=definite, y=sampled)
 
-    def tf_log_probability(self, parameters, action):
+    @tf_function(num_args=2)
+    def log_probability(self, parameters, action):
         true_logit, false_logit, _, _ = parameters
 
         return tf.where(condition=action, x=true_logit, y=false_logit)
 
-    def tf_entropy(self, parameters):
+    @tf_function(num_args=1)
+    def entropy(self, parameters):
         true_logit, false_logit, probability, _ = parameters
 
         one = tf.constant(value=1.0, dtype=util.tf_dtype(dtype='float'))
 
         return -probability * true_logit - (one - probability) * false_logit
 
-    def tf_kl_divergence(self, parameters1, parameters2):
+    @tf_function(num_args=2)
+    def kl_divergence(self, parameters1, parameters2):
         true_logit1, false_logit1, probability1, _ = parameters1
         true_logit2, false_logit2, _, _ = parameters2
 
@@ -156,19 +170,20 @@ class Bernoulli(Distribution):
 
         return probability1 * true_log_prob_ratio + (one - probability1) * false_log_prob_ratio
 
-    def tf_action_value(self, parameters, action=None):
+    @tf_function(num_args=2)
+    def action_value(self, parameters, action):
         true_logit, false_logit, _, states_value = parameters
 
-        if action is None:
-            states_value = tf.expand_dims(input=states_value, axis=-1)
-            logits = tf.stack(values=(false_logit, true_logit), axis=-1)
+        # if action is None:
+        #     states_value = tf.expand_dims(input=states_value, axis=-1)
+        #     logits = tf.stack(values=(false_logit, true_logit), axis=-1)
 
-        else:
-            logits = tf.where(condition=action, x=true_logit, y=false_logit)
+        logits = tf.where(condition=action, x=true_logit, y=false_logit)
 
         return states_value + logits
 
-    def tf_states_value(self, parameters):
+    @tf_function(num_args=1)
+    def states_value(self, parameters):
         _, _, _, states_value = parameters
 
         return states_value

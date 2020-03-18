@@ -24,18 +24,8 @@ class Random(Parameter):
     Random hyperparameter.
 
     Args:
-        name (string): Module name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
-        dtype ("bool" | "int" | "long" | "float"): Tensor type
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         distribution ("normal" | "uniform"): Distribution type for random hyperparameter value
             (<span style="color:#C00000"><b>required</b></span>).
-        shape (iter[int > 0]): Tensor shape
-            (<span style="color:#0000C0"><b>internal use</b></span>).
-        min_value (dtype-compatible value): Lower parameter value bound
-            (<span style="color:#0000C0"><b>internal use</b></span>).
-        max_value (dtype-compatible value): Upper parameter value bound
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         kwargs: Additional arguments dependent on distribution type.<br>
@@ -54,11 +44,16 @@ class Random(Parameter):
             (<span style="color:#00C000"><b>default</b></span>: 1.0 for float,
             <span style="color:#C00000"><b>required</b></span> for int).</li>
             </ul>
+        name (string): <span style="color:#0000C0"><b>internal use</b></span>.
+        dtype (type): <span style="color:#0000C0"><b>internal use</b></span>.
+        shape (iter[int > 0]): <span style="color:#0000C0"><b>internal use</b></span>.
+        min_value (dtype-compatible value): <span style="color:#0000C0"><b>internal use</b></span>.
+        max_value (dtype-compatible value): <span style="color:#0000C0"><b>internal use</b></span>.
         """
 
     def __init__(
-        self, name, dtype, distribution, shape=(), min_value=None, max_value=None,
-        summary_labels=None, **kwargs
+        self, distribution, summary_labels=None, name=None, dtype=None, shape=(), min_value=None,
+        max_value=None, **kwargs
     ):
         assert dtype in ('int', 'long', 'float')
         assert distribution in ('normal', 'uniform')
@@ -67,8 +62,8 @@ class Random(Parameter):
         self.kwargs = kwargs
 
         super().__init__(
-            name=name, dtype=dtype, shape=shape, min_value=min_value, max_value=max_value,
-            summary_labels=summary_labels
+            unit=unit, summary_labels=summary_labels, name=name, dtype=dtype, shape=shape,
+            min_value=min_value, max_value=max_value
         )
 
     def min_value(self):

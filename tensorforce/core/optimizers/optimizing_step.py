@@ -50,8 +50,8 @@ class OptimizingStep(MetaOptimizer):
     ):
         super().__init__(name=name, optimizer=optimizer)
 
-        self.solver = self.add_module(
-            name='line-search', module='line_search', modules=solver_modules,
+        self.line_search = self.add_module(
+            name='line_search', module='line_search', modules=solver_modules,
             max_iterations=ls_max_iterations, accept_ratio=ls_accept_ratio, mode=ls_mode,
             parameter=ls_parameter, unroll_loop=ls_unroll_loop
         )
@@ -98,7 +98,7 @@ class OptimizingStep(MetaOptimizer):
                     # Negative value since line search maximizes.
                     return -fn_loss(**augmented_arguments)
 
-            return self.solver.solve(
+            return self.line_search.solve(
                 fn_x=evaluate_step, x_init=deltas, base_value=loss_before, target_value=loss_step,
                 estimated_improvement=estimated_improvement
             )

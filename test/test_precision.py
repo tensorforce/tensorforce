@@ -41,7 +41,7 @@ class TestPrecision(UnittestBase, unittest.TestCase):
 
             # TODO: Keras RNNs use float32 which causes mismatch during optimization
             self.unittest(
-                policy=dict(network=dict(type='auto', size=8, depth=1, internal_rnn=False))
+                policy=dict(network=dict(type='auto', size=8, depth=1, rnn=False))
             )
 
         except BaseException as exc:

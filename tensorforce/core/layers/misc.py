@@ -19,7 +19,7 @@ import tensorflow as tf
 
 from tensorforce import TensorforceError, util
 import tensorforce.core
-from tensorforce.core import Module, parameter_modules
+from tensorforce.core import parameter_modules, tf_function
 from tensorforce.core.layers import Layer
 
 
@@ -57,7 +57,8 @@ class Activation(Layer):
     def default_input_spec(self):
         return dict(type='float', shape=None)
 
-    def tf_apply(self, x):
+    @tf_function(num_args=1)
+    def apply(self, x):
         if self.nonlinearity == 'crelu':
             x = tf.nn.crelu(features=x)
 
@@ -154,7 +155,8 @@ class Block(Layer):
             input_spec = layer.get_output_spec(input_spec=input_spec)
         return input_spec
 
-    def tf_apply(self, x):
+    @tf_function(num_args=1)
+    def apply(self, x):
         for layer in self.layers:
             x = layer.apply(x=x)
         return x
@@ -195,7 +197,8 @@ class Dropout(Layer):
                 name='dropout', argument='input_spec', value=spec['type'], hint='!= float'
             )
 
-    def tf_apply(self, x):
+    @tf_function(num_args=1)
+    def apply(self, x):
         rate = self.rate.value()
 
         def no_dropout():
@@ -208,7 +211,7 @@ class Dropout(Layer):
                 pass_tensors=dropout
             )
 
-        skip_dropout = tf.math.logical_not(x=Module.retrieve_tensor(name='deterministic'))
+        skip_dropout = tf.math.logical_not(x=self.global_tensor(name='deterministic'))
         zero = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
         skip_dropout = tf.math.logical_or(x=skip_dropout, y=tf.math.equal(x=rate, y=zero))
         return self.cond(pred=skip_dropout, true_fn=no_dropout, false_fn=apply_dropout)
@@ -256,7 +259,8 @@ class Function(Layer):
 
         return input_spec
 
-    def tf_apply(self, x):
+    @tf_function(num_args=1)
+    def apply(self, x):
         return self.function(x)
 
 
@@ -290,17 +294,19 @@ class Register(Layer):
 
         super().__init__(name=name, input_spec=input_spec, summary_labels=summary_labels)
 
-        Module.register_tensor(name=self.tensor, spec=self.input_spec, batched=True)
-
-        self.output_spec = None
+        self.register_global_tensor(name=self.tensor, spec=self.input_spec, batched=True)
+        # self.output_spec = None
 
     def default_input_spec(self):
         return dict(type=None, shape=None)
 
-    def tf_apply(self, x):
-        last_scope = Module.global_scope.pop()
-        Module.update_tensor(name=self.tensor, tensor=x)
-        Module.global_scope.append(last_scope)
+    # No tf_function, so global tensor is part of parent graph
+    # @tf_function(num_args=1)
+    def apply(self, x):
+        self.set_global_tensor(name=self.tensor, tensor=x)
+        # last_scope = Module.global_scope.pop()
+        # Module.update_tensor(name=self.tensor, tensor=x)
+        # Module.global_scope.append(last_scope)
 
         return x
 
@@ -338,7 +344,8 @@ class Reshape(Layer):
 
         return input_spec
 
-    def tf_apply(self, x):
+    @tf_function(num_args=1)
+    def apply(self, x):
         x = tf.reshape(tensor=x, shape=((-1,) + self.shape))
 
         return x
@@ -388,14 +395,14 @@ class Retrieve(Layer):
 
         super().__init__(name=name, input_spec=input_spec, summary_labels=summary_labels)
 
-        self.input_spec = None
+        # self.input_spec = None
 
     def default_input_spec(self):
         return dict(type=None, shape=None)
 
     def get_output_spec(self, input_spec):
         if len(self.tensors) == 1:
-            return Module.get_tensor_spec(name=self.tensors[0])
+            return self.global_tensor_spec(name=self.tensors[0])
 
         # Get tensor types and shapes
         dtypes = list()
@@ -405,7 +412,7 @@ class Retrieve(Layer):
             if tensor == '*':
                 spec = input_spec
             else:
-                spec = Module.get_tensor_spec(name=tensor)
+                spec = self.global_tensor_spec(name=tensor)
             dtypes.append(spec['type'])
             shapes.append(spec['shape'])
 
@@ -462,14 +469,16 @@ class Retrieve(Layer):
         # Missing num_values, min/max_value!!!
         return dict(type=dtype, shape=shape)
 
-    def tf_apply(self, x):
+    @tf_function(num_args=1)
+    def apply(self, x):
         if len(self.tensors) == 1:
             if self.tensors == '*':
                 return x
             else:
-                last_scope = Module.global_scope.pop()
-                x = Module.retrieve_tensor(name=self.tensors[0])
-                Module.global_scope.append(last_scope)
+                # last_scope = Module.global_scope.pop()
+                # x = Module.retrieve_tensor(name=self.tensors[0])
+                # Module.global_scope.append(last_scope)
+                x = self.global_tensor(name=self.tensors[0])
                 return x
 
         tensors = list()
@@ -477,9 +486,10 @@ class Retrieve(Layer):
             if tensor == '*':
                 tensors.append(x)
             else:
-                last_scope = Module.global_scope.pop()
-                tensors.append(Module.retrieve_tensor(name=tensor))
-                Module.global_scope.append(last_scope)
+                # last_scope = Module.global_scope.pop()
+                # tensors.append(Module.retrieve_tensor(name=tensor))
+                # Module.global_scope.append(last_scope)
+                tensors.append(self.global_tensor(name=tensor))
 
         shape = self.output_spec['shape']
         for n, tensor in enumerate(tensors):
@@ -548,7 +558,8 @@ class Reuse(Layer):
     def get_output_spec(self, input_spec):
         return self.layer.get_output_spec(input_spec=input_spec)
 
-    def tf_apply(self, x):
+    @tf_function(num_args=1)
+    def apply(self, x):
         return self.layer.apply(x=x)
 
     def get_variables(self, only_trainable=False, only_saved=False):

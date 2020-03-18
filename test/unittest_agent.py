@@ -54,7 +54,7 @@ class UnittestAgent(UnittestBase):
                 # min_timesteps=2,  # too few steps for update otherwise
                 # states=states, actions=actions,
                 require_all=True,
-                # policy=dict(network=dict(type='auto', size=8, depth=1, internal_rnn=2)),
+                # policy=dict(network=dict(type='auto', size=8, depth=1, rnn=2)),
                 # update=1
                 # TODO: shouldn't be necessary!
             )

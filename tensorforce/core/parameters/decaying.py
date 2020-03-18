@@ -25,10 +25,6 @@ class Decaying(Parameter):
     Decaying hyperparameter.
 
     Args:
-        name (string): Module name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
-        dtype ("bool" | "int" | "long" | "float"): Tensor type
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         unit ("timesteps" | "episodes" | "updates"): Unit of decay schedule
             (<span style="color:#C00000"><b>required</b></span>).
         decay ("cosine" | "cosine_restarts" | "exponential" | "inverse_time" | "linear_cosine" | "linear_cosine_noisy" | "polynomial"):
@@ -45,10 +41,6 @@ class Decaying(Parameter):
             (<span style="color:#00C000"><b>default</b></span>: false).
         scale (float): Scaling factor for (inverse) decayed value
             (<span style="color:#00C000"><b>default</b></span>: 1.0).
-        min_value (dtype-compatible value): Lower parameter value bound
-            (<span style="color:#0000C0"><b>internal use</b></span>).
-        max_value (dtype-compatible value): Upper parameter value bound
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         summary_labels ("all" | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         kwargs: Additional arguments depend on decay mechanism.<br>
@@ -127,11 +119,15 @@ class Decaying(Parameter):
             <li><b>cycle</b> (<i>bool</i>) &ndash; Whether to cycle beyond decay_steps
             (<span style="color:#00C000"><b>default</b></span>: false).</li>
             </ul>
+        name (string): <span style="color:#0000C0"><b>internal use</b></span>.
+        dtype (type): <span style="color:#0000C0"><b>internal use</b></span>.
+        min_value (dtype-compatible value): <span style="color:#0000C0"><b>internal use</b></span>.
+        max_value (dtype-compatible value): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
-        self, name, dtype, unit, decay, initial_value, decay_steps, increasing=False,
-        inverse=False, scale=1.0, min_value=None, max_value=None, summary_labels=None, **kwargs
+        self, unit, decay, initial_value, decay_steps, increasing=False, inverse=False, scale=1.0,
+        summary_labels=None, name=None, dtype=None, min_value=None, max_value=None, **kwargs
     ):
         assert unit in ('timesteps', 'episodes', 'updates')
         assert decay in (
@@ -150,8 +146,8 @@ class Decaying(Parameter):
         self.kwargs = kwargs
 
         super().__init__(
-            name=name, dtype=dtype, unit=unit, min_value=min_value, max_value=max_value,
-            summary_labels=summary_labels
+            unit=unit, summary_labels=summary_labels, name=name, dtype=dtype, min_value=min_value,
+            max_value=max_value
         )
 
     def min_value(self):

@@ -18,7 +18,8 @@ from collections import OrderedDict
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core import memory_modules, Module, optimizer_modules, parameter_modules
+from tensorforce.core import memory_modules, Module, optimizer_modules, parameter_modules, \
+    tf_function
 from tensorforce.core.estimators import Estimator
 from tensorforce.core.models import Model
 from tensorforce.core.objectives import objective_modules
@@ -43,9 +44,9 @@ class TensorforceModel(Model):
             actions_spec=actions
         )
         if first_arg is None:
-            internals = policy_cls.internals_spec(name='policy', **kwargs)
+            internals = policy_cls.get_internals_spec(name='policy', **kwargs)
         else:
-            internals = policy_cls.internals_spec(first_arg, name='policy', **kwargs)
+            internals = policy_cls.get_internals_spec(first_arg, name='policy', **kwargs)
         if any(internal.startswith('baseline-') for internal in internals):
             raise TensorforceError.value(
                 name='model', argument='internals', value=list(internals),
@@ -57,13 +58,13 @@ class TensorforceModel(Model):
             pass
         else:
             baseline_cls, first_arg, kwargs = Module.get_module_class_and_kwargs(
-                name='baseline', module=baseline_policy, modules=policy_modules,
+                name='baseline_policy', module=baseline_policy, modules=policy_modules,
                 states_spec=states, actions_spec=actions
             )
             if first_arg is None:
-                baseline_internals = baseline_cls.internals_spec(name='baseline', **kwargs)
+                baseline_internals = baseline_cls.get_internals_spec(name='baseline', **kwargs)
             else:
-                baseline_internals = baseline_cls.internals_spec(
+                baseline_internals = baseline_cls.get_internals_spec(
                     first_arg, name='baseline', **kwargs
                 )
             for internal, spec in baseline_internals.items():
@@ -85,7 +86,7 @@ class TensorforceModel(Model):
         # Policy
         self.policy = self.add_module(
             name='policy', module=policy, modules=policy_modules, states_spec=self.states_spec,
-            actions_spec=self.actions_spec
+            auxiliaries_spec=self.auxiliaries_spec, actions_spec=self.actions_spec
         )        
 
         # Update mode
@@ -108,19 +109,19 @@ class TensorforceModel(Model):
 
         self.update_unit = update['unit']
         self.update_batch_size = self.add_module(
-            name='update-batch-size', module=update['batch_size'], modules=parameter_modules,
+            name='update_batch_size', module=update['batch_size'], modules=parameter_modules,
             is_trainable=False, dtype='long', min_value=1
         )
         if 'frequency' in update and update['frequency'] == 'never':
             self.update_frequency = None
         else:
             self.update_frequency = self.add_module(
-                name='update-frequency', module=update.get('frequency', update['batch_size']),
+                name='update_frequency', module=update.get('frequency', update['batch_size']),
                 modules=parameter_modules, is_trainable=False, dtype='long', min_value=1,
                 max_value=max(2, self.update_batch_size.max_value())
             )
             self.update_start = self.add_module(
-                name='update-start', module=update.get('start', 0), modules=parameter_modules,
+                name='update_start', module=update.get('start', 0), modules=parameter_modules,
                 is_trainable=False, dtype='long', min_value=0
             )
 
@@ -149,53 +150,52 @@ class TensorforceModel(Model):
         #   y         y           f           bl trainable, weighted, equal horizon
         #   y         y           y           separate
 
-        # Baseline objective
-        if baseline_objective is None:
-            self.baseline_objective = None
-        else:
-            self.baseline_objective = self.add_module(
-                name='baseline-objective', module=baseline_objective, modules=objective_modules,
-                is_trainable=False, is_subscope=True
-            )
-
         # Baseline optimizer
         if baseline_optimizer is None:
             self.baseline_optimizer = None
-            if self.baseline_objective is None:
+            if baseline_objective is None:
                 self.baseline_loss_weight = None
             else:
                 self.baseline_loss_weight = 1.0
         elif isinstance(baseline_optimizer, float):
-            assert self.baseline_objective is not None
+            assert baseline_objective is not None
             self.baseline_optimizer = None
             self.baseline_loss_weight = baseline_optimizer
         else:
-            assert self.baseline_objective is not None or baseline_policy is not None
+            assert baseline_objective is not None or baseline_policy is not None
             self.baseline_optimizer = self.add_module(
-                name='baseline-optimizer', module=baseline_optimizer, modules=optimizer_modules,
-                is_trainable=False, is_subscope=True
+                name='baseline_optimizer', module=baseline_optimizer, modules=optimizer_modules,
+                is_subscope=True, is_trainable=False
             )
             self.baseline_loss_weight = None
 
         # Baseline
-        if (baseline_policy is not None or self.baseline_objective is not None) and \
+        if (baseline_policy is not None or baseline_objective is not None) and \
                 self.baseline_optimizer is None:
             # since otherwise not part of training
-            assert self.baseline_objective is not None or \
+            assert baseline_objective is not None or \
                 reward_estimation.get('estimate_advantage', True)
             is_trainable = True
         else:
             is_trainable = False
         if baseline_policy is None:
-            self.baseline_policy = self.policy
             self.separate_baseline_policy = False
         else:
-            self.baseline_policy = self.add_module(
-                name='baseline', module=baseline_policy, modules=policy_modules,
-                is_trainable=is_trainable, is_subscope=True, states_spec=self.states_spec,
-                actions_spec=self.actions_spec
-            )
             self.separate_baseline_policy = True
+            self.baseline_policy = self.add_module(
+                name='baseline', module=baseline_policy, modules=policy_modules, is_subscope=True,
+                is_trainable=is_trainable, states_spec=self.states_spec,
+                auxiliaries_spec=self.auxiliaries_spec, actions_spec=self.actions_spec
+            )
+
+        # Baseline objective
+        if baseline_objective is None:
+            self.baseline_objective = None
+        else:
+            self.baseline_objective = self.add_module(
+                name='baseline_objective', module=baseline_objective, modules=objective_modules,
+                is_subscope=True, is_trainable=False
+            )
 
         # Estimator
         if not all(key in (
@@ -217,26 +217,34 @@ class TensorforceModel(Model):
             estimate_advantage = True
         else:
             estimate_advantage = False
+        if self.separate_baseline_policy:
+            max_past_horizon = self.baseline_policy.max_past_horizon(on_policy=False)
+        else:
+            max_past_horizon = self.policy.max_past_horizon(on_policy=False)
         self.estimator = self.add_module(
-            name='estimator', module=Estimator, is_trainable=False, is_saved=False,
-            values_spec=self.values_spec, horizon=reward_estimation['horizon'],
+            name='estimator', module=Estimator, is_trainable=False,  # is_subscope=True,
+            is_saved=False, values_spec=self.values_spec, horizon=reward_estimation['horizon'],
             discount=reward_estimation.get('discount', 1.0),
             estimate_horizon=reward_estimation.get('estimate_horizon', estimate_horizon),
             estimate_actions=reward_estimation.get('estimate_actions', False),
             estimate_terminal=reward_estimation.get('estimate_terminal', False),
             estimate_advantage=reward_estimation.get('estimate_advantage', estimate_advantage),
             # capacity=reward_estimation['capacity']
-            min_capacity=self.buffer_observe,
-            max_past_horizon=self.baseline_policy.max_past_horizon(is_optimization=False)
+            min_capacity=self.buffer_observe, max_past_horizon=max_past_horizon
         )
 
         # Memory
         if self.update_unit == 'timesteps':
-            policy_horizon = self.policy.max_past_horizon(is_optimization=True)
-            baseline_horizon = self.baseline_policy.max_past_horizon(is_optimization=True) - \
-                self.estimator.min_future_horizon()
-            min_capacity = self.update_batch_size.max_value() + 1 + \
-                self.estimator.max_future_horizon() + max(policy_horizon, baseline_horizon)
+            max_past_horizon = self.policy.max_past_horizon(on_policy=True)
+            if self.separate_baseline_policy:
+                max_past_horizon = max(
+                    max_past_horizon, (
+                        self.baseline_policy.max_past_horizon(on_policy=True) - \
+                        self.estimator.min_future_horizon()
+                    )
+                )
+            min_capacity = self.update_batch_size.max_value() + 1 + max_past_horizon + \
+                self.estimator.max_future_horizon()
         elif self.update_unit == 'episodes':
             if max_episode_timesteps is None:
                 min_capacity = 0
@@ -253,22 +261,22 @@ class TensorforceModel(Model):
         # Entropy regularization
         entropy_regularization = 0.0 if entropy_regularization is None else entropy_regularization
         self.entropy_regularization = self.add_module(
-            name='entropy-regularization', module=entropy_regularization,
+            name='entropy_regularization', module=entropy_regularization,
             modules=parameter_modules, is_trainable=False, dtype='float', min_value=0.0
         )
 
         # Internals initialization
         self.internals_init.update(self.policy.internals_init())
-        self.internals_init.update(self.baseline_policy.internals_init())
+        if self.separate_baseline_policy:
+            self.internals_init.update(self.baseline_policy.internals_init())
         if any(internal_init is None for internal_init in self.internals_init.values()):
             raise TensorforceError.required(name='model', argument='internals_init')
 
         # Register global tensors
-        Module.register_tensor(name='update', spec=dict(type='long', shape=()), batched=False)
-        Module.register_tensor(
+        self.register_global_tensor(
             name='dependency_starts', spec=dict(type='long', shape=()), batched=True
         )
-        Module.register_tensor(
+        self.register_global_tensor(
             name='dependency_lengths', spec=dict(type='long', shape=()), batched=True
         )
 
@@ -419,10 +427,11 @@ class TensorforceModel(Model):
             )
 
         # Set global tensors
-        Module.update_tensors(
-            independent=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool')),
-            deterministic=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool')),
-            timestep=self.global_timestep, episode=self.global_episode, update=self.global_update
+        self.set_global_tensor(
+            name='independent', tensor=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool'))
+        )
+        self.set_global_tensor(
+            name='deterministic', tensor=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
         )
 
         with tf.control_dependencies(control_inputs=assertions):
@@ -435,23 +444,24 @@ class TensorforceModel(Model):
         with tf.control_dependencies(control_inputs=(experienced,)):
             # Function-level identity operation for retrieval (plus enforce dependency)
             timestep = util.identity_operation(
-                x=self.global_timestep, operation_name='timestep-output'
+                x=self.global_tensor(name='timestep'), operation_name='timestep-output'
             )
             episode = util.identity_operation(
-                x=self.global_episode, operation_name='episode-output'
+                x=self.global_tensor(name='episode'), operation_name='episode-output'
             )
             update = util.identity_operation(
-                x=self.global_update, operation_name='update-output'
+                x=self.global_tensor(name='update'), operation_name='update-output'
             )
 
         return timestep, episode, update
 
     def api_update(self):
         # Set global tensors
-        Module.update_tensors(
-            independent=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool')),
-            deterministic=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool')),
-            timestep=self.global_timestep, episode=self.global_episode, update=self.global_update
+        self.set_global_tensor(
+            name='independent', tensor=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool'))
+        )
+        self.set_global_tensor(
+            name='deterministic', tensor=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
         )
 
         # Core update: retrieve update operation
@@ -460,13 +470,13 @@ class TensorforceModel(Model):
         with tf.control_dependencies(control_inputs=(updated,)):
             # Function-level identity operation for retrieval (plus enforce dependency)
             timestep = util.identity_operation(
-                x=self.global_timestep, operation_name='timestep-output'
+                x=self.global_tensor(name='timestep'), operation_name='timestep-output'
             )
             episode = util.identity_operation(
-                x=self.global_episode, operation_name='episode-output'
+                x=self.global_tensor(name='episode'), operation_name='episode-output'
             )
             update = util.identity_operation(
-                x=self.global_update, operation_name='update-output'
+                x=self.global_tensor(name='update'), operation_name='update-output'
             )
 
         return timestep, episode, update
@@ -475,10 +485,11 @@ class TensorforceModel(Model):
         zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
 
         # Dependency horizon
-        past_horizon = self.policy.past_horizon(is_optimization=False)
-        past_horizon = tf.math.maximum(
-            x=past_horizon, y=self.baseline_policy.past_horizon(is_optimization=False)
-        )
+        past_horizon = self.policy.past_horizon(on_policy=False)
+        if self.separate_baseline_policy:
+            past_horizon = tf.math.maximum(
+                x=past_horizon, y=self.baseline_policy.past_horizon(on_policy=False)
+            )
 
         # TODO: handle arbitrary non-optimization horizons!
         # assertion = tf.debugging.assert_equal(
@@ -496,17 +507,34 @@ class TensorforceModel(Model):
             )
         starts = tf.range(start=batch_size, dtype=util.tf_dtype(dtype='long'))
         lengths = tf.ones(shape=(batch_size,), dtype=util.tf_dtype(dtype='long'))
-        Module.update_tensors(dependency_starts=starts, dependency_lengths=lengths)
+
+        # Set global tensors
+        self.set_global_tensor(name='dependency_starts', tensor=starts)
+        self.set_global_tensor(name='dependency_lengths', tensor=lengths)
 
         # Policy act
+        policy_internals = {
+            name: internals[name]
+            for name in self.policy.__class__.get_internals_spec(policy=self.policy)
+        }
+        print(policy_internals)
         actions, next_internals = self.policy.act(
-            states=states, internals=internals, auxiliaries=auxiliaries, return_internals=True
+            states=states, internals=policy_internals, auxiliaries=auxiliaries,
+            return_internals=True
         )
 
-        if any(name not in next_internals for name in internals):
+        if self.separate_baseline_policy and \
+                len(self.baseline_policy.__class__.get_internals_spec(policy=self.baseline_policy)) > 0:
             # Baseline policy act to retrieve next internals
+            baseline_internals = {
+                name: internals[name]
+                for name in self.baseline_policy.__class__.get_internals_spec(
+                    policy=self.baseline_policy
+                )
+            }
             _, baseline_internals = self.baseline_policy.act(
-                states=states, internals=internals, auxiliaries=auxiliaries, return_internals=True
+                states=states, internals=baseline_internals, auxiliaries=auxiliaries,
+                return_internals=True
             )
             assert all(name not in next_internals for name in baseline_internals)
             next_internals.update(baseline_internals)
@@ -535,20 +563,24 @@ class TensorforceModel(Model):
 
             if self.update_unit == 'timesteps':
                 # Timestep-based batch
-                policy_horizon = self.policy.past_horizon(is_optimization=True)
-                baseline_horizon = self.baseline_policy.past_horizon(is_optimization=True) - \
-                    self.estimator.future_horizon()
-                past_horizon = tf.math.maximum(x=policy_horizon, y=baseline_horizon)
+                past_horizon = self.policy.past_horizon(on_policy=True)
+                if self.separate_baseline_policy:
+                    past_horizon = tf.math.maximum(
+                        x=past_horizon, y=(
+                            self.baseline_policy.past_horizon(on_policy=True) - \
+                            self.estimator.future_horizon()
+                        )
+                    )
                 future_horizon = self.estimator.future_horizon()
                 start = tf.math.maximum(
                     x=start, y=(frequency + past_horizon + future_horizon + one)
                 )
-                unit = Module.retrieve_tensor(name='timestep')
+                unit = self.global_tensor(name='timestep')
 
             elif self.update_unit == 'episodes':
                 # Episode-based batch
                 start = tf.math.maximum(x=start, y=frequency)
-                unit = Module.retrieve_tensor(name='episode')
+                unit = self.global_tensor(name='episode')
 
             unit = unit - start
             is_frequency = tf.math.equal(x=tf.math.mod(x=unit, y=frequency), y=zero)
@@ -569,15 +601,24 @@ class TensorforceModel(Model):
         zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
 
         # Enqueue experience for early reward estimation
-        any_overwritten, overwritten_values = self.estimator.enqueue(
-            baseline=self.baseline_policy, states=states, internals=internals,
-            auxiliaries=auxiliaries, actions=actions, terminal=terminal, reward=reward
-        )
+        if self.separate_baseline_policy:
+            any_overwritten, overwritten_values = self.estimator.enqueue(
+                baseline=self.baseline_policy, states=states, internals=internals,
+                auxiliaries=auxiliaries, actions=actions, terminal=terminal, reward=reward
+            )
+        else:
+            any_overwritten, overwritten_values = self.estimator.enqueue(
+                baseline=self.policy, states=states, internals=internals,
+                auxiliaries=auxiliaries, actions=actions, terminal=terminal, reward=reward
+            )
 
         # If terminal, store remaining values in memory
 
         def true_fn():
-            reset_values = self.estimator.reset(baseline=self.baseline_policy)
+            if self.separate_baseline_policy:
+                reset_values = self.estimator.reset(baseline=self.baseline_policy)
+            else:
+                reset_values = self.estimator.reset(baseline=self.policy)
 
             new_overwritten_values = OrderedDict()
             for name, value1, value2 in util.zip_items(overwritten_values, reset_values):
@@ -614,8 +655,6 @@ class TensorforceModel(Model):
         return stored
 
     def tf_core_update(self):
-        Module.update_tensor(name='update', tensor=self.global_update)
-
         true = tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
         one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
 
@@ -624,10 +663,11 @@ class TensorforceModel(Model):
         if self.update_unit == 'timesteps':
             # Timestep-based batch
             # Dependency horizon
-            past_horizon = self.policy.past_horizon(is_optimization=True)
-            past_horizon = tf.math.maximum(
-                x=past_horizon, y=self.baseline_policy.past_horizon(is_optimization=True)
-            )
+            past_horizon = self.policy.past_horizon(on_policy=True)
+            if self.separate_baseline_policy:
+                past_horizon = tf.math.maximum(
+                    x=past_horizon, y=self.baseline_policy.past_horizon(on_policy=True)
+                )
             future_horizon = self.estimator.future_horizon()
             indices = self.memory.retrieve_timesteps(
                 n=batch_size, past_horizon=past_horizon, future_horizon=future_horizon
@@ -641,7 +681,7 @@ class TensorforceModel(Model):
 
         # Increment update
         with tf.control_dependencies(control_inputs=(optimized,)):
-            assignment = self.global_update.assign_add(delta=one, read_value=False)
+            assignment = self.update.assign_add(delta=one, read_value=False)
 
         with tf.control_dependencies(control_inputs=(assignment,)):
             return util.identity_operation(x=true)
@@ -657,18 +697,29 @@ class TensorforceModel(Model):
         # Reward estimation
         with tf.control_dependencies(control_inputs=dependencies):
             reward = self.memory.retrieve(indices=indices, values='reward')
-            reward = self.estimator.complete(
-                baseline=self.baseline_policy, memory=self.memory, indices=indices, reward=reward
-            )
+            if self.separate_baseline_policy:
+                reward = self.estimator.complete(
+                    baseline=self.baseline_policy, memory=self.memory, indices=indices, reward=reward
+                )
+            else:
+                reward = self.estimator.complete(
+                    baseline=self.policy, memory=self.memory, indices=indices, reward=reward
+                )
             reward = self.add_summary(
                 label=('empirical-reward', 'rewards'), name='empirical-reward', tensor=reward
             )
             is_baseline_optimized = self.separate_baseline_policy and \
                 self.baseline_optimizer is None and self.baseline_objective is None
-            reward = self.estimator.estimate(
-                baseline=self.baseline_policy, memory=self.memory, indices=indices, reward=reward,
-                is_baseline_optimized=is_baseline_optimized
-            )
+            if self.separate_baseline_policy:
+                reward = self.estimator.estimate(
+                    baseline=self.baseline_policy, memory=self.memory, indices=indices, reward=reward,
+                    is_baseline_optimized=is_baseline_optimized
+                )
+            else:
+                reward = self.estimator.estimate(
+                    baseline=self.policy, memory=self.memory, indices=indices, reward=reward,
+                    is_baseline_optimized=is_baseline_optimized
+                )
             reward = self.add_summary(
                 label=('estimated-reward', 'rewards'), name='estimated-reward', tensor=reward
             )
@@ -678,11 +729,11 @@ class TensorforceModel(Model):
             reward = tf.stop_gradient(input=reward)
 
         # Retrieve states, internals and actions
-        past_horizon = self.policy.past_horizon(is_optimization=True)
+        past_horizon = self.policy.past_horizon(on_policy=True)
         if self.separate_baseline_policy and self.baseline_optimizer is None:
             assertion = tf.debugging.assert_equal(
                 x=past_horizon,
-                y=self.baseline_policy.past_horizon(is_optimization=True),
+                y=self.baseline_policy.past_horizon(on_policy=True),
                 message="Policy and baseline depend on a different number of previous states."
             )
         else:
@@ -694,17 +745,21 @@ class TensorforceModel(Model):
                 indices=indices, horizon=past_horizon, sequence_values='states',
                 initial_values='internals'
             )
-            Module.update_tensors(dependency_starts=starts, dependency_lengths=lengths)
+
+            # Set global tensors
+            self.set_global_tensor(name='dependency_starts', tensor=starts)
+            self.set_global_tensor(name='dependency_lengths', tensor=lengths)
+
             auxiliaries, actions = self.memory.retrieve(
                 indices=indices, values=('auxiliaries', 'actions')
             )
 
         # Optimizer arguments
-        independent = Module.update_tensor(
+        independent = self.set_global_tensor(
             name='independent', tensor=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
         )
 
-        variables = self.get_variables(only_trainable=True)
+        variables = self.trainable_variables
 
         arguments = dict(
             states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
@@ -717,7 +772,8 @@ class TensorforceModel(Model):
             kl_divergence = self.policy.kl_divergence(
                 states=states, internals=internals, auxiliaries=auxiliaries, other=other
             )
-            if self.baseline_optimizer is None and self.baseline_objective is not None:
+            if self.separate_baseline_policy and self.baseline_optimizer is None and \
+                    self.baseline_objective is not None:
                 kl_divergence += self.baseline_policy.kl_divergence(
                     states=states, internals=internals, auxiliaries=auxiliaries, other=other
                 )
@@ -726,12 +782,13 @@ class TensorforceModel(Model):
         if self.global_model is None:
             global_variables = None
         else:
-            global_variables = self.global_model.get_variables(only_trainable=True)
+            global_variables = self.global_model.trainable_variables
 
         kwargs = self.objective.optimizer_arguments(
-            policy=self.policy, baseline=self.baseline_policy
+            policy=self.policy, baseline=self.baseline
         )
-        if self.baseline_optimizer is None and self.baseline_objective is not None:
+        if self.separate_baseline_policy and self.baseline_optimizer is None and \
+                self.baseline_objective is not None:
             util.deep_disjoint_update(
                 target=kwargs,
                 source=self.baseline_objective.optimizer_arguments(policy=self.baseline_policy)
@@ -777,15 +834,20 @@ class TensorforceModel(Model):
                 )
             if self.is_summary_logged(label=('loss', 'losses')):
                 loss = objective_loss + regularization_loss
-            if self.baseline_optimizer is None and self.baseline_objective is not None:
+            if self.baseline_optimizer is None:
                 if self.is_summary_logged(label=('loss', 'baseline-objective-loss', 'losses')):
                     if self.baseline_objective is None:
-                        baseline_objective_loss = self.objective.loss_per_instance(
+                        if self.separate_baseline_policy:
+                            baseline_objective_loss = self.objective.loss_per_instance(
+                                policy=self.baseline_policy, **arguments
+                            )
+                    elif self.separate_baseline_policy:
+                        baseline_objective_loss = self.baseline_objective.loss_per_instance(
                             policy=self.baseline_policy, **arguments
                         )
                     else:
                         baseline_objective_loss = self.baseline_objective.loss_per_instance(
-                            policy=self.baseline_policy, **arguments
+                            policy=self.policy, **arguments
                         )
                     baseline_objective_loss = tf.math.reduce_mean(
                         input_tensor=baseline_objective_loss, axis=0
@@ -796,7 +858,7 @@ class TensorforceModel(Model):
                         name='baseline-objective-loss', tensor=baseline_objective_loss,
                         pass_tensors=optimized
                     )
-                if self.is_summary_logged(
+                if self.separate_baseline_policy and self.is_summary_logged(
                     label=('loss', 'baseline-regularization-loss', 'losses')
                 ):
                     baseline_regularization_loss = self.baseline_policy.regularize()
@@ -873,7 +935,7 @@ class TensorforceModel(Model):
                         pass_tensors=optimized
                     )
 
-        Module.update_tensor(name='independent', tensor=independent)
+        self.set_global_tensor(name='independent', tensor=independent)
 
         return optimized
 
@@ -903,8 +965,9 @@ class TensorforceModel(Model):
 
         return loss
 
-    def tf_regularize(self, states, internals, auxiliaries):
-        regularization_loss = super().tf_regularize(
+    @tf_function(num_args=3)
+    def regularize(self, states, internals, auxiliaries):
+        regularization_loss = super().regularize(
             states=states, internals=internals, auxiliaries=auxiliaries
         )
 
@@ -932,13 +995,17 @@ class TensorforceModel(Model):
 
     def tf_optimize_baseline(self, indices):
         # Retrieve states, internals, actions and reward
-        past_horizon = self.baseline_policy.past_horizon(is_optimization=True)
+        past_horizon = self.baseline_policy.past_horizon(on_policy=True)
         # horizon change: see timestep-based batch sampling
         starts, lengths, states, internals = self.memory.predecessors(
             indices=indices, horizon=past_horizon, sequence_values='states',
             initial_values='internals'
         )
-        Module.update_tensors(dependency_starts=starts, dependency_lengths=lengths)
+
+        # Set global tensors
+        self.set_global_tensor(name='dependency_starts', tensor=starts)
+        self.set_global_tensor(name='dependency_lengths', tensor=lengths)
+
         auxiliaries, actions, reward = self.memory.retrieve(
             indices=indices, values=('auxiliaries', 'actions', 'reward')
         )
@@ -950,11 +1017,11 @@ class TensorforceModel(Model):
         )
 
         # Optimizer arguments
-        independent = Module.update_tensor(
+        independent = self.set_global_tensor(
             name='independent', tensor=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
         )
 
-        variables = self.baseline_policy.get_variables(only_trainable=True)
+        variables = self.baseline_policy.trainable_variables
 
         arguments = dict(
             states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
@@ -968,12 +1035,12 @@ class TensorforceModel(Model):
                 states=states, internals=internals, auxiliaries=auxiliaries, other=other
             )
 
-        source_variables = self.policy.get_variables(only_trainable=True)
+        source_variables = self.policy.trainable_variables
 
         if self.global_model is None:
             global_variables = None
         else:
-            global_variables = self.global_model.baseline_policy.get_variables(only_trainable=True)
+            global_variables = self.global_model.baseline_policy.trainable_variables
 
         if self.baseline_objective is None:
             kwargs = self.objective.optimizer_arguments(policy=self.baseline_policy)
@@ -1023,7 +1090,7 @@ class TensorforceModel(Model):
                     pass_tensors=optimized
                 )
 
-        independent = Module.update_tensor(name='independent', tensor=independent)
+        independent = self.set_global_tensor(name='independent', tensor=independent)
 
         return optimized
 

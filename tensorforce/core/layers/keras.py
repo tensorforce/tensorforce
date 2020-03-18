@@ -16,6 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import util
+from tensorforce.core import tf_function
 from tensorforce.core.layers import Layer
 
 
@@ -57,15 +58,16 @@ class Keras(Layer):
 
         self.keras_layer.build(input_shape=((None,) + self.input_spec['shape']))
 
-        for variable in self.keras_layer.trainable_weights:
-            name = variable.name[variable.name.rindex(self.name + '/') + len(self.name) + 1: -2]
-            self.variables[name] = variable
-            self.trainable_variables[name] = variable
-        for variable in self.keras_layer.non_trainable_weights:
-            name = variable.name[variable.name.rindex(self.name + '/') + len(self.name) + 1: -2]
-            self.variables[name] = variable
+        # for variable in self.keras_layer.trainable_weights:
+        #     name = variable.name[variable.name.rindex(self.name + '/') + len(self.name) + 1: -2]
+        #     self.variables[name] = variable
+        #     self.trainable_variables[name] = variable
+        # for variable in self.keras_layer.non_trainable_weights:
+        #     name = variable.name[variable.name.rindex(self.name + '/') + len(self.name) + 1: -2]
+        #     self.variables[name] = variable
 
-    def tf_regularize(self):
+    @tf_function(num_args=0)
+    def regularize(self):
         regularization_loss = super().tf_regularize()
 
         if len(self.keras_layer.losses) > 0:
@@ -73,5 +75,6 @@ class Keras(Layer):
 
         return regularization_loss
 
-    def tf_apply(self, x, **kwargs):
+    @tf_function(num_args=1)
+    def apply(self, x):
         return self.keras_layer.call(inputs=x)

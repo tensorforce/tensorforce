@@ -14,6 +14,8 @@ This file records all major updates and new features, starting from version 0.5.
 - Removed `Estimator` argument `capacity`, now always automatically inferred
 - Internal changes related to agent arguments `memory`, `update` and `reward_estimation`
 
+- Auto network `internal_rnn` --> `rnn`
+
 
 
 ### Version 0.5.4

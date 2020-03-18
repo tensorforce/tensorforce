@@ -61,7 +61,7 @@ class UnittestBase(object):
 
     # Agent
     agent = dict(
-        policy=dict(network=dict(type='auto', size=8, depth=1, internal_rnn=2)), update=4,
+        policy=dict(network=dict(type='auto', size=8, depth=1, rnn=2)), update=4,
         objective='policy_gradient', reward_estimation=dict(horizon=3)
     )
 

@@ -59,7 +59,7 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
 
         optimizer = dict(type='synchronization')
         self.unittest(
-            baseline_policy=dict(network=dict(type='auto', size=8, depth=1, internal_rnn=2)),
+            baseline_policy=dict(network=dict(type='auto', size=8, depth=1, rnn=2)),
             baseline_optimizer=optimizer
         )
 

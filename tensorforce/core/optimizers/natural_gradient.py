@@ -51,8 +51,8 @@ class NaturalGradient(Optimizer):
             min_value=0.0
         )
 
-        self.solver = self.add_module(
-            name='conjugate-gradient', module='conjugate_gradient', modules=solver_modules,
+        self.conjugate_gradient = self.add_module(
+            name='conjugate_gradient', module='conjugate_gradient', modules=solver_modules,
             max_iterations=cg_max_iterations, damping=cg_damping, unroll_loop=cg_unroll_loop
         )
 
@@ -100,7 +100,7 @@ class NaturalGradient(Optimizer):
         # Solve the following system for delta' via the conjugate gradient solver.
         # [delta' * F] * delta' = -grad(loss)
         # --> delta'  (= lambda * delta)
-        deltas = self.solver.solve(
+        deltas = self.conjugate_gradient.solve(
             fn_x=fisher_matrix_product, x_init=None, b=[-grad for grad in loss_gradients]
         )
 

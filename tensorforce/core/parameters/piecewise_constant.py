@@ -25,27 +25,23 @@ class PiecewiseConstant(Parameter):
     Piecewise-constant hyperparameter.
 
     Args:
-        name (string): Module name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
-        dtype ("bool" | "int" | "long" | "float"): Tensor type
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         unit ("timesteps" | "episodes" | "updates"): Unit of interval boundaries
             (<span style="color:#C00000"><b>required</b></span>).
         boundaries (iter[long]): Strictly increasing interval boundaries for constant segments
             (<span style="color:#C00000"><b>required</b></span>).
         values (iter[dtype-dependent]): Interval values of constant segments, one more than
             (<span style="color:#C00000"><b>required</b></span>).
-        min_value (dtype-compatible value): Lower parameter value bound
-            (<span style="color:#0000C0"><b>internal use</b></span>).
-        max_value (dtype-compatible value): Upper parameter value bound
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): <span style="color:#0000C0"><b>internal use</b></span>.
+        dtype (type): <span style="color:#0000C0"><b>internal use</b></span>.
+        min_value (dtype-compatible value): <span style="color:#0000C0"><b>internal use</b></span>.
+        max_value (dtype-compatible value): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
-        self, name, dtype, unit, boundaries, values, min_value=None, max_value=None,
-        summary_labels=None
+        self, unit, boundaries, values, summary_labels=None, name=None, dtype=None, min_value=None,
+        max_value=None
     ):
         if isinstance(values[0], bool):
             if dtype != 'bool':
@@ -67,8 +63,8 @@ class PiecewiseConstant(Parameter):
         self.values = values
 
         super().__init__(
-            name=name, dtype=dtype, unit=unit, min_value=min_value, max_value=max_value,
-            summary_labels=summary_labels
+            unit=unit, summary_labels=summary_labels, name=name, dtype=dtype, min_value=min_value,
+            max_value=max_value
         )
 
     def min_value(self):

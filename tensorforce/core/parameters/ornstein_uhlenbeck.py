@@ -24,10 +24,6 @@ class OrnsteinUhlenbeck(Parameter):
     Ornstein-Uhlenbeck process.
 
     Args:
-        name (string): Module name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
-        dtype ("bool" | "int" | "long" | "float"): Tensor type
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         theta (float > 0.0): Theta value
             (<span style="color:#00C000"><b>default</b></span>: 0.15).
         sigma (float > 0.0): Sigma value
@@ -36,17 +32,17 @@ class OrnsteinUhlenbeck(Parameter):
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
         absolute (bool): Absolute value
             (<span style="color:#00C000"><b>default</b></span>: false).
-        min_value (dtype-compatible value): Lower parameter value bound
-            (<span style="color:#0000C0"><b>internal use</b></span>).
-        max_value (dtype-compatible value): Upper parameter value bound
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): <span style="color:#0000C0"><b>internal use</b></span>.
+        dtype (type): <span style="color:#0000C0"><b>internal use</b></span>.
+        min_value (dtype-compatible value): <span style="color:#0000C0"><b>internal use</b></span>.
+        max_value (dtype-compatible value): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
-        self, name, dtype, theta=0.15, sigma=0.3, mu=0.0, absolute=False, min_value=None,
-        max_value=None, summary_labels=None
+        self, theta=0.15, sigma=0.3, mu=0.0, absolute=False, summary_labels=None, name=None,
+        dtype=None, min_value=None, max_value=None
     ):
         self.theta = theta
         self.mu = mu
@@ -54,8 +50,8 @@ class OrnsteinUhlenbeck(Parameter):
         self.absolute = absolute
 
         super().__init__(
-            name=name, dtype=dtype, min_value=min_value, max_value=max_value,
-            summary_labels=summary_labels
+            summary_labels=summary_labels, name=name, dtype=dtype, min_value=min_value,
+            max_value=max_value
         )
 
     def min_value(self):

@@ -84,11 +84,11 @@ class TFOptimizer(Optimizer):
         assert optimizer in tensorflow_optimizers
         self.optimizer = tensorflow_optimizers[optimizer]
         self.learning_rate = self.add_module(
-            name='learning-rate', module=learning_rate, modules=parameter_modules, dtype='float',
+            name='learning_rate', module=learning_rate, modules=parameter_modules, dtype='float',
             min_value=0.0
         )
         self.gradient_norm_clipping = self.add_module(
-            name='gradient-norm-clipping', module=gradient_norm_clipping,
+            name='gradient_norm_clipping', module=gradient_norm_clipping,
             modules=parameter_modules, dtype='float', min_value=0.0
         )
         self.optimizer_kwargs = kwargs

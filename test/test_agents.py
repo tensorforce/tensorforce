@@ -28,15 +28,15 @@ class TestAgents(UnittestBase, unittest.TestCase):
     def test_ac(self):
         self.start_tests(name='AC')
         self.unittest(
-            agent='ac', batch_size=4, network=dict(type='auto', size=8, depth=1, internal_rnn=2),
-            critic_network=dict(type='auto', size=8, depth=1, internal_rnn=2)
+            agent='ac', batch_size=4, network=dict(type='auto', size=8, depth=1, rnn=2),
+            critic_network=dict(type='auto', size=8, depth=1, rnn=2)
         )
 
     def test_a2c(self):
         self.start_tests(name='A2C')
         self.unittest(
-            agent='a2c', batch_size=4, network=dict(type='auto', size=8, depth=1, internal_rnn=2),
-            critic_network=dict(type='auto', size=8, depth=1, internal_rnn=2)
+            agent='a2c', batch_size=4, network=dict(type='auto', size=8, depth=1, rnn=2),
+            critic_network=dict(type='auto', size=8, depth=1, rnn=2)
         )
 
     def test_dpg(self):
@@ -44,38 +44,38 @@ class TestAgents(UnittestBase, unittest.TestCase):
         self.unittest(
             actions=dict(type='float', shape=()),
             agent='dpg', memory=100, batch_size=4,
-            network=dict(type='auto', size=8, depth=1, internal_rnn=2),
-            critic_network=dict(type='auto', size=8, depth=1, internal_rnn=2)
+            network=dict(type='auto', size=8, depth=1, rnn=2),
+            critic_network=dict(type='auto', size=8, depth=1, rnn=2)
         )
 
     def test_dqn(self):
         self.start_tests(name='DQN')
         self.unittest(
             agent='dqn', memory=100, batch_size=4,
-            network=dict(type='auto', size=8, depth=1, internal_rnn=2)
+            network=dict(type='auto', size=8, depth=1, rnn=2)
         )
 
     def test_dueling_dqn(self):
         self.start_tests(name='DuelingDQN')
         self.unittest(
             agent='dueling_dqn', memory=100, batch_size=4,
-            network=dict(type='auto', size=8, depth=1, internal_rnn=2)
+            network=dict(type='auto', size=8, depth=1, rnn=2)
         )
 
     def test_ppo(self):
         self.start_tests(name='PPO')
         self.unittest(
-            agent='ppo', batch_size=2, network=dict(type='auto', size=8, depth=1, internal_rnn=2)
+            agent='ppo', batch_size=2, network=dict(type='auto', size=8, depth=1, rnn=2)
         )
 
     def test_trpo(self):
         self.start_tests(name='TRPO')
         self.unittest(
-            agent='trpo', batch_size=2, network=dict(type='auto', size=8, depth=1, internal_rnn=2)
+            agent='trpo', batch_size=2, network=dict(type='auto', size=8, depth=1, rnn=2)
         )
 
     def test_vpg(self):
         self.start_tests(name='VPG')
         self.unittest(
-            agent='vpg', batch_size=2, network=dict(type='auto', size=8, depth=1, internal_rnn=2)
+            agent='vpg', batch_size=2, network=dict(type='auto', size=8, depth=1, rnn=2)
         )

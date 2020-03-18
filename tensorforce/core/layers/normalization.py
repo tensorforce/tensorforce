@@ -16,7 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core import Module, parameter_modules
+from tensorforce.core import tf_function, parameter_modules
 from tensorforce.core.layers import Layer
 
 
@@ -85,7 +85,8 @@ class ExponentialNormalization(Layer):
         #     initializer='zeros'
         # )
 
-    def tf_apply(self, x):
+    @tf_function(num_args=1)
+    def apply(self, x):
 
         def no_update():
             return self.moving_mean, self.moving_variance
@@ -133,7 +134,7 @@ class ExponentialNormalization(Layer):
         #     x=Module.retrieve_tensor(name='independent'),
         #     y=tf.math.not_equal(x=update_on_optimization, y=optimization)
         # )
-        skip_update = Module.retrieve_tensor(name='independent')
+        skip_update = self.global_tensor(name='independent')
 
         mean, variance = self.cond(pred=skip_update, true_fn=no_update, false_fn=apply_update)
 
@@ -168,7 +169,8 @@ class InstanceNormalization(Layer):
     def default_input_spec(self):
         return dict(type='float', shape=None)
 
-    def tf_apply(self, x):
+    @tf_function(num_args=1)
+    def apply(self, x):
         epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
 
         if self.axes is None:

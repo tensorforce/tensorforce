@@ -14,6 +14,7 @@
 # ==============================================================================
 
 from collections import OrderedDict
+from functools import partial
 import importlib
 import json
 from math import sqrt
@@ -24,9 +25,108 @@ import numpy as np
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
+import tensorforce.core
 
 
-class Module(object):
+check = set()
+
+
+# if self.is_subscope:
+#     Module.global_scope.append(self.name)
+# if self.device is not None:
+#     self.device.__enter__()
+# scope = tf.name_scope(name=name)
+# Module.scope_stack.append(scope)
+# scope.__enter__()
+# results = tf_function(*args, **kwargs)
+# scope.__exit__(None, None, None)
+# Module.scope_stack.pop()
+# if self.device is not None:
+#     self.device.__exit__(None, None, None)
+# if self.is_subscope:
+#     Module.global_scope.pop()
+# return results
+
+
+
+
+def tf_function(num_args):
+
+    def decorator(function):
+        assert function not in check
+        check.add(function)
+
+        def decorated(self, **kwargs):
+            assert len(kwargs) >= num_args
+            name = function.__name__
+            assert function.__qualname__.endswith('.' + name)
+
+            if not hasattr(self, name + '_graphs'):
+                setattr(self, name + '_graphs', OrderedDict())
+
+            function_graphs = getattr(self, name + '_graphs')
+            all_args = list(kwargs.values())
+            # graph_signature = (function.__qualname__,) + tuple(all_args[num_args:])
+            graph_signature = tuple(all_args[num_args:])
+            graph_input = [
+                list(arg.values()) if isinstance(arg, dict) else arg for arg in all_args[:num_args]
+            ]
+
+            if graph_signature not in function_graphs:
+                assert len(function_graphs) == 0 or \
+                    len(next(iter(function_graphs))) == len(graph_signature)
+
+                input_signature = self.input_signature(function=name)
+                print(self, name, num_args, len(input_signature), len(graph_input))
+                assert len(input_signature) == len(graph_input)
+                signature_kwargs = dict(list(kwargs.items())[num_args:])
+
+                def function_graph(*args):
+                    graph_kwargs = {
+                        key: OrderedDict(zip(kwargs[key], arg)) if isinstance(arg, list) else arg
+                        for key, arg in zip(kwargs, args)
+                    }
+                    # print(self, self.is_subscope, self.name, Module.global_scope)
+                    if self.is_subscope and self.name not in Module.global_scope:
+                        Module.global_scope.append(self.name)
+                        pop_global_scope = True
+                    else:
+                        pop_global_scope = False
+                    if self.device is not None:
+                        self.device.__enter__()
+                    # print(function, graph_kwargs, signature_kwargs)
+                    with self.name_scope:
+                        results = function(self, **graph_kwargs, **signature_kwargs)
+                    if self.device is not None:
+                        self.device.__exit__(None, None, None)
+                    if pop_global_scope:
+                        Module.global_scope.pop()
+                    # print(name, 'results:', results)
+                    return results
+
+                # function_graph = partial(function, self, **graph_kwargs)
+                function_graphs[graph_signature] = (function.__qualname__, tf.function(
+                    func=function_graph, input_signature=input_signature, autograph=False
+                    # experimental_implements=None, experimental_autograph_options=None,
+                    # experimental_relax_shapes=False, experimental_compile=None
+                ))
+
+            qualname, function_graph = function_graphs[graph_signature]
+
+            if function.__qualname__ != qualname:
+                print('Overwritten:', function.__qualname__)
+                return function(self, **kwargs)
+            else:
+                return function_graph(*graph_input)
+
+        return tf.compat.v1.flags.tf_decorator.make_decorator(
+            target=function, decorator_func=decorated
+        )
+
+    return decorator
+
+
+class Module(tf.Module):
     """
     Base class for modules.
 
@@ -41,192 +141,108 @@ class Module(object):
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
+    _TF_MODULE_IGNORED_PROPERTIES = frozenset((
+        "_self_unconditional_checkpoint_dependencies",
+        "_self_unconditional_dependency_names",
+        "parent"
+    ))
+
     global_scope = None
     scope_stack = None
-    while_counter = None
-    cond_counter = None
+    # while_counter = None
+    # cond_counter = None
 
-    global_tensors_spec = None
+    # global_tensors_spec = None
     global_tensors = None  # per agent, main module, or so
     queryable_tensors = None
 
     global_summary_step = None
 
-    @staticmethod
-    def register_tensor(name, spec, batched):
-        if '/' in name:
-            raise TensorforceError.value(
-                name='Module.register_tensor', argument='name', value=name, hint='contains /'
-            )
+    current_parent = None
 
-        if Module.global_scope is None:  # ???
-            raise TensorforceError.unexpected()
-
-        scoped_name = name
-
-        # if scoped_name in Module.global_tensors_spec:
-        #     raise TensorforceError("Global tensor already exists: {}.".format(scoped_name))
-
-        # optional? better to put in spec?
-        spec = dict(spec)
-        spec['batched'] = batched
-
-        if scoped_name in Module.global_tensors_spec and \
-                spec != Module.global_tensors_spec[scoped_name]:
-            raise TensorforceError.mismatch(
-                name='Module.register_tensor', argument='spec', value1=spec, value2=Module.global_tensors_spec[scoped_name]
-            )
-
-        if not util.valid_value_spec(value_spec=spec):
-            raise TensorforceError.unexpected()
-
-        if 'batched' in spec and spec['batched'] != batched:
-            raise TensorforceError.unexpected()
-
-        Module.global_tensors_spec[scoped_name] = spec
-
-    @staticmethod
-    def get_tensor_spec(name):
-        if name not in Module.global_tensors_spec:
-            raise TensorforceError.value(
-                name='Module.get_tensor_spec', argument='name', value=name
-            )
-
-        spec = dict(Module.global_tensors_spec[name])
-        spec.pop('batched')
-
-        return spec
-
-    @staticmethod
-    def update_tensor(name, tensor):
-        if name not in Module.global_tensors_spec:
-            raise TensorforceError.value(
-                name='Module.update_tensor', argument='name', value=name
-            )
-
-        scoped_name = name
-        spec = Module.global_tensors_spec[scoped_name]
-
-        if not util.is_consistent_with_value_spec(value_spec=spec, x=tensor):
-            raise TensorforceError.value(
-                name='Module.update_tensor', argument='tensor', value=tensor
-            )
-
-        scoped_name = util.join_scopes(*Module.global_scope, name)
-
-        previous = Module.global_tensors.get(scoped_name)
-        Module.global_tensors[scoped_name] = tensor
-        if Module.cond_counter == 0 and Module.while_counter == 0:
-            Module.queryable_tensors[scoped_name] = tensor
-
-        return previous
-
-    @staticmethod
-    def update_tensors(**kwargs):
-        for name, tensor in kwargs.items():
-            Module.update_tensor(name=name, tensor=tensor)
-
-    @staticmethod
-    def retrieve_tensor(name):
-        if name not in Module.global_tensors_spec:
-            raise TensorforceError.value(
-                name='Module.retrieve_tensor', argument='name', value=name
-            )
-
-        for n in range(len(Module.global_scope) + 1):
-            partial_scope = Module.global_scope[:len(Module.global_scope) - n]
-            scoped_name = util.join_scopes(*partial_scope, name)
-            if scoped_name in Module.global_tensors:
-                break
-        else:
-            raise TensorforceError.value(
-                name='Module.retrieve_tensor', argument='name', value=name
-            )
-
-        return Module.global_tensors[scoped_name]
-
-    is_add_module = False
-
-    # Set internal attributes
-    set_parent = None
-
-    # Inherit arguments
-    inherit_l2_regularization = None
-    inherit_summary_labels = None
-
-    def __init__(self, name, device=None, summary_labels=None, l2_regularization=None):
-        # Internal attributes
-        self.parent = Module.set_parent
-        # self.scope = None
-        self.is_subscope = None
-        self.modules = OrderedDict()
-        self.trainable_modules = OrderedDict()
-        self.saved_modules = OrderedDict()
-        self.is_initialized = False
-        self.variables = None
-        self.trainable_variables = None
-        self.saved_variables = None
-        self.output_tensors = None
-        self.query_tensors = None
-        self.available_summaries = None
-
-        # name
+    def __init__(
+        self, name, is_root=False, device=None, summary_labels=None, l2_regularization=None
+    ):
         if not util.is_valid_name(name=name):
             raise TensorforceError.value(name='module', argument='name', value=name)
-        # summary_labels
-        if summary_labels is not None and \
-                not all(isinstance(label, str) for label in summary_labels):
+
+        super().__init__(name=name)
+
+        self.is_root = is_root
+        self.device = device
+        self.is_initialized = False
+        self.parent = Module.current_parent
+        Module.current_parent = None
+
+        if self.is_root and summary_labels is None:
+            self.summary_labels = set()
+        elif summary_labels is None or summary_labels == 'all':
+            self.summary_labels = summary_labels
+        elif not all(isinstance(label, str) for label in summary_labels):
             raise TensorforceError.value(
                 name='module', argument='summary_labels', value=summary_labels
             )
-        # device
-        # ???
-
-        self.name = name
-        self.device = device
-        if summary_labels is None:
-            # Otherwise inherit arguments
-            self.summary_labels = Module.inherit_summary_labels
-        elif summary_labels == 'all':
-            self.summary_labels = summary_labels
         else:
             self.summary_labels = set(summary_labels)
 
-        if not Module.is_add_module:
-            Module.global_scope = list()
-            Module.global_tensors_spec = OrderedDict()
-
-        if Module.inherit_l2_regularization is None and l2_regularization is None:
-            self.l2_regularization = None  # otherwise infinite recursion
-        elif l2_regularization is not None:
-            from tensorforce.core import parameter_modules
-            self.l2_regularization = None  # for first module
-            self.l2_regularization = self.add_module(
-                name='l2-regularization', module=l2_regularization, modules=parameter_modules,
-                is_trainable=False, dtype='float', min_value=0.0
-            )
+        if self.is_root and l2_regularization is None:
+            l2_regularization = 0.0
+        if l2_regularization is None:
+            self.l2_regularization = None 
         else:
-            # Otherwise inherit arguments
-            self.l2_regularization = Module.inherit_l2_regularization
+            self.l2_regularization = self.add_module(
+                name='l2_regularization', module=l2_regularization,
+                modules=tensorforce.core.parameter_modules, is_trainable=False, dtype='float',
+                min_value=0.0
+            )
+
+        if self.is_root:
+            self.is_subscope = True
+            self.is_trainable = True
+            self.is_saved = True
+        else:
+            self.is_subscope = None
+            self.is_trainable = None
+            self.is_saved = None
+
+        if self.is_root:
+            Module.global_scope = [self.name]
+            self.global_tensors_spec = OrderedDict()
+            self.input_tensors = None
+            self.output_tensors = None
+            self.query_tensors = None
+            self.available_summaries = None
+
+    @property
+    def root(self):
+        module = self
+        while not module.is_root:
+            module = module.parent
+        return module
 
     def tf_initialize(self):
         pass
 
-    def tf_regularize(self):
+    @tf_function(num_args=0)
+    def regularize(self):
         zero = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
 
-        if len(self.trainable_variables) == 0:
+        module = self
+        while module.l2_regularization is None:
+            module = module.parent
+
+        if len(self.this_trainable_variables) == 0 or module.l2_regularization.max_value() == 0.0:
             regularization_loss = zero
 
         else:
-            l2_regularization = self.l2_regularization.value()
+            l2_regularization = module.l2_regularization.value()
 
             def no_l2_regularization():
                 return zero
 
             def apply_l2_regularization():
                 l2_variables = list()
-                for variable in self.trainable_variables.values():
+                for variable in self.this_trainable_variables:
                     if variable.dtype != util.tf_dtype(dtype='float'):
                         variable = tf.dtypes.cast(x=variable, dtype=util.tf_dtype(dtype='float'))
                     l2_variables.append(tf.reduce_sum(input_tensor=tf.square(x=variable)))
@@ -238,48 +254,48 @@ class Module(object):
                 false_fn=apply_l2_regularization
             )
 
-        for module in self.trainable_modules.values():
-            regularization_loss += module.regularize()
+        for module in self.this_submodules:
+            if getattr(module, 'is_trainable', True):
+                regularization_loss += module.regularize()
 
         return regularization_loss
 
+    # @tf.Module.with_name_scope
     def initialize(self):
         # Check whether module is already initialized
         if self.is_initialized:
             raise TensorforceError(message="Module is already initialized.")
 
         # Set internal attributes
-        self.is_initialized = True
-        self.variables = OrderedDict()
-        self.trainable_variables = OrderedDict()
-        self.saved_variables = OrderedDict()
-        self.output_tensors = dict()
-        self.query_tensors = dict()
+        self.input_tensors = OrderedDict()
+        self.output_tensors = OrderedDict()
+        self.query_tensors = OrderedDict()
         self.available_summaries = set()
 
-        if self.parent is None:
+        if self.is_root:
+            assert Module.global_scope == [self.name]
             Module.global_scope = list()
-            Module.while_counter = 0
-            Module.cond_counter = 0
+            # Module.while_counter = 0
+            # Module.cond_counter = 0
 
         # TensorFlow device and scope
-        Module.global_scope.append(self.name)
+        if self.is_subscope:
+            Module.global_scope.append(self.name)
         if self.device is not None:
             self.device = tf.device(device_name_or_function=self.device)
             self.device.__enter__()
-        self.scope = tf.name_scope(name=self.name)
 
-        with self.scope:
-            if self.parent is None:
+        with self.name_scope:
 
-                # Global timestep
-                self.global_timestep = self.add_variable(
-                    name='global-timestep', dtype='long', shape=(), is_trainable=False,
-                    initializer='zeros', shared='global-timestep', 
+            if self.is_root:
+                # Timestep counter
+                self.timestep = self.add_variable(
+                    name='timestep', dtype='long', shape=(), is_trainable=False,
+                    initializer='zeros', is_global=True
                 )
                 collection = self.graph.get_collection(name='global_step')
-                if len(collection) == 0:
-                    self.graph.add_to_collection(name='global_step', value=self.global_timestep)
+                assert len(collection) == 0
+                self.graph.add_to_collection(name='global_step', value=self.timestep)
 
                 if self.summarizer_spec is not None:
                     with tf.name_scope(name='summarizer'):
@@ -335,26 +351,19 @@ class Module(object):
                     )
                 )
 
-                # delayed global-timestep assign operation
-                self.global_timestep.assign(
-                    value=self.assignment_input['long'], name='global-timestep-assign'
+                # Delayed global-timestep assign operation
+                self.timestep.assign(value=self.assignment_input['long'], name='timestep-assign')
+
+                # Episode counter
+                self.episode = self.add_variable(
+                    name='episode', dtype='long', shape=(), is_trainable=False, initializer='zeros',
+                    is_global=True
                 )
 
-                # Global episode
-                self.global_episode = self.add_variable(
-                    name='global-episode', dtype='long', shape=(), is_trainable=False,
-                    initializer='zeros', shared='global-episode'
-                )
-
-                # Global update
-                self.global_update = self.add_variable(
-                    name='global-update', dtype='long', shape=(), is_trainable=False,
-                    initializer='zeros', shared='global-update'
-                )
-
-                Module.global_tensors = OrderedDict(
-                    timestep=self.global_timestep, episode=self.global_episode,
-                    update=self.global_update
+                # Update counter
+                self.update = self.add_variable(
+                    name='update', dtype='long', shape=(), is_trainable=False, initializer='zeros',
+                    is_global=True
                 )
 
                 if self.summarizer_spec is not None:
@@ -364,7 +373,7 @@ class Module(object):
                         )
                         self.summarize_step_input = self.add_placeholder(
                             name='summarize-step', dtype='long', shape=(), batched=False,
-                            default=tf.identity(input=self.global_timestep)
+                            default=self.global_tensor(name='timestep')
                         )
                         self.custom_summaries = OrderedDict()
                         for name, summary in self.summarizer_spec['custom'].items():
@@ -424,25 +433,28 @@ class Module(object):
                     record_summaries = tf.summary.record_if(condition=condition)
                     record_summaries.__enter__()
 
-            for module in self.modules.values():
-                module.initialize()
+            for module in self.this_submodules:
+                if isinstance(module, Module):
+                    module.initialize()
             self.tf_initialize()
 
-            if self.parent is None and self.summarizer_spec is not None:
-                record_summaries.__exit__(None, None, None)
-                Module.global_summary_step = None
+        self.is_initialized = True
 
-        self.scope = None
+        if self.is_root and self.summarizer_spec is not None:
+            record_summaries.__exit__(None, None, None)
+            Module.global_summary_step = None
+
         if self.device is not None:
             self.device.__exit__(None, None, None)
-        Module.global_scope.pop()
+        if self.is_subscope:
+            Module.global_scope.pop()
 
-        if self.parent is None:
+        if self.is_root:
             assert len(Module.global_scope) == 0
             Module.global_scope = None
-            Module.while_counter = None
-            Module.cond_counter = None
-            Module.global_tensors = None
+            # Module.while_counter = None
+            # Module.cond_counter = None
+            # Module.global_tensors = None
 
         # Internal TensorFlow functions, prefixed by 'tf_'
         for attribute in sorted(dir(self)):
@@ -486,7 +498,7 @@ class Module(object):
 
                     elif isinstance(self.summarizer_spec['frequency'], int):
                         if function_name in ('act', 'independent_act'):
-                            step = self.global_timestep
+                            step = self.global_tensor(name='timestep')
                             frequency = tf.constant(
                                 value=self.summarizer_spec['frequency'],
                                 dtype=util.tf_dtype(dtype='long')
@@ -502,11 +514,11 @@ class Module(object):
 
                     elif function_name in self.summarizer_spec['frequency']:
                         if function_name in ('act', 'independent_act'):
-                            step = self.global_timestep
+                            step = self.global_tensor(name='timestep')
                         elif function_name in ('observe', 'experience'):
-                            step = self.global_episode
+                            step = self.global_tensor(name='episode')
                         elif function_name == 'update':
-                            step = self.global_update
+                            step = self.global_tensor(name='update')
                         elif function_name == 'reset':
                             raise TensorforceError.value(
                                 name='module', argument='summarizer[frequency]',
@@ -553,16 +565,29 @@ class Module(object):
                     record_summaries.__exit__(None, None, None)
                     Module.global_summary_step = None
 
-        if self.parent is None:
+        if self.is_root:
             self.graph_summary = None  # TODO!
             if self.summarizer_spec is not None:
                 default_summarizer.__exit__(None, None, None)
 
+    def input_signature(self, function):
+        return None
+
     def create_tf_function(self, name, tf_function):
+        input_signature = self.input_signature(function=name[name.index('.') + 1:])
+        if input_signature is not None:
+            assert False
+            tf_function = tf.function(
+                func=tf_function, input_signature=input_signature, autograph=False
+            )
+
         # Call internal TensorFlow function
         def fn(*args, **kwargs):
-            if self.is_subscope:
+            if self.is_subscope and self.name not in Module.global_scope:
                 Module.global_scope.append(self.name)
+                pop_global_scope = True
+            else:
+                pop_global_scope = False
             if self.device is not None:
                 self.device.__enter__()
             scope = tf.name_scope(name=name)
@@ -573,7 +598,7 @@ class Module(object):
             Module.scope_stack.pop()
             if self.device is not None:
                 self.device.__exit__(None, None, None)
-            if self.is_subscope:
+            if pop_global_scope:
                 Module.global_scope.pop()
             return results
 
@@ -581,10 +606,11 @@ class Module(object):
 
     def create_api_function(self, name, api_function):
         # Call API TensorFlow function
-        Module.global_scope = list()
+        Module.global_scope = name.split('.')
+        assert len(Module.global_scope) == 2
         Module.scope_stack = list()
-        Module.while_counter = 0
-        Module.cond_counter = 0
+        # Module.while_counter = 0
+        # Module.cond_counter = 0
         Module.global_tensors = OrderedDict()
         Module.queryable_tensors = OrderedDict()
 
@@ -614,12 +640,12 @@ class Module(object):
         if self.device is not None:
             self.device.__exit__(None, None, None)
 
-        assert len(Module.global_scope) == 0
+        assert Module.global_scope == name.split('.')
         Module.global_scope = None
         assert len(Module.scope_stack) == 0
         Module.scope_stack = None
-        Module.while_counter = None
-        Module.cond_counter = None
+        # Module.while_counter = None
+        # Module.cond_counter = None
         Module.global_tensors = None
         Module.queryable_tensors = None
 
@@ -683,16 +709,16 @@ class Module(object):
                 scope.__exit__(None, None, None)
             return result
 
-        Module.cond_counter += 1
+        # Module.cond_counter += 1
         x = tf.cond(pred=pred, true_fn=true_fn_wrapper, false_fn=false_fn_wrapper)
-        Module.cond_counter -= 1
+        # Module.cond_counter -= 1
         return x
 
     def while_loop(
         self, cond, body, loop_vars, shape_invariants=None, parallel_iterations=10,
         back_prop=False, swap_memory=False, maximum_iterations=None
     ):
-        Module.while_counter += 1
+        # Module.while_counter += 1
         if maximum_iterations is not None and maximum_iterations.dtype is not tf.int32:
             maximum_iterations = tf.dtypes.cast(x=maximum_iterations, dtype=tf.int32)
         x = tf.while_loop(
@@ -700,18 +726,105 @@ class Module(object):
             parallel_iterations=parallel_iterations, back_prop=back_prop,
             swap_memory=swap_memory, maximum_iterations=maximum_iterations
         )
-        Module.while_counter -= 1
+        # Module.while_counter -= 1
         return x
 
+    def register_global_tensor(self, name, spec, batched, tensor=None):
+        assert not self.is_initialized
+        spec = dict(spec)
+        spec['batched'] = batched
+        assert util.valid_value_spec(value_spec=spec)
+
+        assert Module.global_scope is not None
+        scoped_name = '/'.join(Module.global_scope) + '/' + name
+
+        assert scoped_name not in self.root.global_tensors_spec
+        self.root.global_tensors_spec[scoped_name] = spec
+
+        if tensor is not None:
+            if not isinstance(tensor, (tf.Tensor, tf.Variable)):
+                raise TensorforceError.unexpected()
+            if len(self.root.graph.get_collection(name=scoped_name)) > 0:
+                raise TensorforceError.unexpected()
+            self.root.graph.add_to_collection(name=scoped_name, value=tensor)
+
+    def global_tensor_spec(self, name):
+        assert not self.is_initialized
+        for n in range(len(Module.global_scope), 0, -1):
+            scoped_name = '/'.join(Module.global_scope[:n]) + '/' + name
+            if scoped_name in self.root.global_tensors_spec:
+                break
+        else:
+            assert False
+
+        spec = dict(self.root.global_tensors_spec[scoped_name])
+        spec.pop('batched')
+        return spec
+
+    def set_global_tensor(self, name, tensor):
+        assert self.is_initialized
+        if not isinstance(tensor, tf.Tensor):
+            raise TensorforceError.unexpected()
+
+        api_fn_agnostic_scope = list(Module.global_scope)
+        api_fn_agnostic_scope.pop(1)
+        for n in range(len(api_fn_agnostic_scope), 0, -1):
+            scoped_name = '/'.join(api_fn_agnostic_scope[:n]) + '/' + name
+            if scoped_name in self.root.global_tensors_spec:
+                spec = self.root.global_tensors_spec[scoped_name]
+                if not util.is_consistent_with_value_spec(value_spec=spec, x=tensor):
+                    raise TensorforceError.unexpected()
+                break
+        else:
+            assert False
+
+        scoped_name = '/'.join(Module.global_scope[:n + 1]) + '/' + name
+        collection = self.root.graph.get_collection(name=scoped_name)
+        assert len(collection) == 0
+        # collection = self.root.graph.get_collection_ref(name=scoped_name)
+        # if len(collection) > 0:
+        #     assert len(collection) == 1
+        #     previous = collection[0]
+        #     collection[0] = tensor
+        #     return tf.identity(input=previous)
+        # else:
+        self.root.graph.add_to_collection(name=scoped_name, value=tensor)
+
+    def global_tensor(self, name):
+        assert self.is_initialized
+
+        api_fn_agnostic_scope = list(Module.global_scope)
+        api_fn_agnostic_scope.pop(1)
+        for n in range(len(api_fn_agnostic_scope), 0, -1):
+            scoped_name = '/'.join(api_fn_agnostic_scope[:n]) + '/' + name
+            if scoped_name in self.root.global_tensors_spec:
+                break
+        else:
+            assert False
+
+        collection = self.root.graph.get_collection(name=scoped_name)
+        if len(collection) > 1:
+            raise TensorforceError.unexpected()
+        elif len(collection) == 1:
+            # Created during initialization, so variable
+            return tf.identity(input=collection[0])
+        else:
+
+            scoped_name = '/'.join(Module.global_scope[:n + 1]) + '/' + name
+            collection = self.root.graph.get_collection(name=scoped_name)
+            if len(collection) != 1:
+                raise TensorforceError.unexpected()
+            return collection[0]
+
     def add_variable(
-        self, name, dtype, shape, is_trainable, initializer='zeros', is_saved=True, summarize=None,
-        shared=None
+        self, name, dtype, shape, is_trainable, initializer='zeros', is_saved=True, is_global=False,
+        summarize=None
     ):
         # name
         if not util.is_valid_name(name=name):
             raise TensorforceError.value(name='Module.add_variable', argument='name', value=name)
-        elif name in self.variables:
-            raise TensorforceError.exists(name='variable', value=name)
+        # elif name in self.variables:
+        #     raise TensorforceError.exists(name='variable', value=name)
         # dtype
         if not util.is_valid_type(dtype=dtype):
             raise TensorforceError.value(name='Module.add_variable', argument='dtype', value=dtype)
@@ -753,22 +866,20 @@ class Module(object):
             raise TensorforceError.type(
                 name='Module.add_variable', argument='is_saved', dtype=type(is_saved)
             )
+        # is_global
+        if not isinstance(is_global, bool):
+            raise TensorforceError.type(
+                name='Module.add_variable', argument='is_global', dtype=type(is_global)
+            )
         # summarize
         if summarize is not None and not isinstance(summarize, bool):
             raise TensorforceError.type(
                 name='Module.add_variable', argument='summarize', dtype=type(summarize)
             )
-        # shared
-        if shared is not None and not isinstance(shared, str):
-            raise TensorforceError.type(
-                name='Module.add_variable', argument='shared',dtype=type(shared)
-            )
 
-        variable = None
-
-        if shared is not None and len(self.graph.get_collection(name=shared)) > 0:
-            # Retrieve shared variable from TensorFlow
-            collection = self.graph.get_collection(name=shared)
+        if is_global and len(self.graph.get_collection(name=(name + '-variable'))) > 0:
+            # Retrieve global variable from TensorFlow
+            collection = self.graph.get_collection(name=name)
             if len(collection) > 1:
                 raise TensorforceError.unexpected()
             variable = collection[0]
@@ -834,17 +945,13 @@ class Module(object):
                 initial_value=initializer, trainable=is_trainable, validate_shape=True, name=name,
                 dtype=tf_dtype, shape=shape
             )
+            variable.is_saved = is_saved
 
-            # Register shared variable with TensorFlow
-            if shared is not None:
-                self.graph.add_to_collection(name=shared, value=variable)
-
-        # Register variable
-        self.variables[name] = variable
-        if is_trainable:
-            self.trainable_variables[name] = variable
-        if is_saved:
-            self.saved_variables[name] = variable
+            if is_global:
+                # Register global variable with TensorFlow
+                self.register_global_tensor(
+                    name=name, spec=dict(type=dtype, shape=shape), batched=False, tensor=variable
+                )
 
         # Add summary
         if (summarize is None and is_trainable) or summarize:
@@ -853,13 +960,13 @@ class Module(object):
             )
             variable = self.add_summary(label='variables-histogram', name=name, tensor=variable)
 
-        # get/assign operation (delayed for global-timestep)
+        # get/assign operation (delayed for timestep)
         util.identity_operation(x=variable, operation_name=(name + '-output'))
-        if name != 'global-timestep':
-            parent = self
-            while parent.parent is not None:
-                parent = parent.parent
-            variable.assign(value=parent.assignment_input[dtype], name=(name + '-assign'))
+        if name != 'timestep':
+            module = self
+            while not module.is_root:
+                module = module.parent
+            variable.assign(value=module.assignment_input[dtype], name=(name + '-assign'))
 
         return variable
 
@@ -909,15 +1016,19 @@ class Module(object):
 
     def is_summary_logged(self, label):
         # Check whether any summaries are logged
-        if self.summary_labels is None:
+        module = self
+        while module.summary_labels is None:
+            module = module.parent
+
+        if module.summary_labels is None:
             return False
 
-        # Check whether not in while loop
-        if Module.while_counter > 0:
-            return False
-        # Check whether not in nested condition
-        if Module.cond_counter > 1:
-            return False
+        # # Check whether not in while loop
+        # if Module.while_counter > 0:
+        #     return False
+        # # Check whether not in nested condition
+        # if Module.cond_counter > 1:
+        #     return False
 
         # Temporary
         if label == 'variables' or label == 'variables-histogram':
@@ -926,11 +1037,12 @@ class Module(object):
         # Check whether given label is logged
         if util.is_iterable(x=label):
             assert all(not x.endswith('-histogram') for x in label)
-            if self.summary_labels != 'all' and all(x not in self.summary_labels for x in label):
+            if module.summary_labels != 'all' and \
+                    all(x not in module.summary_labels for x in label):
                 return False
         else:
-            if (self.summary_labels != 'all' or label.endswith('-histogram')) and \
-                    label not in self.summary_labels:
+            if (module.summary_labels != 'all' or label.endswith('-histogram')) and \
+                    label not in module.summary_labels:
                 return False
 
         return True
@@ -1144,16 +1256,22 @@ class Module(object):
             raise TensorforceError.value(name='Module.add_module', argument='module', value=module)
 
     def add_module(
-        self, name, module=None, modules=None, default_module=None, is_trainable=True,
-        is_saved=True, is_subscope=False, **kwargs
+        self, name, module=None, modules=None, default_module=None, is_subscope=False,
+        is_trainable=True, is_saved=True, **kwargs
     ):
         # name
-        if name in self.modules:
+        if any(name == module.name for module in self.this_submodules):
             raise TensorforceError.exists(name='module', value=name)
+        # module, modules, default_module: checked in get_module_class_and_kwargs(...)
+        # is_subscope
+        if not isinstance(is_subscope, bool):
+            raise TensorforceError.type(
+                name='Module.add_module', argument='is_subscope', dtype=type(is_subscope)
+            )
         # is_trainable
         if not isinstance(is_trainable, bool):
-            raise TensorforceError.exists(
-                name='Module.add_module', argument='is_trainable', dtype=type(name)
+            raise TensorforceError.type(
+                name='Module.add_module', argument='is_trainable', dtype=type(is_trainable)
             )
         # is_saved
         if not isinstance(is_saved, bool):
@@ -1165,90 +1283,106 @@ class Module(object):
             name=name, module=module, modules=modules, default_module=default_module, **kwargs
         )
 
-        # Final callable module specification
-        if Module.global_scope is None:
-            raise TensorforceError.unexpected()
-
         # Global scope handling
-        Module.is_add_module = True
         if is_subscope:
             Module.global_scope.append(name)
 
-        # Set internal attributes
-        Module.set_parent = self
-
-        # Inherit arguments
-        Module.inherit_l2_regularization = self.l2_regularization
-        Module.inherit_summary_labels = self.summary_labels
-
         # Module constructor
+        assert Module.current_parent is None
+        Module.current_parent = self
         if first_arg is None:
-            module = module_cls(name, **kwargs)
+            module = module_cls(name=name, **kwargs)
         else:
-            module = module_cls(name, first_arg, **kwargs)
+            module = module_cls(first_arg, name=name, **kwargs)
+        assert Module.current_parent is None
 
-        # Reset
-        Module.set_parent = None
-        Module.inherit_l2_regularization = None
-        Module.inherit_summary_labels = None
+        assert not module.is_root
+        assert not module.is_initialized
+        module.is_subscope = is_subscope
+        if module.is_trainable is None:
+            module.is_trainable = is_trainable
+        else:
+            assert is_trainable  # default
+        if module.is_saved is None:
+            module.is_saved = is_saved
+        else:
+            assert is_saved  # default
 
         # Global scope handling
         if is_subscope:
             Module.global_scope.pop()
-        Module.is_add_module = False
-
-        # Internal attributes
-        module.is_subscope = is_subscope
-
-        # Register module
-        self.modules[name] = module
-        if is_trainable:
-            self.trainable_modules[name] = module
-        if is_saved:
-            self.saved_modules[name] = module
 
         return module
 
-    def get_variables(self, only_trainable=False, only_saved=False):
-        # only_trainable
-        if not isinstance(only_trainable, bool):
-            raise TensorforceError.type(
-                name='Module.get_variables', argument='only_trainable', dtype=type(only_trainable)
-            )
-        # only_saved
-        if not isinstance(only_saved, bool):
-            raise TensorforceError.type(
-                name='Module.get_variables', argument='only_saved', dtype=type(only_saved)
-            )
-        # not both
-        if only_trainable and only_saved:
-            raise TensorforceError(
-                message="Module.get_variables argument only_trainable should not be used together "
-                        "with argument only_saved."
-            )
+    # def get_variables(self, only_trainable=False, only_saved=False):
+    #     if only_trainable:
+    #         return self.trainable_variables
+    #     else:
+    #         return self.variables
 
-        if only_trainable:
-            # Only trainable variables
-            variables = list(self.trainable_variables.values())
-            for module in self.trainable_modules.values():
-                variables.extend(module.get_variables(only_trainable=only_trainable))
+    #     # only_trainable
+    #     if not isinstance(only_trainable, bool):
+    #         raise TensorforceError.type(
+    #             name='Module.get_variables', argument='only_trainable', dtype=type(only_trainable)
+    #         )
+    #     # only_saved
+    #     if not isinstance(only_saved, bool):
+    #         raise TensorforceError.type(
+    #             name='Module.get_variables', argument='only_saved', dtype=type(only_saved)
+    #         )
+    #     # not both
+    #     if only_trainable and only_saved:
+    #         raise TensorforceError(
+    #             message="Module.get_variables argument only_trainable should not be used together "
+    #                     "with argument only_saved."
+    #         )
 
-        elif only_saved:
-            # Only saved variables
-            variables = list(self.saved_variables.values())
-            for module in self.saved_modules.values():
-                variables.extend(module.get_variables(only_saved=only_saved))
+    #     if only_trainable:
+    #         # Only trainable variables
+    #         variables = list(self.trainable_variables.values())
+    #         for module in self.trainable_modules.values():
+    #             variables.extend(module.get_variables(only_trainable=only_trainable))
 
-        else:
-            # All variables
-            variables = list(self.variables.values())
-            for module in self.modules.values():
-                variables.extend(module.get_variables(only_trainable=only_trainable))
+    #     elif only_saved:
+    #         # Only saved variables
+    #         variables = list(self.saved_variables.values())
+    #         for module in self.saved_modules.values():
+    #             variables.extend(module.get_variables(only_saved=only_saved))
 
-        return variables
+    #     else:
+    #         # All variables
+    #         variables = list(self.variables.values())
+    #         for module in self.modules.values():
+    #             variables.extend(module.get_variables(only_trainable=only_trainable))
+
+    #     return variables
 
     def get_available_summaries(self):
         summaries = set(self.available_summaries)
         for module in self.modules.values():
             summaries.update(module.get_available_summaries())
         return sorted(summaries)
+
+    @property
+    def this_submodules(self):
+        return list(self._flatten(recursive=False, predicate=(lambda x: isinstance(x, tf.Module))))
+
+    @property
+    def trainable_variables(self):
+        variables = list(self._flatten(recursive=False, predicate=(
+            lambda x: isinstance(x, tf.Variable) and getattr(x, 'trainable', False)
+        )))
+        for module in self.this_submodules:
+            if getattr(module, 'is_trainable', True):
+                variables.extend(module.trainable_variables)
+        return variables
+
+    @property
+    def saved_variables(self):
+        variables = list(self._flatten(recursive=False, predicate=(
+            lambda x: isinstance(x, tf.Variable) and getattr(x, 'is_saved', True)
+        )))
+        for module in self.this_submodules:
+            if getattr(module, 'is_saved', True):
+                variables.extend(module.saved_variables)
+        return variables

@@ -13,12 +13,13 @@
 # limitations under the License.
 # ==============================================================================
 
+from collections import OrderedDict
 from math import log
 
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core import layer_modules, Module
+from tensorforce.core import layer_modules, Module, tf_function
 from tensorforce.core.distributions import Distribution
 
 
@@ -38,9 +39,16 @@ class Beta(Distribution):
     """
 
     def __init__(self, name, action_spec, embedding_shape, summary_labels=None):
+        parameters_spec = OrderedDict(
+            alpha=dict(type='float', shape=action_spec['shape']),
+            beta=dict(type='float', shape=action_spec['shape']),
+            alpha_beta=dict(type='float', shape=action_spec['shape']),
+            log_norm=dict(type='float', shape=action_spec['shape'])
+        )
+
         super().__init__(
             name=name, action_spec=action_spec, embedding_shape=embedding_shape,
-            summary_labels=summary_labels
+            parameters_spec=parameters_spec, summary_labels=summary_labels
         )
 
         input_spec = dict(type='float', shape=self.embedding_shape)
@@ -80,16 +88,17 @@ class Beta(Distribution):
                 input_spec=input_spec
             )
 
-        Module.register_tensor(
+        self.register_global_tensor(
             name=(self.name + '-alpha'), spec=dict(type='float', shape=self.action_spec['shape']),
             batched=True
         )
-        Module.register_tensor(
+        self.register_global_tensor(
             name=(self.name + '-beta'), spec=dict(type='float', shape=self.action_spec['shape']),
             batched=True
         )
 
-    def tf_parametrize(self, x):
+    @tf_function(num_args=1)
+    def parametrize(self, x):
         # Softplus to ensure alpha and beta >= 1
         one = tf.constant(value=1.0, dtype=util.tf_dtype(dtype='float'))
         epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
@@ -118,12 +127,13 @@ class Beta(Distribution):
         # Log norm
         log_norm = tf.math.lgamma(x=alpha) + tf.math.lgamma(x=beta) - tf.math.lgamma(x=alpha_beta)
 
-        Module.update_tensor(name=(self.name + '-alpha'), tensor=alpha)
-        Module.update_tensor(name=(self.name + '-beta'), tensor=beta)
+        self.set_global_tensor(name=(self.name + '-alpha'), tensor=alpha)
+        self.set_global_tensor(name=(self.name + '-beta'), tensor=beta)
 
-        return alpha, beta, alpha_beta, log_norm
+        return [alpha, beta, alpha_beta, log_norm]
 
-    def tf_sample(self, parameters, temperature):
+    @tf_function(num_args=2)
+    def sample(self, parameters, temperature):
         alpha, beta, alpha_beta, _ = parameters
 
         summary_alpha = alpha
@@ -167,7 +177,8 @@ class Beta(Distribution):
 
         return min_value + (max_value - min_value) * sampled
 
-    def tf_log_probability(self, parameters, action):
+    @tf_function(num_args=2)
+    def log_probability(self, parameters, action):
         alpha, beta, _, log_norm = parameters
 
         min_value = tf.constant(
@@ -187,7 +198,8 @@ class Beta(Distribution):
         return tf.math.xlogy(x=(beta - one), y=tf.maximum(x=action, y=epsilon)) + \
             (alpha - one) * tf.math.log1p(x=(-action)) - log_norm
 
-    def tf_entropy(self, parameters):
+    @tf_function(num_args=1)
+    def entropy(self, parameters):
         alpha, beta, alpha_beta, log_norm = parameters
 
         one = tf.constant(value=1.0, dtype=util.tf_dtype(dtype='float'))
@@ -213,7 +225,8 @@ class Beta(Distribution):
         return log_norm - (beta - one) * digamma_beta - (alpha - one) * digamma_alpha + \
             (alpha_beta - one - one) * digamma_alpha_beta
 
-    def tf_kl_divergence(self, parameters1, parameters2):
+    @tf_function(num_args=2)
+    def kl_divergence(self, parameters1, parameters2):
         alpha1, beta1, alpha_beta1, log_norm1 = parameters1
         alpha2, beta2, alpha_beta2, log_norm2 = parameters2
 

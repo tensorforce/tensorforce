@@ -14,8 +14,10 @@
 # ==============================================================================
 
 from tensorforce import TensorforceError
-import tensorforce.core
+from tensorforce.core import tf_function
 from tensorforce.core.layers import Layer
+from tensorforce.core.layers.dense import Dense
+from tensorforce.core.layers.convolution import Conv1d, Conv2d
 
 
 class Linear(Layer):
@@ -45,12 +47,14 @@ class Linear(Layer):
     ):
         self.size = size
         self.bias = bias
-        self.is_trainable = is_trainable
+        self.submodule_is_trainable = is_trainable
 
         super().__init__(
             name=name, input_spec=input_spec, summary_labels=summary_labels,
             l2_regularization=l2_regularization
         )
+
+        self.is_trainable = is_trainable
 
     def default_input_spec(self):
         return dict(type='float', shape=None)
@@ -58,23 +62,22 @@ class Linear(Layer):
     def get_output_spec(self, input_spec):
         if len(input_spec['shape']) == 1:
             self.linear = self.add_module(
-                name=(self.name + '-linear'), module='dense',
-                modules=tensorforce.core.layer_modules, size=self.size, bias=self.bias,
-                activation=None, dropout=0.0, is_trainable=self.is_trainable, input_spec=input_spec
+                name='linear', module=Dense, size=self.size, bias=self.bias, activation=None,
+                dropout=0.0, is_trainable=self.submodule_is_trainable, input_spec=input_spec
             )
 
         elif len(input_spec['shape']) == 2:
             self.linear = self.add_module(
-                name=(self.name + '-linear'), module='conv1d',
-                modules=tensorforce.core.layer_modules, size=self.size, window=1, bias=self.bias,
-                activation=None, dropout=0.0, is_trainable=self.is_trainable, input_spec=input_spec
+                name='linear', module=Conv1d, size=self.size, window=1, bias=self.bias,
+                activation=None, dropout=0.0, is_trainable=self.submodule_is_trainable,
+                input_spec=input_spec
             )
 
         elif len(input_spec['shape']) == 3:
             self.linear = self.add_module(
-                name=(self.name + '-linear'), module='conv2d',
-                modules=tensorforce.core.layer_modules, size=self.size, window=1, bias=self.bias,
-                activation=None, dropout=0.0, is_trainable=self.is_trainable, input_spec=input_spec
+                name='linear', module=Conv2d, size=self.size, window=1, bias=self.bias,
+                activation=None, dropout=0.0, is_trainable=self.submodule_is_trainable,
+                input_spec=input_spec
             )
 
         else:
@@ -82,5 +85,6 @@ class Linear(Layer):
 
         return self.linear.get_output_spec(input_spec=input_spec)
 
-    def tf_apply(self, x):
+    @tf_function(num_args=1)
+    def apply(self, x):
         return self.linear.apply(x=x)

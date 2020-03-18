@@ -13,10 +13,12 @@
 # limitations under the License.
 # ==============================================================================
 
+from collections import OrderedDict
+
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core import layer_modules, Module
+from tensorforce.core import layer_modules, Module, tf_function
 from tensorforce.core.distributions import Distribution
 
 
@@ -40,9 +42,20 @@ class Categorical(Distribution):
     def __init__(
         self, name, action_spec, embedding_shape, infer_states_value=True, summary_labels=None
     ):
+        parameters_spec = OrderedDict(
+            logits=dict(type='float', shape=(action_spec['shape'] + (action_spec['num_values'],))),
+            probabilities=dict(
+                type='float', shape=(action_spec['shape'] + (action_spec['num_values'],))
+            ),
+            states_value=dict(type='float', shape=action_spec['shape']),
+            action_values=dict(
+                type='float', shape=(action_spec['shape'] + (action_spec['num_values'],))
+            )
+        )
+
         super().__init__(
             name=name, action_spec=action_spec, embedding_shape=embedding_shape,
-            summary_labels=summary_labels
+            parameters_spec=parameters_spec, summary_labels=summary_labels
         )
 
         input_spec = dict(type='float', shape=self.embedding_shape)
@@ -89,13 +102,30 @@ class Categorical(Distribution):
                     input_spec=input_spec
                 )
 
-        Module.register_tensor(
+        self.register_global_tensor(
             name=(self.name + '-probabilities'),
             spec=dict(type='float', shape=(self.action_spec['shape'] + (num_values,))),
             batched=True
         )
 
-    def tf_parametrize(self, x, mask):
+    def input_signature(self, function):
+        if function == 'parametrize':
+            return [
+                util.to_tensor_spec(
+                    value_spec=dict(type='float', shape=self.embedding_shape), batched=True
+                ), util.to_tensor_spec(
+                    value_spec=dict(
+                        type='bool',
+                        shape=(self.action_spec['shape'] + (self.action_spec['num_values'],))
+                    ), batched=True
+                )
+            ]
+
+        else:
+            return super().input_signature(function=function)
+
+    @tf_function(num_args=2)
+    def parametrize(self, x, mask):
         epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
         shape = (-1,) + self.action_spec['shape'] + (self.action_spec['num_values'],)
         value_shape = (-1,) + self.action_spec['shape'] + (1,)
@@ -127,11 +157,12 @@ class Categorical(Distribution):
         # "Normalized" logits
         logits = tf.math.log(x=tf.maximum(x=probabilities, y=epsilon))
 
-        Module.update_tensor(name=(self.name + '-probabilities'), tensor=probabilities)
+        self.set_global_tensor(name=(self.name + '-probabilities'), tensor=probabilities)
 
-        return logits, probabilities, states_value, action_values
+        return [logits, probabilities, states_value, action_values]
 
-    def tf_sample(self, parameters, temperature):
+    @tf_function(num_args=2)
+    def sample(self, parameters, temperature):
         logits, probabilities, _, _ = parameters
 
         summary_probs = probabilities
@@ -166,7 +197,8 @@ class Categorical(Distribution):
 
         return tf.where(condition=(temperature < epsilon), x=definite, y=sampled)
 
-    def tf_log_probability(self, parameters, action):
+    @tf_function(num_args=2)
+    def log_probability(self, parameters, action):
         logits, _, _, _ = parameters
 
         if util.tf_dtype(dtype='int') not in (tf.int32, tf.int64):
@@ -178,12 +210,14 @@ class Categorical(Distribution):
 
         return tf.squeeze(input=logits, axis=-1)
 
-    def tf_entropy(self, parameters):
+    @tf_function(num_args=1)
+    def entropy(self, parameters):
         logits, probabilities, _, _ = parameters
 
         return -tf.reduce_sum(input_tensor=(probabilities * logits), axis=-1)
 
-    def tf_kl_divergence(self, parameters1, parameters2):
+    @tf_function(num_args=2)
+    def kl_divergence(self, parameters1, parameters2):
         logits1, probabilities1, _, _ = parameters1
         logits2, _, _, _ = parameters2
 
@@ -191,20 +225,21 @@ class Categorical(Distribution):
 
         return tf.reduce_sum(input_tensor=(probabilities1 * log_prob_ratio), axis=-1)
 
-    def tf_action_value(self, parameters, action=None):
+    @tf_function(num_args=2)
+    def action_value(self, parameters, action):
         _, _, _, action_values = parameters
 
-        if action is not None:
-            if util.tf_dtype(dtype='int') not in (tf.int32, tf.int64):
-                action = tf.dtypes.cast(x=action, dtype=tf.int32)
+        if util.tf_dtype(dtype='int') not in (tf.int32, tf.int64):
+            action = tf.dtypes.cast(x=action, dtype=tf.int32)
 
-            action = tf.expand_dims(input=action, axis=-1)
-            action_values = tf.gather(params=action_values, indices=action, batch_dims=-1)
-            action_values = tf.squeeze(input=action_values, axis=-1)
+        action = tf.expand_dims(input=action, axis=-1)
+        action_values = tf.gather(params=action_values, indices=action, batch_dims=-1)
+        action_values = tf.squeeze(input=action_values, axis=-1)
 
         return action_values  # states_value + tf.squeeze(input=logits, axis=-1)
 
-    def tf_states_value(self, parameters):
+    @tf_function(num_args=1)
+    def states_value(self, parameters):
         _, _, states_value, _ = parameters
 
         return states_value

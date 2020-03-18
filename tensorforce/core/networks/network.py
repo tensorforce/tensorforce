@@ -18,8 +18,8 @@ from collections import OrderedDict
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core import Module
-from tensorforce.core.layers import Layer, layer_modules, StatefulLayer, TemporalLayer
+from tensorforce.core import Module, tf_function
+from tensorforce.core.layers import Layer, layer_modules, TemporalLayer
 from tensorforce.core.parameters import Parameter
 
 
@@ -28,20 +28,18 @@ class Network(Module):
     Base class for neural networks.
 
     Args:
-        name (string): Network name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
-        inputs_spec (specification): Input tensors specification
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         device (string): Device name
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): <span style="color:#0000C0"><b>internal use</b></span>.
+        inputs_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
-        self, name, inputs_spec, device=None, summary_labels=None, l2_regularization=None
+        self, device=None, summary_labels=None, l2_regularization=None, name=None, inputs_spec=None
     ):
         super().__init__(
             name=name, device=device, summary_labels=summary_labels,
@@ -49,6 +47,21 @@ class Network(Module):
         )
 
         self.inputs_spec = inputs_spec
+
+    def input_signature(self, function):
+        if function == 'apply':
+            return [
+                util.to_tensor_spec(value_spec=self.inputs_spec, batched=True),
+                util.to_tensor_spec(
+                    value_spec=self.__class__.internals_spec(network=self), batched=True
+                )
+            ]
+
+        elif function == 'past_horizon':
+            return ()
+
+        else:
+            return super().input_signature(function=function)
 
     def get_output_spec(self):
         raise NotImplementedError
@@ -60,54 +73,16 @@ class Network(Module):
     def internals_init(self):
         return OrderedDict()
 
-    def max_past_horizon(self, is_optimization=False):
+    def max_past_horizon(self, on_policy):
         raise NotImplementedError
 
-    def tf_past_horizon(self, is_optimization=False):
+    @tf_function(num_args=0)
+    def past_horizon(self, on_policy):
         raise NotImplementedError
 
-    def tf_apply(self, x, internals, return_internals=False):
-        Module.update_tensors(**x)
-
-    def create_tf_function(self, name, tf_function):
-        if tf_function.__name__ != 'tf_apply':
-            return super().create_tf_function(name=name, tf_function=tf_function)
-
-        def validated_tf_function(x, internals, return_internals=False):
-            if util.is_atomic_values_spec(values_spec=self.inputs_spec):
-                if not util.is_consistent_with_value_spec(value_spec=self.inputs_spec, x=x):
-                    raise TensorforceError("Invalid input arguments for tf_apply.")
-            else:
-                if not all(
-                    util.is_consistent_with_value_spec(value_spec=spec, x=x[name])
-                    for name, spec in self.inputs_spec.items()
-                ):
-                    raise TensorforceError("Invalid input arguments for tf_apply.")
-            if not all(
-                util.is_consistent_with_value_spec(value_spec=spec, x=internals[name])
-                for name, spec in self.__class__.internals_spec(network=self).items()
-            ):
-                raise TensorforceError("Invalid input arguments for tf_apply.")
-
-            if return_internals:
-                x, internals = tf_function(x=x, internals=internals, return_internals=True)
-            else:
-                x = tf_function(x=x, internals=internals, return_internals=False)
-
-            if not util.is_consistent_with_value_spec(value_spec=self.get_output_spec(), x=x):
-                raise TensorforceError("Invalid output arguments for tf_apply.")
-            if return_internals and not all(
-                util.is_consistent_with_value_spec(value_spec=spec, x=internals[name])
-                for name, spec in self.__class__.internals_spec(network=self).items()
-            ):
-                raise TensorforceError("Invalid output arguments for tf_apply.")
-
-            if return_internals:
-                return x, internals
-            else:
-                return x
-
-        return super().create_tf_function(name=name, tf_function=validated_tf_function)
+    @tf_function(num_args=2)
+    def apply(self, x, internals, return_internals):
+        raise NotImplementedError
 
 
 class LayerbasedNetwork(Network):
@@ -139,7 +114,7 @@ class LayerbasedNetwork(Network):
         internals_spec = OrderedDict()
 
         if network is not None:
-            for layer in network.modules.values():
+            for layer in network.this_submodules:
                 if not isinstance(layer, StatefulLayer):
                     continue
                 for name, spec in layer.__class__.internals_spec(layer=layer).items():
@@ -153,7 +128,7 @@ class LayerbasedNetwork(Network):
     def internals_init(self):
         internals_init = OrderedDict()
 
-        for layer in self.modules.values():
+        for layer in self.this_submodules:
             if not isinstance(layer, StatefulLayer):
                 continue
             for name, internal_init in layer.internals_init().items():
@@ -164,33 +139,30 @@ class LayerbasedNetwork(Network):
     def add_module(self, *args, **kwargs):
         # Default modules set: layer_modules
         if len(args) < 3 and 'modules' not in kwargs:
-            assert 'is_subscope' not in kwargs
             kwargs['modules'] = layer_modules
-            kwargs['is_subscope'] = True
 
-        if 'input_spec' in kwargs:
-            layer = super().add_module(*args, **kwargs)
-            self.output_spec = layer.output_spec
-
-        else:
+        if kwargs.get('input_spec') is None:
             if self.output_spec is None:
                 if util.is_atomic_values_spec(values_spec=self.inputs_spec):
                     self.output_spec = self.inputs_spec
-                elif len(self.inputs_spec) == 1:
+                # elif len(self.inputs_spec) == 1:
+                #     self.output_spec = next(iter(self.inputs_spec.values()))
+                else:
                     self.output_spec = next(iter(self.inputs_spec.values()))
-                else:
-                    self.output_spec = None
 
-            if self.output_spec is not None:
-                if 'input_spec' in kwargs:
-                    kwargs['input_spec'] = util.unify_value_specs(
-                        value_spec1=kwargs['input_spec'], value_spec2=self.output_spec
-                    )
-                else:
-                    kwargs['input_spec'] = self.output_spec
+            if kwargs.get('input_spec') is None:
+                kwargs['input_spec'] = self.output_spec
+            else:
+                kwargs['input_spec'] = util.unify_value_specs(
+                    value_spec1=kwargs['input_spec'], value_spec2=self.output_spec
+                )
 
             layer = super().add_module(*args, **kwargs)
 
+            self.output_spec = layer.output_spec
+
+        else:
+            layer = super().add_module(*args, **kwargs)
             self.output_spec = layer.output_spec
 
         if not isinstance(layer, (Layer, Parameter)):
@@ -200,18 +172,17 @@ class LayerbasedNetwork(Network):
 
         return layer
 
-    def max_past_horizon(self, is_optimization):
+    def max_past_horizon(self, on_policy):
         past_horizons = [0]
-        for layer in self.modules.values():
+        for layer in self.this_submodules:
             if isinstance(layer, TemporalLayer):
-                if not isinstance(layer, StatefulLayer) or is_optimization:
-                    past_horizons.append(layer.dependency_horizon.max_value())
+                past_horizons.append(layer.max_past_horizon(on_policy=on_policy))
         return max(past_horizons)
 
-    def tf_past_horizon(self, is_optimization):
+    @tf_function(num_args=0)
+    def past_horizon(self, on_policy):
         past_horizons = [tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))]
-        for layer in self.modules.values():
+        for layer in self.this_submodules:
             if isinstance(layer, TemporalLayer):
-                if not isinstance(layer, StatefulLayer) or is_optimization:
-                    past_horizons.append(layer.dependency_horizon.value())
+                past_horizons.append(layer.past_horizon(on_policy=on_policy))
         return tf.math.reduce_max(input_tensor=tf.stack(values=past_horizons, axis=0), axis=0)

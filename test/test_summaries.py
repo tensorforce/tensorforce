@@ -48,7 +48,7 @@ class TestSummaries(UnittestBase, unittest.TestCase):
 
         # TODO: 'dropout'
         reward_estimation = dict(horizon=2, estimate_horizon='late')
-        baseline_policy = dict(network=dict(type='auto', size=8, depth=1, internal_rnn=1))
+        baseline_policy = dict(network=dict(type='auto', size=8, depth=1, rnn=1))
         baseline_objective = 'policy_gradient'
         baseline_optimizer = 'adam'
 

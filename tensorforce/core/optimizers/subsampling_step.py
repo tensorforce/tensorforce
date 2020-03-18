@@ -86,8 +86,8 @@ class SubsamplingStep(MetaOptimizer):
         function = (lambda x: tf.gather(params=x, indices=indices))
         subsampled_arguments = util.fmap(function=function, xs=arguments)
 
-        dependency_starts = Module.retrieve_tensor(name='dependency_starts')
-        dependency_lengths = Module.retrieve_tensor(name='dependency_lengths')
+        dependency_starts = self.global_tensor(name='dependency_starts')
+        dependency_lengths = self.global_tensor(name='dependency_lengths')
         subsampled_starts = tf.gather(params=dependency_starts, indices=indices)
         subsampled_lengths = tf.gather(params=dependency_lengths, indices=indices)
         trivial_dependencies = tf.reduce_all(

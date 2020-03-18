@@ -15,6 +15,7 @@
 
 import tensorflow as tf
 
+from tensorforce.core import tf_function
 from tensorforce.core.layers import TransformationBase
 
 
@@ -80,8 +81,9 @@ class Dense(TransformationBase):
             is_trainable=self.is_trainable, initializer=initializer
         )
 
-    def tf_apply(self, x):
+    @tf_function(num_args=1)
+    def apply(self, x):
         # tf.assert_rank_in(x=x, ranks=(2, 3, 4))
         x = tf.matmul(a=x, b=self.weights)
 
-        return super().tf_apply(x=x)
+        return super().apply(x=x)

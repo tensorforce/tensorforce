@@ -18,6 +18,7 @@ from math import ceil
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
+from tensorforce.core import tf_function
 from tensorforce.core.layers import Layer
 
 
@@ -57,7 +58,8 @@ class Pooling(Layer):
 
         return input_spec
 
-    def tf_apply(self, x):
+    @tf_function(num_args=1)
+    def apply(self, x):
         if self.reduction == 'concat':
             return tf.reshape(tensor=x, shape=(-1, util.product(xs=util.shape(x)[1:])))
 
@@ -100,12 +102,13 @@ class Flatten(Pooling):
             name=name, reduction='concat', input_spec=input_spec, summary_labels=summary_labels
         )
 
-    def tf_apply(self, x):
+    @tf_function(num_args=1)
+    def apply(self, x):
         if self.input_spec['shape'] == ():
             return tf.expand_dims(input=x, axis=1)
 
         else:
-            return super().tf_apply(x=x)
+            return super().apply(x=x)
 
 
 class Pool1d(Layer):
@@ -164,7 +167,8 @@ class Pool1d(Layer):
 
         return input_spec
 
-    def tf_apply(self, x):
+    @tf_function(num_args=1)
+    def apply(self, x):
         x = tf.expand_dims(input=x, axis=1)
 
         if self.reduction == 'average':
@@ -244,7 +248,8 @@ class Pool2d(Layer):
 
         return input_spec
 
-    def tf_apply(self, x):
+    @tf_function(num_args=1)
+    def apply(self, x):
         if self.reduction == 'average':
             x = tf.nn.avg_pool(
                 input=x, ksize=self.window, strides=self.stride, padding=self.padding.upper()

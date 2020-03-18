@@ -68,7 +68,7 @@ class TestTensorforceAgent(UnittestAgent, unittest.TestCase):
         # recorder currently does not include internal states
         agent = Agent.create(agent=self.agent_spec(
             require_all=True,
-            policy=dict(network=dict(type='auto', size=8, depth=1, internal_rnn=False))
+            policy=dict(network=dict(type='auto', size=8, depth=1, rnn=False))
         ), environment=environment)
 
         agent.pretrain(

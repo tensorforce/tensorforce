@@ -16,13 +16,14 @@
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core import parameter_modules
+from tensorforce.core import tf_function, parameter_modules
 from tensorforce.core.layers import Layer
 
 
 class PreprocessingLayer(Layer):
 
-    def tf_reset(self):
+    @tf_function(num_args=0)
+    def reset(self):
         raise NotImplementedError
 
 
@@ -62,7 +63,8 @@ class Clipping(Layer):
     def default_input_spec(self):
         return dict(type='float', shape=None)
 
-    def tf_apply(self, x):
+    @tf_function(num_args=1)
+    def apply(self, x):
         upper = self.upper.value()
         if self.lower is None:
             lower = -upper
@@ -123,13 +125,15 @@ class Deltafier(PreprocessingLayer):
             is_trainable=False, initializer='zeros'
         )
 
-    def tf_reset(self):
+    @tf_function(num_args=0)
+    def reset(self):
         assignment = self.has_previous.assign(
             value=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool')), read_value=False
         )
         return assignment
 
-    def tf_apply(self, x):
+    @tf_function(num_args=1)
+    def apply(self, x):
 
         def first_delta():
             assignment = self.has_previous.assign(
@@ -197,7 +201,8 @@ class Image(Layer):
 
         return input_spec
 
-    def tf_apply(self, x):
+    @tf_function(num_args=1)
+    def apply(self, x):
         if self.height is not None:
             x = tf.image.resize(images=x, size=(self.height, self.width))
 
@@ -275,13 +280,15 @@ class Sequence(PreprocessingLayer):
             is_trainable=False, initializer='zeros'
         )
 
-    def tf_reset(self):
+    @tf_function(num_args=0)
+    def reset(self):
         assignment = self.has_previous.assign(
             value=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool')), read_value=False
         )
         return assignment
 
-    def tf_apply(self, x):
+    @tf_function(num_args=1)
+    def apply(self, x):
 
         def first_sequence():
             assignment = self.has_previous.assign(

@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce.core.module import Module
+from tensorforce.core.module import Module, tf_function
 from tensorforce.core.parameters import parameter_modules
 
 # Require parameter_modules
@@ -31,5 +31,5 @@ from tensorforce.core.networks import network_modules
 
 __all__ = [
     'distribution_modules', 'layer_modules', 'memory_modules', 'Module', 'network_modules',
-    'optimizer_modules', 'parameter_modules'
+    'optimizer_modules', 'parameter_modules', 'tf_function'
 ]

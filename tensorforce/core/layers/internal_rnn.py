@@ -20,10 +20,11 @@ import numpy as np
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core.layers import StatefulLayer, TransformationBase
+from tensorforce.core import tf_function
+from tensorforce.core.layers import TemporalLayer, TransformationBase
 
 
-class InternalRnn(StatefulLayer, TransformationBase):
+class InternalRnn(TemporalLayer, TransformationBase):
     """
     Internal state RNN cell layer (specification key: `internal_rnn`).
 
@@ -63,7 +64,7 @@ class InternalRnn(StatefulLayer, TransformationBase):
         super().__init__(
             name=name, size=size, bias=bias, activation=activation, dropout=dropout,
             is_trainable=is_trainable, input_spec=input_spec, summary_labels=summary_labels,
-            l2_regularization=l2_regularization, optimization_horizon=length
+            l2_regularization=l2_regularization, processing='iterative', horizon=length
         )
 
         if self.cell_type == 'gru':
@@ -130,16 +131,17 @@ class InternalRnn(StatefulLayer, TransformationBase):
 
         self.cell.build(input_shape=self.input_spec['shape'][0])
 
-        for variable in self.cell.trainable_weights:
-            name = variable.name[variable.name.rindex(self.name + '/') + len(self.name) + 1: -2]
-            self.variables[name] = variable
-            if self.is_trainable:
-                self.trainable_variables[name] = variable
-        for variable in self.cell.non_trainable_weights:
-            name = variable.name[variable.name.rindex(self.name + '/') + len(self.name) + 1: -2]
-            self.variables[name] = variable
+        # for variable in self.cell.trainable_weights:
+        #     name = variable.name[variable.name.rindex(self.name + '/') + len(self.name) + 1: -2]
+        #     self.variables[name] = variable
+        #     if self.is_trainable:
+        #         self.trainable_variables[name] = variable
+        # for variable in self.cell.non_trainable_weights:
+        #     name = variable.name[variable.name.rindex(self.name + '/') + len(self.name) + 1: -2]
+        #     self.variables[name] = variable
 
-    def tf_iterative_step(self, x, previous):
+    @tf_function(num_args=2)
+    def iterative_step(self, x, previous):
         state = previous['state']
 
         if self.cell_type == 'gru':

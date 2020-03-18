@@ -58,33 +58,6 @@ class ActionValue(Policy):
 
         return actions
 
-    def tf_actions_value(
-        self, states, internals, auxiliaries, actions, reduced=True, include_per_action=False
-    ):
-        actions_values = self.actions_values(
-            states=states, internals=internals, auxiliaries=auxiliaries, actions=actions
-        )
-
-        for name, spec, actions_value in util.zip_items(self.actions_spec, actions_values):
-            actions_values[name] = tf.reshape(
-                tensor=actions_value, shape=(-1, util.product(xs=spec['shape']))
-            )
-
-        actions_value = tf.concat(values=tuple(actions_values.values()), axis=1)
-        if reduced:
-            actions_value = tf.math.reduce_mean(input_tensor=actions_value, axis=1)
-            if include_per_action:
-                for name in self.actions_spec:
-                    actions_values[name] = tf.math.reduce_mean(
-                        input_tensor=actions_values[name], axis=1
-                    )
-
-        if include_per_action:
-            actions_values['*'] = actions_value
-            return actions_values
-        else:
-            return actions_value
-
     def tf_states_value(
         self, states, internals, auxiliaries, reduced=True, include_per_action=False
     ):
@@ -111,6 +84,33 @@ class ActionValue(Policy):
             return states_values
         else:
             return states_value
+
+    def tf_actions_value(
+        self, states, internals, auxiliaries, actions, reduced=True, include_per_action=False
+    ):
+        actions_values = self.actions_values(
+            states=states, internals=internals, auxiliaries=auxiliaries, actions=actions
+        )
+
+        for name, spec, actions_value in util.zip_items(self.actions_spec, actions_values):
+            actions_values[name] = tf.reshape(
+                tensor=actions_value, shape=(-1, util.product(xs=spec['shape']))
+            )
+
+        actions_value = tf.concat(values=tuple(actions_values.values()), axis=1)
+        if reduced:
+            actions_value = tf.math.reduce_mean(input_tensor=actions_value, axis=1)
+            if include_per_action:
+                for name in self.actions_spec:
+                    actions_values[name] = tf.math.reduce_mean(
+                        input_tensor=actions_values[name], axis=1
+                    )
+
+        if include_per_action:
+            actions_values['*'] = actions_value
+            return actions_values
+        else:
+            return actions_value
 
     def tf_states_values(self, states, internals, auxiliaries):
         if not all(spec['type'] in ('bool', 'int') for spec in self.states_spec.values()):

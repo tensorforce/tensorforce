@@ -31,15 +31,11 @@ class Categorical(Distribution):
             (<span style="color:#0000C0"><b>internal use</b></span>).
         embedding_shape (iter[int > 0]): Embedding shape
             (<span style="color:#0000C0"><b>internal use</b></span>).
-        infer_states_value (bool): Whether to infer the state value from state-action values as
-            softmax denominator (<span style="color:#00C000"><b>default</b></span>: true).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
-    def __init__(
-        self, name, action_spec, embedding_shape, infer_states_value=True, summary_labels=None
-    ):
+    def __init__(self, name, action_spec, embedding_shape, summary_labels=None):
         super().__init__(
             name=name, action_spec=action_spec, embedding_shape=embedding_shape,
             summary_labels=summary_labels
@@ -54,13 +50,6 @@ class Categorical(Distribution):
                 name='deviations', module='linear', modules=layer_modules,
                 size=(action_size * num_values), input_spec=input_spec
             )
-            if infer_states_value:
-                self.value = None
-            else:
-                self.value = self.add_module(
-                    name='value', module='linear', modules=layer_modules, size=action_size,
-                    input_spec=input_spec
-                )
 
         else:
             if len(self.embedding_shape) < 1 or len(self.embedding_shape) > 3:
@@ -81,13 +70,6 @@ class Categorical(Distribution):
                 name='deviations', module='linear', modules=layer_modules,
                 size=(size * num_values), input_spec=input_spec
             )
-            if infer_states_value:
-                self.value = None
-            else:
-                self.value = self.add_module(
-                    name='value', module='linear', modules=layer_modules, size=size,
-                    input_spec=input_spec
-                )
 
         Module.register_tensor(
             name=(self.name + '-probabilities'),
@@ -108,18 +90,8 @@ class Categorical(Distribution):
         )
 
         # States value
-        if self.value is None:
-            action_values = tf.where(condition=mask, x=action_values, y=min_float)
-            states_value = tf.reduce_logsumexp(input_tensor=action_values, axis=-1)
-        else:
-            states_value = self.value.apply(x=x)
-            if len(self.embedding_shape) == 1:
-                states_value = tf.reshape(tensor=states_value, shape=value_shape)
-            action_values = states_value + action_values - tf.math.reduce_mean(
-                input_tensor=action_values, axis=-1, keepdims=True
-            )
-            states_value = tf.squeeze(input=states_value, axis=-1)
-            action_values = tf.where(condition=mask, x=action_values, y=min_float)
+        action_values = tf.where(condition=mask, x=action_values, y=min_float)
+        states_value = tf.reduce_logsumexp(input_tensor=action_values, axis=-1)
 
         # Softmax for corresponding probabilities
         probabilities = tf.nn.softmax(logits=action_values, axis=-1)

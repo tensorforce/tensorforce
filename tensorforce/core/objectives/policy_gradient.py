@@ -33,13 +33,13 @@ class PolicyGradient(Objective):
         clipping_value (parameter, float >= 0.0): Clipping threshold for the maximized value
             (<span style="color:#00C000"><b>default</b></span>: no clipping).
         early_reduce (bool): Whether to compute objective for reduced likelihoods instead of per
-            likelihood (<span style="color:#00C000"><b>default</b></span>: false).
+            likelihood (<span style="color:#00C000"><b>default</b></span>: true).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
     def __init__(
-        self, name, ratio_based=False, clipping_value=0.0, early_reduce=False,
+        self, name, ratio_based=False, clipping_value=0.0, early_reduce=True,
         summary_labels=None
     ):
         super().__init__(name=name, summary_labels=summary_labels)

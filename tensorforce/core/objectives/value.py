@@ -33,13 +33,13 @@ class Value(Objective):
         huber_loss (parameter, float >= 0.0): Huber loss threshold
             (<span style="color:#00C000"><b>default</b></span>: no huber loss).
         early_reduce (bool): Whether to compute objective for reduced values instead of value per
-            action (<span style="color:#00C000"><b>default</b></span>: false).
+            action (<span style="color:#00C000"><b>default</b></span>: true).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
     def __init__(
-        self, name, value='state', huber_loss=0.0, early_reduce=False, summary_labels=None
+        self, name, value='state', huber_loss=0.0, early_reduce=True, summary_labels=None
     ):
         super().__init__(name=name, summary_labels=summary_labels)
 

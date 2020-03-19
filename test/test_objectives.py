@@ -59,7 +59,7 @@ class TestObjectives(UnittestBase, unittest.TestCase):
         self.unittest(objective=objective)
 
         objective = dict(type='value', value='action')
-        self.unittest(objective=objective)
+        self.unittest(exclude_bounded_action=True, objective=objective)
 
         objective = dict(type='value', huber_loss=1.0)
         self.unittest(objective=objective)

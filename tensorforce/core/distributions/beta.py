@@ -238,29 +238,3 @@ class Beta(Distribution):
         return log_norm2 - log_norm1 - digamma_beta1 * (beta2 - beta1) - \
             digamma_alpha1 * (alpha2 - alpha1) + digamma_alpha_beta1 * \
             (alpha_beta2 - alpha_beta1)
-
-    def tf_action_value(self, parameters, action):
-        alpha, _, _, _ = parameters
-
-        zero = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
-        one = tf.constant(value=1.0, dtype=util.tf_dtype(dtype='float'))
-
-        assertion = tf.debugging.assert_equal(
-            x=zero, y=one, message="Beta.action_value: not implemented."
-        )
-
-        with tf.control_dependencies(control_inputs=(assertion,)):
-            return util.identity_operation(x=alpha)
-
-    def tf_states_value(self, parameters):
-        alpha, _, _, _ = parameters
-
-        zero = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
-        one = tf.constant(value=1.0, dtype=util.tf_dtype(dtype='float'))
-
-        assertion = tf.debugging.assert_equal(
-            x=zero, y=one, message="Beta.states_value: not implemented."
-        )
-
-        with tf.control_dependencies(control_inputs=(assertion,)):
-            return util.identity_operation(x=alpha)

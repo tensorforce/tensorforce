@@ -19,6 +19,8 @@ import os
 import sys
 import warnings
 
+import tensorflow as tf
+
 from tensorforce import Agent, Environment, Runner, TensorforceError
 from tensorforce.core.layers import Layer
 from test.unittest_environment import UnittestEnvironment
@@ -88,6 +90,7 @@ class UnittestBase(object):
                 datetime.now().strftime('%H:%M:%S'), self.__class__.__name__[4:], name
             ))
         sys.stdout.flush()
+        tf.compat.v1.reset_default_graph()
 
     def finished_test(self, assertion=None):
         """

@@ -117,7 +117,11 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
             horizon=2, estimate_horizon='early', estimate_actions=True, estimate_advantage=True
         )
         # TODO: currently requires same internal RNN horizon
-        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, internal_rnn=2))
+        # TODO: requires distribution config since Beta doesn't implement state-action-value
+        baseline_policy = dict(
+            network=dict(type='auto', size=7, depth=1, internal_rnn=2),
+            distributions=dict(float='gaussian')
+        )
         self.unittest(reward_estimation=reward_estimation, baseline_policy=baseline_policy)
 
         reward_estimation = dict(

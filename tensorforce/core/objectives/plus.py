@@ -45,7 +45,7 @@ class Plus(Objective):
         )
 
     @tf_function(num_args=6)
-    def loss_per_instance(self, states, internals, auxiliaries, actions, reward, kwargs):
+    def loss_per_instance(self, states, horizons, internals, auxiliaries, actions, reward, kwargs):
         kwargs1 = OrderedDict()
         kwargs2 = OrderedDict()
         for key, value in kwargs.items():
@@ -56,13 +56,13 @@ class Plus(Objective):
                 kwargs2[key] = value[1]
 
         loss1 = self.objective1.loss_per_instance(
-            states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
-            reward=reward, **kwargs1
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+            actions=actions, reward=reward, **kwargs1
         )
 
         loss2 = self.objective2.loss_per_instance(
-            states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
-            reward=reward, **kwargs2
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+            actions=actions, reward=reward, **kwargs2
         )
 
         return loss1 + loss2
@@ -74,23 +74,23 @@ class Plus(Objective):
         for key, function in arguments1:
             if key in arguments2:
 
-                def plus_function(states, internals, auxiliaries, actions, reward):
+                def plus_function(states, horizons, internals, auxiliaries, actions, reward):
                     value1 = function(
-                        states=states, internals=internals, auxiliaries=auxiliaries,
-                        actions=actions, reward=reward
+                        states=states, horizons=horizons, internals=internals,
+                        auxiliaries=auxiliaries, actions=actions, reward=reward
                     )
                     value2 = arguments2[key](
-                        states=states, internals=internals, auxiliaries=auxiliaries,
-                        actions=actions, reward=reward
+                        states=states, horizons=horizons, internals=internals,
+                        auxiliaries=auxiliaries, actions=actions, reward=reward
                     )
                     return (value1, value2)
 
             else:
 
-                def plus_function(states, internals, auxiliaries, actions, reward):
+                def plus_function(states, horizons, internals, auxiliaries, actions, reward):
                     value1 = function(
-                        states=states, internals=internals, auxiliaries=auxiliaries,
-                        actions=actions, reward=reward
+                        states=states, horizons=horizons, internals=internals,
+                        auxiliaries=auxiliaries, actions=actions, reward=reward
                     )
                     return (value1, None)
 
@@ -99,10 +99,10 @@ class Plus(Objective):
         for key, function in arguments2:
             if key not in arguments1:
 
-                def plus_function(states, internals, auxiliaries, actions, reward):
+                def plus_function(states, horizons, internals, auxiliaries, actions, reward):
                     value2 = function(
-                        states=states, internals=internals, auxiliaries=auxiliaries,
-                        actions=actions, reward=reward
+                        states=states, horizons=horizons, internals=internals,
+                        auxiliaries=auxiliaries, actions=actions, reward=reward
                     )
                     return (None, value2)
 

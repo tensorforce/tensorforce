@@ -79,16 +79,18 @@ class Embedding(TransformationBase):
     def default_input_spec(self):
         return dict(type=('int', 'bool'), shape=None, num_values=0)
 
-    def get_output_spec(self, input_spec):
-        input_spec['type'] = 'float'
-        if not self.squeeze:
-            if input_spec['shape'] is None:
-                input_spec['shape'] = (None, self.size)
-            else:
-                input_spec['shape'] = input_spec['shape'] + (self.size,)
-        input_spec.pop('num_values', None)
+    def output_spec(self):
+        output_spec = super().output_spec()
 
-        return input_spec
+        output_spec['type'] = 'float'
+        if not self.squeeze:
+            if output_spec['shape'] is None:
+                output_spec['shape'] = (None, self.size)
+            else:
+                output_spec['shape'] = output_spec['shape'] + (self.size,)
+        output_spec.pop('num_values', None)
+
+        return output_spec
 
     def tf_initialize(self):
         super().tf_initialize()

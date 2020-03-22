@@ -38,7 +38,6 @@ class Stochastic(Policy):
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
         states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         auxiliaries_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
@@ -49,7 +48,7 @@ class Stochastic(Policy):
         super().__init__(
             device=device, summary_labels=summary_labels, l2_regularization=l2_regularization,
             name=name, states_spec=states_spec, auxiliaries_spec=auxiliaries_spec,
-            internals_spec=internals_spec, actions_spec=actions_spec
+            actions_spec=actions_spec
         )
 
         # Sampling temperature
@@ -74,7 +73,8 @@ class Stochastic(Policy):
         if function == 'entropy':
             return [
                 util.to_tensor_spec(value_spec=self.states_spec, batched=True),
-                util.to_tensor_spec(value_spec=self.internals_spec, batched=True),
+                util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
+                util.to_tensor_spec(value_spec=self.internals_spec(policy=self), batched=True),
                 util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True),
                 util.to_tensor_spec(value_spec=dict(type='bool', shape=()), batched=False)
             ]
@@ -82,14 +82,16 @@ class Stochastic(Policy):
         elif function == 'entropies':
             return [
                 util.to_tensor_spec(value_spec=self.states_spec, batched=True),
-                util.to_tensor_spec(value_spec=self.internals_spec, batched=True),
+                util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
+                util.to_tensor_spec(value_spec=self.internals_spec(policy=self), batched=True),
                 util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True)
             ]
 
         elif function == 'kl_divergence':
             return [
                 util.to_tensor_spec(value_spec=self.states_spec, batched=True),
-                util.to_tensor_spec(value_spec=self.internals_spec, batched=True),
+                util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
+                util.to_tensor_spec(value_spec=self.internals_spec(policy=self), batched=True),
                 util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True),
                 [
                     util.to_tensor_spec(value_spec=distribution.parameters_spec, batched=True)
@@ -101,7 +103,8 @@ class Stochastic(Policy):
         elif function == 'kl_divergences':
             return [
                 util.to_tensor_spec(value_spec=self.states_spec, batched=True),
-                util.to_tensor_spec(value_spec=self.internals_spec, batched=True),
+                util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
+                util.to_tensor_spec(value_spec=self.internals_spec(policy=self), batched=True),
                 util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True),
                 [
                     util.to_tensor_spec(value_spec=distribution.parameters_spec, batched=True)
@@ -112,14 +115,16 @@ class Stochastic(Policy):
         elif function == 'kldiv_reference':
             return [
                 util.to_tensor_spec(value_spec=self.states_spec, batched=True),
-                util.to_tensor_spec(value_spec=self.internals_spec, batched=True),
+                util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
+                util.to_tensor_spec(value_spec=self.internals_spec(policy=self), batched=True),
                 util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True)
             ]
 
         elif function == 'log_probability':
             return [
                 util.to_tensor_spec(value_spec=self.states_spec, batched=True),
-                util.to_tensor_spec(value_spec=self.internals_spec, batched=True),
+                util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
+                util.to_tensor_spec(value_spec=self.internals_spec(policy=self), batched=True),
                 util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True),
                 util.to_tensor_spec(value_spec=self.actions_spec, batched=True),
                 util.to_tensor_spec(value_spec=dict(type='bool', shape=()), batched=False)
@@ -128,7 +133,8 @@ class Stochastic(Policy):
         elif function == 'log_probabilities':
             return [
                 util.to_tensor_spec(value_spec=self.states_spec, batched=True),
-                util.to_tensor_spec(value_spec=self.internals_spec, batched=True),
+                util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
+                util.to_tensor_spec(value_spec=self.internals_spec(policy=self), batched=True),
                 util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True),
                 util.to_tensor_spec(value_spec=self.actions_spec, batched=True)
             ]
@@ -136,7 +142,8 @@ class Stochastic(Policy):
         elif function == 'sample_actions':
             return [
                 util.to_tensor_spec(value_spec=self.states_spec, batched=True),
-                util.to_tensor_spec(value_spec=self.internals_spec, batched=True),
+                util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
+                util.to_tensor_spec(value_spec=self.internals_spec(policy=self), batched=True),
                 util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True),
                 [
                     util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=False)
@@ -147,8 +154,8 @@ class Stochastic(Policy):
         else:
             return super().input_signature(function=function)
 
-    @tf_function(num_args=3)
-    def act(self, states, internals, auxiliaries, return_internals):
+    @tf_function(num_args=4)
+    def act(self, states, horizons, internals, auxiliaries, return_internals):
         deterministic = self.global_tensor(name='deterministic')
 
         zero = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
@@ -167,54 +174,64 @@ class Stochastic(Policy):
                 temperatures[name] = value
 
         return self.sample_actions(
-            states=states, internals=internals, auxiliaries=auxiliaries, temperatures=temperatures,
-            return_internals=return_internals
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+            temperatures=temperatures, return_internals=return_internals
         )
 
-    @tf_function(num_args=4)
-    def log_probability(self, states, internals, auxiliaries, actions, reduced, return_per_action):
+    @tf_function(num_args=5)
+    def log_probability(
+        self, states, horizons, internals, auxiliaries, actions, reduced, return_per_action
+    ):
         log_probabilities = self.log_probabilities(
-            states=states, internals=internals, auxiliaries=auxiliaries, actions=actions
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+            actions=actions
         )
 
         return self.join_value_per_action(
             values=log_probabilities, reduced=reduced, return_per_action=return_per_action
         )
 
-    @tf_function(num_args=3)
-    def entropy(self, states, internals, auxiliaries, reduced, return_per_action):
-        entropies = self.entropies(states=states, internals=internals, auxiliaries=auxiliaries)
+    @tf_function(num_args=4)
+    def entropy(self, states, horizons, internals, auxiliaries, reduced, return_per_action):
+        entropies = self.entropies(
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries
+        )
 
         return self.join_value_per_action(
             values=entropies, reduced=reduced, return_per_action=return_per_action
         )
 
-    @tf_function(num_args=4)
-    def kl_divergence(self, states, internals, auxiliaries, other, reduced, return_per_action):
+    @tf_function(num_args=5)
+    def kl_divergence(
+        self, states, horizons, internals, auxiliaries, other, reduced, return_per_action
+    ):
         kl_divergences = self.kl_divergences(
-            states=states, internals=internals, auxiliaries=auxiliaries, other=other
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+            other=other
         )
 
         return self.join_value_per_action(
             values=kl_divergences, reduced=reduced, return_per_action=return_per_action
         )
 
-    @tf_function(num_args=4)
-    def sample_actions(self, states, internals, auxiliaries, temperatures, return_internals):
+    @tf_function(num_args=5)
+    def sample_actions(
+        self, states, horizons, internals, auxiliaries, temperatures, return_internals
+    ):
+        raise NotImplementedError
+
+    @tf_function(num_args=5)
+    def log_probabilities(self, states, horizons, internals, auxiliaries, actions):
         raise NotImplementedError
 
     @tf_function(num_args=4)
-    def log_probabilities(self, states, internals, auxiliaries, actions):
+    def entropies(self, states, horizons, internals, auxiliaries):
         raise NotImplementedError
 
-    @tf_function(num_args=3)
-    def entropies(self, states, internals, auxiliaries):
+    @tf_function(num_args=5)
+    def kl_divergences(self, states, horizons, internals, auxiliaries, other):
         raise NotImplementedError
 
     @tf_function(num_args=4)
-    def kl_divergences(self, states, internals, auxiliaries, other):
-        raise NotImplementedError
-
-    @tf_function(num_args=3)
-    def kldiv_reference(self, states, internals, auxiliaries):
+    def kldiv_reference(self, states, horizons, internals, auxiliaries):
         raise NotImplementedError

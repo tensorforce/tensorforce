@@ -35,21 +35,23 @@ class Keras(Layer):
     def __init__(
         self, name, layer, input_spec=None, summary_labels=None, l2_regularization=None, **kwargs
     ):
-        self.keras_layer = getattr(tf.keras.layers, layer)(
-            name=name, dtype=util.tf_dtype(dtype='float'), input_shape=input_spec['shape'],
-            **kwargs
-        )
-
         super().__init__(
             name=name, input_spec=input_spec, summary_labels=summary_labels,
             l2_regularization=l2_regularization
         )
 
+        self.keras_layer = getattr(tf.keras.layers, layer)(
+            name=name, dtype=util.tf_dtype(dtype='float'), input_shape=input_spec['shape'],
+            **kwargs
+        )
+
     def default_input_spec(self):
         return dict(type=None, shape=None)
 
-    def get_output_spec(self, input_spec):
-        shape = self.keras_layer.compute_output_shape(input_shape=((None,) + input_spec['shape']))
+    def output_spec(self):
+        output_spec = super.output_spec()
+
+        shape = self.keras_layer.compute_output_shape(input_shape=((None,) + output_spec['shape']))
 
         return dict(type='float', shape=tuple(shape.as_list()[1:]))
 
@@ -57,14 +59,6 @@ class Keras(Layer):
         super().tf_initialize()
 
         self.keras_layer.build(input_shape=((None,) + self.input_spec['shape']))
-
-        # for variable in self.keras_layer.trainable_weights:
-        #     name = variable.name[variable.name.rindex(self.name + '/') + len(self.name) + 1: -2]
-        #     self.variables[name] = variable
-        #     self.trainable_variables[name] = variable
-        # for variable in self.keras_layer.non_trainable_weights:
-        #     name = variable.name[variable.name.rindex(self.name + '/') + len(self.name) + 1: -2]
-        #     self.variables[name] = variable
 
     @tf_function(num_args=0)
     def regularize(self):

@@ -13,10 +13,9 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce.core.networks.network import Network, LayerbasedNetwork
+from tensorforce.core.networks.network import Network, LayerbasedNetwork, LayeredNetwork
 
 from tensorforce.core.networks.auto import AutoNetwork
-from tensorforce.core.networks.layered import LayeredNetwork
 from tensorforce.core.networks.preprocessor import Preprocessor
 
 

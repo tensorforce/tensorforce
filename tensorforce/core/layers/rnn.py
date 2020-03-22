@@ -56,6 +56,18 @@ class Rnn(TransformationBase):
         self, name, cell, size, return_final_state=True, bias=False, activation=None, dropout=0.0,
         is_trainable=True, input_spec=None, summary_labels=None, l2_regularization=None, **kwargs
     ):
+        super().__init__(
+            name=name, size=size, bias=bias, activation=activation, dropout=dropout,
+            is_trainable=is_trainable, input_spec=input_spec, summary_labels=summary_labels,
+            l2_regularization=l2_regularization
+        )
+
+        if self.squeeze and return_final_state:
+            raise TensorforceError.value(
+                name='rnn', argument='return_final_state', value=return_final_state,
+                condition='size = 0'
+            )
+
         self.cell = cell
         self.return_final_state = return_final_state
 
@@ -78,45 +90,27 @@ class Rnn(TransformationBase):
         else:
             raise TensorforceError.unexpected()
 
-        super().__init__(
-            name=name, size=size, bias=bias, activation=activation, dropout=dropout,
-            is_trainable=is_trainable, input_spec=input_spec, summary_labels=summary_labels,
-            l2_regularization=l2_regularization
-        )
-
-        if self.squeeze and self.return_final_state:
-            raise TensorforceError(
-                "Invalid combination for Lstm layer: size=0 and return_final_state=True."
-            )
-
     def default_input_spec(self):
         return dict(type='float', shape=(-1, 0))
 
-    def get_output_spec(self, input_spec):
-        if self.return_final_state:
-            input_spec['shape'] = input_spec['shape'][:-2] + (self.size,)
-        elif self.squeeze:
-            input_spec['shape'] = input_spec['shape'][:-1]
-        else:
-            input_spec['shape'] = input_spec['shape'][:-1] + (self.size,)
-        input_spec.pop('min_value', None)
-        input_spec.pop('max_value', None)
+    def output_spec(self):
+        output_spec = super().output_spec()
 
-        return input_spec
+        if self.return_final_state:
+            output_spec['shape'] = output_spec['shape'][:-2] + (self.size,)
+        elif self.squeeze:
+            output_spec['shape'] = output_spec['shape'][:-1]
+        else:
+            output_spec['shape'] = output_spec['shape'][:-1] + (self.size,)
+        output_spec.pop('min_value', None)
+        output_spec.pop('max_value', None)
+
+        return output_spec
 
     def tf_initialize(self):
         super().tf_initialize()
 
         self.rnn.build(input_shape=((None,) + self.input_spec['shape']))
-
-        for variable in self.rnn.trainable_weights:
-            name = variable.name[variable.name.rindex(self.name + '/') + len(self.name) + 1: -2]
-            self.variables[name] = variable
-            if self.is_trainable:
-                self.trainable_variables[name] = variable
-        for variable in self.rnn.non_trainable_weights:
-            name = variable.name[variable.name.rindex(self.name + '/') + len(self.name) + 1: -2]
-            self.variables[name] = variable
 
     @tf_function(num_args=0)
     def regularize(self):

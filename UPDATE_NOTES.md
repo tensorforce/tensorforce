@@ -15,6 +15,7 @@ This file records all major updates and new features, starting from version 0.5.
 - Internal changes related to agent arguments `memory`, `update` and `reward_estimation`
 
 - Auto network `internal_rnn` --> `rnn`
+- internal_rnn `length` --> `horizon`
 
 
 

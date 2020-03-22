@@ -237,37 +237,41 @@ class Model(Module):
         )
 
         # Register global tensors
-        # for name, spec in self.states_spec.items():
-        #     Module.register_tensor(name=name, spec=spec, batched=True)
-        # for name, spec in self.internals_spec.items():
-        #     Module.register_tensor(name=name, spec=spec, batched=True)
-        # for name, spec in self.actions_spec.items():
-        #     Module.register_tensor(name=name, spec=spec, batched=True)
-        # Module.register_tensor(name='terminal', spec=dict(type='long', shape=()), batched=True)
-        # Module.register_tensor(name='reward', spec=dict(type='float', shape=()), batched=True)
-        # Module.register_tensor(name='independent', spec=dict(type='bool', shape=()), batched=False)
-        # Module.register_tensor(
-        #     name='deterministic', spec=dict(type='bool', shape=()), batched=False
-        # )
-        # Module.register_tensor(name='timestep', spec=dict(type='long', shape=()), batched=False)
-        # Module.register_tensor(name='episode', spec=dict(type='long', shape=()), batched=False)
-        # Module.register_tensor(name='update', spec=dict(type='long', shape=()), batched=False)
-
-        # Register global tensors
-        for name, spec in self.states_spec.items():
-            self.register_global_tensor(name=name, spec=spec, batched=True)
-        for name, spec in self.internals_spec.items():
-            self.register_global_tensor(name=name, spec=spec, batched=True)
-        for name, spec in self.actions_spec.items():
-            self.register_global_tensor(name=name, spec=spec, batched=True)
-        self.register_global_tensor(name='terminal', spec=dict(type='long', shape=()), batched=True)
-        self.register_global_tensor(name='reward', spec=dict(type='float', shape=()), batched=True)
         self.register_global_tensor(
             name='independent', spec=dict(type='bool', shape=()), batched=False
         )
         self.register_global_tensor(
             name='deterministic', spec=dict(type='bool', shape=()), batched=False
         )
+
+    def input_signature(self, function):
+        if function == 'core_act':
+            return [
+                util.to_tensor_spec(value_spec=self.states_spec, batched=True),
+                util.to_tensor_spec(value_spec=self.internals_spec, batched=True),
+                util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True)
+            ]
+
+        elif function == 'core_observe':
+            return [
+                util.to_tensor_spec(value_spec=self.states_spec, batched=True),
+                util.to_tensor_spec(value_spec=self.internals_spec, batched=True),
+                util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True),
+                util.to_tensor_spec(value_spec=self.actions_spec, batched=True),
+                util.to_tensor_spec(value_spec=dict(type='long', shape=()), batched=True),
+                util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=True)
+            ]
+
+        elif function == 'regularize':
+            return [
+                util.to_tensor_spec(value_spec=self.states_spec, batched=True),
+                util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
+                util.to_tensor_spec(value_spec=self.internals_spec, batched=True),
+                util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True)
+            ]
+
+        else:
+            return super().input_signature(function=function)
 
     def initialize(self):
         """
@@ -1106,8 +1110,6 @@ class Model(Module):
 
         # Core act: retrieve actions and internals
         with tf.control_dependencies(control_inputs=dependencies):
-            for name, state in states.items():
-                self.set_global_tensor(name=name, tensor=state)
             actions, internals = self.core_act(
                 states=states, internals=internals, auxiliaries=auxiliaries
             )
@@ -1458,14 +1460,16 @@ class Model(Module):
 
         return updated, episode, update
 
-    def tf_core_act(self, states, internals, auxiliaries):
-        raise NotImplementedError
-
-    def tf_core_observe(self, states, internals, auxiliaries, actions, terminal, reward):
-        raise NotImplementedError
-
     @tf_function(num_args=3)
-    def regularize(self, states, internals, auxiliaries):
+    def core_act(self, states, internals, auxiliaries):
+        raise NotImplementedError
+
+    @tf_function(num_args=6)
+    def core_observe(self, states, internals, auxiliaries, actions, terminal, reward):
+        raise NotImplementedError
+
+    @tf_function(num_args=4)
+    def regularize(self, states, horizons, internals, auxiliaries):
         return super().regularize()
 
     def get_variable(self, variable):

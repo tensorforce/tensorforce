@@ -466,19 +466,19 @@ class Queue(Memory):
         if len(sequence_values) == 0:
             if is_single_initial_value:
                 initial_values = initial_values[0]
-            return lengths, initial_values
+            return initial_values
 
         elif len(initial_values) == 0:
             if is_single_sequence_value:
                 sequence_values = sequence_values[0]
-            return starts, lengths, sequence_values
+            return tf.stack(values=(starts, lengths), axis=1), sequence_values
 
         else:
             if is_single_sequence_value:
                 sequence_values = sequence_values[0]
             if is_single_initial_value:
                 initial_values = initial_values[0]
-            return starts, lengths, sequence_values, initial_values
+            return tf.stack(values=(starts, lengths), axis=1), sequence_values, initial_values
 
     def tf_successors(self, indices, horizon, sequence_values=(), final_values=()):
         if sequence_values == () and final_values == ():
@@ -649,16 +649,16 @@ class Queue(Memory):
         if len(sequence_values) == 0:
             if is_single_final_value:
                 final_values = final_values[0]
-            return lengths, final_values
+            return final_values
 
         elif len(final_values) == 0:
             if is_single_sequence_value:
                 sequence_values = sequence_values[0]
-            return starts, lengths, sequence_values
+            return tf.stack(values=(starts, lengths), axis=1), sequence_values
 
         else:
             if is_single_sequence_value:
                 sequence_values = sequence_values[0]
             if is_single_final_value:
                 final_values = final_values[0]
-            return starts, lengths, sequence_values, final_values
+            return tf.stack(values=(starts, lengths), axis=1), sequence_values, final_values

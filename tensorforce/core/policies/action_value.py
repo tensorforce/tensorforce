@@ -36,18 +36,15 @@ class ActionValue(Policy):
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
         states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         auxiliaries_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
-
-    # if any(spec['type'] not in ('bool', 'int') for spec in actions_spec.values()):
-    #     raise TensorforceError.unexpected()
 
     def input_signature(self, function):
         if function == 'actions_value':
             return [
                 util.to_tensor_spec(value_spec=self.states_spec, batched=True),
-                util.to_tensor_spec(value_spec=self.internals_spec, batched=True),
+                util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
+                util.to_tensor_spec(value_spec=self.internals_spec(policy=self), batched=True),
                 util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True),
                 util.to_tensor_spec(value_spec=self.actions_spec, batched=True),
                 util.to_tensor_spec(value_spec=dict(type='bool', shape=()), batched=False)
@@ -56,7 +53,8 @@ class ActionValue(Policy):
         elif function == 'actions_values':
             return [
                 util.to_tensor_spec(value_spec=self.states_spec, batched=True),
-                util.to_tensor_spec(value_spec=self.internals_spec, batched=True),
+                util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
+                util.to_tensor_spec(value_spec=self.internals_spec(policy=self), batched=True),
                 util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True),
                 util.to_tensor_spec(value_spec=self.actions_spec, batched=True)
             ]
@@ -64,48 +62,53 @@ class ActionValue(Policy):
         elif function == 'states_value':
             return [
                 util.to_tensor_spec(value_spec=self.states_spec, batched=True),
-                util.to_tensor_spec(value_spec=self.internals_spec, batched=True),
+                util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
+                util.to_tensor_spec(value_spec=self.internals_spec(policy=self), batched=True),
                 util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True)
             ]
 
         elif function == 'states_values':
             return [
                 util.to_tensor_spec(value_spec=self.states_spec, batched=True),
-                util.to_tensor_spec(value_spec=self.internals_spec, batched=True),
+                util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
+                util.to_tensor_spec(value_spec=self.internals_spec(policy=self), batched=True),
                 util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True)
             ]
 
         else:
             return super().input_signature(function=function)
 
-    @tf_function(num_args=3)
-    def act(self, states, internals, auxiliaries):
+    @tf_function(num_args=4)
+    def act(self, states, horizons, internals, auxiliaries):
         raise NotImplementedError
 
-    @tf_function(num_args=4)
-    def actions_value(self, states, internals, auxiliaries, actions, reduced, return_per_action):
+    @tf_function(num_args=5)
+    def actions_value(
+        self, states, horizons, internals, auxiliaries, actions, reduced, return_per_action
+    ):
         actions_values = self.actions_values(
-            states=states, internals=internals, auxiliaries=auxiliaries, actions=actions
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+            actions=actions
         )
 
         return self.join_value_per_action(
             values=actions_values, reduced=reduced, return_per_action=return_per_action
         )
 
-    @tf_function(num_args=3)
-    def states_value(self, states, internals, auxiliaries, reduced, return_per_action):
+    @tf_function(num_args=4)
+    def states_value(self, states, horizons, internals, auxiliaries, reduced, return_per_action):
         states_values = self.states_values(
-            states=states, internals=internals, auxiliaries=auxiliaries
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries
         )
 
         return self.join_value_per_action(
             values=states_values, reduced=reduced, return_per_action=return_per_action
         )
 
-    @tf_function(num_args=4)
-    def actions_values(self, states, internals, auxiliaries, actions):
+    @tf_function(num_args=5)
+    def actions_values(self, states, horizons, internals, auxiliaries, actions):
         raise NotImplementedError
 
-    @tf_function(num_args=3)
-    def states_values(self, states, internals, auxiliaries):
+    @tf_function(num_args=4)
+    def states_values(self, states, horizons, internals, auxiliaries):
         raise NotImplementedError

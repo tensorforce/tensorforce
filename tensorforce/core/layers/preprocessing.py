@@ -104,14 +104,16 @@ class Deltafier(PreprocessingLayer):
     def default_input_spec(self):
         return dict(type='float', shape=None)
 
-    def get_output_spec(self, input_spec):
+    def output_spec(self):
+        output_spec = super().output_spec()
+
         if self.concatenate is not False:
-            input_spec['shape'] = tuple(
+            output_spec['shape'] = tuple(
                 2 * dims if axis == self.concatenate else dims
-                for axis, dims in enumerate(input_spec['shape'])
+                for axis, dims in enumerate(output_spec['shape'])
             )
 
-        return input_spec
+        return output_spec
 
     def tf_initialize(self):
         super().tf_initialize()
@@ -187,19 +189,21 @@ class Image(Layer):
     def default_input_spec(self):
         return dict(type='float', shape=(0, 0, 0))
 
-    def get_output_spec(self, input_spec):
+    def output_spec(self):
+        output_spec = super().output_spec()
+
         if self.height is not None:
             if self.width is None:
-                self.width = round(self.height * input_spec['shape'][1] / input_spec['shape'][0])
-            input_spec['shape'] = (self.height, self.width, input_spec['shape'][2])
+                self.width = round(self.height * input_spec['shape'][1] / output_spec['shape'][0])
+            output_spec['shape'] = (self.height, self.width, output_spec['shape'][2])
         elif self.width is not None:
             self.height = round(self.width * input_spec['shape'][0] / input_spec['shape'][1])
-            input_spec['shape'] = (self.height, self.width, input_spec['shape'][2])
+            output_spec['shape'] = (self.height, self.width, output_spec['shape'][2])
 
         if not isinstance(self.grayscale, bool) or self.grayscale:
-            input_spec['shape'] = input_spec['shape'][:2] + (1,)
+            output_spec['shape'] = output_spec['shape'][:2] + (1,)
 
-        return input_spec
+        return output_spec
 
     @tf_function(num_args=1)
     def apply(self, x):
@@ -248,25 +252,24 @@ class Sequence(PreprocessingLayer):
 
         super().__init__(name=name, input_spec=input_spec, summary_labels=summary_labels)
 
-    def default_input_spec(self):
-        return dict(type=None, shape=None)
+    def output_spec(self, input_spec):
+        output_spec = super().output_spec()
 
-    def get_output_spec(self, input_spec):
         if self.concatenate:
             if self.axis == -1:
-                self.axis = len(input_spec['shape']) - 1
-            input_spec['shape'] = tuple(
+                self.axis = len(output_spec['shape']) - 1
+            output_spec['shape'] = tuple(
                 self.length * dims if axis == self.axis else dims
-                for axis, dims in enumerate(input_spec['shape'])
+                for axis, dims in enumerate(output_spec['shape'])
             )
 
         else:
             if self.axis == -1:
-                self.axis = len(input_spec['shape'])
-            shape = input_spec['shape']
-            input_spec['shape'] = shape[:self.axis] + (self.length,) + shape[self.axis:]
+                self.axis = len(output_spec['shape'])
+            shape = output_spec['shape']
+            output_spec['shape'] = shape[:self.axis] + (self.length,) + shape[self.axis:]
 
-        return input_spec
+        return output_spec
 
     def tf_initialize(self):
         super().tf_initialize()

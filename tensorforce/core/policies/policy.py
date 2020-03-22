@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
+from collections import OrderedDict
+
 import tensorflow as tf
 
 from tensorforce import util
@@ -33,13 +35,12 @@ class Policy(Module):
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
         states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         auxiliaries_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
         self, device=None, summary_labels=None, l2_regularization=None, name=None, states_spec=None,
-        auxiliaries_spec=None, internals_spec=None, actions_spec=None
+        auxiliaries_spec=None, actions_spec=None
     ):
         super().__init__(
             name=name, device=device, summary_labels=summary_labels,
@@ -47,15 +48,25 @@ class Policy(Module):
         )
 
         self.states_spec = states_spec
-        self.internals_spec = internals_spec
         self.auxiliaries_spec = auxiliaries_spec
         self.actions_spec = actions_spec
+
+    @classmethod
+    def internals_spec(cls, policy=None, **kwargs):
+        return OrderedDict()
+
+    def internals_init(self):
+        return OrderedDict()
+
+    def max_past_horizon(self, on_policy):
+        raise NotImplementedError
 
     def input_signature(self, function):
         if function == 'act':
             return [
                 util.to_tensor_spec(value_spec=self.states_spec, batched=True),
-                util.to_tensor_spec(value_spec=self.internals_spec, batched=True),
+                util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
+                util.to_tensor_spec(value_spec=self.internals_spec(policy=self), batched=True),
                 util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True)
             ]
 
@@ -72,22 +83,12 @@ class Policy(Module):
         else:
             return super().input_signature(function=function)
 
-    @classmethod
-    def get_internals_spec(cls, policy=None, **kwargs):
-        raise NotImplementedError
-
-    def internals_init(self):
-        raise NotImplementedError
-
-    def max_past_horizon(self, on_policy):
-        raise NotImplementedError
-
     @tf_function(num_args=0)
     def past_horizon(self, on_policy):
         raise NotImplementedError
 
-    @tf_function(num_args=3)
-    def act(self, states, internals, auxiliaries, return_internals):
+    @tf_function(num_args=4)
+    def act(self, states, horizons, internals, auxiliaries, return_internals):
         raise NotImplementedError
 
     @tf_function(num_args=1)

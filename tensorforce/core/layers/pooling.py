@@ -48,15 +48,18 @@ class Pooling(Layer):
     def default_input_spec(self):
         return dict(type='float', shape=None)
 
-    def get_output_spec(self, input_spec):
-        if self.reduction == 'concat':
-            input_spec['shape'] = (util.product(xs=input_spec['shape']),)
-        elif self.reduction in ('max', 'mean', 'product', 'sum'):
-            input_spec['shape'] = (input_spec['shape'][-1],)
-        input_spec.pop('min_value', None)
-        input_spec.pop('max_value', None)
+    def output_spec(self):
+        output_spec = super().output_spec()
 
-        return input_spec
+        if self.reduction == 'concat':
+            output_spec['shape'] = (util.product(xs=output_spec['shape']),)
+        elif self.reduction in ('max', 'mean', 'product', 'sum'):
+            output_spec['shape'] = (output_spec['shape'][-1],)
+
+        output_spec.pop('min_value', None)
+        output_spec.pop('max_value', None)
+
+        return output_spec
 
     @tf_function(num_args=1)
     def apply(self, x):
@@ -153,19 +156,21 @@ class Pool1d(Layer):
     def default_input_spec(self):
         return dict(type='float', shape=(0, 0))
 
-    def get_output_spec(self, input_spec):
+    def output_spec(self):
+        output_spec = super().output_spec()
+
         if self.padding == 'same':
-            input_spec['shape'] = (
-                ceil(input_spec['shape'][0] / self.stride[2]),
-                input_spec['shape'][1]
+            output_spec['shape'] = (
+                ceil(output_spec['shape'][0] / self.stride[2]),
+                output_spec['shape'][1]
             )
         elif self.padding == 'valid':
-            input_spec['shape'] = (
-                ceil((input_spec['shape'][0] - (self.window[2] - 1)) / self.stride[2]),
-                input_spec['shape'][1]
+            output_spec['shape'] = (
+                ceil((output_spec['shape'][0] - (self.window[2] - 1)) / self.stride[2]),
+                output_spec['shape'][1]
             )
 
-        return input_spec
+        return output_spec
 
     @tf_function(num_args=1)
     def apply(self, x):
@@ -232,18 +237,20 @@ class Pool2d(Layer):
     def default_input_spec(self):
         return dict(type='float', shape=(0, 0, 0))
 
-    def get_output_spec(self, input_spec):
+    def output_spec(self):
+        output_spec = super().output_spec()
+
         if self.padding == 'same':
-            input_spec['shape'] = (
-                ceil(input_spec['shape'][0] / self.stride[1]),
-                ceil(input_spec['shape'][1] / self.stride[2]),
-                input_spec['shape'][2]
+            output_spec['shape'] = (
+                ceil(output_spec['shape'][0] / self.stride[1]),
+                ceil(output_spec['shape'][1] / self.stride[2]),
+                output_spec['shape'][2]
             )
         elif self.padding == 'valid':
             input_spec['shape'] = (
-                ceil((input_spec['shape'][0] - (self.window[1] - 1)) / self.stride[1]),
-                ceil((input_spec['shape'][1] - (self.window[2] - 1)) / self.stride[2]),
-                input_spec['shape'][2]
+                ceil((output_spec['shape'][0] - (self.window[1] - 1)) / self.stride[1]),
+                ceil((output_spec['shape'][1] - (self.window[2] - 1)) / self.stride[2]),
+                output_spec['shape'][2]
             )
 
         return input_spec

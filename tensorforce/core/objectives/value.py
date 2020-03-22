@@ -53,20 +53,20 @@ class Value(Objective):
 
         self.early_reduce = early_reduce
 
-    @tf_function(num_args=5)
-    def loss_per_instance(self, states, internals, auxiliaries, actions, reward):
+    @tf_function(num_args=6)
+    def loss_per_instance(self, states, horizons, internals, auxiliaries, actions, reward):
         if not self.early_reduce:
             reward = tf.expand_dims(input=reward, axis=1)
 
         if self.value == 'state':
             value = policy.states_value(
-                states=states, internals=internals, auxiliaries=auxiliaries,
+                states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
                 reduced=self.early_reduce, return_per_action=False
             )
         elif self.value == 'action':
             value = policy.actions_value(
-                states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
-                reduced=self.early_reduce, return_per_action=False
+                states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+                actions=actions, reduced=self.early_reduce, return_per_action=False
             )
 
         difference = value - reward

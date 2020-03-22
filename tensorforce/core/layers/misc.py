@@ -150,9 +150,10 @@ class Block(Layer):
 
         return self.layers[0].default_input_spec()
 
-    def get_output_spec(self, input_spec):
+    def output_spec(self):
+        output_spec = super().output_spec()
         for layer in self.layers:
-            input_spec = layer.get_output_spec(input_spec=input_spec)
+            output_spec = layer.get_output_spec(input_spec=output_spec)
         return input_spec
 
     @tf_function(num_args=1)
@@ -188,14 +189,6 @@ class Dropout(Layer):
 
     def default_input_spec(self):
         return dict(type='float', shape=None)
-
-    def set_input_spec(self, spec):
-        super().set_input_spec(spec=spec)
-
-        if spec['type'] != 'float':
-            raise TensorforceError.value(
-                name='dropout', argument='input_spec', value=spec['type'], hint='!= float'
-            )
 
     @tf_function(num_args=1)
     def apply(self, x):
@@ -241,74 +234,23 @@ class Function(Layer):
         self, name, function, output_spec=None, input_spec=None, summary_labels=None,
         l2_regularization=None
     ):
-        self.output_spec = output_spec
-
         super().__init__(
             name=name, input_spec=input_spec, summary_labels=summary_labels,
             l2_regularization=l2_regularization
         )
 
         self.function = function
+        self._output_spec = output_spec
 
-    def default_input_spec(self):
-        return dict(type=None, shape=None)
-
-    def get_output_spec(self, input_spec):
-        if self.output_spec is not None:
-            input_spec.update(self.output_spec)
-
-        return input_spec
+    def output_spec(self):
+        if self._output_spec is None:
+            return super().output_spec()
+        else:
+            return dict(self._output_spec)
 
     @tf_function(num_args=1)
     def apply(self, x):
         return self.function(x)
-
-
-class Register(Layer):
-    """
-    Tensor retrieval layer, which is useful when defining more complex network architectures which
-    do not follow the sequential layer-stack pattern, for instance, when handling multiple inputs
-    (specification key: `register`).
-
-    Args:
-        name (string): Layer name
-            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
-        tensor (string): Name under which tensor will be registered
-            (<span style="color:#C00000"><b>required</b></span>).
-        input_spec (specification): Input tensor specification
-            (<span style="color:#00C000"><b>internal use</b></span>).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
-    """
-
-    def __init__(self, name, tensor, input_spec=None, summary_labels=None):
-        """
-        Register layer constructor.
-
-        Args:
-        """
-        if not isinstance(tensor, str):
-            raise TensorforceError.type(name='register', argument='tensor', dtype=type(tensor))
-
-        self.tensor = tensor
-
-        super().__init__(name=name, input_spec=input_spec, summary_labels=summary_labels)
-
-        self.register_global_tensor(name=self.tensor, spec=self.input_spec, batched=True)
-        # self.output_spec = None
-
-    def default_input_spec(self):
-        return dict(type=None, shape=None)
-
-    # No tf_function, so global tensor is part of parent graph
-    # @tf_function(num_args=1)
-    def apply(self, x):
-        self.set_global_tensor(name=self.tensor, tensor=x)
-        # last_scope = Module.global_scope.pop()
-        # Module.update_tensor(name=self.tensor, tensor=x)
-        # Module.global_scope.append(last_scope)
-
-        return x
 
 
 class Reshape(Layer):
@@ -327,189 +269,28 @@ class Reshape(Layer):
     """
 
     def __init__(self, name, shape, input_spec=None, summary_labels=None):
+        super().__init__(name=name, input_spec=input_spec, summary_labels=summary_labels)
+
         if isinstance(shape, int):
             self.shape = (shape,)
         else:
             self.shape = tuple(shape)
 
-        super().__init__(name=name, input_spec=input_spec, summary_labels=summary_labels)
-
     def default_input_spec(self):
         return dict(type=None, shape=None)
 
-    def get_output_spec(self, input_spec):
-        if util.product(xs=input_spec['shape']) != util.product(xs=self.shape):
-            raise TensorforceError.value(name='Reshape', argument='shape', value=self.shape)
-        input_spec['shape'] = self.shape
+    def output_spec(self):
+        output_spec = super().output_spec()
 
-        return input_spec
+        if util.product(xs=output_spec['shape']) != util.product(xs=self.shape):
+            raise TensorforceError.value(name='Reshape', argument='shape', value=self.shape)
+        output_spec['shape'] = self.shape
+
+        return output_spec
 
     @tf_function(num_args=1)
     def apply(self, x):
         x = tf.reshape(tensor=x, shape=((-1,) + self.shape))
-
-        return x
-
-
-class Retrieve(Layer):
-    """
-    Tensor retrieval layer, which is useful when defining more complex network architectures which
-    do not follow the sequential layer-stack pattern, for instance, when handling multiple inputs
-    (specification key: `retrieve`).
-
-    Args:
-        name (string): Layer name
-            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
-        tensors (iter[string]): Names of global tensors to retrieve, for instance, state names or
-            previously registered global tensor names
-            (<span style="color:#C00000"><b>required</b></span>).
-        aggregation ('concat' | 'product' | 'stack' | 'sum'): Aggregation type in case of multiple
-            tensors
-            (<span style="color:#00C000"><b>default</b></span>: 'concat').
-        axis (int >= 0): Aggregation axis, excluding batch axis
-            (<span style="color:#00C000"><b>default</b></span>: 0).
-        input_spec (specification): Input tensor specification
-            (<span style="color:#00C000"><b>internal use</b></span>).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
-    """
-
-    def __init__(
-        self, name, tensors, aggregation='concat', axis=0, input_spec=None, summary_labels=None
-    ):
-        if not isinstance(tensors, str) and not util.is_iterable(x=tensors):
-            raise TensorforceError.type(name='retrieve', argument='tensors', dtype=type(tensors))
-        elif util.is_iterable(x=tensors) and len(tensors) == 0:
-            raise TensorforceError.value(
-                name='retrieve', argument='tensors', value=tensors, hint='zero length'
-            )
-        if aggregation not in ('concat', 'product', 'stack', 'sum'):
-            raise TensorforceError.value(
-                name='retrieve', argument='aggregation', value=aggregation,
-                hint='not in {concat,product,stack,sum}'
-            )
-
-        self.tensors = (tensors,) if isinstance(tensors, str) else tuple(tensors)
-        self.aggregation = aggregation
-        self.axis = axis
-
-        super().__init__(name=name, input_spec=input_spec, summary_labels=summary_labels)
-
-        # self.input_spec = None
-
-    def default_input_spec(self):
-        return dict(type=None, shape=None)
-
-    def get_output_spec(self, input_spec):
-        if len(self.tensors) == 1:
-            return self.global_tensor_spec(name=self.tensors[0])
-
-        # Get tensor types and shapes
-        dtypes = list()
-        shapes = list()
-        for tensor in self.tensors:
-            # Tensor specification
-            if tensor == '*':
-                spec = input_spec
-            else:
-                spec = self.global_tensor_spec(name=tensor)
-            dtypes.append(spec['type'])
-            shapes.append(spec['shape'])
-
-        # Check tensor types
-        if all(dtype == dtypes[0] for dtype in dtypes):
-            dtype = dtypes[0]
-        else:
-            raise TensorforceError.value(name='retrieve', argument='tensor types', value=dtypes)
-
-        if self.aggregation == 'concat':
-            if any(len(shape) != len(shapes[0]) for shape in shapes):
-                raise TensorforceError.value(
-                    name='retrieve', argument='tensor shapes', value=shapes
-                )
-            elif any(
-                shape[n] != shapes[0][n] for shape in shapes for n in range(len(shape))
-                if n != self.axis
-            ):
-                raise TensorforceError.value(
-                    name='retrieve', argument='tensor shapes', value=shapes
-                )
-            shape = tuple(
-                sum(shape[n] for shape in shapes) if n == self.axis else shapes[0][n]
-                for n in range(len(shapes[0]))
-            )
-
-        elif self.aggregation == 'stack':
-            if any(len(shape) != len(shapes[0]) for shape in shapes):
-                raise TensorforceError.value(
-                    name='retrieve', argument='tensor shapes', value=shapes
-                )
-            elif any(shape[n] != shapes[0][n] for shape in shapes for n in range(len(shape))):
-                raise TensorforceError.value(
-                    name='retrieve', argument='tensor shapes', value=shapes
-                )
-            shape = tuple(
-                len(shapes) if n == self.axis else shapes[0][n - int(n > self.axis)]
-                for n in range(len(shapes[0]) + 1)
-            )
-
-        else:
-            # Check and unify tensor shapes
-            for shape in shapes:
-                if len(shape) != len(shapes[0]):
-                    raise TensorforceError.value(
-                        name='retrieve', argument='tensor shapes', value=shapes
-                    )
-                if any(x != y and x != 1 and y != 1 for x, y in zip(shape, shapes[0])):
-                    raise TensorforceError.value(
-                        name='retrieve', argument='tensor shapes', value=shapes
-                    )
-            shape = tuple(max(shape[n] for shape in shapes) for n in range(len(shapes[0])))
-
-        # Missing num_values, min/max_value!!!
-        return dict(type=dtype, shape=shape)
-
-    @tf_function(num_args=1)
-    def apply(self, x):
-        if len(self.tensors) == 1:
-            if self.tensors == '*':
-                return x
-            else:
-                # last_scope = Module.global_scope.pop()
-                # x = Module.retrieve_tensor(name=self.tensors[0])
-                # Module.global_scope.append(last_scope)
-                x = self.global_tensor(name=self.tensors[0])
-                return x
-
-        tensors = list()
-        for tensor in self.tensors:
-            if tensor == '*':
-                tensors.append(x)
-            else:
-                # last_scope = Module.global_scope.pop()
-                # tensors.append(Module.retrieve_tensor(name=tensor))
-                # Module.global_scope.append(last_scope)
-                tensors.append(self.global_tensor(name=tensor))
-
-        shape = self.output_spec['shape']
-        for n, tensor in enumerate(tensors):
-            for axis in range(util.rank(x=tensor), len(shape)):
-                tensor = tf.expand_dims(input=tensor, axis=axis)
-            tensors[n] = tensor
-
-        if self.aggregation == 'concat':
-            x = tf.concat(values=tensors, axis=(self.axis + 1))
-
-        elif self.aggregation == 'product':
-            x = tf.stack(values=tensors, axis=(self.axis + 1))
-            x = tf.reduce_prod(input_tensor=x, axis=(self.axis + 1))
-
-        elif self.aggregation == 'stack':
-            x = tf.stack(values=tensors, axis=(self.axis + 1))
-
-        elif self.aggregation == 'sum':
-            x = tf.stack(values=tensors, axis=(self.axis + 1))
-            x = tf.reduce_sum(input_tensor=x, axis=(self.axis + 1))
 
         return x
 
@@ -530,53 +311,27 @@ class Reuse(Layer):
     """
 
     def __init__(self, name, layer, is_trainable=True, input_spec=None):
-        self.layer = layer
-        self.is_trainable = is_trainable
-
         super().__init__(
             name=name, input_spec=input_spec, summary_labels=None, l2_regularization=0.0
         )
 
-    def default_input_spec(self):
-        # from tensorforce.core.networks import Network
-
-        # if not isinstance(self.parent, Network):
-        #     raise TensorforceError.unexpected()
-
-        # if self.layer not in self.parent.modules:
-        #     raise TensorforceError.unexpected()
-
-        # self.layer = self.parent.modules[self.layer]
+        self.layer = layer
+        self.is_trainable = is_trainable
 
         if self.layer not in Layer.layers:
             raise TensorforceError.value(name='reuse', argument='layer', value=self.layer)
 
         self.layer = Layer.layers[self.layer]
 
+    def default_input_spec(self):
         return dict(self.layer.input_spec)
 
-    def get_output_spec(self, input_spec):
-        return self.layer.get_output_spec(input_spec=input_spec)
+    def output_spec(self):
+        return self.layer.output_spec()
 
     @tf_function(num_args=1)
     def apply(self, x):
         return self.layer.apply(x=x)
-
-    def get_variables(self, only_trainable=False, only_saved=False):
-        variables = super().get_variables(only_trainable=only_trainable, only_saved=only_saved)
-
-        if only_trainable and self.is_trainable:
-            variables.extend(self.layer.get_variables(
-                only_trainable=only_trainable, only_saved=only_saved
-            ))
-        elif only_saved:
-            pass
-        else:
-            variables.extend(self.layer.get_variables(
-                only_trainable=only_trainable, only_saved=only_saved
-            ))
-
-        return variables
 
     def get_available_summaries(self):
         summaries = super().get_available_summaries()

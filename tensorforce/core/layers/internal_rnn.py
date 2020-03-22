@@ -35,7 +35,8 @@ class InternalRnn(TemporalLayer, TransformationBase):
             (<span style="color:#C00000"><b>required</b></span>).
         size (int >= 0): Layer output size, 0 implies additionally removing the axis
             (<span style="color:#C00000"><b>required</b></span>).
-        length (parameter, long > 0): ???+1 (<span style="color:#C00000"><b>required</b></span>).
+        horizon (parameter, long >= 0): Past horizon
+            (<span style="color:#C00000"><b>required</b></span>).
         bias (bool): Whether to add a trainable bias variable
             (<span style="color:#00C000"><b>default</b></span>: false).
         activation ('crelu' | 'elu' | 'leaky-relu' | 'none' | 'relu' | 'selu' | 'sigmoid' |
@@ -56,17 +57,16 @@ class InternalRnn(TemporalLayer, TransformationBase):
     """
 
     def __init__(
-        self, name, cell, size, length, bias=False, activation=None, dropout=0.0,
+        self, name, cell, size, horizon, bias=False, activation=None, dropout=0.0,
         is_trainable=True, input_spec=None, summary_labels=None, l2_regularization=None, **kwargs
     ):
-        self.cell_type = cell
-
         super().__init__(
             name=name, size=size, bias=bias, activation=activation, dropout=dropout,
             is_trainable=is_trainable, input_spec=input_spec, summary_labels=summary_labels,
-            l2_regularization=l2_regularization, processing='iterative', horizon=length
+            l2_regularization=l2_regularization, temporal_processing='iterative', horizon=horizon
         )
 
+        self.cell_type = cell
         if self.cell_type == 'gru':
             self.cell = tf.keras.layers.GRUCell(
                 units=self.size, name='cell', **kwargs  # , dtype=util.tf_dtype(dtype='float')
@@ -78,30 +78,19 @@ class InternalRnn(TemporalLayer, TransformationBase):
         else:
             raise TensorforceError.unexpected()
 
-    def default_input_spec(self):
-        return dict(type='float', shape=(0,))
-
-    def get_output_spec(self, input_spec):
-        if self.squeeze:
-            input_spec['shape'] = input_spec['shape'][:-1]
-        else:
-            input_spec['shape'] = input_spec['shape'][:-1] + (self.size,)
-        input_spec.pop('min_value', None)
-        input_spec.pop('max_value', None)
-
-        return input_spec
-
     @classmethod
-    def internals_spec(cls, layer=None, cell=None, size=None, **kwargs):
-        internals_spec = OrderedDict()
+    def internals_spec(cls, layer=None, **kwargs):
+        internals_spec = super().internals_spec()
 
         if 'state' in internals_spec:
             raise TensorforceError.unexpected()
 
         if layer is None:
-            assert cell is not None and size is not None
+            assert 'cell' in kwargs and 'size' in kwargs
+            cell = kwargs['cell']
+            size = kwargs['size']
         else:
-            assert cell is None and size is None
+            assert len(kwargs) == 0
             cell = layer.cell_type
             size = layer.size
 
@@ -114,7 +103,10 @@ class InternalRnn(TemporalLayer, TransformationBase):
         return internals_spec
 
     def internals_init(self):
-        internals_init = OrderedDict()
+        internals_init = super().internals_init()
+
+        if 'state' in internals_init:
+            raise TensorforceError.unexpected()
 
         if self.cell_type == 'gru':
             shape = (self.size,)
@@ -125,6 +117,21 @@ class InternalRnn(TemporalLayer, TransformationBase):
         internals_init['state'] = np.random.normal(scale=stddev, size=shape)
 
         return internals_init
+
+    def default_input_spec(self):
+        return dict(type='float', shape=(0,))
+
+    def output_spec(self):
+        output_spec = super().output_spec()
+
+        if self.squeeze:
+            output_spec['shape'] = output_spec['shape'][:-1]
+        else:
+            output_spec['shape'] = output_spec['shape'][:-1] + (self.size,)
+        output_spec.pop('min_value', None)
+        output_spec.pop('max_value', None)
+
+        return output_spec
 
     def tf_initialize(self):
         super().tf_initialize()
@@ -141,8 +148,8 @@ class InternalRnn(TemporalLayer, TransformationBase):
         #     self.variables[name] = variable
 
     @tf_function(num_args=2)
-    def iterative_step(self, x, previous):
-        state = previous['state']
+    def iterative_step(self, x, internals):
+        state = internals['state']
 
         if self.cell_type == 'gru':
             state = (state,)
@@ -167,8 +174,9 @@ class InternalRnn(TemporalLayer, TransformationBase):
             state = state[0]
         elif self.cell_type == 'lstm':
             state = tf.stack(values=state, axis=1)
+        internals = OrderedDict(state=state)
 
-        return x, OrderedDict(state=state)
+        return x, internals
 
 
 class InternalGru(InternalRnn):
@@ -182,7 +190,8 @@ class InternalGru(InternalRnn):
             (<span style="color:#C00000"><b>required</b></span>).
         size (int >= 0): Layer output size, 0 implies additionally removing the axis
             (<span style="color:#C00000"><b>required</b></span>).
-        length (parameter, long > 0): ???+1 (<span style="color:#C00000"><b>required</b></span>).
+        horizon (parameter, long >= 0): Past horizon
+            (<span style="color:#C00000"><b>required</b></span>).
         bias (bool): Whether to add a trainable bias variable
             (<span style="color:#00C000"><b>default</b></span>: false).
         activation ('crelu' | 'elu' | 'leaky-relu' | 'none' | 'relu' | 'selu' | 'sigmoid' |
@@ -203,13 +212,13 @@ class InternalGru(InternalRnn):
     """
 
     def __init__(
-        self, name, size, bias=False, activation=None, dropout=0.0, is_trainable=True,
+        self, name, size, horizon, bias=False, activation=None, dropout=0.0, is_trainable=True,
         input_spec=None, summary_labels=None, l2_regularization=None, **kwargs
     ):
         super().__init__(
-            name=name, cell='gru', size=size, bias=bias, activation=activation, dropout=dropout,
-            is_trainable=is_trainable, input_spec=input_spec, summary_labels=summary_labels,
-            l2_regularization=l2_regularization, **kwargs
+            name=name, cell='gru', size=size, horizon=horizon, bias=bias, activation=activation,
+            dropout=dropout, is_trainable=is_trainable, input_spec=input_spec,
+            summary_labels=summary_labels, l2_regularization=l2_regularization, **kwargs
         )
 
     @classmethod
@@ -231,7 +240,8 @@ class InternalLstm(InternalRnn):
             (<span style="color:#C00000"><b>required</b></span>).
         size (int >= 0): Layer output size, 0 implies additionally removing the axis
             (<span style="color:#C00000"><b>required</b></span>).
-        length (parameter, long > 0): ???+1 (<span style="color:#C00000"><b>required</b></span>).
+        horizon (parameter, long >= 0): Past horizon
+            (<span style="color:#C00000"><b>required</b></span>).
         bias (bool): Whether to add a trainable bias variable
             (<span style="color:#00C000"><b>default</b></span>: false).
         activation ('crelu' | 'elu' | 'leaky-relu' | 'none' | 'relu' | 'selu' | 'sigmoid' |
@@ -252,13 +262,13 @@ class InternalLstm(InternalRnn):
     """
 
     def __init__(
-        self, name, size, bias=False, activation=None, dropout=0.0, is_trainable=True,
+        self, name, size, horizon, bias=False, activation=None, dropout=0.0, is_trainable=True,
         input_spec=None, summary_labels=None, l2_regularization=None, **kwargs
     ):
         super().__init__(
-            name=name, cell='lstm', size=size, bias=bias, activation=activation, dropout=dropout,
-            is_trainable=is_trainable, input_spec=input_spec, summary_labels=summary_labels,
-            l2_regularization=l2_regularization, **kwargs
+            name=name, cell='lstm', size=size, horizon=horizon, bias=bias, activation=activation,
+            dropout=dropout, is_trainable=is_trainable, input_spec=input_spec,
+            summary_labels=summary_labels, l2_regularization=l2_regularization, **kwargs
         )
 
     @classmethod

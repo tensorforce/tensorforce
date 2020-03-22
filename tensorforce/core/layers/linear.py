@@ -45,45 +45,37 @@ class Linear(Layer):
         self, name, size, bias=True, is_trainable=True, input_spec=None, summary_labels=None,
         l2_regularization=None
     ):
-        self.size = size
-        self.bias = bias
-        self.submodule_is_trainable = is_trainable
-
         super().__init__(
             name=name, input_spec=input_spec, summary_labels=summary_labels,
             l2_regularization=l2_regularization
         )
 
-        self.is_trainable = is_trainable
-
-    def default_input_spec(self):
-        return dict(type='float', shape=None)
-
-    def get_output_spec(self, input_spec):
-        if len(input_spec['shape']) == 1:
+        if len(self.input_spec['shape']) == 1:
             self.linear = self.add_module(
-                name='linear', module=Dense, size=self.size, bias=self.bias, activation=None,
-                dropout=0.0, is_trainable=self.submodule_is_trainable, input_spec=input_spec
+                name='linear', module=Dense, size=size, bias=bias, activation=None, dropout=0.0,
+                is_trainable=is_trainable, input_spec=self.input_spec
             )
 
-        elif len(input_spec['shape']) == 2:
+        elif len(self.input_spec['shape']) == 2:
             self.linear = self.add_module(
-                name='linear', module=Conv1d, size=self.size, window=1, bias=self.bias,
-                activation=None, dropout=0.0, is_trainable=self.submodule_is_trainable,
-                input_spec=input_spec
+                name='linear', module=Conv1d, size=size, window=1, bias=bias, activation=None,
+                dropout=0.0, is_trainable=is_trainable, input_spec=self.input_spec
             )
 
-        elif len(input_spec['shape']) == 3:
+        elif len(self.input_spec['shape']) == 3:
             self.linear = self.add_module(
-                name='linear', module=Conv2d, size=self.size, window=1, bias=self.bias,
-                activation=None, dropout=0.0, is_trainable=self.submodule_is_trainable,
-                input_spec=input_spec
+                name='linear', module=Conv2d, size=size, window=1, bias=bias, activation=None,
+                dropout=0.0, is_trainable=is_trainable, input_spec=self.input_spec
             )
 
         else:
             raise TensorforceError.unexpected()
 
-        return self.linear.get_output_spec(input_spec=input_spec)
+    def default_input_spec(self):
+        return dict(type='float', shape=None)
+
+    def output_spec(self):
+        return self.linear.output_spec()
 
     @tf_function(num_args=1)
     def apply(self, x):

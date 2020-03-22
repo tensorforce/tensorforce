@@ -70,17 +70,40 @@ class TensorforceError(Exception):
         )
 
     @staticmethod
-    def required(name, argument, condition=None):
+    def exists_not(name, value):
+        return TensorforceError(
+            message="{name} does not exist: {value}.".format(name=name, value=value)
+        )
+
+    @staticmethod
+    def required(name, argument, expected=None, condition=None):
         if condition is None:
-            return TensorforceError(
-                message="Required {name} argument {argument}.".format(name=name, argument=argument)
-            )
-        else:
-            return TensorforceError(
-                message="Required {name} argument {argument} given {condition}.".format(
-                    name=name, condition=condition, argument=argument
+            if expected is None:
+                return TensorforceError(
+                    message="Required {name} argument {argument}.".format(
+                        name=name, argument=argument
+                    )
                 )
-            )
+            else:
+                return TensorforceError(
+                    message="Required {name} argument {argument} to be {expected}.".format(
+                        name=name, argument=argument, expected=expected
+                    )
+                )
+        else:
+            if expected is None:
+                return TensorforceError(
+                    message="Required {name} argument {argument} given {condition}.".format(
+                        name=name, argument=argument, condition=condition
+                    )
+                )
+            else:
+                return TensorforceError(
+                    message="Required {name} argument {argument} to be {expected} given "
+                            "{condition}.".format(
+                        name=name, argument=argument, expected=expected, condition=condition
+                    )
+                )
 
     @staticmethod
     def invalid(name, argument, condition=None):

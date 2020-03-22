@@ -67,13 +67,15 @@ class PolicyGradient(Objective):
         else:
             return super().input_signature(function=function)
 
-    @tf_function(num_args=6)
-    def loss_per_instance(self, states, internals, auxiliaries, actions, reward, reference=None):
+    @tf_function(num_args=7)
+    def loss_per_instance(
+        self, states, horizons, internals, auxiliaries, actions, reward, reference
+    ):
         assert self.ratio_based or reference is None
 
         log_probability = policy.log_probability(
-            states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
-            reduced=self.early_reduce, return_per_action=False
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+            actions=actions, reduced=self.early_reduce, return_per_action=False
         )
 
         zero = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
@@ -116,10 +118,10 @@ class PolicyGradient(Objective):
         return loss
 
     @tf_function(num_args=4)
-    def reference(self, states, internals, auxiliaries, actions):
+    def reference(self, states, horizons, internals, auxiliaries, actions):
         reference = policy.log_probability(
-            states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
-            reduced=self.early_reduce, return_per_action=False
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+            actions=actions, reduced=self.early_reduce, return_per_action=False
         )
 
         return reference
@@ -129,10 +131,10 @@ class PolicyGradient(Objective):
 
         if self.ratio_based:
 
-            def fn_reference(states, internals, auxiliaries, actions, reward):
+            def fn_reference(states, horizons, internals, auxiliaries, actions, reward):
                 return self.reference(
-                    policy=policy, states=states, internals=internals, auxiliaries=auxiliaries,
-                    actions=actions
+                    policy=policy, states=states, horizons=horizons, internals=internals,
+                    auxiliaries=auxiliaries, actions=actions
                 )
 
             arguments['fn_reference'] = fn_reference

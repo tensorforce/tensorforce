@@ -36,6 +36,7 @@ class Objective(Module):
         if function == 'loss_per_instance':
             return [
                 util.to_tensor_spec(value_spec=self.parent.states_spec, batched=True),
+                util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
                 util.to_tensor_spec(value_spec=self.parent.internals_spec, batched=True),
                 util.to_tensor_spec(value_spec=self.parent.auxiliaries_spec, batched=True),
                 util.to_tensor_spec(value_spec=self.parent.actions_spec, batched=True),
@@ -45,8 +46,8 @@ class Objective(Module):
         else:
             return super().input_signature(function=function)
 
-    @tf_function(num_args=5)
-    def loss_per_instance(self, states, internals, auxiliaries, actions, reward):
+    @tf_function(num_args=6)
+    def loss_per_instance(self, states, horizons, internals, auxiliaries, actions, reward):
         raise NotImplementedError
 
     def optimizer_arguments(self, **kwargs):

@@ -77,7 +77,7 @@ def tf_function(num_args):
                     len(next(iter(function_graphs))) == len(graph_signature)
 
                 input_signature = self.input_signature(function=name)
-                print(self, name, num_args, len(input_signature), len(graph_input))
+                # print(self, name, num_args, len(input_signature), len(graph_input))
                 assert len(input_signature) == len(graph_input)
                 signature_kwargs = dict(list(kwargs.items())[num_args:])
 
@@ -95,8 +95,10 @@ def tf_function(num_args):
                     if self.device is not None:
                         self.device.__enter__()
                     # print(function, graph_kwargs, signature_kwargs)
-                    with self.name_scope:
-                        results = function(self, **graph_kwargs, **signature_kwargs)
+                    # with self.name_scope:
+                    results = Module.with_name_scope(method=function)(
+                        self, **graph_kwargs, **signature_kwargs
+                    )
                     if self.device is not None:
                         self.device.__exit__(None, None, None)
                     if pop_global_scope:
@@ -780,15 +782,16 @@ class Module(tf.Module):
 
         scoped_name = '/'.join(Module.global_scope[:n + 1]) + '/' + name
         collection = self.root.graph.get_collection(name=scoped_name)
-        assert len(collection) == 0
-        # collection = self.root.graph.get_collection_ref(name=scoped_name)
-        # if len(collection) > 0:
-        #     assert len(collection) == 1
-        #     previous = collection[0]
-        #     collection[0] = tensor
-        #     return tf.identity(input=previous)
-        # else:
-        self.root.graph.add_to_collection(name=scoped_name, value=tensor)
+        print(name, scoped_name, tensor, collection)
+        # assert len(collection) == 0
+        collection = self.root.graph.get_collection_ref(name=scoped_name)
+        if len(collection) > 0:
+            assert len(collection) == 1
+            previous = collection[0]
+            collection[0] = tensor
+            return tf.identity(input=previous)
+        else:
+            self.root.graph.add_to_collection(name=scoped_name, value=tensor)
 
     def global_tensor(self, name):
         assert self.is_initialized
@@ -1244,12 +1247,8 @@ class Module(tf.Module):
             )
 
         elif callable(module):
-            # for key, arg in kwargs.items():
-            #     assert arg is not None, (key, arg)
-            #     if arg is None:
-            #         assert False
-            #         kwargs.pop(key)
             first_arg = kwargs.pop('_first_arg', None)
+            kwargs['name'] = name
             return module, first_arg, kwargs
 
         else:
@@ -1291,9 +1290,9 @@ class Module(tf.Module):
         assert Module.current_parent is None
         Module.current_parent = self
         if first_arg is None:
-            module = module_cls(name=name, **kwargs)
+            module = module_cls(**kwargs)
         else:
-            module = module_cls(first_arg, name=name, **kwargs)
+            module = module_cls(first_arg, **kwargs)
         assert Module.current_parent is None
 
         assert not module.is_root

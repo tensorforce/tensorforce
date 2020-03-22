@@ -18,7 +18,7 @@ from collections import OrderedDict
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core import Module, parameter_modules
+from tensorforce.core import Module, parameter_modules, tf_function
 
 
 class Estimator(Module):
@@ -88,6 +88,38 @@ class Estimator(Module):
         else:
             self.capacity = max(self.horizon.max_value() + 1, min_capacity)
 
+    def input_signature(self, function):
+        if function == 'complete':
+            return [
+                util.to_tensor_spec(value_spec=dict(type='long', shape=()), batched=True),
+                util.to_tensor_spec(value_spec=self.values_spec['reward'], batched=True)
+            ]
+
+        elif function == 'enqueue':
+            return [
+                util.to_tensor_spec(value_spec=self.values_spec['states'], batched=True),
+                util.to_tensor_spec(value_spec=self.values_spec['internals'], batched=True),
+                util.to_tensor_spec(value_spec=self.values_spec['auxiliaries'], batched=True),
+                util.to_tensor_spec(value_spec=self.values_spec['actions'], batched=True),
+                util.to_tensor_spec(value_spec=self.values_spec['terminal'], batched=True),
+                util.to_tensor_spec(value_spec=self.values_spec['reward'], batched=True)
+            ]
+
+        elif function == 'estimate':
+            return [
+                util.to_tensor_spec(value_spec=dict(type='long', shape=()), batched=True),
+                util.to_tensor_spec(value_spec=self.values_spec['reward'], batched=True)
+            ]
+
+        elif function == 'future_horizon':
+            return list()
+
+        elif function == 'reset':
+            return list()
+
+        else:
+            return super().input_signature(function=function)
+
     def min_future_horizon(self):
         if self.estimate_horizon == 'late':
             return self.horizon.min_value() + 1
@@ -99,12 +131,6 @@ class Estimator(Module):
             return self.horizon.max_value() + 1
         else:
             return self.horizon.max_value()
-
-    def tf_future_horizon(self):
-        if self.estimate_horizon == 'late':
-            return self.horizon.value() + tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
-        else:
-            return self.horizon.value()
 
     def tf_initialize(self):
         super().tf_initialize()
@@ -131,7 +157,15 @@ class Estimator(Module):
             name='buffer-index', dtype='long', shape=(), is_trainable=False, initializer='zeros'
         )
 
-    def tf_reset(self, baseline=None):
+    @tf_function(num_args=0)
+    def future_horizon(self):
+        if self.estimate_horizon == 'late':
+            return self.horizon.value() + tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
+        else:
+            return self.horizon.value()
+
+    @tf_function(num_args=0)
+    def reset(self, baseline):
         # Constants and parameters
         zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
         one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
@@ -209,7 +243,7 @@ class Estimator(Module):
             for name, state in states.items():
                 _states[name] = state[horizon_start:]
             _internals = OrderedDict()
-            for name in baseline.__class__.get_internals_spec(policy=baseline):
+            for name in baseline.__class__.internals_spec(policy=baseline):
                 _internals[name] = internals[name][horizon_start:]
             _auxiliaries = OrderedDict()
             for name, auxiliary in auxiliaries.items():
@@ -226,25 +260,21 @@ class Estimator(Module):
                 batch_size = num_values - horizon_start
                 starts = tf.range(start=batch_size, dtype=util.tf_dtype(dtype='long'))
                 lengths = tf.ones(shape=(batch_size,), dtype=util.tf_dtype(dtype='long'))
-
-                # Set global tensors
-                for name, state in states.items():
-                    self.set_global_tensor(name=name, tensor=state)
-                self.set_global_tensor(name='dependency_starts', tensor=starts)
-                self.set_global_tensor(name='dependency_lengths', tensor=lengths)
+                horizons = tf.stack(values=(starts, lengths), axis=1)
 
             if self.estimate_actions:
                 _actions = OrderedDict()
                 for name, action in actions.items():
                     _actions[name] = action[horizon_start:]
                 horizon_estimate = baseline.actions_value(
-                    states=_states, internals=_internals, auxiliaries=_auxiliaries,
-                    actions=_actions, reduced=True, return_per_action=False
+                    states=_states, horizons=horizons, internals=_internals,
+                    auxiliaries=_auxiliaries, actions=_actions, reduced=True,
+                    return_per_action=False
                 )
             else:
                 horizon_estimate = baseline.states_value(
-                    states=_states, internals=_internals, auxiliaries=_auxiliaries, reduced=True,
-                    return_per_action=False
+                    states=_states, horizons=horizons, internals=_internals,
+                    auxiliaries=_auxiliaries, reduced=True, return_per_action=False
                 )
 
             # Expand rewards beyond terminal
@@ -304,7 +334,8 @@ class Estimator(Module):
 
         return values
 
-    def tf_enqueue(self, states, internals, auxiliaries, actions, terminal, reward, baseline=None):
+    @tf_function(num_args=6)
+    def enqueue(self, states, internals, auxiliaries, actions, terminal, reward, baseline):
         # Constants and parameters
         zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
         one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
@@ -372,7 +403,7 @@ class Estimator(Module):
                         values=(state, states[name][:values_limit + one]), axis=0
                     )
                 _internals = OrderedDict()
-                for name in baseline.__class__.get_internals_spec(policy=baseline):
+                for name in baseline.__class__.internals_spec(policy=baseline):
                     internal = tf.gather(
                         params=self.buffers['internals'][name], indices=buffer_indices
                     )
@@ -403,12 +434,7 @@ class Estimator(Module):
                         )
                     starts = tf.range(start=batch_size, dtype=util.tf_dtype(dtype='long'))
                     lengths = tf.ones(shape=(batch_size,), dtype=util.tf_dtype(dtype='long'))
-
-                    # Set global tensors
-                    for name, state in states.items():
-                        self.set_global_tensor(name=name, tensor=state)
-                    self.set_global_tensor(name='dependency_starts', tensor=starts)
-                    self.set_global_tensor(name='dependency_lengths', tensor=lengths)
+                    horizons = tf.stack(values=(starts, lengths), axis=1)
 
                 if self.estimate_actions:
                     _actions = OrderedDict()
@@ -418,13 +444,14 @@ class Estimator(Module):
                             values=(action, actions[name][:values_limit]), axis=0
                         )
                     horizon_estimate = baseline.actions_value(
-                        states=_states, internals=_internals, auxiliaries=_auxiliaries,
-                        actions=_actions, reduced=True, return_per_action=False
+                        states=_states, horizons=horizons, internals=_internals,
+                        auxiliaries=_auxiliaries, actions=_actions, reduced=True,
+                        return_per_action=False
                     )
                 else:
                     horizon_estimate = baseline.states_value(
-                        states=_states, internals=_internals, auxiliaries=_auxiliaries,
-                        reduced=True, return_per_action=False
+                        states=_states, horizons=horizons, internals=_internals,
+                        auxiliaries=_auxiliaries, reduced=True, return_per_action=False
                     )
 
             else:
@@ -534,7 +561,8 @@ class Estimator(Module):
             )
             return any_overwritten, overwritten_values
 
-    def tf_complete(self, baseline, memory, indices, reward):
+    @tf_function(num_args=2)
+    def complete(self, indices, reward, baseline, memory):
         if self.estimate_horizon == 'late':
             assert baseline is not None
             zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
@@ -555,38 +583,35 @@ class Estimator(Module):
                     )
                 starts = tf.range(start=batch_size, dtype=util.tf_dtype(dtype='long'))
                 lengths = tf.ones(shape=(batch_size,), dtype=util.tf_dtype(dtype='long'))
-
-                # Set global tensors
-                self.set_global_tensor(name='dependency_starts', tensor=starts)
-                self.set_global_tensor(name='dependency_lengths', tensor=lengths)
+                horizons = tf.stack(values=(starts, lengths), axis=1)
 
             horizon = self.horizon.value()
             discount = self.discount.value()
 
             if self.estimate_actions:
                 # horizon change: see timestep-based batch sampling
-                horizons, (states, internals, auxiliaries, terminal) = memory.successors(
+                states, internals, auxiliaries, terminal = memory.successors(
                     indices=indices, horizon=(horizon + one),
                     final_values=('states', 'internals', 'auxiliaries', 'terminal')
                 )
                 # TODO: Double DQN would require main policy here
                 actions = baseline.act(
-                    states=states, internals=internals, auxiliaries=auxiliaries,
+                    states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
                     return_internals=False
                 )
                 horizon_estimate = baseline.actions_value(
-                    states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
-                    reduced=True, return_per_action=False
+                    states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+                    actions=actions, reduced=True, return_per_action=False
                 )
             else:
                 # horizon change: see timestep-based batch sampling
-                horizons, (states, internals, auxiliaries, terminal) = memory.successors(
+                states, internals, auxiliaries, terminal = memory.successors(
                     indices=indices, horizon=(horizon + one),
                     final_values=('states', 'internals', 'auxiliaries', 'terminal')
                 )
                 horizon_estimate = baseline.states_value(
-                    states=states, internals=internals, auxiliaries=auxiliaries, reduced=True,
-                    return_per_action=False
+                    states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+                    reduced=True, return_per_action=False
                 )
 
             exponent = tf.dtypes.cast(x=horizons, dtype=util.tf_dtype(dtype='float'))
@@ -603,13 +628,12 @@ class Estimator(Module):
 
         return reward
 
-    def tf_estimate(self, baseline, memory, indices, reward, is_baseline_optimized):
+    @tf_function(num_args=2)
+    def estimate(self, indices, reward, baseline, memory, is_baseline_optimized):
         if self.estimate_advantage:
             assert baseline is not None
             zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
 
-            # Baseline dependencies
-            past_horizon = baseline.past_horizon(on_policy=is_baseline_optimized)
             # with tf.control_dependencies(control_inputs=(assertion,)):
             if util.tf_dtype(dtype='long') in (tf.int32, tf.int64):
                 batch_size = tf.shape(input=reward, out_type=util.tf_dtype(dtype='long'))[0]
@@ -617,28 +641,27 @@ class Estimator(Module):
                 batch_size = tf.dtypes.cast(
                     x=tf.shape(input=reward)[0], dtype=util.tf_dtype(dtype='long')
                 )
-            starts = tf.range(start=batch_size, dtype=util.tf_dtype(dtype='long'))
-            lengths = tf.ones(shape=(batch_size,), dtype=util.tf_dtype(dtype='long'))
 
-            # Set global tensors
-            self.set_global_tensor(name='dependency_starts', tensor=starts)
-            self.set_global_tensor(name='dependency_lengths', tensor=lengths)
+            # Baseline dependencies
+            past_horizon = baseline.past_horizon(on_policy=is_baseline_optimized)
+            horizons, states, internals = self.memory.predecessors(
+                indices=indices, horizon=past_horizon, sequence_values='states',
+                initial_values='internals'
+            )
 
             if self.estimate_actions:
-                states, internals, auxiliaries, actions = memory.retrieve(
-                    indices=indices, values=('states', 'internals', 'auxiliaries', 'actions')
+                auxiliaries, actions = memory.retrieve(
+                    indices=indices, values=('auxiliaries', 'actions')
                 )
                 critic_estimate = baseline.actions_value(
-                    states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
-                    reduced=True, return_per_action=False
+                    states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+                    actions=actions, reduced=True, return_per_action=False
                 )
             else:
-                states, internals, auxiliaries = memory.retrieve(
-                    indices=indices, values=('states', 'internals', 'auxiliaries')
-                )
+                auxiliaries = memory.retrieve(indices=indices, values=('auxiliaries',))
                 critic_estimate = baseline.states_value(
-                    states=states, internals=internals, auxiliaries=auxiliaries, reduced=True,
-                    return_per_action=False
+                    states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+                    reduced=True, return_per_action=False
                 )
 
             reward = reward - critic_estimate

@@ -13,7 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce.core.layers.layer import Layer, TemporalLayer, TransformationBase
+from tensorforce.core.layers.layer import Layer, Register, Retrieve, TemporalLayer, \
+    TransformationBase
 
 from tensorforce.core.layers.convolution import Conv1d, Conv2d  # Conv1dTranspose, Conv2dTranspose
 from tensorforce.core.layers.dense import Dense
@@ -21,8 +22,7 @@ from tensorforce.core.layers.embedding import Embedding
 from tensorforce.core.layers.internal_rnn import InternalGru, InternalLstm, InternalRnn
 from tensorforce.core.layers.keras import Keras
 from tensorforce.core.layers.linear import Linear
-from tensorforce.core.layers.misc import Activation, Block, Dropout, Function, Register, Reshape, \
-    Retrieve, Reuse
+from tensorforce.core.layers.misc import Activation, Block, Dropout, Function, Reshape, Reuse
 from tensorforce.core.layers.normalization import ExponentialNormalization, InstanceNormalization
 from tensorforce.core.layers.pooling import Flatten, Pooling, Pool1d, Pool2d
 from tensorforce.core.layers.preprocessing import Clipping, Deltafier, Image, PreprocessingLayer, \

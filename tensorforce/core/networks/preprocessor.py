@@ -46,6 +46,11 @@ class Preprocessor(LayerbasedNetwork):
         self, layers, device=None, summary_labels=None, l2_regularization=None, name=None,
         inputs_spec=None
     ):
+        if len(inputs_spec) > 1:
+            raise TensorforceError.value(
+                name='preprocessor', argument='inputs_spec', value=inputs_spec
+            )
+
         super().__init__(
             device=device, summary_labels=summary_labels, l2_regularization=l2_regularization,
             name=name, inputs_spec=inputs_spec
@@ -68,7 +73,19 @@ class Preprocessor(LayerbasedNetwork):
                 layer_counter[layer_type] += 1
 
             # layer_name = self.name + '-' + layer_name
-            self.layers.append(self.add_module(name=layer_name, module=layer_spec))
+            layer = self.add_module(name=layer_name, module=layer_spec)
+            if isinstance(layer, (Register, Retrieve, TemporalLayer)):
+                raise TensorforceError.type(
+                    name='preprocessor', argument='layer', value='Register/Retrieve/TemporalLayer'
+                )
+            self.layers.append(layer)
+
+    @classmethod
+    def internals_spec(cls, **kwargs):
+        raise NotImplementedError
+
+    def internals_init(self):
+        raise NotImplementedError
 
     def input_signature(self, function):
         if function == 'apply':
@@ -76,23 +93,6 @@ class Preprocessor(LayerbasedNetwork):
 
         else:
             return super().input_signature(function=function)
-
-    @classmethod
-    def internals_spec(cls, network=None, **kwargs):
-        return None
-
-    def internals_init(self):
-        raise NotImplementedError
-
-    def add_module(self, *args, **kwargs):
-        layer = super().add_module(*args, **kwargs)
-
-        if isinstance(layer, TemporalLayer):
-            raise TensorforceError.type(
-                name='preprocessor network', argument='sub-module', value=layer
-            )
-
-        return layer
 
     @tf_function(num_args=0)
     def reset(self):

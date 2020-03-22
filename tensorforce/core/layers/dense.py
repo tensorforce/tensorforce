@@ -45,28 +45,20 @@ class Dense(TransformationBase):
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
-    def __init__(
-        self, name, size, bias=True, activation='relu', dropout=0.0, is_trainable=True,
-        input_spec=None, summary_labels=None, l2_regularization=None
-    ):
-        super().__init__(
-            name=name, size=size, bias=bias, activation=activation, dropout=dropout,
-            is_trainable=is_trainable, input_spec=input_spec, summary_labels=summary_labels,
-            l2_regularization=l2_regularization
-        )
-
     def default_input_spec(self):
         return dict(type='float', shape=(0,))
 
-    def get_output_spec(self, input_spec):
-        if self.squeeze:
-            input_spec['shape'] = input_spec['shape'][:-1]
-        else:
-            input_spec['shape'] = input_spec['shape'][:-1] + (self.size,)
-        input_spec.pop('min_value', None)
-        input_spec.pop('max_value', None)
+    def output_spec(self):
+        output_spec = super().output_spec()
 
-        return input_spec
+        if self.squeeze:
+            output_spec['shape'] = output_spec['shape'][:-1]
+        else:
+            output_spec['shape'] = output_spec['shape'][:-1] + (self.size,)
+        output_spec.pop('min_value', None)
+        output_spec.pop('max_value', None)
+
+        return output_spec
 
     def tf_initialize(self):
         super().tf_initialize()
@@ -83,7 +75,6 @@ class Dense(TransformationBase):
 
     @tf_function(num_args=1)
     def apply(self, x):
-        # tf.assert_rank_in(x=x, ranks=(2, 3, 4))
         x = tf.matmul(a=x, b=self.weights)
 
         return super().apply(x=x)

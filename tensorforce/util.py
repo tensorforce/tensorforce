@@ -357,7 +357,7 @@ reserved_names = {
     # Value specification attributes
     'shape', 'type', 'num_values', 'min_value', 'max_value'
     # Special values?
-    'equal', 'loss', 'same', 'x', '*'
+    'equal', 'loss', 'same', 'x'
 }
 
 
@@ -406,7 +406,9 @@ def to_tensor_spec(value_spec, batched):
         return tf.TensorSpec(shape=tf.TensorShape(dims=shape), dtype=tf_dtype(dtype=dtype))
 
 
-def valid_values_spec(values_spec, value_type='tensor', return_normalized=False):
+def valid_values_spec(
+    values_spec, value_type='tensor', accept_underspecified=False, return_normalized=False
+):
     if not is_valid_value_type(value_type=value_type):
         raise TensorforceError.value(
             name='util.valid_values_spec', argument='value_type', value=value_type
@@ -414,7 +416,8 @@ def valid_values_spec(values_spec, value_type='tensor', return_normalized=False)
 
     if is_atomic_values_spec(values_spec=values_spec):
         value_spec = valid_value_spec(
-            value_spec=values_spec, value_type=value_type, return_normalized=return_normalized
+            value_spec=values_spec, value_type=value_type,
+            accept_underspecified=accept_underspecified, return_normalized=return_normalized
         )
         return OrderedDict([(value_type, value_spec)])
 
@@ -427,7 +430,7 @@ def valid_values_spec(values_spec, value_type='tensor', return_normalized=False)
 
         result = valid_values_spec(
             values_spec=values_spec[name], value_type=value_type,
-            return_normalized=return_normalized
+            accept_underspecified=accept_underspecified, return_normalized=return_normalized
         )
         if return_normalized:
             if len(result) == 1 and next(iter(result)) == value_type:

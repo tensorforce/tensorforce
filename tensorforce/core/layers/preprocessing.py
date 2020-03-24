@@ -99,6 +99,18 @@ class Deltafier(PreprocessingLayer):
 
         super().__init__(name=name, input_spec=input_spec, summary_labels=summary_labels)
 
+    @classmethod
+    def output_spec(cls, concatenate=False, input_spec=None, **kwargs):
+        input_spec = super().output_spec(input_spec=input_spec)
+
+        if concatenate is not False:
+            input_spec['shape'] = tuple(
+                2 * dims if axis == concatenate else dims
+                for axis, dims in enumerate(input_spec['shape'])
+            )
+
+        return input_spec
+
     def default_input_spec(self):
         return dict(type='float', shape=None)
 
@@ -182,6 +194,8 @@ class Image(Layer):
 
     @classmethod
     def output_spec(cls, height=None, width=None, grayscale=False, input_spec=None, **kwargs):
+        input_spec = super().output_spec(input_spec=input_spec)
+
         if height is not None:
             if width is None:
                 width = round(height * input_spec['shape'][1] / input_spec['shape'][0])
@@ -256,6 +270,26 @@ class Sequence(PreprocessingLayer):
         self.concatenate = concatenate
 
         super().__init__(name=name, input_spec=input_spec, summary_labels=summary_labels)
+
+    @classmethod
+    def output_spec(cls, length, axis=-1, concatenate=True, input_spec=None, **kwargs):
+        input_spec = super().output_spec(input_spec=input_spec)
+
+        if concatenate:
+            if axis == -1:
+                axis = len(input_spec['shape']) - 1
+            input_spec['shape'] = tuple(
+                length * dims if axis == axis else dims
+                for axis, dims in enumerate(input_spec['shape'])
+            )
+
+        else:
+            if axis == -1:
+                axis = len(input_spec['shape'])
+            shape = input_spec['shape']
+            input_spec['shape'] = shape[:axis] + (length,) + shape[axis:]
+
+        return input_spec
 
     def default_input_spec(self):
         return dict(type=None, shape=None)

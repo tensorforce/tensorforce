@@ -334,6 +334,7 @@ class Reshape(Layer):
     def get_output_spec(self, input_spec):
         if util.product(xs=input_spec['shape']) != util.product(xs=self.shape):
             raise TensorforceError.value(name='Reshape', argument='shape', value=self.shape)
+
         input_spec['shape'] = self.shape
 
         return input_spec

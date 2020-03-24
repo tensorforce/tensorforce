@@ -163,8 +163,11 @@ class TestLayers(UnittestBase, unittest.TestCase):
             ],
             reward=dict(type='deltafier')
         )
-        network = [dict(type='flatten')]
-        self.unittest(states=states, preprocessing=preprocessing, policy=dict(network=network))
+        network = [dict(type='reshape', shape=8)]
+        self.unittest(
+            num_updates=1, states=states, preprocessing=preprocessing, require_observe=True,
+            policy=dict(network=network)
+        )
 
         # TODO: Sequence missing
 

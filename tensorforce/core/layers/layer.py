@@ -74,7 +74,7 @@ class Layer(Module):
 
     @classmethod
     def output_spec(cls, input_spec, **kwargs):
-        return input_spec
+        return dict(input_spec)
 
     def default_input_spec(self):
         """

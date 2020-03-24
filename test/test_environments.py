@@ -20,7 +20,6 @@ import unittest
 from tensorforce import Environment, Runner
 
 from test.unittest_base import UnittestBase
-from test.unittest_environment import UnittestEnvironment
 
 
 class TestEnvironments(UnittestBase, unittest.TestCase):

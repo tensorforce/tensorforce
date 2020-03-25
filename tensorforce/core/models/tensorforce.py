@@ -440,6 +440,16 @@ class TensorforceModel(Model):
         )
 
         with tf.control_dependencies(control_inputs=assertions):
+            # Preprocessing states
+            if any(name in self.preprocessing for name in self.states_spec):
+                for name in self.states_spec:
+                    if name in self.preprocessing:
+                        states[name] = self.preprocessing[name].apply(x=states[name])
+
+            # Preprocessing reward
+            if 'reward' in self.preprocessing:
+                reward = self.preprocessing['reward'].apply(x=reward)
+
             # Core experience: retrieve experience operation
             experienced = self.core_experience(
                 states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,

@@ -299,13 +299,13 @@ class ParametrizedDistributions(Stochastic, ActionValue):
     ):
         if self.value is None:
             return ActionValue.tf_states_value(
-                states=states, internals=internals, auxiliaries=auxiliaries, reduced=reduced,
-                include_per_action=include_per_action
+                self=self, states=states, internals=internals, auxiliaries=auxiliaries,
+                reduced=reduced, include_per_action=include_per_action
             )
 
         else:
             if not reduced or include_per_action:
-                raise NotImplementedError
+                raise TensorforceError.invalid(name='policy.states_value', argument='reduced')
 
             embedding = self.network.apply(x=states, internals=internals)
             Module.update_tensor(name=self.name, tensor=embedding)

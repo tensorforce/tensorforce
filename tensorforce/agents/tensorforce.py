@@ -355,6 +355,7 @@ class TensorforceAgent(Agent):
         # Auxiliaries
         auxiliaries = OrderedDict()
         if isinstance(states, dict):
+            states = OrderedDict(states)
             for name, spec in self.actions_spec.items():
                 if spec['type'] == 'int' and name + '_mask' in states:
                     auxiliaries[name + '_mask'] = np.asarray(states.pop(name + '_mask'))

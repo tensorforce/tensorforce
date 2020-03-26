@@ -125,8 +125,8 @@ class Model(Module):
         self.config = None if config is None else dict(config)
 
         # States/internals/actions specifications
-        self.states_spec = states
-        self.internals_spec = OrderedDict() if internals is None else internals
+        self.states_spec = OrderedDict(states)
+        self.internals_spec = OrderedDict() if internals is None else OrderedDict(internals)
         self.internals_init = OrderedDict()
         for name in self.internals_spec:
             self.internals_init[name] = None
@@ -134,7 +134,7 @@ class Model(Module):
                 raise TensorforceError.collision(
                     name='name', value=name, group1='states', group2='internals'
                 )
-        self.actions_spec = actions
+        self.actions_spec = OrderedDict(actions)
         for name in self.actions_spec:
             if name in self.states_spec:
                 raise TensorforceError.collision(

@@ -163,8 +163,32 @@ class TestLayers(UnittestBase, unittest.TestCase):
             ],
             reward=dict(type='deltafier')
         )
-        network = [dict(type='flatten')]
-        self.unittest(states=states, preprocessing=preprocessing, policy=dict(network=network))
+        network = [dict(type='reshape', shape=8)]
+        agent, environment = self.prepare(
+            min_timesteps=4, states=states, require_all=True, policy=dict(network=network),
+            preprocessing=preprocessing
+        )
+
+        states = environment.reset()
+        terminal = False
+        while not terminal:
+            actions = agent.act(states=states)
+            states, terminal, reward = environment.execute(actions=actions)
+            agent.observe(terminal=terminal, reward=reward)
+
+        states = environment.reset()
+        internals = agent.initial_internals()
+        terminal = False
+        while not terminal:
+            actions, next_internals = agent.act(states=states, internals=internals, independent=True)
+            next_states, terminal, reward = environment.execute(actions=actions)
+            agent.experience(
+                states=states, internals=internals, actions=actions, terminal=terminal,
+                reward=reward
+            )
+            states = next_states
+            internals = next_internals
+        agent.update()
 
         # TODO: Sequence missing
 

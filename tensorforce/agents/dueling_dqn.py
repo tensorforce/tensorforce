@@ -237,10 +237,7 @@ class DuelingDQN(TensorforceAgent):
         )
 
         # Action value doesn't exist for Beta
-        distributions = dict(
-            float='gaussian', int=dict(type='categorical', infer_states_value=False)
-        )
-        policy = dict(network=network, distributions=distributions, temperature=0.0)
+        policy = dict(network=network, distributions=dict(float='gaussian'), temperature=0.0)
         memory = dict(type='replay', capacity=memory)
         update = dict(unit='timesteps', batch_size=batch_size)
         if update_frequency is not None:

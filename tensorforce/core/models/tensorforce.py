@@ -22,6 +22,7 @@ from tensorforce.core import memory_modules, Module, optimizer_modules, paramete
     tf_function
 from tensorforce.core.estimators import Estimator
 from tensorforce.core.models import Model
+from tensorforce.core.networks import Preprocessor
 from tensorforce.core.objectives import objective_modules
 from tensorforce.core.policies import policy_modules
 
@@ -38,9 +39,24 @@ class TensorforceModel(Model):
         policy, memory, update, optimizer, objective, reward_estimation, baseline_policy,
         baseline_optimizer, baseline_objective, entropy_regularization, max_episode_timesteps
     ):
+        preprocessed_states = OrderedDict(states)
+        for state_name, state_spec in states.items():
+            if preprocessing is None:
+                layers = None
+            elif state_name in preprocessing:
+                layers = preprocessing[state_name]
+            elif state_spec['type'] in preprocessing:
+                layers = preprocessing[state_spec['type']]
+            else:
+                layers = None
+            if layers is not None:
+                preprocessed_states[state_name] = Preprocessor.output_spec(
+                    input_spec=state_spec, layers=layers
+                )
+
         # Policy internals specification
         policy_cls, first_arg, kwargs = Module.get_module_class_and_kwargs(
-            name='policy', module=policy, modules=policy_modules, states_spec=states,
+            name='policy', module=policy, modules=policy_modules, states_spec=preprocessed_states,
             actions_spec=actions
         )
         if first_arg is None:
@@ -58,8 +74,8 @@ class TensorforceModel(Model):
             pass
         else:
             baseline_cls, first_arg, kwargs = Module.get_module_class_and_kwargs(
-                name='baseline', module=baseline_policy, modules=policy_modules, states_spec=states,
-                actions_spec=actions
+                name='baseline', module=baseline_policy, modules=policy_modules,
+                states_spec=preprocessed_states, actions_spec=actions
             )
             if first_arg is None:
                 baseline_internals = baseline_cls.internals_spec(**kwargs)
@@ -386,14 +402,12 @@ class TensorforceModel(Model):
         ))
         # states: type and shape
         for name, spec in self.states_spec.items():
+            spec = self.unprocessed_state_spec.get(name, spec)
             tf.debugging.assert_type(
                 tensor=states[name], tf_type=util.tf_dtype(dtype=spec['type']),
                 message="Agent.experience: invalid type for {} state input.".format(name)
             )
-            shape = tf.constant(
-                value=self.unprocessed_state_shape.get(name, spec['shape']),
-                dtype=util.tf_dtype(dtype='int')
-            )
+            shape = tf.constant(value=spec['shape'], dtype=util.tf_dtype(dtype='int'))
             assertions.append(
                 tf.debugging.assert_equal(
                     x=tf.shape(input=states[name], out_type=util.tf_dtype(dtype='int')),
@@ -470,6 +484,16 @@ class TensorforceModel(Model):
         )
 
         with tf.control_dependencies(control_inputs=assertions):
+            # Preprocessing states
+            if any(name in self.preprocessing for name in self.states_spec):
+                for name in self.states_spec:
+                    if name in self.preprocessing:
+                        states[name] = self.preprocessing[name].apply(x=states[name])
+
+            # Preprocessing reward
+            if 'reward' in self.preprocessing:
+                reward = self.preprocessing['reward'].apply(x=reward)
+
             # Core experience: retrieve experience operation
             experienced = self.core_experience(
                 states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,

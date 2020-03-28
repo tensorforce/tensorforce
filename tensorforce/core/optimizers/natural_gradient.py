@@ -74,20 +74,26 @@ class NaturalGradient(Optimizer):
             kldiv = fn_kl_divergence(**arguments)
 
             # grad(kldiv)
-            kldiv_gradients = [
-                tf.convert_to_tensor(value=grad) for grad in tf.gradients(ys=kldiv, xs=variables)
+            kldiv_grads = tf.gradients(ys=kldiv, xs=variables)
+            num_grad_none = sum(grad is None for grad in kldiv_grads)
+            assert num_grad_none < len(kldiv_grads)
+            kldiv_grads = [
+                tf.zeros_like(input=var) if grad is None else tf.convert_to_tensor(value=grad)
+                for grad, var in zip(kldiv_grads, variables)
             ]
 
             # delta' * grad(kldiv)
-            delta_kldiv_gradients = tf.add_n(inputs=[
+            delta_kldiv_grads = tf.add_n(inputs=[
                 tf.reduce_sum(input_tensor=(delta * grad))
-                for delta, grad in zip(deltas, kldiv_gradients)
+                for delta, grad in zip(deltas, kldiv_grads)
             ])
 
             # [delta' * F] = grad(delta' * grad(kldiv))
+            delta_kldiv_grads2 = tf.gradients(ys=delta_kldiv_grads, xs=variables)
+            assert sum(grad is None for grad in delta_kldiv_grads2) == num_grad_none
             return [
-                tf.convert_to_tensor(value=grad)
-                for grad in tf.gradients(ys=delta_kldiv_gradients, xs=variables)
+                tf.zeros_like(input=var) if grad is None else tf.convert_to_tensor(value=grad)
+                for grad, var in zip(delta_kldiv_grads2, variables)
             ]
 
         # loss

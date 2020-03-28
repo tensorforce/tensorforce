@@ -308,19 +308,6 @@ class TensorforceAgent(Agent):
                 )
             reward_estimation['horizon'] = max_episode_timesteps
 
-        # TEMPORARY TODO: State value doesn't exist for Beta
-        if isinstance(baseline_policy, dict) and \
-                baseline_policy.get('type') in (None, 'default', 'parametrized_distributions') and \
-                'distributions' not in baseline_policy:
-            baseline_policy['distributions'] = dict(float='gaussian')
-        if (reward_estimation.get('estimate_horizon') is not False or \
-                reward_estimation.get('estimate_advantage') is not False or \
-                baseline_policy is not None or baseline_optimizer is not None or \
-                baseline_objective is not None) and isinstance(policy, dict) and \
-                policy.get('type') in (None, 'default', 'parametrized_distributions') and \
-                'distributions' not in policy:
-            policy['distributions'] = dict(float='gaussian')
-
         self.model = TensorforceModel(
             # Model
             name=name, device=device, parallel_interactions=self.parallel_interactions,
@@ -368,6 +355,7 @@ class TensorforceAgent(Agent):
         # Auxiliaries
         auxiliaries = OrderedDict()
         if isinstance(states, dict):
+            states = OrderedDict(states)
             for name, spec in self.actions_spec.items():
                 if spec['type'] == 'int' and name + '_mask' in states:
                     auxiliaries[name + '_mask'] = np.asarray(states.pop(name + '_mask'))

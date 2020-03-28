@@ -125,8 +125,8 @@ class Model(Module):
         self.config = None if config is None else dict(config)
 
         # States/internals/actions specifications
-        self.states_spec = states
-        self.internals_spec = OrderedDict() if internals is None else internals
+        self.states_spec = OrderedDict(states)
+        self.internals_spec = OrderedDict() if internals is None else OrderedDict(internals)
         self.internals_init = OrderedDict()
         for name in self.internals_spec:
             self.internals_init[name] = None
@@ -134,7 +134,7 @@ class Model(Module):
                 raise TensorforceError.collision(
                     name='name', value=name, group1='states', group2='internals'
                 )
-        self.actions_spec = actions
+        self.actions_spec = OrderedDict(actions)
         for name in self.actions_spec:
             if name in self.states_spec:
                 raise TensorforceError.collision(
@@ -164,15 +164,9 @@ class Model(Module):
                     type='bool', shape=(spec['shape'] + (spec['num_values'],))
                 )
 
-        self.values_spec = OrderedDict(
-            states=self.states_spec, internals=self.internals_spec,
-            auxiliaries=self.auxiliaries_spec, actions=self.actions_spec,
-            terminal=dict(type='long', shape=()), reward=dict(type='float', shape=())
-        )
-
         # Preprocessing
         self.preprocessing = OrderedDict()
-        self.unprocessed_state_shape = dict()
+        self.unprocessed_state_spec = dict()
         for name, spec in self.states_spec.items():
             if preprocessing is None:
                 layers = None
@@ -183,23 +177,29 @@ class Model(Module):
             else:
                 layers = None
             if layers is not None:
-                self.unprocessed_state_shape[name] = spec['shape']
+                self.unprocessed_state_spec[name] = spec
                 self.preprocessing[name] = self.add_module(
-                    name=(name + '_preprocessing'), module=Preprocessor, input_spec=spec,
-                    layers=layers
+                    name=(name + '-preprocessing'), module=Preprocessor, is_trainable=False,
+                    input_spec=spec, layers=layers
                 )
                 self.states_spec[name] = self.preprocessing[name].get_output_spec()
         if preprocessing is not None and 'reward' in preprocessing:
             reward_spec = dict(type='float', shape=())
             self.preprocessing['reward'] = self.add_module(
-                name='reward_preprocessing', module=Preprocessor, input_spec=reward_spec,
-                layers=preprocessing['reward']
+                name=('reward-preprocessing'), module=Preprocessor, is_trainable=False,
+                input_spec=reward_spec, layers=preprocessing['reward']
             )
             if self.preprocessing['reward'].get_output_spec() != reward_spec:
                 raise TensorforceError.mismatch(
                     name='preprocessing', argument='reward output spec',
                     value1=self.preprocessing['reward'].get_output_spec(), value2=reward_spec
                 )
+
+        self.values_spec = OrderedDict(
+            states=self.states_spec, internals=self.internals_spec,
+            auxiliaries=self.auxiliaries_spec, actions=self.actions_spec,
+            terminal=dict(type='long', shape=()), reward=dict(type='float', shape=())
+        )
 
         # Exploration
         exploration = 0.0 if exploration is None else exploration
@@ -635,9 +635,9 @@ class Model(Module):
         # States
         self.states_input = OrderedDict()
         for name, state_spec in self.states_spec.items():
+            state_spec = self.unprocessed_state_spec.get(name, state_spec)
             self.states_input[name] = self.add_placeholder(
-                name=name, dtype=state_spec['type'],
-                shape=self.unprocessed_state_shape.get(name, state_spec['shape']), batched=True
+                name=name, dtype=state_spec['type'], shape=state_spec['shape'], batched=True
             )
 
         # Internals
@@ -978,14 +978,12 @@ class Model(Module):
         assertions = list()
         # states: type and shape
         for name, spec in self.states_spec.items():
+            spec = self.unprocessed_state_spec.get(name, spec)
             tf.debugging.assert_type(
                 tensor=states[name], tf_type=util.tf_dtype(dtype=spec['type']),
                 message="Agent.act: invalid type for {} state input.".format(name)
             )
-            shape = tf.constant(
-                value=self.unprocessed_state_shape.get(name, spec['shape']),
-                dtype=util.tf_dtype(dtype='long')
-            )
+            shape = tf.constant(value=spec['shape'], dtype=util.tf_dtype(dtype='long'))
             if util.tf_dtype(dtype='long') in (tf.int32, tf.int64):
                 actual_shape = tf.shape(input=states[name], out_type=util.tf_dtype(dtype='long'))
             else:

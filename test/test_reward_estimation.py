@@ -13,7 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-import pytest
 import unittest
 
 from test.unittest_base import UnittestBase
@@ -48,9 +47,10 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         reward_estimation = dict(horizon=2, estimate_horizon='early', estimate_actions=True)
         baseline_objective = 'policy_gradient'
         baseline_optimizer = 'adam'
+        # TODO: action value doesn't exist for Beta
         self.unittest(
-            reward_estimation=reward_estimation, baseline_objective=baseline_objective,
-            baseline_optimizer=baseline_optimizer
+            exclude_bounded_action=True, reward_estimation=reward_estimation,
+            baseline_objective=baseline_objective, baseline_optimizer=baseline_optimizer
         )
 
         reward_estimation = dict(horizon=2, estimate_horizon='early', estimate_terminal=True)
@@ -83,9 +83,10 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         reward_estimation = dict(horizon=2, estimate_horizon='late', estimate_actions=True)
         baseline_objective = 'policy_gradient'
         baseline_optimizer = 'adam'
+        # TODO: action value doesn't exist for Beta
         self.unittest(
-            reward_estimation=reward_estimation, baseline_objective=baseline_objective,
-            baseline_optimizer=baseline_optimizer
+            exclude_bounded_action=True, reward_estimation=reward_estimation,
+            baseline_objective=baseline_objective, baseline_optimizer=baseline_optimizer
         )
 
         reward_estimation = dict(horizon=2, estimate_horizon='late', estimate_terminal=True)

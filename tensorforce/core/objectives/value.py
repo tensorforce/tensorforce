@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
+from collections import OrderedDict
+
 import tensorflow as tf
 
 from tensorforce import util
@@ -67,9 +69,6 @@ class Value(Objective):
         if not self.early_reduce:
             reward = tf.expand_dims(input=reward, axis=1)
 
-        internals = OrderedDict(
-            ((name, internals[name]) for name in policy.internals_spec(policy=policy))
-        )
         if self.value == 'state':
             value = policy.states_value(
                 states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,

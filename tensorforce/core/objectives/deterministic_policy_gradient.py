@@ -38,10 +38,6 @@ class DeterministicPolicyGradient(Objective):
 
     @tf_function(num_args=6)
     def loss(self, states, horizons, internals, auxiliaries, actions, reward, policy):
-        internals = OrderedDict(
-            ((name, internals[name]) for name in policy.internals_spec(policy=policy))
-        )
-
         policy_actions = policy.act(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
             return_internals=False
@@ -59,7 +55,7 @@ class DeterministicPolicyGradient(Objective):
         # tf.math.reduce_mean(input_tensor=, axis=1)
 
         return summed_actions
- 
+
     def optimizer_arguments(self, policy, baseline, **kwargs):
         arguments = super().optimizer_arguments()
 

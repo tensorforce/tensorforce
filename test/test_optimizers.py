@@ -25,25 +25,20 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
     def test_evolutionary(self):
         self.start_tests(name='evolutionary')
 
-        optimizer = dict(type='evolutionary', learning_rate=1e-3)
-        self.unittest(optimizer=optimizer)
+        self.unittest(optimizer=dict(type='evolutionary', learning_rate=1e-3))
 
-    def test_meta_optimizer_wrapper(self):
-        self.start_tests(name='meta-optimizer-wrapper')
+    def test_update_modifier_wrapper(self):
+        self.start_tests(name='update-modifier-wrapper')
 
-        optimizer = dict(
+        self.unittest(optimizer=dict(
             optimizer='adam', learning_rate=1e-3, multi_step=5, subsampling_fraction=0.5,
             clipping_threshold=1e-2, optimizing_iterations=3
-        )
-        self.unittest(optimizer=optimizer)
-        # agent.close()
-        # environment.close()
+        ))
 
     def test_natural_gradient(self):
         self.start_tests(name='natural-gradient')
 
-        optimizer = dict(type='natural_gradient', learning_rate=1e-3)
-        self.unittest(optimizer=optimizer)
+        self.unittest(optimizer=dict(type='natural_gradient', learning_rate=1e-3))
 
     def test_plus(self):
         self.start_tests(name='plus')
@@ -57,28 +52,24 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
     def test_synchronization(self):
         self.start_tests(name='synchronization')
 
-        # TODO: RNN is not supported
-        optimizer = dict(type='synchronization')
         self.unittest(
-            policy=dict(network=dict(type='auto', size=8, depth=1, rnn=False)),
-            baseline_policy=dict(network=dict(type='auto', size=8, depth=1, rnn=False)),
-            baseline_optimizer=optimizer
+            policy=dict(network=dict(type='auto', size=8, depth=1, rnn=2)),
+            baseline_policy=dict(network=dict(type='auto', size=8, depth=1, rnn=1)),
+            baseline_optimizer=dict(type='synchronization')
         )
 
     def test_tf_optimizer(self):
         self.start_tests(name='tf-optimizer')
 
-        optimizer = dict(type='adam', learning_rate=1e-3)
-        self.unittest(optimizer=optimizer)
+        self.unittest(optimizer=dict(type='adam', learning_rate=1e-3))
 
         try:
             import tensorflow_addons as tfa
 
-            optimizer = dict(
+            self.unittest(optimizer=dict(
                 type='radam', learning_rate=1e-3, decoupled_weight_decay=0.01, lookahead=True,
                 moving_average=True
-            )
-            self.unittest(optimizer=optimizer)
+            ))
 
         except ModuleNotFoundError:
             pass

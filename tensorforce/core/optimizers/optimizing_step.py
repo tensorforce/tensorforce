@@ -15,7 +15,7 @@
 
 import tensorflow as tf
 
-from tensorforce import TensorforceError
+from tensorforce import TensorforceError, util
 from tensorforce.core import tf_function
 from tensorforce.core.optimizers import UpdateModifier
 from tensorforce.core.optimizers.solvers import solver_modules
@@ -80,8 +80,8 @@ class OptimizingStep(UpdateModifier):
 
         with tf.control_dependencies(control_inputs=(loss_before,)):
             deltas = self.optimizer.step(
-                variables=variables, arguments=arguments, return_estimated_improvement=True,
-                **kwargs
+                arguments=arguments, variables=variables, **kwargs,
+                return_estimated_improvement=True
             )
 
             if isinstance(deltas, tuple):
@@ -108,7 +108,7 @@ class OptimizingStep(UpdateModifier):
                         assignments.append(variable.assign_add(delta=delta, read_value=False))
                 with tf.control_dependencies(control_inputs=assignments):
                     # Negative value since line search maximizes.
-                    loss_step = -fn_comparative_loss(**arguments, reference=reference)
+                    return -fn_comparative_loss(**arguments, reference=reference)
 
             return self.line_search.solve(
                 fn_x=evaluate_step, x_init=deltas, base_value=loss_before, target_value=loss_step,

@@ -62,8 +62,8 @@ class Random(Parameter):
         self.kwargs = kwargs
 
         super().__init__(
-            unit=unit, summary_labels=summary_labels, name=name, dtype=dtype, shape=shape,
-            min_value=min_value, max_value=max_value
+            summary_labels=summary_labels, name=name, dtype=dtype, shape=shape, min_value=min_value,
+            max_value=max_value
         )
 
     def min_value(self):

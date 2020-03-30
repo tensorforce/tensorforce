@@ -78,6 +78,20 @@ class NaturalGradient(Optimizer):
         fn_kl_divergence = kwargs['fn_kl_divergence']
         return_estimated_improvement = kwargs.get('return_estimated_improvement', False)
 
+        # loss
+        arguments = util.fmap(function=tf.stop_gradient, xs=arguments)
+        loss = fn_loss(**arguments)
+
+        # grad(loss)
+        loss_gradients = tf.gradients(ys=loss, xs=variables)
+
+        actual_variables = list()
+        actual_gradients = list()
+        for variable, gradient in zip(variables, loss_gradients):
+            if gradient is not None:
+                actual_variables.append(variable)
+                actual_gradients.append(gradient)
+
         # Calculates the product x * F of a given vector x with the fisher matrix F.
         # Incorporating the product prevents having to calculate the entire matrix explicitly.
         def fisher_matrix_product(deltas):
@@ -88,42 +102,29 @@ class NaturalGradient(Optimizer):
             kldiv = fn_kl_divergence(**arguments)
 
             # grad(kldiv)
-            kldiv_grads = tf.gradients(ys=kldiv, xs=variables)
+            kldiv_grads = tf.gradients(ys=kldiv, xs=actual_variables)
             num_grad_none = sum(grad is None for grad in kldiv_grads)
             assert num_grad_none < len(kldiv_grads)
             kldiv_grads = [
                 tf.zeros_like(input=var) if grad is None else tf.convert_to_tensor(value=grad)
-                for grad, var in zip(kldiv_grads, variables)
+                for grad, var in zip(kldiv_grads, actual_variables)
             ]
 
             # delta' * grad(kldiv)
+            print(deltas)
+            print(kldiv_grads)
             delta_kldiv_grads = tf.add_n(inputs=[
                 tf.reduce_sum(input_tensor=(delta * grad))
                 for delta, grad in zip(deltas, kldiv_grads)
             ])
 
             # [delta' * F] = grad(delta' * grad(kldiv))
-            delta_kldiv_grads2 = tf.gradients(ys=delta_kldiv_grads, xs=variables)
+            delta_kldiv_grads2 = tf.gradients(ys=delta_kldiv_grads, xs=actual_variables)
             assert sum(grad is None for grad in delta_kldiv_grads2) == num_grad_none
             return [
                 tf.zeros_like(input=var) if grad is None else tf.convert_to_tensor(value=grad)
-                for grad, var in zip(delta_kldiv_grads2, variables)
+                for grad, var in zip(delta_kldiv_grads2, actual_variables)
             ]
-
-        # loss
-        arguments = util.fmap(function=tf.stop_gradient, xs=arguments)
-        loss = fn_loss(**arguments)
-
-        # grad(loss)
-        loss_gradients = tf.gradients(ys=loss, xs=variables)
-        print(loss_gradients)
-
-        actual_variables = list()
-        actual_gradients = list()
-        for variable, gradient in zip(variables, loss_gradients):
-            if gradient is not None:
-                actual_variables.append(variable)
-                actual_gradients.append(gradient)
 
         # Solve the following system for delta' via the conjugate gradient solver.
         # [delta' * F] * delta' = -grad(loss)

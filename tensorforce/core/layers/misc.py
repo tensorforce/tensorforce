@@ -318,10 +318,10 @@ class Reuse(Layer):
         self.layer = layer
         self.is_trainable = is_trainable
 
-        if self.layer not in Layer.layers:
+        if self.layer not in Layer.registered_layers:
             raise TensorforceError.value(name='reuse', argument='layer', value=self.layer)
 
-        self.layer = Layer.layers[self.layer]
+        self.layer = Layer.registered_layers[self.layer]
 
     def default_input_spec(self):
         return dict(self.layer.input_spec)

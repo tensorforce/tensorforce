@@ -231,7 +231,7 @@ class Estimator(Module):
         if self.estimate_horizon == 'early' and baseline is not None:
             # Dependency horizon
             # TODO: handle arbitrary non-optimization horizons!
-            past_horizon = baseline.past_horizon(on_policy=False)
+            past_horizon = baseline.past_horizon(on_policy=True)
             assertion = tf.debugging.assert_equal(
                 x=past_horizon, y=zero,
                 message="Temporary: baseline cannot depend on previous states."
@@ -419,7 +419,7 @@ class Estimator(Module):
 
                 # Dependency horizon
                 # TODO: handle arbitrary non-optimization horizons!
-                past_horizon = baseline.past_horizon(on_policy=False)
+                past_horizon = baseline.past_horizon(on_policy=True)
                 assertion = tf.debugging.assert_equal(
                     x=past_horizon, y=zero,
                     message="Temporary: baseline cannot depend on previous states."
@@ -569,7 +569,7 @@ class Estimator(Module):
             one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
 
             # Baseline dependencies
-            past_horizon = baseline.past_horizon(on_policy=False)
+            past_horizon = baseline.past_horizon(on_policy=True)
             assertion = tf.debugging.assert_equal(
                 x=past_horizon, y=zero,
                 message="Temporary: baseline cannot depend on previous states."
@@ -640,18 +640,18 @@ class Estimator(Module):
     def advantage(self, indices, reward, baseline, memory, is_baseline_optimized):
         if self.estimate_advantage:
             assert baseline is not None
-            zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
+            # zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
 
             # with tf.control_dependencies(control_inputs=(assertion,)):
-            if util.tf_dtype(dtype='long') in (tf.int32, tf.int64):
-                batch_size = tf.shape(input=reward, out_type=util.tf_dtype(dtype='long'))[0]
-            else:
-                batch_size = tf.dtypes.cast(
-                    x=tf.shape(input=reward)[0], dtype=util.tf_dtype(dtype='long')
-                )
+            # if util.tf_dtype(dtype='long') in (tf.int32, tf.int64):
+            #     batch_size = tf.shape(input=reward, out_type=util.tf_dtype(dtype='long'))[0]
+            # else:
+            #     batch_size = tf.dtypes.cast(
+            #         x=tf.shape(input=reward)[0], dtype=util.tf_dtype(dtype='long')
+            #     )
 
             # Baseline dependencies
-            past_horizon = baseline.past_horizon(on_policy=is_baseline_optimized)
+            past_horizon = baseline.past_horizon(on_policy=(not is_baseline_optimized))
             horizons, (states,), (internals,) = memory.predecessors(
                 indices=indices, horizon=past_horizon, sequence_values=('states',),
                 initial_values=('internals',)

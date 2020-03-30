@@ -67,7 +67,7 @@ def UpdateModifierWrapper(
     optimizer_cls = tensorforce.core.optimizer_modules[optimizer.pop('type')]
 
     return optimizer_cls(
-        optimizer=optimizer, summary_labels=summary_labels, name=name, states_spec=states_spec,
+        **optimizer, summary_labels=summary_labels, name=name, states_spec=states_spec,
         internals_spec=internals_spec, auxiliaries_spec=auxiliaries_spec, actions_spec=actions_spec,
         optimized_module=optimized_module
     )

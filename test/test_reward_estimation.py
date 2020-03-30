@@ -41,21 +41,19 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
     def test_early_horizon_estimate(self):
         self.start_tests(name='early horizon estimate')
 
-        # TODO: RNN is not supported
         reward_estimation = dict(horizon=2, estimate_horizon='early')
         self.unittest(reward_estimation=reward_estimation)
 
         reward_estimation = dict(horizon=2, estimate_horizon='early', estimate_actions=True)
-        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=1))
+        baseline_optimizer = 'adam'
         # TODO: action value doesn't exist for Beta
         self.unittest(
             exclude_bounded_action=True, reward_estimation=reward_estimation,
-            baseline_objective=baseline_objective, baseline_optimizer=baseline_optimizer
+            baseline_optimizer=baseline_optimizer
         )
 
         reward_estimation = dict(horizon=2, estimate_horizon='early', estimate_terminal=True)
-        # TODO: currently requires same internal RNN horizon
-        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=2))
+        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=1))
         baseline_objective = 'policy_gradient'
         self.unittest(
             reward_estimation=reward_estimation, baseline_policy=baseline_policy,
@@ -68,9 +66,11 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=1))
         baseline_objective = 'policy_gradient'
         baseline_optimizer = 'adam'
+        # TODO: action value doesn't exist for Beta
         self.unittest(
-            reward_estimation=reward_estimation, baseline_policy=baseline_policy,
-            baseline_objective=baseline_objective, baseline_optimizer=baseline_optimizer
+            exclude_bounded_action=True, reward_estimation=reward_estimation,
+            baseline_policy=baseline_policy, baseline_objective=baseline_objective,
+            baseline_optimizer=baseline_optimizer
         )
 
     def test_late_horizon_estimate(self):
@@ -81,19 +81,19 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         self.unittest(reward_estimation=reward_estimation, baseline_objective=baseline_objective)
 
         reward_estimation = dict(horizon=2, estimate_horizon='late', estimate_actions=True)
-        baseline_objective = 'policy_gradient'
+        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=1))
         baseline_optimizer = 'adam'
         # TODO: action value doesn't exist for Beta
         self.unittest(
             exclude_bounded_action=True, reward_estimation=reward_estimation,
-            baseline_objective=baseline_objective, baseline_optimizer=baseline_optimizer
+            baseline_policy=baseline_policy, baseline_optimizer=baseline_optimizer
         )
 
         reward_estimation = dict(horizon=2, estimate_horizon='late', estimate_terminal=True)
-        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=1))
+        baseline_objective = 'policy_gradient'
         baseline_optimizer = 'adam'
         self.unittest(
-            reward_estimation=reward_estimation, baseline_policy=baseline_policy,
+            reward_estimation=reward_estimation, baseline_objective=baseline_objective,
             baseline_optimizer=baseline_optimizer
         )
 
@@ -103,9 +103,11 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=1))
         baseline_objective = 'policy_gradient'
         baseline_optimizer = 'adam'
+        # TODO: action value doesn't exist for Beta
         self.unittest(
-            reward_estimation=reward_estimation, baseline_policy=baseline_policy,
-            baseline_objective=baseline_objective, baseline_optimizer=baseline_optimizer
+            exclude_bounded_action=True, reward_estimation=reward_estimation,
+            baseline_policy=baseline_policy, baseline_objective=baseline_objective,
+            baseline_optimizer=baseline_optimizer
         )
 
     def test_advantage_estimate(self):
@@ -117,9 +119,12 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         reward_estimation = dict(
             horizon=2, estimate_horizon='early', estimate_actions=True, estimate_advantage=True
         )
-        # TODO: currently requires same internal RNN horizon
-        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=2))
-        self.unittest(reward_estimation=reward_estimation, baseline_policy=baseline_policy)
+        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=1))
+        # TODO: action value doesn't exist for Beta
+        self.unittest(
+            exclude_bounded_action=True, reward_estimation=reward_estimation,
+            baseline_policy=baseline_policy
+        )
 
         reward_estimation = dict(
             horizon=2, estimate_horizon='late', estimate_terminal=True, estimate_advantage=True

@@ -38,14 +38,14 @@ class Layer(Module):
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
-    layers = OrderedDict()
+    registered_layers = OrderedDict()
 
     def __init__(self, name, input_spec=None, summary_labels=None, l2_regularization=None):
         super().__init__(
             name=name, summary_labels=summary_labels, l2_regularization=l2_regularization
         )
 
-        Layer.layers[self.name] = self
+        Layer.registered_layers[self.name] = self
 
         self.input_spec = util.valid_value_spec(
             value_spec=self.default_input_spec(), accept_underspecified=True, return_normalized=True

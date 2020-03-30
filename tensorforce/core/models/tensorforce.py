@@ -140,8 +140,8 @@ class TensorforceModel(Model):
         # Baseline optimization overview:
         # Policy    Objective   Optimizer   Config
         #   n         n           n           default estimate_horizon=False
-        #   n         n           f           invalid!!!
-        #   n         n           y           invalid!!!
+        #   n         n           f           default estimate_horizon=False
+        #   n         n           y           default estimate_horizon=False
         #   n         y           n           main policy, shared loss/kldiv, weighted 1.0
         #   n         y           f           main policy, shared loss/kldiv, weighted
         #   n         y           y           main policy, separate
@@ -195,7 +195,7 @@ class TensorforceModel(Model):
             internals_spec = self.policy_internals_spec
             self.baseline_loss_weight = None
             self.baseline_optimizer = self.add_module(
-                name='baseline_optimizer', module=self.baseline_optimizer,
+                name='baseline_optimizer', module=baseline_optimizer,
                 modules=optimizer_modules, is_subscope=True, is_trainable=False,
                 states_spec=self.states_spec, internals_spec=self.baseline_internals_spec,
                 auxiliaries_spec=self.auxiliaries_spec, actions_spec=self.actions_spec,
@@ -209,25 +209,19 @@ class TensorforceModel(Model):
         )
 
         # Objectives
+        self.objective = self.add_module(
+            name='objective', module=objective, modules=objective_modules, is_trainable=False,
+            states_spec=self.states_spec, internals_spec=self.policy_internals_spec,
+            auxiliaries_spec=self.auxiliaries_spec, actions_spec=self.actions_spec
+        )
         if baseline_objective is None:
-            self.objective = self.add_module(
-                name='objective', module=objective, modules=objective_modules, is_trainable=False,
-                states_spec=self.states_spec, internals_spec=self.internals_spec,
-                auxiliaries_spec=self.auxiliaries_spec, actions_spec=self.actions_spec
-            )
-            self.baseline_objective = self.objective
-        else:
-            self.objective = self.add_module(
-                name='objective', module=objective, modules=objective_modules, is_trainable=False,
-                states_spec=self.states_spec, internals_spec=self.policy_internals_spec,
-                auxiliaries_spec=self.auxiliaries_spec, actions_spec=self.actions_spec
-            )
-            self.baseline_objective = self.add_module(
-                name='baseline_objective', module=baseline_objective, modules=objective_modules,
-                is_subscope=True, is_trainable=False, states_spec=self.states_spec,
-                internals_spec=self.baseline_internals_spec, auxiliaries_spec=self.auxiliaries_spec,
-                actions_spec=self.actions_spec
-            )
+            baseline_objective = objective
+        self.baseline_objective = self.add_module(
+            name='baseline_objective', module=baseline_objective, modules=objective_modules,
+            is_subscope=True, is_trainable=False, states_spec=self.states_spec,
+            internals_spec=self.baseline_internals_spec, auxiliaries_spec=self.auxiliaries_spec,
+            actions_spec=self.actions_spec
+        )
 
         # Estimator
         if not all(key in (
@@ -574,29 +568,30 @@ class TensorforceModel(Model):
     @tf_function(num_args=3)
     def core_act(self, states, internals, auxiliaries):
         zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
-
         past_horizon = tf.math.maximum(
-            x=self.policy.past_horizon(on_policy=False),
-            y=self.baseline.past_horizon(on_policy=False)
+            x=self.policy.past_horizon(on_policy=True),
+            y=self.baseline.past_horizon(on_policy=True)
         )
+        assertion = tf.debugging.assert_equal(x=past_horizon, y=zero)
 
-        some_state = next(iter(states.values()))
-        if util.tf_dtype(dtype='long') in (tf.int32, tf.int64):
-            batch_size = tf.shape(input=some_state, out_type=util.tf_dtype(dtype='long'))[0]
-        else:
-            batch_size = tf.dtypes.cast(
-                x=tf.shape(input=some_state)[0], dtype=util.tf_dtype(dtype='long')
+        with tf.control_dependencies(control_inputs=(assertion,)):
+            some_state = next(iter(states.values()))
+            if util.tf_dtype(dtype='long') in (tf.int32, tf.int64):
+                batch_size = tf.shape(input=some_state, out_type=util.tf_dtype(dtype='long'))[0]
+            else:
+                batch_size = tf.dtypes.cast(
+                    x=tf.shape(input=some_state)[0], dtype=util.tf_dtype(dtype='long')
+                )
+            starts = tf.range(start=batch_size, dtype=util.tf_dtype(dtype='long'))
+            lengths = tf.ones(shape=(batch_size,), dtype=util.tf_dtype(dtype='long'))
+            horizons = tf.stack(values=(starts, lengths), axis=1)
+
+            # Policy act
+            policy_internals = {name: internals[name] for name in self.policy_internals_spec}
+            actions, next_internals = self.policy.act(
+                states=states, horizons=horizons, internals=policy_internals,
+                auxiliaries=auxiliaries, return_internals=True
             )
-        starts = tf.range(start=batch_size, dtype=util.tf_dtype(dtype='long'))
-        lengths = tf.ones(shape=(batch_size,), dtype=util.tf_dtype(dtype='long'))
-        horizons = tf.stack(values=(starts, lengths), axis=1)
-
-        # Policy act
-        policy_internals = {name: internals[name] for name in self.policy_internals_spec}
-        actions, next_internals = self.policy.act(
-            states=states, horizons=horizons, internals=policy_internals, auxiliaries=auxiliaries,
-            return_internals=True
-        )
 
         if self.separate_baseline_policy and len(self.baseline_internals_spec) > 0:
             # Baseline policy act to retrieve next internals
@@ -627,7 +622,6 @@ class TensorforceModel(Model):
 
         # Periodic update
         with tf.control_dependencies(control_inputs=(experienced,)):
-            batch_size = self.update_batch_size.value()
             frequency = self.update_frequency.value()
             start = self.update_start.value()
 
@@ -786,8 +780,7 @@ class TensorforceModel(Model):
         past_horizon = self.policy.past_horizon(on_policy=True)
         if self.separate_baseline_policy and self.baseline_optimizer is None:
             assertion = tf.debugging.assert_equal(
-                x=past_horizon,
-                y=self.baseline.past_horizon(on_policy=True),
+                x=past_horizon, y=self.baseline.past_horizon(on_policy=True),
                 message="Policy and baseline depend on a different number of previous states."
             )
         else:
@@ -799,8 +792,8 @@ class TensorforceModel(Model):
                 indices=indices, horizon=past_horizon, sequence_values=('states',),
                 initial_values=('internals',)
             )
-            policy_internals = OrderedDict(
-                ((name, internals[name]) for name in self.policy_internals_spec)
+            internals = OrderedDict(
+                ((name, internals[name]) for name in self.optimizer.internals_spec)
             )
             auxiliaries, actions = self.memory.retrieve(
                 indices=indices, values=('auxiliaries', 'actions')
@@ -819,15 +812,30 @@ class TensorforceModel(Model):
         )
 
         fn_loss = self.loss
+
+        # if self.advantage_in_loss:
+        #     reward = self.estimator.advantage(
+        #         indices=indices, reward=reward, baseline=self.baseline, memory=self.memory,
+        #         is_baseline_optimized=True
+        #     )
+        #     reward = self.add_summary(
+        #         label=('advantage', 'rewards'), name='advantage', tensor=reward
+        #     )
+        #     if 'advantage' in self.preprocessing:
+        #         reward = self.preprocessing['advantage'].apply(x=reward)
+        #         reward = self.add_summary(
+        #             label=('advantage', 'rewards'), name='preprocessed-advantage', tensor=reward
+        #         )
+
         fn_comparative_loss = self.comparative_loss
 
         def fn_reference(states, horizons, internals, auxiliaries, actions, reward):
             policy_internals = OrderedDict(
-                ((name, internals[name]) for name in policy.internals_spec(policy=policy))
+                ((name, internals[name]) for name in self.policy.internals_spec(policy=self.policy))
             )
             policy_reference = self.objective.reference(
-                states=states, horizons=horizons, internals=policy_internals, auxiliaries=auxiliaries,
-                actions=actions, reward=reward, policy=self.policy
+                states=states, horizons=horizons, internals=policy_internals,
+                auxiliaries=auxiliaries, actions=actions, reward=reward, policy=self.policy
             )
             if self.baseline_loss_weight is None:
                 return policy_reference
@@ -840,7 +848,7 @@ class TensorforceModel(Model):
                     states=states, horizons=horizons, internals=baseline_internals,
                     auxiliaries=auxiliaries, actions=actions, reward=reward, policy=self.baseline
                 )
-                return policy_reference, baseline_referency
+                return policy_reference, baseline_reference
 
         def fn_kl_divergence(states, horizons, internals, auxiliaries, actions, reward):
             policy_internals = OrderedDict(
@@ -887,6 +895,10 @@ class TensorforceModel(Model):
             kwargs['global_variables'] = tuple(self.global_model.trainable_variables)
 
         dependencies = util.flatten(xs=arguments)
+
+        policy_internals = OrderedDict(
+            ((name, internals[name]) for name in self.policy_internals_spec)
+        )
 
         # KL divergence before
         if self.is_summary_logged(
@@ -1021,20 +1033,6 @@ class TensorforceModel(Model):
 
     @tf_function(num_args=6)
     def loss(self, states, horizons, internals, auxiliaries, actions, reward):
-        if self.advantage_in_loss:
-            reward = self.estimator.advantage(
-                indices=indices, reward=reward, baseline=self.baseline, memory=self.memory,
-                is_baseline_optimized=True
-            )
-            reward = self.add_summary(
-                label=('advantage', 'rewards'), name='advantage', tensor=reward
-            )
-            if 'advantage' in self.preprocessing:
-                reward = self.preprocessing['advantage'].apply(x=reward)
-                reward = self.add_summary(
-                    label=('advantage', 'rewards'), name='preprocessed-advantage', tensor=reward
-                )
-
         policy_internals = OrderedDict(
             ((name, internals[name]) for name in self.policy_internals_spec)
         )
@@ -1069,28 +1067,14 @@ class TensorforceModel(Model):
     def comparative_loss(
         self, states, horizons, internals, auxiliaries, actions, reward, reference
     ):
-        if self.advantage_in_loss:
-            reward = self.estimator.advantage(
-                indices=indices, reward=reward, baseline=self.baseline, memory=self.memory,
-                is_baseline_optimized=True
-            )
-            reward = self.add_summary(
-                label=('advantage', 'rewards'), name='advantage', tensor=reward
-            )
-            if 'advantage' in self.preprocessing:
-                reward = self.preprocessing['advantage'].apply(x=reward)
-                reward = self.add_summary(
-                    label=('advantage', 'rewards'), name='preprocessed-advantage', tensor=reward
-                )
+        policy_internals = OrderedDict(
+            ((name, internals[name]) for name in self.policy_internals_spec)
+        )
 
         if self.baseline_loss_weight is None:
             policy_reference = reference
         else:
             policy_reference, baseline_reference = reference
-
-        policy_internals = OrderedDict(
-            ((name, internals[name]) for name in self.policy_internals_spec)
-        )
 
         # Loss per instance
         loss = self.objective.comparative_loss(

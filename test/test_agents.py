@@ -27,10 +27,9 @@ class TestAgents(UnittestBase, unittest.TestCase):
 
     def test_ac(self):
         self.start_tests(name='AC')
-        # TODO: critic RNN is not supported
         self.unittest(
             agent='ac', batch_size=4, network=dict(type='auto', size=8, depth=1, rnn=2),
-            critic_network=dict(type='auto', size=8, depth=1, rnn=False)
+            critic_network=dict(type='auto', size=7, depth=1, rnn=1)
         )
 
     def test_a2c(self):
@@ -38,7 +37,7 @@ class TestAgents(UnittestBase, unittest.TestCase):
         # TODO: critic RNN is not supported
         self.unittest(
             agent='a2c', batch_size=4, network=dict(type='auto', size=8, depth=1, rnn=2),
-            critic_network=dict(type='auto', size=8, depth=1, rnn=False)
+            critic_network=dict(type='auto', size=7, depth=1, rnn=1)
         )
 
     def test_dpg(self):
@@ -48,7 +47,7 @@ class TestAgents(UnittestBase, unittest.TestCase):
             actions=dict(type='float', shape=()),
             agent='dpg', memory=100, batch_size=4,
             network=dict(type='auto', size=8, depth=1, rnn=2),
-            critic_network=dict(type='auto', size=8, depth=1, rnn=False)
+            critic_network=dict(type='auto', size=7, depth=1, rnn=1)
         )
 
     def test_dqn(self):
@@ -56,7 +55,7 @@ class TestAgents(UnittestBase, unittest.TestCase):
         # TODO: RNN is not supported
         self.unittest(
             agent='dqn', memory=100, batch_size=4,
-            network=dict(type='auto', size=8, depth=1, rnn=False)
+            # network=dict(type='auto', size=8, depth=1, rnn=False)
         )
 
     def test_dueling_dqn(self):
@@ -64,7 +63,7 @@ class TestAgents(UnittestBase, unittest.TestCase):
         # TODO: RNN is not supported
         self.unittest(
             agent='dueling_dqn', memory=100, batch_size=4,
-            network=dict(type='auto', size=8, depth=1, rnn=False)
+            # network=dict(type='auto', size=8, depth=1, rnn=False)
         )
 
     def test_ppo(self):

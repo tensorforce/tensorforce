@@ -13,21 +13,17 @@
 # limitations under the License.
 # ==============================================================================
 
-import tensorflow as tf
-
 import tensorforce.core
-from tensorforce.core import tf_function
 from tensorforce.core.optimizers import Optimizer
 
 
-class Plus(Optimizer):
+class UpdateModifier(Optimizer):
     """
-    Additive combination of two optimizers (specification key: `plus`).
+    Update modifier, which takes the update mechanism implemented by another optimizer and modifies
+    it.
 
     Args:
-        optimizer1 (specification): First optimizer configuration
-            (<span style="color:#C00000"><b>required</b></span>).
-        optimizer2 (specification): Second optimizer configuration
+        optimizer (specification): Optimizer configuration
             (<span style="color:#C00000"><b>required</b></span>).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
@@ -40,8 +36,8 @@ class Plus(Optimizer):
     """
 
     def __init__(
-        self, optimizer1, optimizer2, summary_labels=None, name=None, states_spec=None,
-        internals_spec=None, auxiliaries_spec=None, actions_spec=None, optimized_module=None
+        self, optimizer, summary_labels=None, name=None, states_spec=None, internals_spec=None,
+        auxiliaries_spec=None, actions_spec=None, optimized_module=None
     ):
         super().__init__(
             summary_labels=summary_labels, name=name, states_spec=states_spec,
@@ -49,25 +45,9 @@ class Plus(Optimizer):
             actions_spec=actions_spec, optimized_module=optimized_module
         )
 
-        self.optimizer1 = self.add_module(
-            name='optimizer1', module=optimizer1, modules=tensorforce.core.optimizer_modules,
-            states_spec=states_spec, internals_spec=internals_spec,
-            auxiliaries_spec=auxiliaries_spec, actions_spec=actions_spec,
-            optimized_module=optimized_module
+        self.optimizer = self.add_module(
+            name='optimizer', module=optimizer, modules=tensorforce.core.optimizer_modules,
+            states_spec=self.states_spec, internals_spec=self.internals_spec,
+            auxiliaries_spec=self.auxiliaries_spec, actions_spec=self.actions_spec,
+            optimized_module=self.optimized_module
         )
-        self.optimizer2 = self.add_module(
-            name='optimizer2', module=optimizer2, modules=tensorforce.core.optimizer_modules,
-            states_spec=states_spec, internals_spec=internals_spec,
-            auxiliaries_spec=auxiliaries_spec, actions_spec=actions_spec,
-            optimized_module=optimized_module
-        )
-
-    @tf_function(num_args=1)
-    def step(self, arguments, **kwargs):
-        deltas1 = self.optimizer1.step(arguments=arguments, **kwargs)
-
-        with tf.control_dependencies(control_inputs=deltas1):
-            deltas2 = self.optimizer2.step(arguments=arguments, **kwargs)
-
-        with tf.control_dependencies(control_inputs=deltas2):
-            return [delta1 + delta2 for delta1, delta2 in zip(deltas1, deltas2)]

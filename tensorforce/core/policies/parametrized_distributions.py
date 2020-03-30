@@ -18,7 +18,8 @@ from collections import OrderedDict
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core import distribution_modules, Module, network_modules, tf_function
+from tensorforce.core import distribution_modules, layer_modules, Module, network_modules, \
+    tf_function
 from tensorforce.core.networks import Network
 from tensorforce.core.policies import Stochastic, ActionValue
 
@@ -59,9 +60,9 @@ class ParametrizedDistributions(Stochastic, ActionValue):
     """
 
     def __init__(
-        self, network='auto', distributions=None, temperature=0.0, device=None, summary_labels=None,
-        l2_regularization=None, name=None, states_spec=None, auxiliaries_spec=None,
-        internals_spec=None, actions_spec=None
+        self, network='auto', distributions=None, temperature=0.0, infer_states_value=False,
+        device=None, summary_labels=None, l2_regularization=None, name=None, states_spec=None,
+        auxiliaries_spec=None, internals_spec=None, actions_spec=None
     ):
         super().__init__(
             temperature=temperature, device=device, summary_labels=summary_labels,
@@ -115,7 +116,7 @@ class ParametrizedDistributions(Stochastic, ActionValue):
             self.value = None
         else:
             self.value = self.add_module(
-                name='states-value', module='linear', modules=layer_modules, size=0,
+                name='states_value', module='linear', modules=layer_modules, size=0,
                 input_spec=output_spec
             )
 
@@ -216,12 +217,12 @@ class ParametrizedDistributions(Stochastic, ActionValue):
         log_probabilities = OrderedDict()
         for name, spec, distribution in util.zip_items(self.actions_spec, self.distributions):
             if spec['type'] == 'int':
-                mask = auxiliaries[list(auxiliaries).index(name + '_mask')]
+                mask = auxiliaries[name + '_mask']
                 parameters = distribution.parametrize(x=embedding, mask=mask)
             else:
                 parameters = distribution.parametrize(x=embedding)
             log_probabilities[name] = distribution.log_probability(
-                parameters=parameters, action=actions[n]
+                parameters=parameters, action=actions[name]
             )
 
         return log_probabilities
@@ -237,9 +238,9 @@ class ParametrizedDistributions(Stochastic, ActionValue):
         )
 
         entropies = OrderedDict()
-        for name, distribution in util.zip_items(self.actions_spec, self.distributions):
+        for name, spec, distribution in util.zip_items(self.actions_spec, self.distributions):
             if spec['type'] == 'int':
-                mask = auxiliaries[list(auxiliaries).index(name + '_mask')]
+                mask = auxiliaries[name + '_mask']
                 parameters = distribution.parametrize(x=embedding, mask=mask)
             else:
                 parameters = distribution.parametrize(x=embedding)
@@ -253,24 +254,10 @@ class ParametrizedDistributions(Stochastic, ActionValue):
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries
         )
 
-        assert False
-        if other is None:
-            other = util.fmap(function=tf.stop_gradient, xs=parameters)
-        elif isinstance(other, ParametrizedDistributions):
-            other = other.kldiv_reference(
-                states=states, internals=internals, auxiliaries=auxiliaries
-            )
-            other = util.fmap(function=tf.stop_gradient, xs=other)
-        elif isinstance(other, dict):
-            if any(name not in other for name in self.actions_spec):
-                raise TensorforceError.unexpected()
-        else:
-            raise TensorforceError.unexpected()
-
         kl_divergences = OrderedDict()
         for name, distribution in self.distributions.items():
             kl_divergences[name] = distribution.kl_divergence(
-                parameters1=parameters[n], parameters2=other[n]
+                parameters1=parameters[name], parameters2=other[name]
             )
 
         return kl_divergences
@@ -288,7 +275,7 @@ class ParametrizedDistributions(Stochastic, ActionValue):
         kldiv_reference = OrderedDict()
         for name, spec, distribution in util.zip_items(self.actions_spec, self.distributions):
             if spec['type'] == 'int':
-                mask = auxiliaries[list(auxiliaries).index(name + '_mask')]
+                mask = auxiliaries[name + '_mask']
                 kldiv_reference[name] = distribution.parametrize(x=embedding, mask=mask)
             else:
                 kldiv_reference[name] = distribution.parametrize(x=embedding)
@@ -316,6 +303,32 @@ class ParametrizedDistributions(Stochastic, ActionValue):
 
         return states_values
 
+    @tf_function(num_args=4)
+    def states_value(
+        self, states, horizons, internals, auxiliaries, reduced=True, return_per_action=False
+    ):
+        if self.value is None:
+            return ActionValue.states_value(
+                self=self, states=states, horizons=horizons, internals=internals,
+                auxiliaries=auxiliaries, reduced=reduced, return_per_action=return_per_action
+            )
+
+        else:
+            if not reduced or return_per_action:
+                raise TensorforceError.invalid(name='policy.states_value', argument='reduced')
+
+            internals = util.fmap(
+                function=(lambda x: x[len(self.name) + 1:]), xs=internals, depth=1, map_keys=True
+            )
+
+            embedding = self.network.apply(
+                x=states, horizons=horizons, internals=internals, return_internals=False
+            )
+
+            states_value = self.value.apply(x=embedding)
+
+            return states_value
+
     @tf_function(num_args=5)
     def actions_values(self, states, horizons, internals, auxiliaries, actions):
         internals = util.fmap(
@@ -331,30 +344,10 @@ class ParametrizedDistributions(Stochastic, ActionValue):
             self.actions_spec, self.distributions, actions
         ):
             if spec['type'] == 'int':
-                mask = auxiliaries[list(auxiliaries).index(name + '_mask')]
+                mask = auxiliaries[name + '_mask']
                 parameters = distribution.parametrize(x=embedding, mask=mask)
             else:
                 parameters = distribution.parametrize(x=embedding)
             actions_values[name] = distribution.action_value(parameters=parameters, action=action)
 
         return actions_values
-
-    @tf_function(num_args=4)
-    def states_value(
-        self, states, internals, auxiliaries, reduced=True, include_per_action=False
-    ):
-        if self.value is None:
-            return ActionValue.states_value(
-                self=self, states=states, internals=internals, auxiliaries=auxiliaries,
-                reduced=reduced, include_per_action=include_per_action
-            )
-
-        else:
-            if not reduced or include_per_action:
-                raise TensorforceError.invalid(name='policy.states_value', argument='reduced')
-
-            embedding = self.network.apply(x=states, internals=internals)
-
-            states_value = self.value.apply(x=embedding)
-
-            return states_value

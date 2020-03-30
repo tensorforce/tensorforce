@@ -16,18 +16,17 @@
 import tensorflow as tf
 
 from tensorforce import TensorforceError
-from tensorforce.core.optimizers import MetaOptimizer
+from tensorforce.core import tf_function
+from tensorforce.core.optimizers import UpdateModifier
 from tensorforce.core.optimizers.solvers import solver_modules
 
 
-class OptimizingStep(MetaOptimizer):
+class OptimizingStep(UpdateModifier):
     """
-    Optimizing-step meta optimizer, which applies line search to the given optimizer to find a more
+    Optimizing-step update modifier, which applies line search to the given optimizer to find a more
     optimal step size (specification key: `optimizing_step`).
 
     Args:
-        name (string): Module name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         optimizer (specification): Optimizer configuration
             (<span style="color:#C00000"><b>required</b></span>).
         ls_max_iterations (parameter, int >= 0): Maximum number of line search iterations
@@ -42,37 +41,47 @@ class OptimizingStep(MetaOptimizer):
             (<span style="color:#00C000"><b>default</b></span>: false).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
+        states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        auxiliaries_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        optimized_module (module): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
-        self, name, optimizer, ls_max_iterations=10, ls_accept_ratio=0.9, ls_mode='exponential',
-        ls_parameter=0.5, ls_unroll_loop=False, summary_labels=None
+        self, optimizer, ls_max_iterations=10, ls_accept_ratio=0.9, ls_mode='exponential',
+        ls_parameter=0.5, ls_unroll_loop=False, summary_labels=None, name=None, states_spec=None,
+        internals_spec=None, auxiliaries_spec=None, actions_spec=None, optimized_module=None
     ):
-        super().__init__(name=name, optimizer=optimizer)
+        super().__init__(
+            optimizer=optimizer, summary_labels=summary_labels, name=name, states_spec=states_spec,
+            internals_spec=internals_spec, auxiliaries_spec=auxiliaries_spec,
+            actions_spec=actions_spec, optimized_module=optimized_module
+        )
 
         self.line_search = self.add_module(
             name='line_search', module='line_search', modules=solver_modules,
             max_iterations=ls_max_iterations, accept_ratio=ls_accept_ratio, mode=ls_mode,
-            parameter=ls_parameter, unroll_loop=ls_unroll_loop
+            parameter=ls_parameter, unroll_loop=ls_unroll_loop, values_spec=[
+                dict(type=util.dtype(x=x), shape=util.shape(x=x))
+                for x in self.optimized_module.trainable_variables
+            ]
         )
 
-    def tf_step(self, variables, arguments, fn_loss, fn_reference=None, **kwargs):
-        augmented_arguments = dict(arguments)
+    @tf_function(num_args=1)
+    def step(self, arguments, variables, **kwargs):
+        fn_reference = kwargs['fn_reference']
+        fn_comparative_loss = kwargs['fn_comparative_loss']
 
-        if fn_reference is not None:
-            # Set reference to compare with at each step, in case of a comparative loss.
-            reference = fn_reference(**arguments)  # ?????????????????????????????????????????????
-
-            assert 'reference' not in augmented_arguments
-            augmented_arguments['reference'] = reference
-
+        reference = fn_reference(**arguments)
         # Negative value since line search maximizes.
-        loss_before = -fn_loss(**augmented_arguments)
+        loss_before = -fn_comparative_loss(**arguments, reference=reference)
 
         with tf.control_dependencies(control_inputs=(loss_before,)):
             deltas = self.optimizer.step(
-                variables=variables, arguments=arguments, fn_loss=fn_loss,  # no reference here?
-                return_estimated_improvement=True, **kwargs
+                variables=variables, arguments=arguments, return_estimated_improvement=True,
+                **kwargs
             )
 
             if isinstance(deltas, tuple):
@@ -83,20 +92,23 @@ class OptimizingStep(MetaOptimizer):
                 # Negative value since line search maximizes.
                 estimated_improvement = -estimated_improvement
             else:
-                estimated_improvement = None
+                # TODO: Is this a good alternative?
+                estimated_improvement = tf.abs(x=loss_before)
 
         with tf.control_dependencies(control_inputs=deltas):
             # Negative value since line search maximizes.
-            loss_step = -fn_loss(**augmented_arguments)
+            loss_step = -fn_comparative_loss(**arguments, reference=reference)
 
         with tf.control_dependencies(control_inputs=(loss_step,)):
 
             def evaluate_step(deltas):
                 with tf.control_dependencies(control_inputs=deltas):
-                    applied = self.apply_step(variables=variables, deltas=deltas)
-                with tf.control_dependencies(control_inputs=(applied,)):
+                    assignments = list()
+                    for variable, delta in zip(variables, deltas):
+                        assignments.append(variable.assign_add(delta=delta, read_value=False))
+                with tf.control_dependencies(control_inputs=assignments):
                     # Negative value since line search maximizes.
-                    return -fn_loss(**augmented_arguments)
+                    loss_step = -fn_comparative_loss(**arguments, reference=reference)
 
             return self.line_search.solve(
                 fn_x=evaluate_step, x_init=deltas, base_value=loss_before, target_value=loss_step,

@@ -183,17 +183,38 @@ class Model(Module):
                     input_spec=spec, layers=layers
                 )
                 self.states_spec[name] = self.preprocessing[name].get_output_spec()
-        if preprocessing is not None and 'reward' in preprocessing:
+        if preprocessing is not None:
             reward_spec = dict(type='float', shape=())
-            self.preprocessing['reward'] = self.add_module(
-                name=('reward-preprocessing'), module=Preprocessor, is_trainable=False,
-                input_spec=reward_spec, layers=preprocessing['reward']
-            )
-            if self.preprocessing['reward'].get_output_spec() != reward_spec:
-                raise TensorforceError.mismatch(
-                    name='preprocessing', argument='reward output spec',
-                    value1=self.preprocessing['reward'].get_output_spec(), value2=reward_spec
+            if 'reward' in preprocessing:
+                self.preprocessing['reward'] = self.add_module(
+                    name=('reward_preprocessing'), module=Preprocessor, is_trainable=False,
+                    input_spec=reward_spec, layers=preprocessing['reward']
                 )
+                if self.preprocessing['reward'].get_output_spec() != reward_spec:
+                    raise TensorforceError.mismatch(
+                        name='preprocessing', argument='reward output spec',
+                        value1=self.preprocessing['reward'].get_output_spec(), value2=reward_spec
+                    )
+            if 'return' in preprocessing:
+                self.preprocessing['return'] = self.add_module(
+                    name=('return_preprocessing'), module=Preprocessor, is_trainable=False,
+                    input_spec=reward_spec, layers=preprocessing['return']
+                )
+                if self.preprocessing['return'].get_output_spec() != reward_spec:
+                    raise TensorforceError.mismatch(
+                        name='preprocessing', argument='return output spec',
+                        value1=self.preprocessing['return'].get_output_spec(), value2=reward_spec
+                    )
+            if 'advantage' in preprocessing:
+                self.preprocessing['advantage'] = self.add_module(
+                    name=('advantage_preprocessing'), module=Preprocessor, is_trainable=False,
+                    input_spec=reward_spec, layers=preprocessing['advantage']
+                )
+                if self.preprocessing['advantage'].get_output_spec() != reward_spec:
+                    raise TensorforceError.mismatch(
+                        name='preprocessing', argument='advantage output spec',
+                        value1=self.preprocessing['advantage'].get_output_spec(), value2=reward_spec
+                    )
 
         self.values_spec = OrderedDict(
             states=self.states_spec, internals=self.internals_spec,
@@ -260,14 +281,6 @@ class Model(Module):
                 util.to_tensor_spec(value_spec=self.actions_spec, batched=True),
                 util.to_tensor_spec(value_spec=dict(type='long', shape=()), batched=True),
                 util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=True)
-            ]
-
-        elif function == 'regularize':
-            return [
-                util.to_tensor_spec(value_spec=self.states_spec, batched=True),
-                util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
-                util.to_tensor_spec(value_spec=self.internals_spec, batched=True),
-                util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True)
             ]
 
         else:
@@ -771,13 +784,13 @@ class Model(Module):
 
         with tf.control_dependencies(control_inputs=(assignment,)):
             timestep = util.identity_operation(
-                x=self.global_tensor(name='timestep'), operation_name='timestep-output'
+                x=self.global_tensor(name='timesteps'), operation_name='timesteps-output'
             )
             episode = util.identity_operation(
-                x=self.global_tensor(name='episode'), operation_name='episode-output'
+                x=self.global_tensor(name='episodes'), operation_name='episodes-output'
             )
             update = util.identity_operation(
-                x=self.global_tensor(name='update'), operation_name='update-output'
+                x=self.global_tensor(name='updates'), operation_name='updates-output'
             )
 
         return timestep, episode, update
@@ -1255,7 +1268,7 @@ class Model(Module):
                     updates=tf.fill(dims=parallel_shape, value=one)
                 )
             )
-            assignments.append(self.timestep.assign_add(delta=parallel_shape[0], read_value=False))
+            assignments.append(self.timesteps.assign_add(delta=parallel_shape[0], read_value=False))
 
         # Return timestep
         with tf.control_dependencies(control_inputs=assignments):
@@ -1265,7 +1278,7 @@ class Model(Module):
                     x=actions[name], operation_name=(name + '-output')
                 )
             timestep = util.identity_operation(
-                x=self.global_tensor(name='timestep'), operation_name='timestep-output'
+                x=self.global_tensor(name='timesteps'), operation_name='timesteps-output'
             )
 
         return actions, timestep
@@ -1348,9 +1361,7 @@ class Model(Module):
         )
 
         with tf.control_dependencies(control_inputs=assertions):
-            reward = self.add_summary(
-                label=('timestep-reward', 'rewards'), name='timestep-reward', tensor=reward
-            )
+            reward = self.add_summary(label=('reward', 'rewards'), name='reward', tensor=reward)
             assignment = self.episode_reward.scatter_nd_add(
                 indices=tf.expand_dims(input=parallel, axis=1),
                 updates=[tf.math.reduce_sum(input_tensor=reward, axis=0)]
@@ -1380,6 +1391,9 @@ class Model(Module):
         if 'reward' in self.preprocessing:
             with tf.control_dependencies(control_inputs=dependencies):
                 reward = self.preprocessing['reward'].apply(x=reward)
+            reward = self.add_summary(
+                label=('reward', 'rewards'), name='preprocessed-reward', tensor=reward
+            )
             dependencies = (reward,)
 
         # Increment episode
@@ -1389,7 +1403,7 @@ class Model(Module):
             assignments.append(self.parallel_episode.scatter_nd_add(
                 indices=tf.expand_dims(input=parallel, axis=1), updates=[one])
             )
-            assignments.append(self.episode.assign_add(delta=one, read_value=False))
+            assignments.append(self.episodes.assign_add(delta=one, read_value=False))
             with tf.control_dependencies(control_inputs=assignments):
                 return util.no_operation()
 
@@ -1413,10 +1427,6 @@ class Model(Module):
             actions = OrderedDict()
             for name in self.actions_spec:
                 actions[name] = self.actions_buffer[name][parallel[0], :buffer_index[0]]
-
-            reward = self.add_summary(
-                label=('raw-reward', 'rewards'), name='raw-reward', tensor=reward
-            )
 
             is_updated = self.core_observe(
                 states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
@@ -1450,10 +1460,10 @@ class Model(Module):
             # Function-level identity operation for retrieval (plus enforce dependency)
             updated = util.identity_operation(x=is_updated, operation_name='updated-output')
             episode = util.identity_operation(
-                x=self.global_tensor(name='episode'), operation_name='episode-output'
+                x=self.global_tensor(name='episodes'), operation_name='episodes-output'
             )
             update = util.identity_operation(
-                x=self.global_tensor(name='update'), operation_name='update-output'
+                x=self.global_tensor(name='updates'), operation_name='updates-output'
             )
 
         return updated, episode, update
@@ -1465,10 +1475,6 @@ class Model(Module):
     @tf_function(num_args=6)
     def core_observe(self, states, internals, auxiliaries, actions, terminal, reward):
         raise NotImplementedError
-
-    @tf_function(num_args=4)
-    def regularize(self, states, horizons, internals, auxiliaries):
-        return super().regularize()
 
     def get_variable(self, variable):
         if not variable.startswith(self.name):
@@ -1587,7 +1593,7 @@ class Model(Module):
             assert False
 
         fetches = (
-            self.global_tensor(name='timestep'), self.global_tensor(name='episode'),
-            self.global_tensor(name='update')
+            self.global_tensor(name='timesteps'), self.global_tensor(name='episodes'),
+            self.global_tensor(name='updates')
         )
         return self.monitored_session.run(fetches=fetches)

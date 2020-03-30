@@ -19,6 +19,7 @@ import numpy as np
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
+from tensorforce.core import tf_function
 from tensorforce.core.models import Model
 
 
@@ -42,7 +43,8 @@ class RandomModel(Model):
             l2_regularization=0.0
         )
 
-    def tf_core_act(self, states, internals, auxiliaries):
+    @tf_function(num_args=3)
+    def core_act(self, states, internals, auxiliaries):
         if len(internals) > 0:
             raise TensorforceError.unexpected()
 
@@ -101,5 +103,6 @@ class RandomModel(Model):
 
         return actions, OrderedDict()
 
-    def tf_core_observe(self, states, internals, auxiliaries, actions, terminal, reward):
+    @tf_function(num_args=6)
+    def core_observe(self, states, internals, auxiliaries, actions, terminal, reward):
         return util.no_operation()

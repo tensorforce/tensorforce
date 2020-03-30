@@ -57,9 +57,11 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
     def test_synchronization(self):
         self.start_tests(name='synchronization')
 
+        # TODO: RNN is not supported
         optimizer = dict(type='synchronization')
         self.unittest(
-            baseline_policy=dict(network=dict(type='auto', size=8, depth=1, rnn=2)),
+            policy=dict(network=dict(type='auto', size=8, depth=1, rnn=False)),
+            baseline_policy=dict(network=dict(type='auto', size=8, depth=1, rnn=False)),
             baseline_optimizer=optimizer
         )
 

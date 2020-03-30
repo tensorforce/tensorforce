@@ -15,6 +15,8 @@
 
 from collections import OrderedDict
 
+import tensorflow as tf
+
 from tensorforce import util
 from tensorforce.core import Module, tf_function
 
@@ -27,28 +29,84 @@ class Objective(Module):
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
+        states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        auxiliaries_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(self, summary_labels=None, name=None, policy=None):
+    def __init__(
+        self, summary_labels=None, name=None, states_spec=None, internals_spec=None,
+        auxiliaries_spec=None, actions_spec=None
+    ):
         super().__init__(name=name, summary_labels=summary_labels)
 
+        self.states_spec = states_spec
+        self.internals_spec = internals_spec
+        self.auxiliaries_spec = auxiliaries_spec
+        self.actions_spec = actions_spec
+
+    def reference_spec(self):
+        return dict(type='float', shape=())
+
     def input_signature(self, function):
-        if function == 'loss_per_instance':
+        if function == 'loss':
             return [
-                util.to_tensor_spec(value_spec=self.parent.states_spec, batched=True),
+                util.to_tensor_spec(value_spec=self.states_spec, batched=True),
                 util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
-                util.to_tensor_spec(value_spec=self.parent.internals_spec, batched=True),
-                util.to_tensor_spec(value_spec=self.parent.auxiliaries_spec, batched=True),
-                util.to_tensor_spec(value_spec=self.parent.actions_spec, batched=True),
+                util.to_tensor_spec(value_spec=self.internals_spec, batched=True),
+                util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True),
+                util.to_tensor_spec(value_spec=self.actions_spec, batched=True),
                 util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=True)
+            ]
+
+        elif function == 'reference':
+            return [
+                util.to_tensor_spec(value_spec=self.states_spec, batched=True),
+                util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
+                util.to_tensor_spec(value_spec=self.internals_spec, batched=True),
+                util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True),
+                util.to_tensor_spec(value_spec=self.actions_spec, batched=True),
+                util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=True)
+            ]
+
+        elif function == 'comparative_loss':
+            return [
+                util.to_tensor_spec(value_spec=self.states_spec, batched=True),
+                util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
+                util.to_tensor_spec(value_spec=self.internals_spec, batched=True),
+                util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True),
+                util.to_tensor_spec(value_spec=self.actions_spec, batched=True),
+                util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=True),
+                util.to_tensor_spec(value_spec=self.reference_spec(), batched=True)
             ]
 
         else:
             return super().input_signature(function=function)
 
     @tf_function(num_args=6)
-    def loss_per_instance(self, states, horizons, internals, auxiliaries, actions, reward):
-        raise NotImplementedError
+    def loss(self, states, horizons, internals, auxiliaries, actions, reward, policy):
+        reference = self.reference(
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+            actions=actions, reward=reward, policy=policy
+        )
+        return self.comparative_loss(
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+            actions=actions, reward=reward, reference=reference, policy=policy
+        )
+
+    @tf_function(num_args=6)
+    def reference(self, states, horizons, internals, auxiliaries, actions, reward, policy):
+        return tf.zeros_like(input=reward)
+
+    @tf_function(num_args=7)
+    def comparative_loss(
+        self, states, horizons, internals, auxiliaries, actions, reward, reference, policy
+    ):
+        return self.loss(
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+            actions=actions, reward=reward, policy=policy
+        )
 
     def optimizer_arguments(self, **kwargs):
         return OrderedDict()

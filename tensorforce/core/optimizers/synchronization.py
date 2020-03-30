@@ -16,7 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core import Module, parameter_modules
+from tensorforce.core import Module, parameter_modules, tf_function
 from tensorforce.core.optimizers import Optimizer
 
 
@@ -26,8 +26,6 @@ class Synchronization(Optimizer):
     set of source variables (specification key: `synchronization`).
 
     Args:
-        name (string): Module name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         optimizer (specification): Optimizer configuration
             (<span style="color:#C00000"><b>required</b></span>).
         sync_frequency (parameter, int >= 1): Interval between updates which also perform a
@@ -36,18 +34,31 @@ class Synchronization(Optimizer):
             (<span style="color:#00C000"><b>default</b></span>: 1.0).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
+        states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        auxiliaries_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        optimized_module (module): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(self, name, sync_frequency=1, update_weight=1.0, summary_labels=None):
-        super().__init__(name=name, summary_labels=summary_labels)
+    def __init__(
+        self, sync_frequency=1, update_weight=1.0, summary_labels=None, name=None, states_spec=None,
+        internals_spec=None, auxiliaries_spec=None, actions_spec=None, optimized_module=None
+    ):
+        super().__init__(
+            summary_labels=summary_labels, name=name, states_spec=states_spec,
+            internals_spec=internals_spec, auxiliaries_spec=auxiliaries_spec,
+            actions_spec=actions_spec, optimized_module=optimized_module
+        )
 
         self.sync_frequency = self.add_module(
-            name='sync-frequency', module=sync_frequency, modules=parameter_modules, dtype='long',
+            name='sync_frequency', module=sync_frequency, modules=parameter_modules, dtype='long',
             min_value=1
         )
 
         self.update_weight = self.add_module(
-            name='update-weight', module=update_weight, modules=parameter_modules, dtype='float',
+            name='update_weight', module=update_weight, modules=parameter_modules, dtype='float',
             min_value=0.0, max_value=1.0
         )
 
@@ -58,7 +69,10 @@ class Synchronization(Optimizer):
             name='next-sync', dtype='long', shape=(), is_trainable=False
         )
 
-    def tf_step(self, variables, source_variables, **kwargs):
+    @tf_function(num_args=1)
+    def step(self, arguments, variables, **kwargs):
+        source_variables = kwargs['source_variables']
+
         assert all(
             util.shape(source) == util.shape(target)
             for source, target in zip(source_variables, variables)
@@ -74,12 +88,13 @@ class Synchronization(Optimizer):
             with tf.control_dependencies(control_inputs=(next_sync_updated,)):
                 update_weight = self.update_weight.value()
                 deltas = list()
+                assignments = list()
                 for source_variable, target_variable in zip(source_variables, variables):
                     delta = update_weight * (source_variable - target_variable)
                     deltas.append(delta)
-                applied = self.apply_step(variables=variables, deltas=deltas)
+                    assignments.append(target_variable.assign_add(delta=delta, read_value=False))
 
-            with tf.control_dependencies(control_inputs=(applied,)):
+            with tf.control_dependencies(control_inputs=assignments):
                 # Trivial operation to enforce control dependency
                 return util.fmap(function=util.identity_operation, xs=deltas)
 

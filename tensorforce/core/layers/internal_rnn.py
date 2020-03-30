@@ -147,6 +147,15 @@ class InternalRnn(TemporalLayer, TransformationBase):
         #     name = variable.name[variable.name.rindex(self.name + '/') + len(self.name) + 1: -2]
         #     self.variables[name] = variable
 
+    @tf_function(num_args=0)
+    def regularize(self):
+        if len(self.cell.losses) > 0:
+            regularization_loss = tf.math.add_n(inputs=self.cell.losses)
+        else:
+            regularization_loss = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
+
+        return regularization_loss
+
     @tf_function(num_args=2)
     def iterative_step(self, x, internals):
         state = internals['state']

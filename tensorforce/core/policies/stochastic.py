@@ -75,8 +75,7 @@ class Stochastic(Policy):
                 util.to_tensor_spec(value_spec=self.states_spec, batched=True),
                 util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
                 util.to_tensor_spec(value_spec=self.internals_spec(policy=self), batched=True),
-                util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True),
-                util.to_tensor_spec(value_spec=dict(type='bool', shape=()), batched=False)
+                util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True)
             ]
 
         elif function == 'entropies':
@@ -96,8 +95,7 @@ class Stochastic(Policy):
                 [
                     util.to_tensor_spec(value_spec=distribution.parameters_spec, batched=True)
                     for distribution in self.distributions.values()
-                ],
-                util.to_tensor_spec(value_spec=dict(type='bool', shape=()), batched=False)
+                ]
             ]
 
         elif function == 'kl_divergences':
@@ -126,8 +124,7 @@ class Stochastic(Policy):
                 util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
                 util.to_tensor_spec(value_spec=self.internals_spec(policy=self), batched=True),
                 util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True),
-                util.to_tensor_spec(value_spec=self.actions_spec, batched=True),
-                util.to_tensor_spec(value_spec=dict(type='bool', shape=()), batched=False)
+                util.to_tensor_spec(value_spec=self.actions_spec, batched=True)
             ]
 
         elif function == 'log_probabilities':

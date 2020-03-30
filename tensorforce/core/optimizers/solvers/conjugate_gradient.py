@@ -16,7 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core import parameter_modules
+from tensorforce.core import parameter_modules, tf_function
 from tensorforce.core.optimizers.solvers import Iterative
 
 
@@ -52,7 +52,7 @@ class ConjugateGradient(Iterative):
 
     """
 
-    def __init__(self, name, max_iterations, damping, unroll_loop=False):
+    def __init__(self, name, max_iterations, damping, unroll_loop=False, values_spec=None):
         """
         Creates a new conjugate gradient solver instance.
 
@@ -68,21 +68,43 @@ class ConjugateGradient(Iterative):
             max_value=1.0
         )
 
-    def tf_solve(self, fn_x, x_init, b):
+        self.values_spec = values_spec
+
+    def input_signature(self, function):
+        if function == 'end' or function == 'next_step' or function == 'step':
+            return [
+                util.to_tensor_spec(value_spec=self.values_spec, batched=True),
+                util.to_tensor_spec(value_spec=self.values_spec, batched=True),
+                util.to_tensor_spec(value_spec=self.values_spec, batched=True),
+                util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=True)
+            ]
+
+        elif function == 'solve' or function == 'start':
+            return [
+                util.to_tensor_spec(value_spec=self.values_spec, batched=True),
+                util.to_tensor_spec(value_spec=self.values_spec, batched=True)
+            ]
+
+        else:
+            return super().input_signature(function=function)
+
+    @tf_function(num_args=2)
+    def solve(self, x_init, b, fn_x):
         """
         Iteratively solves the system of linear equations $A x = b$.
 
         Args:
-            fn_x: A callable returning the left-hand side $A x$ of the system of linear equations.
             x_init: Initial solution guess $x_0$, zero vector if None.
             b: The right-hand side $b$ of the system of linear equations.
+            fn_x: A callable returning the left-hand side $A x$ of the system of linear equations.
 
         Returns:
             A solution $x$ to the problem as given by the solver.
         """
-        return super().tf_solve(fn_x, x_init, b)
+        return super().solve(x_init=x_init, b=b, fn_x=fn_x)
 
-    def tf_step(self, x, conjugate, residual, squared_residual):
+    @tf_function(num_args=4)
+    def step(self, x, conjugate, residual, squared_residual):
         """
         Iteration loop body of the conjugate gradient algorithm.
 
@@ -143,7 +165,8 @@ class ConjugateGradient(Iterative):
 
         return next_x, next_conjugate, next_residual, next_squared_residual
 
-    def tf_next_step(self, x, conjugate, residual, squared_residual):
+    @tf_function(num_args=4)
+    def next_step(self, x, conjugate, residual, squared_residual):
         """
         Termination condition: max number of iterations, or residual sufficiently small.
 
@@ -160,7 +183,8 @@ class ConjugateGradient(Iterative):
 
         return squared_residual >= epsilon
 
-    def tf_start(self, x_init, b):
+    @tf_function(num_args=2)
+    def start(self, x_init, b):
         """
         Initialization step preparing the arguments for the first iteration of the loop body:  
         $x_0, 0, p_0, r_0, r_0^2$.
@@ -170,7 +194,7 @@ class ConjugateGradient(Iterative):
             b: The right-hand side $b$ of the system of linear equations.
 
         Returns:
-            Initial arguments for tf_step.
+            Initial arguments for step.
         """
         if x_init is None:
             # Initial guess is zero vector if not given.

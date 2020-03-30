@@ -16,18 +16,16 @@
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core import parameter_modules
-from tensorforce.core.optimizers import MetaOptimizer
+from tensorforce.core import parameter_modules, tf_function
+from tensorforce.core.optimizers import UpdateModifier
 
 
-class MultiStep(MetaOptimizer):
+class MultiStep(UpdateModifier):
     """
-    Multi-step meta optimizer, which applies the given optimizer for a number of times
+    Multi-step update modifier, which applies the given optimizer for a number of times
     (specification key: `multi_step`).
 
     Args:
-        name (string): Module name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         optimizer (specification): Optimizer configuration
             (<span style="color:#C00000"><b>required</b></span>).
         num_steps (parameter, int >= 0): Number of optimization steps
@@ -36,10 +34,24 @@ class MultiStep(MetaOptimizer):
             (<span style="color:#00C000"><b>default</b></span>: false).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
+        states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        auxiliaries_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        optimized_module (module): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(self, name, optimizer, num_steps, unroll_loop=False, summary_labels=None):
-        super().__init__(name=name, optimizer=optimizer, summary_labels=summary_labels)
+    def __init__(
+        self, optimizer, num_steps, unroll_loop=False, summary_labels=None, name=None,
+        states_spec=None, internals_spec=None, auxiliaries_spec=None, actions_spec=None,
+        optimized_module=None
+    ):
+        super().__init__(
+            optimizer=optimizer, summary_labels=summary_labels, name=name, states_spec=states_spec,
+            internals_spec=internals_spec, auxiliaries_spec=auxiliaries_spec,
+            actions_spec=actions_spec, optimized_module=optimized_module
+        )
 
         assert isinstance(unroll_loop, bool)
         self.unroll_loop = unroll_loop
@@ -48,16 +60,12 @@ class MultiStep(MetaOptimizer):
             self.num_steps = num_steps
         else:
             self.num_steps = self.add_module(
-                name='num-steps', module=num_steps, modules=parameter_modules, dtype='int',
+                name='num_steps', module=num_steps, modules=parameter_modules, dtype='int',
                 min_value=0
             )
 
-    def tf_step(self, variables, arguments, fn_reference=None, **kwargs):
-        # Set reference to compare with at each optimization step, in case of a comparative loss.
-        if fn_reference is not None:
-            assert 'reference' not in arguments
-            arguments['reference'] = fn_reference(**arguments)
-
+    @tf_function(num_args=1)
+    def step(self, arguments, variables, **kwargs):
         deltas = [tf.zeros_like(input=variable) for variable in variables]
 
         if self.unroll_loop:
@@ -65,7 +73,7 @@ class MultiStep(MetaOptimizer):
             for _ in range(self.num_steps):
                 with tf.control_dependencies(control_inputs=deltas):
                     step_deltas = self.optimizer.step(
-                        variables=variables, arguments=arguments, **kwargs
+                        arguments=arguments, variables=variables, **kwargs
                     )
                     deltas = [delta1 + delta2 for delta1, delta2 in zip(deltas, step_deltas)]
 
@@ -76,7 +84,7 @@ class MultiStep(MetaOptimizer):
             def body(deltas):
                 with tf.control_dependencies(control_inputs=deltas):
                     step_deltas = self.optimizer.step(
-                        variables=variables, arguments=arguments, **kwargs
+                        arguments=arguments, variables=variables, **kwargs
                     )
                     deltas = [delta1 + delta2 for delta1, delta2 in zip(deltas, step_deltas)]
                 return (deltas,)

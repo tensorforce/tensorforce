@@ -32,10 +32,21 @@ class Plus(Objective):
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
+        states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        auxiliaries_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(self, objective1, objective2, summary_labels=None, name=None):
-        super().__init__(summary_labels=summary_labels, name=name)
+    def __init__(
+        self, objective1, objective2, summary_labels=None, name=None, states_spec=None,
+        internals_spec=None, auxiliaries_spec=None, actions_spec=None
+    ):
+        super().__init__(
+            summary_labels=summary_labels, name=name, states_spec=states_spec,
+            internals_spec=internals_spec, auxiliaries_spec=auxiliaries_spec,
+            actions_spec=actions_spec
+        )
 
         self.objective1 = self.add_module(
             name='objective1', module=objective1, modules=tensorforce.core.objective_modules
@@ -45,7 +56,7 @@ class Plus(Objective):
         )
 
     @tf_function(num_args=6)
-    def loss_per_instance(self, states, horizons, internals, auxiliaries, actions, reward, kwargs):
+    def loss(self, states, horizons, internals, auxiliaries, actions, reward):
         kwargs1 = OrderedDict()
         kwargs2 = OrderedDict()
         for key, value in kwargs.items():

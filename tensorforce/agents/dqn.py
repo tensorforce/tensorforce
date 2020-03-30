@@ -91,8 +91,8 @@ class DeepQNetwork(TensorforceAgent):
             (<span style="color:#00C000"><b>default</b></span>: 1.0).
 
         preprocessing (dict[specification]): Preprocessing as layer or list of layers, see
-            [preprocessing](../modules/preprocessing.html), specified per state-type or -name and
-            for reward
+            [preprocessing](../modules/preprocessing.html), specified per state-type or -name, and
+            for reward/return/advantage
             (<span style="color:#00C000"><b>default</b></span>: none).
 
         exploration (parameter | dict[parameter], float >= 0.0): Exploration, global or per action,
@@ -174,9 +174,7 @@ class DeepQNetwork(TensorforceAgent):
             "baseline-objective-loss", "baseline-regularization-loss": loss scalars</li>
             <li>"parameters": parameter scalars</li>
             <li>"relu": ReLU activation zero fraction</li>
-            <li>"rewards" or "timestep-reward", "episode-reward", "raw-reward", "empirical-reward",
-            "estimated-reward": reward scalar
-            </li>
+            <li>"rewards" or "episode-reward", "reward", "return", "advantage": reward scalar</li>
             <li>"update-norm": update norm</li>
             <li>"updates": update mean and variance scalars</li>
             <li>"updates-histogram": update histograms</li>

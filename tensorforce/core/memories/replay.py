@@ -16,6 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import util
+from tensorforce.core import tf_function
 from tensorforce.core.memories import Queue
 
 
@@ -38,7 +39,8 @@ class Replay(Queue):
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
-    def tf_retrieve_timesteps(self, n, past_horizon, future_horizon):
+    @tf_function(num_args=3)
+    def retrieve_timesteps(self, n, past_horizon, future_horizon):
         one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
         capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))
 
@@ -57,7 +59,8 @@ class Replay(Queue):
 
         return indices
 
-    def tf_retrieve_episodes(self, n):
+    @tf_function(num_args=1)
+    def retrieve_episodes(self, n):
         zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
         one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
         capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))

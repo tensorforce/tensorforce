@@ -13,62 +13,58 @@
 # limitations under the License.
 # ==============================================================================
 
+from collections import OrderedDict
+
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core import Module, parameter_modules
-from tensorforce.core.optimizers import MetaOptimizer
+from tensorforce.core import Module, parameter_modules, tf_function
+from tensorforce.core.optimizers import UpdateModifier
 
 
-class SubsamplingStep(MetaOptimizer):
+class SubsamplingStep(UpdateModifier):
     """
-    Subsampling-step meta optimizer, which randomly samples a subset of batch instances before
+    Subsampling-step update modifier, which randomly samples a subset of batch instances before
     applying the given optimizer (specification key: `subsampling_step`).
 
     Args:
-        name (string): Module name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         optimizer (specification): Optimizer configuration
             (<span style="color:#C00000"><b>required</b></span>).
         fraction (parameter, 0.0 <= float <= 1.0): Fraction of batch timesteps to subsample
             (<span style="color:#C00000"><b>required</b></span>).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
+        states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        auxiliaries_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        optimized_module (module): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(self, name, optimizer, fraction, summary_labels=None):
-        super().__init__(name=name, optimizer=optimizer, summary_labels=summary_labels)
+    def __init__(
+        self, optimizer, fraction, summary_labels=None, name=None, states_spec=None,
+        internals_spec=None, auxiliaries_spec=None, actions_spec=None, optimized_module=None
+    ):
+        super().__init__(
+            optimizer=optimizer, summary_labels=summary_labels, name=name, states_spec=states_spec,
+            internals_spec=internals_spec, auxiliaries_spec=auxiliaries_spec,
+            actions_spec=actions_spec, optimized_module=optimized_module
+        )
 
         self.fraction = self.add_module(
             name='fraction', module=fraction, modules=parameter_modules, dtype='float',
             min_value=0.0, max_value=1.0
         )
 
-    def tf_step(self, variables, arguments, **kwargs):
-        # # Get some (batched) argument to determine batch size.
-        # arguments_iter = iter(arguments.values())
-        # some_argument = next(arguments_iter)
-
-        # try:
-        #     while not isinstance(some_argument, tf.Tensor) or util.rank(x=some_argument) == 0:
-        #         if isinstance(some_argument, dict):
-        #             if some_argument:
-        #                 arguments_iter = iter(some_argument.values())
-        #             some_argument = next(arguments_iter)
-        #         elif isinstance(some_argument, list):
-        #             if some_argument:
-        #                 arguments_iter = iter(some_argument)
-        #             some_argument = next(arguments_iter)
-        #         elif some_argument is None or util.rank(x=some_argument) == 0:
-        #             # Non-batched argument
-        #             some_argument = next(arguments_iter)
-        #         else:
-        #             raise TensorforceError("Invalid argument type.")
-        # except StopIteration:
-        #     raise TensorforceError("Invalid argument type.")
+    @tf_function(num_args=1)
+    def step(self, arguments, **kwargs):
+        arguments = OrderedDict(arguments)
+        subsampled_arguments = OrderedDict()
+        states = arguments.pop('states')
+        horizons = arguments.pop('horizons')
 
         some_argument = arguments['reward']
-
         if util.tf_dtype(dtype='long') in (tf.int32, tf.int64):
             batch_size = tf.shape(input=some_argument, out_type=util.tf_dtype(dtype='long'))[0]
         else:
@@ -83,41 +79,28 @@ class SubsamplingStep(MetaOptimizer):
         indices = tf.random.uniform(
             shape=(num_samples,), maxval=batch_size, dtype=util.tf_dtype(dtype='long')
         )
-        function = (lambda x: tf.gather(params=x, indices=indices))
-        subsampled_arguments = util.fmap(function=function, xs=arguments)
 
-        dependency_starts = self.global_tensor(name='dependency_starts')
-        dependency_lengths = self.global_tensor(name='dependency_lengths')
-        subsampled_starts = tf.gather(params=dependency_starts, indices=indices)
-        subsampled_lengths = tf.gather(params=dependency_lengths, indices=indices)
-        trivial_dependencies = tf.reduce_all(
-            input_tensor=tf.math.equal(x=dependency_lengths, y=one), axis=0
-        )
+        is_one_horizons = tf.reduce_all(input_tensor=tf.math.equal(x=horizons[:, 1], y=one), axis=0)
+        horizons = tf.gather(params=horizons, indices=indices)
 
-        def dependency_state_indices():
-            fold = (lambda acc, args: tf.concat(
-                values=(acc, tf.range(start=args[0], limit=(args[0] + args[1]))), axis=0
+        def subsampled_states_indices():
+            fold = (lambda acc, h: tf.concat(
+                values=(acc, tf.range(start=h[0], limit=(h[0] + h[1]))), axis=0
             ))
-            return tf.foldl(
-                fn=fold, elems=(subsampled_starts, subsampled_lengths), initializer=indices[:0],
-                parallel_iterations=10, back_prop=False, swap_memory=False
-            )
+            return tf.foldl(fn=fold, elems=horizons, initializer=indices[:0])
 
         states_indices = self.cond(
-            pred=trivial_dependencies, true_fn=(lambda: indices), false_fn=dependency_state_indices
+            pred=is_one_horizons, true_fn=(lambda: indices), false_fn=subsampled_states_indices
         )
         function = (lambda x: tf.gather(params=x, indices=states_indices))
-        subsampled_arguments['states'] = util.fmap(function=function, xs=arguments['states'])
-
-        subsampled_starts = tf.math.cumsum(x=subsampled_lengths, exclusive=True)
-        Module.update_tensors(
-            dependency_starts=subsampled_starts, dependency_lengths=subsampled_lengths
+        subsampled_arguments['states'] = util.fmap(function=function, xs=states)
+        subsampled_arguments['horizons'] = tf.stack(
+            values=(tf.math.cumsum(x=horizons[:, 1], exclusive=True), horizons[:, 1]), axis=1
         )
 
-        deltas = self.optimizer.step(variables=variables, arguments=subsampled_arguments, **kwargs)
+        function = (lambda x: tf.gather(params=x, indices=indices))
+        subsampled_arguments.update(util.fmap(function=function, xs=arguments))
 
-        Module.update_tensors(
-            dependency_starts=dependency_starts, dependency_lengths=dependency_lengths
-        )
+        deltas = self.optimizer.step(arguments=subsampled_arguments, **kwargs)
 
         return deltas

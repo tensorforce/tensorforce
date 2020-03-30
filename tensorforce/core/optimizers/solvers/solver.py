@@ -22,13 +22,13 @@ class Solver(Module):
     equation/optimization problem.
     """
 
-    def tf_solve(self, fn_x, *args):
+    def solve(self, *args, fn_x=None):
         """
         Solves an equation/optimization for $x$ involving an expression $f(x)$.
 
         Args:
-            fn_x: A callable returning an expression $f(x)$ given $x$.
             *args: Additional solver-specific arguments.
+            fn_x: A callable returning an expression $f(x)$ given $x$.
 
         Returns:
             A solution $x$ to the problem as given by the solver.

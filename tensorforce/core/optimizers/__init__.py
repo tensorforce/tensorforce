@@ -17,12 +17,11 @@ from functools import partial
 
 from tensorforce.core.optimizers.optimizer import Optimizer
 
-from tensorforce.core.optimizers.meta_optimizer import MetaOptimizer
+from tensorforce.core.optimizers.update_modifier import UpdateModifier
 
 from tensorforce.core.optimizers.clipping_step import ClippingStep
 from tensorforce.core.optimizers.evolutionary import Evolutionary
 from tensorforce.core.optimizers.global_optimizer import GlobalOptimizer
-from tensorforce.core.optimizers.meta_optimizer_wrapper import MetaOptimizerWrapper
 from tensorforce.core.optimizers.multi_step import MultiStep
 from tensorforce.core.optimizers.natural_gradient import NaturalGradient
 from tensorforce.core.optimizers.optimizing_step import OptimizingStep
@@ -31,13 +30,15 @@ from tensorforce.core.optimizers.subsampling_step import SubsamplingStep
 from tensorforce.core.optimizers.synchronization import Synchronization
 from tensorforce.core.optimizers.tf_optimizer import TFOptimizer, tensorflow_optimizers
 
+from tensorforce.core.optimizers.update_modifier_wrapper import UpdateModifierWrapper
+
 
 optimizer_modules = dict(
-    clipping_step=ClippingStep, default=MetaOptimizerWrapper, evolutionary=Evolutionary,
-    global_optimizer=GlobalOptimizer, meta_optimizer_wrapper=MetaOptimizerWrapper,
-    multi_step=MultiStep, natural_gradient=NaturalGradient, optimizing_step=OptimizingStep,
-    plus=Plus, subsampling_step=SubsamplingStep, synchronization=Synchronization,
-    tf_optimizer=TFOptimizer
+    clipping_step=ClippingStep, default=UpdateModifierWrapper, evolutionary=Evolutionary,
+    global_optimizer=GlobalOptimizer, multi_step=MultiStep, natural_gradient=NaturalGradient,
+    optimizing_step=OptimizingStep, plus=Plus, subsampling_step=SubsamplingStep,
+    synchronization=Synchronization, tf_optimizer=TFOptimizer,
+    update_modifier_wrapper=UpdateModifierWrapper
 )
 
 
@@ -47,7 +48,7 @@ for name, optimizer in tensorflow_optimizers.items():
 
 
 __all__ = [
-    'ClippingStep', 'Evolutionary', 'GlobalOptimizer', 'MetaOptimizer', 'MetaOptimizerWrapper',
-    'MultiStep', 'NaturalGradient', 'OptimizingStep', 'Optimizer', 'optimizer_modules', 'Plus',
-    'SubsamplingStep', 'Synchronization', 'TFOptimizer'
+    'ClippingStep', 'Evolutionary', 'GlobalOptimizer', 'MultiStep', 'NaturalGradient',
+    'OptimizingStep', 'Optimizer', 'optimizer_modules', 'Plus', 'SubsamplingStep',
+    'Synchronization', 'TFOptimizer', 'UpdateModifier', 'UpdateModifierWrapper'
 ]

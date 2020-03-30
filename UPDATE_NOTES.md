@@ -16,6 +16,7 @@ This file records all major updates and new features, starting from version 0.5.
 
 - Auto network `internal_rnn` --> `rnn`
 - internal_rnn `length` --> `horizon`
+- renamed reward summaries
 
 
 

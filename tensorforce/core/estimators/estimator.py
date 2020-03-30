@@ -89,7 +89,13 @@ class Estimator(Module):
             self.capacity = max(self.horizon.max_value() + 1, min_capacity)
 
     def input_signature(self, function):
-        if function == 'complete':
+        if function == 'advantage':
+            return [
+                util.to_tensor_spec(value_spec=dict(type='long', shape=()), batched=True),
+                util.to_tensor_spec(value_spec=self.values_spec['reward'], batched=True)
+            ]
+
+        elif function == 'complete_return':
             return [
                 util.to_tensor_spec(value_spec=dict(type='long', shape=()), batched=True),
                 util.to_tensor_spec(value_spec=self.values_spec['reward'], batched=True)
@@ -102,12 +108,6 @@ class Estimator(Module):
                 util.to_tensor_spec(value_spec=self.values_spec['auxiliaries'], batched=True),
                 util.to_tensor_spec(value_spec=self.values_spec['actions'], batched=True),
                 util.to_tensor_spec(value_spec=self.values_spec['terminal'], batched=True),
-                util.to_tensor_spec(value_spec=self.values_spec['reward'], batched=True)
-            ]
-
-        elif function == 'estimate':
-            return [
-                util.to_tensor_spec(value_spec=dict(type='long', shape=()), batched=True),
                 util.to_tensor_spec(value_spec=self.values_spec['reward'], batched=True)
             ]
 
@@ -562,7 +562,7 @@ class Estimator(Module):
             return any_overwritten, overwritten_values
 
     @tf_function(num_args=2)
-    def complete(self, indices, reward, baseline, memory):
+    def complete_return(self, indices, reward, baseline, memory):
         if self.estimate_horizon == 'late':
             assert baseline is not None
             zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
@@ -590,10 +590,14 @@ class Estimator(Module):
 
             if self.estimate_actions:
                 # horizon change: see timestep-based batch sampling
-                states, internals, auxiliaries, terminal = memory.successors(
-                    indices=indices, horizon=(horizon + one),
+                final_horizons, (states, internals, auxiliaries, terminal) = memory.successors(
+                    indices=indices, horizon=(horizon + one), sequence_values=None,
                     final_values=('states', 'internals', 'auxiliaries', 'terminal')
                 )
+                internals = OrderedDict((
+                    (name, internals[name])
+                    for name in baseline.__class__.internals_spec(policy=baseline)
+                ))
                 # TODO: Double DQN would require main policy here
                 actions = baseline.act(
                     states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
@@ -605,16 +609,20 @@ class Estimator(Module):
                 )
             else:
                 # horizon change: see timestep-based batch sampling
-                states, internals, auxiliaries, terminal = memory.successors(
-                    indices=indices, horizon=(horizon + one),
+                final_horizons, (states, internals, auxiliaries, terminal) = memory.successors(
+                    indices=indices, horizon=(horizon + one), sequence_values=None,
                     final_values=('states', 'internals', 'auxiliaries', 'terminal')
                 )
+                internals = OrderedDict((
+                    (name, internals[name])
+                    for name in baseline.__class__.internals_spec(policy=baseline)
+                ))
                 horizon_estimate = baseline.states_value(
                     states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
                     reduced=True, return_per_action=False
                 )
 
-            exponent = tf.dtypes.cast(x=horizons, dtype=util.tf_dtype(dtype='float'))
+            exponent = tf.dtypes.cast(x=final_horizons, dtype=util.tf_dtype(dtype='float'))
             discounts = tf.math.pow(x=discount, y=exponent)
             if not self.estimate_terminal:
                 with tf.control_dependencies(control_inputs=(assertion,)):
@@ -629,7 +637,7 @@ class Estimator(Module):
         return reward
 
     @tf_function(num_args=2)
-    def estimate(self, indices, reward, baseline, memory, is_baseline_optimized):
+    def advantage(self, indices, reward, baseline, memory, is_baseline_optimized):
         if self.estimate_advantage:
             assert baseline is not None
             zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
@@ -644,10 +652,14 @@ class Estimator(Module):
 
             # Baseline dependencies
             past_horizon = baseline.past_horizon(on_policy=is_baseline_optimized)
-            horizons, states, internals = self.memory.predecessors(
-                indices=indices, horizon=past_horizon, sequence_values='states',
-                initial_values='internals'
+            horizons, (states,), (internals,) = memory.predecessors(
+                indices=indices, horizon=past_horizon, sequence_values=('states',),
+                initial_values=('internals',)
             )
+            internals = OrderedDict((
+                (name, internals[name])
+                for name in baseline.__class__.internals_spec(policy=baseline)
+            ))
 
             if self.estimate_actions:
                 auxiliaries, actions = memory.retrieve(
@@ -658,7 +670,7 @@ class Estimator(Module):
                     actions=actions, reduced=True, return_per_action=False
                 )
             else:
-                auxiliaries = memory.retrieve(indices=indices, values=('auxiliaries',))
+                (auxiliaries,) = memory.retrieve(indices=indices, values=('auxiliaries',))
                 critic_estimate = baseline.states_value(
                     states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
                     reduced=True, return_per_action=False

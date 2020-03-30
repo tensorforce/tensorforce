@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
+from collections import OrderedDict
+
 import tensorflow as tf
 
 from tensorforce import util
@@ -37,13 +39,21 @@ class PolicyGradient(Objective):
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
+        states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        auxiliaries_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
         self, ratio_based=False, clipping_value=0.0, early_reduce=False, summary_labels=None,
-        name=None
+        name=None, states_spec=None, internals_spec=None, auxiliaries_spec=None, actions_spec=None
     ):
-        super().__init__(summary_labels=summary_labels, name=name)
+        super().__init__(
+            summary_labels=summary_labels, name=name, states_spec=states_spec,
+            internals_spec=internals_spec, auxiliaries_spec=auxiliaries_spec,
+            actions_spec=actions_spec
+        )
 
         self.ratio_based = ratio_based
 
@@ -55,24 +65,43 @@ class PolicyGradient(Objective):
 
         self.early_reduce = early_reduce
 
-    def input_signature(self, function):
-        if function == 'reference':
-            return [
-                util.to_tensor_spec(value_spec=self.parent.states_spec, batched=True),
-                util.to_tensor_spec(value_spec=self.parent.internals_spec, batched=True),
-                util.to_tensor_spec(value_spec=self.parent.auxiliaries_spec, batched=True),
-                util.to_tensor_spec(value_spec=self.parent.actions_spec, batched=True)
-            ]
+    def reference_spec(self):
+        if not self.ratio_based:
+            return super().reference_spec()
+
+        elif self.early_reduce:
+            return dict(type='float', shape=())
 
         else:
-            return super().input_signature(function=function)
+            num_actions = 0
+            for spec in self.parent.actions_spec.values():
+                num_actions += util.product(xs=spec['shape'])
+            return dict(type='float', shape=(num_actions,))
+
+    @tf_function(num_args=6)
+    def reference(self, states, horizons, internals, auxiliaries, actions, reward, policy):
+        if self.ratio_based:
+            internals = OrderedDict(
+                ((name, internals[name]) for name in policy.internals_spec(policy=policy))
+            )
+            return policy.log_probability(
+                states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+                actions=actions, reduced=self.early_reduce, return_per_action=False
+            )
+
+        else:
+            return super().reference(
+                states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+                actions=actions, reward=reward, policy=policy
+            )
 
     @tf_function(num_args=7)
-    def loss_per_instance(
-        self, states, horizons, internals, auxiliaries, actions, reward, reference
+    def comparative_loss(
+        self, states, horizons, internals, auxiliaries, actions, reward, reference, policy
     ):
-        assert self.ratio_based or reference is None
-
+        internals = OrderedDict(
+            ((name, internals[name]) for name in policy.internals_spec(policy=policy))
+        )
         log_probability = policy.log_probability(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
             actions=actions, reduced=self.early_reduce, return_per_action=False
@@ -80,12 +109,9 @@ class PolicyGradient(Objective):
 
         zero = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
         one = tf.constant(value=1.0, dtype=util.tf_dtype(dtype='float'))
-
         clipping_value = self.clipping_value.value()
 
         if self.ratio_based:
-            if reference is None:
-                reference = log_probability
             scaling = tf.exp(x=(log_probability - tf.stop_gradient(input=reference)))
             min_value = one / (one + clipping_value)
             max_value = one + clipping_value
@@ -116,27 +142,3 @@ class PolicyGradient(Objective):
             loss = tf.math.reduce_mean(input_tensor=loss, axis=1)
 
         return loss
-
-    @tf_function(num_args=4)
-    def reference(self, states, horizons, internals, auxiliaries, actions):
-        reference = policy.log_probability(
-            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-            actions=actions, reduced=self.early_reduce, return_per_action=False
-        )
-
-        return reference
-
-    def optimizer_arguments(self, **kwargs):
-        arguments = super().optimizer_arguments()
-
-        if self.ratio_based:
-
-            def fn_reference(states, horizons, internals, auxiliaries, actions, reward):
-                return self.reference(
-                    policy=policy, states=states, horizons=horizons, internals=internals,
-                    auxiliaries=auxiliaries, actions=actions
-                )
-
-            arguments['fn_reference'] = fn_reference
-
-        return arguments

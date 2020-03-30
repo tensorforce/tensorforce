@@ -41,12 +41,12 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
     def test_early_horizon_estimate(self):
         self.start_tests(name='early horizon estimate')
 
+        # TODO: RNN is not supported
         reward_estimation = dict(horizon=2, estimate_horizon='early')
         self.unittest(reward_estimation=reward_estimation)
 
         reward_estimation = dict(horizon=2, estimate_horizon='early', estimate_actions=True)
-        baseline_objective = 'policy_gradient'
-        baseline_optimizer = 'adam'
+        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=1))
         # TODO: action value doesn't exist for Beta
         self.unittest(
             exclude_bounded_action=True, reward_estimation=reward_estimation,

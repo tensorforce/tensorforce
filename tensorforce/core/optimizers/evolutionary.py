@@ -16,7 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core import parameter_modules
+from tensorforce.core import parameter_modules, tf_function
 from tensorforce.core.optimizers import Optimizer
 
 
@@ -27,8 +27,6 @@ class Evolutionary(Optimizer):
     `evolutionary`).
 
     Args:
-        name (string): Module name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         learning_rate (parameter, float >= 0.0): Learning rate
             (<span style="color:#C00000"><b>required</b></span>).
         num_samples (parameter, int >= 0): Number of sampled perturbations
@@ -37,15 +35,27 @@ class Evolutionary(Optimizer):
             (<span style="color:#00C000"><b>default</b></span>: false).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
+        states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        auxiliaries_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        optimized_module (module): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
-        self, name, learning_rate, num_samples=1, unroll_loop=False, summary_labels=None
+        self, learning_rate, num_samples=1, unroll_loop=False, summary_labels=None, name=None,
+        states_spec=None, internals_spec=None, auxiliaries_spec=None, actions_spec=None,
+        optimized_module=None
     ):
-        super().__init__(name=name, summary_labels=summary_labels)
+        super().__init__(
+            summary_labels=summary_labels, name=name, states_spec=states_spec,
+            internals_spec=internals_spec, auxiliaries_spec=auxiliaries_spec,
+            actions_spec=actions_spec, optimized_module=optimized_module
+        )
 
         self.learning_rate = self.add_module(
-            name='learning-rate', module=learning_rate, modules=parameter_modules, dtype='float',
+            name='learning_rate', module=learning_rate, modules=parameter_modules, dtype='float',
             min_value=0.0
         )
 
@@ -56,13 +66,16 @@ class Evolutionary(Optimizer):
             self.num_samples = num_samples
         else:
             self.num_samples = self.add_module(
-                name='num-samples', module=num_samples, modules=parameter_modules, dtype='int',
+                name='num_samples', module=num_samples, modules=parameter_modules, dtype='int',
                 min_value=0
             )
 
-    def tf_step(self, variables, arguments, fn_loss, **kwargs):
+    @tf_function(num_args=1)
+    def step(self, arguments, variables, fn_loss, fn_reference, fn_comparative_loss, **kwargs):
         learning_rate = self.learning_rate.value()
-        unperturbed_loss = fn_loss(**arguments)
+
+        reference = fn_reference(**arguments)
+        unperturbed_loss = fn_comparative_loss(**arguments, reference=reference)
 
         deltas = [tf.zeros_like(input=variable) for variable in variables]
         previous_perturbations = [tf.zeros_like(input=variable) for variable in variables]
@@ -79,11 +92,13 @@ class Evolutionary(Optimizer):
                         pert - prev_pert
                         for pert, prev_pert in zip(perturbations, previous_perturbations)
                     ]
-                    applied = self.apply_step(variables=variables, deltas=perturbation_deltas)
+                    assignments = list()
+                    for variable, delta in zip(variables, perturbation_deltas):
+                        assignments.append(variable.assign_add(delta=delta, read_value=False))
                     previous_perturbations = perturbations
 
-                with tf.control_dependencies(control_inputs=(applied,)):
-                    perturbed_loss = fn_loss(**arguments)
+                with tf.control_dependencies(control_inputs=assignments):
+                    perturbed_loss = fn_comparative_loss(**arguments, reference=reference)
                     direction = tf.sign(x=(unperturbed_loss - perturbed_loss))
                     deltas = [
                         delta + direction * perturbation
@@ -103,10 +118,12 @@ class Evolutionary(Optimizer):
                         pert - prev_pert
                         for pert, prev_pert in zip(perturbations, previous_perturbations)
                     ]
-                    applied = self.apply_step(variables=variables, deltas=perturbation_deltas)
+                    assignments = list()
+                    for variable, delta in zip(variables, perturbation_deltas):
+                        assignments.append(variable.assign_add(delta=delta, read_value=False))
 
-                with tf.control_dependencies(control_inputs=(applied,)):
-                    perturbed_loss = fn_loss(**arguments)
+                with tf.control_dependencies(control_inputs=assignments):
+                    perturbed_loss = fn_comparative_loss(**arguments, reference=reference)
                     direction = tf.sign(x=(unperturbed_loss - perturbed_loss))
                     deltas = [
                         delta + direction * perturbation
@@ -125,8 +142,10 @@ class Evolutionary(Optimizer):
             num_samples = tf.dtypes.cast(x=num_samples, dtype=util.tf_dtype(dtype='float'))
             deltas = [delta / num_samples for delta in deltas]
             perturbation_deltas = [delta - pert for delta, pert in zip(deltas, perturbations)]
-            applied = self.apply_step(variables=variables, deltas=perturbation_deltas)
+            assignments = list()
+            for variable, delta in zip(variables, perturbation_deltas):
+                assignments.append(variable.assign_add(delta=delta, read_value=False))
 
-        with tf.control_dependencies(control_inputs=(applied,)):
+        with tf.control_dependencies(control_inputs=assignments):
             # Trivial operation to enforce control dependency
             return util.fmap(function=util.identity_operation, xs=deltas)

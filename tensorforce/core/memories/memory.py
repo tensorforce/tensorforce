@@ -13,7 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce.core import Module
+from tensorforce import util
+from tensorforce.core import Module, tf_function
 
 
 class Memory(Module):
@@ -45,67 +46,73 @@ class Memory(Module):
 
         self.values_spec = values_spec
 
-    # def __init__(self, name, values_spec, device=None, summary_labels=None, l2_regularization=None):
-    #     super().__init__(
-    #         name=name, capacity=capacity, values_spec=values_spec, initializers=initializers,
-    #         device=device, summary_labels=summary_labels, l2_regularization=l2_regularization
-    #     )
 
-    #     self.values_spec = values_spec
+    def input_signature(self, function):
+        if function == 'action_value':
+            return [
+                util.to_tensor_spec(value_spec=self.parameters_spec, batched=True),
+                util.to_tensor_spec(value_spec=self.action_spec, batched=True)
+            ]
 
-    # def input_signature(self, function):
-    #     if function == 'enqueue':
-    #         return [
-    #             [util.to_tensor_spec(value_spec=x) for x in self.values_spec['states'].values()],
-    #             [util.to_tensor_spec(value_spec=x) for x in self.values_spec['internals'].values()],
-    #             [util.to_tensor_spec(value_spec=x) for x in self.values_spec['auxiliaries'].values()],
-    #             [util.to_tensor_spec(value_spec=x) for x in self.values_spec['actions'].values()],
-    #             util.to_tensor_spec(value_spec=self.values_spec['terminal']),
-    #             util.to_tensor_spec(value_spec=self.values_spec['reward'])
-    #         ]
+    def input_signature(self, function):
+        if function == 'enqueue':
+            return [
+                util.to_tensor_spec(value_spec=self.values_spec['states'], batched=True),
+                util.to_tensor_spec(value_spec=self.values_spec['internals'], batched=True),
+                util.to_tensor_spec(value_spec=self.values_spec['auxiliaries'], batched=True),
+                util.to_tensor_spec(value_spec=self.values_spec['actions'], batched=True),
+                util.to_tensor_spec(value_spec=self.values_spec['terminal'], batched=True),
+                util.to_tensor_spec(value_spec=self.values_spec['reward'], batched=True)
+            ]
 
-    #     elif function == 'retrieve':
-    #         return [util.to_tensor_spec(value_spec=dict(shape=(), dtype='long'))]
+        elif function == 'predecessors':
+            return [
+                util.to_tensor_spec(value_spec=dict(type='long', shape=()), batched=True),
+                util.to_tensor_spec(value_spec=dict(type='long', shape=()), batched=False)
+            ]
 
-    #     elif function == 'successors':
-    #         return [
-    #             util.to_tensor_spec(value_spec=dict(shape=(), dtype='long'))
-    #             util.to_tensor_spec(value_spec=dict(shape=(), dtype='long'), batched=False),
-    #         ]
+        elif function == 'retrieve':
+            return [util.to_tensor_spec(value_spec=dict(type='long', shape=()), batched=True)]
 
-    #     elif function == 'predecessors':
-    #         return [
-    #             util.to_tensor_spec(value_spec=dict(shape=(), dtype='long')),
-    #             util.to_tensor_spec(value_spec=dict(shape=(), dtype='long'), batched=False)
-    #         ]
+        elif function == 'retrieve_episodes':
+            return [util.to_tensor_spec(value_spec=dict(type='long', shape=()), batched=False)]
 
-    #     elif function == 'retrieve_timestemps':
-    #         return [
-    #             util.to_tensor_spec(value_spec=dict(shape=(), dtype='long'), batched=False),
-    #             util.to_tensor_spec(value_spec=dict(shape=(), dtype='long'), batched=False),
-    #             util.to_tensor_spec(value_spec=dict(shape=(), dtype='long'), batched=False)
-    #         ]
+        elif function == 'retrieve_timesteps':
+            return [
+                util.to_tensor_spec(value_spec=dict(type='long', shape=()), batched=False),
+                util.to_tensor_spec(value_spec=dict(type='long', shape=()), batched=False),
+                util.to_tensor_spec(value_spec=dict(type='long', shape=()), batched=False)
+            ]
 
-    #     elif function == 'retrieve_episodes':
-    #         return [util.to_tensor_spec(value_spec=dict(shape=(), dtype='long'), batched=False)]
+        elif function == 'successors':
+            return [
+                util.to_tensor_spec(value_spec=dict(type='long', shape=()), batched=True),
+                util.to_tensor_spec(value_spec=dict(type='long', shape=()), batched=False)
+            ]
 
-    #     else:
-    #         assert False
+        else:
+            assert False
 
-    def tf_enqueue(self, states, internals, auxiliaries, actions, terminal, reward):
+    @tf_function(num_args=6)
+    def enqueue(self, states, internals, auxiliaries, actions, terminal, reward):
         raise NotImplementedError
 
-    def tf_retrieve(self, indices, values=None):
+    @tf_function(num_args=1)
+    def retrieve(self, indices, values):
         raise NotImplementedError
 
-    def tf_successors(self, indices, horizon, sequence_values=(), final_values=()):
+    @tf_function(num_args=2)
+    def successors(self, indices, horizon, sequence_values, final_values):
         raise NotImplementedError
 
-    def tf_predecessors(self, indices, horizon, sequence_values=(), initial_values=()):
+    @tf_function(num_args=2)
+    def predecessors(self, indices, horizon, sequence_values, initial_values):
         raise NotImplementedError
 
-    def tf_retrieve_timesteps(self, n, past_padding, future_padding):
+    @tf_function(num_args=3)
+    def retrieve_timesteps(self, n, past_padding, future_padding):
         raise NotImplementedError
 
-    def tf_retrieve_episodes(self, n):
+    @tf_function(num_args=1)
+    def retrieve_episodes(self, n):
         raise NotImplementedError

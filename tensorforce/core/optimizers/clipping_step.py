@@ -16,18 +16,16 @@
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core import parameter_modules
-from tensorforce.core.optimizers import MetaOptimizer
+from tensorforce.core import parameter_modules, tf_function
+from tensorforce.core.optimizers import UpdateModifier
 
 
-class ClippingStep(MetaOptimizer):
+class ClippingStep(UpdateModifier):
     """
-    Clipping-step meta optimizer, which clips the updates of the given optimizer (specification
+    Clipping-step update modifier, which clips the updates of the given optimizer (specification
     key: `clipping_step`).
 
     Args:
-        name (string): Module name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         optimizer (specification): Optimizer configuration
             (<span style="color:#C00000"><b>required</b></span>).
         threshold (parameter, float >= 0.0): Clipping threshold
@@ -36,10 +34,24 @@ class ClippingStep(MetaOptimizer):
             (<span style="color:#00C000"><b>default</b></span>: 'global_norm').
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
+        states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        auxiliaries_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        optimized_module (module): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(self, name, optimizer, threshold, mode='global_norm', summary_labels=None):
-        super().__init__(name=name, optimizer=optimizer, summary_labels=summary_labels)
+    def __init__(
+        self, optimizer, threshold, mode='global_norm', summary_labels=None, name=None,
+        states_spec=None, internals_spec=None, auxiliaries_spec=None, actions_spec=None,
+        optimized_module=None
+    ):
+        super().__init__(
+            optimizer=optimizer, summary_labels=summary_labels, name=name, states_spec=states_spec,
+            internals_spec=internals_spec, auxiliaries_spec=auxiliaries_spec,
+            actions_spec=actions_spec, optimized_module=optimized_module
+        )
 
         self.threshold = self.add_module(
             name='threshold', module=threshold, modules=parameter_modules, dtype='float',
@@ -49,8 +61,9 @@ class ClippingStep(MetaOptimizer):
         assert mode in ('global_norm', 'norm', 'value')
         self.mode = mode
 
-    def tf_step(self, variables, **kwargs):
-        deltas = self.optimizer.step(variables=variables, **kwargs)
+    @tf_function(num_args=1)
+    def step(self, arguments, variables, **kwargs):
+        deltas = self.optimizer.step(arguments=arguments, variables=variables, **kwargs)
 
         with tf.control_dependencies(control_inputs=deltas):
             threshold = self.threshold.value()
@@ -70,16 +83,15 @@ class ClippingStep(MetaOptimizer):
                         )
                     clipped_deltas.append(clipped_delta)
 
+            for variable, delta, clipped_delta in zip(variables, deltas, clipped_deltas):
+                assignments.append(
+                    variable.assign_add(delta=(clipped_delta - delta), read_value=False)
+                )
+
             clipped_deltas = self.add_summary(
                 label='update-norm', name='update-norm-unclipped', tensor=update_norm,
                 pass_tensors=clipped_deltas
             )
 
-            exceeding_deltas = list()
-            for delta, clipped_delta in zip(deltas, clipped_deltas):
-                exceeding_deltas.append(clipped_delta - delta)
-
-        applied = self.apply_step(variables=variables, deltas=exceeding_deltas)
-
-        with tf.control_dependencies(control_inputs=(applied,)):
+        with tf.control_dependencies(control_inputs=assignments):
             return util.fmap(function=util.identity_operation, xs=clipped_deltas)

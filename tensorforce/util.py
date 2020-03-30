@@ -169,6 +169,43 @@ def flatten(xs):
         return [xs]
 
 
+def to_list(xs):
+    if isinstance(xs, dict):
+        return [to_list(xs=x) for x in xs.values()]
+
+    elif is_iterable(x=xs):
+        return [to_list(xs=x) for x in xs]
+
+    else:
+        return xs
+
+
+def from_list(xs, ys):
+    if isinstance(ys, tuple):
+        assert isinstance(xs, (list, tuple))
+        return tuple(from_list(xs=x, ys=y) for x, y in zip(xs, ys))
+
+    elif isinstance(ys, list):
+        assert isinstance(xs, (list, tuple))
+        return [from_list(xs=x, ys=y) for x, y in zip(xs, ys)]
+
+    elif isinstance(ys, set):
+        assert isinstance(xs, (list, tuple))
+        return {from_list(xs=x, ys=y) for x, y in zip(xs, ys)}
+
+    elif isinstance(ys, OrderedDict):
+        assert isinstance(xs, (list, tuple))
+        return OrderedDict(((key, from_list(xs=x, ys=y)) for x, (key, y) in zip(xs, ys.items())))
+
+    elif isinstance(ys, dict):
+        assert isinstance(xs, (list, tuple))
+        return {key: from_list(xs=x, ys=y) for x, (key, y) in zip(xs, ys.items())}
+
+    else:
+        assert not isinstance(xs, (list, tuple))
+        return xs
+
+
 def zip_items(*args):
     # assert len(args) > 0 and all(arg is None or isinstance(arg, dict) for arg in args)
     # assert args[0] is not None
@@ -351,7 +388,7 @@ def get_tensor_dependencies(tensor):
 
 
 reserved_names = {
-    'states', 'actions', 'state', 'action', 'terminal', 'reward', 'deterministic', 'optimization',
+    'states', 'actions', 'terminal', 'reward', 'deterministic', 'optimization',
     # Types
     'bool', 'int', 'long', 'float',
     # Value specification attributes
@@ -398,6 +435,8 @@ def is_atomic_values_spec(values_spec):
 def to_tensor_spec(value_spec, batched):
     if isinstance(value_spec, OrderedDict):
         return [to_tensor_spec(value_spec=spec, batched=batched) for spec in value_spec.values()]
+    elif is_iterable(x=value_spec):
+        return [to_tensor_spec(value_spec=spec, batched=batched) for spec in value_spec]
     else:
         dtype = value_spec['type']
         shape = value_spec['shape']

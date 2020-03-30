@@ -18,7 +18,7 @@ from functools import partial
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core import parameter_modules
+from tensorforce.core import parameter_modules, tf_function
 from tensorforce.core.optimizers import Optimizer
 
 
@@ -54,8 +54,6 @@ class TFOptimizer(Optimizer):
     `adamax`, `adamw`, `ftrl`, `lazyadam`, `nadam`, `radam`, `ranger`, `rmsprop`, `sgd`, `sgdw`)
 
     Args:
-        name (string): Module name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         optimizer (`adadelta` | `adagrad` | `adam` | `adamax` | `adamw` | `ftrl` | `lazyadam` | `nadam` | `radam` | `ranger` | `rmsprop` | `sgd` | `sgdw`):
             TensorFlow optimizer name, see
             `TensorFlow docs <https://www.tensorflow.org/api_docs/python/tf/keras/optimizers>`__
@@ -68,6 +66,12 @@ class TFOptimizer(Optimizer):
             of their norms (<span style="color:#00C000"><b>default</b></span>: 1.0).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
+        states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        auxiliaries_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        optimized_module (module): <span style="color:#0000C0"><b>internal use</b></span>.
         kwargs: Arguments for the TensorFlow optimizer, special values "decoupled_weight_decay",
             "lookahead" and "moving_average", see
             `TensorFlow docs <https://www.tensorflow.org/api_docs/python/tf/keras/optimizers>`__
@@ -76,10 +80,15 @@ class TFOptimizer(Optimizer):
     """
 
     def __init__(
-        self, name, optimizer, learning_rate=3e-4, gradient_norm_clipping=1.0, summary_labels=None,
-        **kwargs
+        self, optimizer, learning_rate=3e-4, gradient_norm_clipping=1.0, summary_labels=None,
+        name=None, states_spec=None, internals_spec=None, auxiliaries_spec=None, actions_spec=None,
+        optimized_module=None, **kwargs
     ):
-        super().__init__(name=name, summary_labels=summary_labels)
+        super().__init__(
+            summary_labels=summary_labels, name=name, states_spec=states_spec,
+            internals_spec=internals_spec, auxiliaries_spec=auxiliaries_spec,
+            actions_spec=actions_spec, optimized_module=optimized_module
+        )
 
         assert optimizer in tensorflow_optimizers
         self.optimizer = tensorflow_optimizers[optimizer]
@@ -125,8 +134,10 @@ class TFOptimizer(Optimizer):
             learning_rate=self.learning_rate.value, name=self.name, **self.optimizer_kwargs
         )
 
-    def tf_step(self, variables, arguments, fn_loss, fn_initial_gradients=None, **kwargs):
+    @tf_function(num_args=1)
+    def step(self, arguments, variables, fn_loss, fn_initial_gradients=None, **kwargs):
         arguments = util.fmap(function=tf.stop_gradient, xs=arguments)
+
         loss = fn_loss(**arguments)
 
         # Force loss value and attached control flow to be computed.
@@ -136,9 +147,6 @@ class TFOptimizer(Optimizer):
 
         # Get variables before update.
         with tf.control_dependencies(control_inputs=previous_variables):
-            # applied = self.optimizer.minimize(loss=loss, var_list=variables)
-            # grads_and_vars = self.optimizer.compute_gradients(loss=loss, var_list=variables)
-            # gradients, variables = zip(*grads_and_vars)
             if fn_initial_gradients is None:
                 initial_gradients = None
             else:
@@ -146,9 +154,18 @@ class TFOptimizer(Optimizer):
                 initial_gradients = tf.stop_gradient(input=initial_gradients)
 
             gradients = tf.gradients(ys=loss, xs=variables, grad_ys=initial_gradients)
+
+            actual_variables = list()
+            actual_gradients = list()
+            for variable, gradient in zip(variables, gradients):
+                if gradient is not None:
+                    actual_variables.append(variable)
+                    actual_gradients.append(gradient)
+            assert len(actual_variables) > 0
+
             assertions = [
                 tf.debugging.assert_all_finite(x=gradient, message="Finite gradients check.")
-                for gradient in gradients
+                for gradient in actual_gradients if gradient is not None
             ]
 
         with tf.control_dependencies(control_inputs=assertions):
@@ -156,12 +173,14 @@ class TFOptimizer(Optimizer):
             gradients, gradient_norm = tf.clip_by_global_norm(
                 t_list=gradients, clip_norm=gradient_norm_clipping
             )
-            gradients = self.add_summary(
+            actual_gradients = self.add_summary(
                 label='update-norm', name='gradient-norm-unclipped', tensor=gradient_norm,
-                pass_tensors=gradients
+                pass_tensors=actual_gradients
             )
 
-            applied = self.optimizer.apply_gradients(grads_and_vars=zip(gradients, variables))
+            applied = self.optimizer.apply_gradients(
+                grads_and_vars=zip(actual_gradients, actual_variables)
+            )
 
         # Return deltas after actually having change the variables.
         with tf.control_dependencies(control_inputs=(applied,)):
@@ -169,30 +188,3 @@ class TFOptimizer(Optimizer):
                 variable - previous_variable
                 for variable, previous_variable in zip(variables, previous_variables)
             ]
-
-    def get_variables(self, only_trainable=False, only_saved=False):
-        optimizer = self.optimizer
-        while True:
-            for variable in optimizer.weights:
-                name = '/' + self.name + '/'
-                if name in variable.name:
-                    name = variable.name[variable.name.rindex(name) + len(name): -2]
-                else:
-                    name = variable.name[variable.name.rindex('/') + 1: -2]
-                self.variables[name] = variable
-            for name, value in optimizer._hyper.items():
-                if isinstance(value, tf.Variable):
-                    self.variables[name] = value
-            if hasattr(optimizer, '_ema'):
-                for variable in optimizer._ema._averages.values():
-                    assert variable.name.startswith('agent/') and \
-                        variable.name.endswith('/ExponentialMovingAverage:0')
-                    self.variables[variable.name[:-2]] = variable
-            if hasattr(optimizer, '_optimizer'):
-                optimizer = optimizer._optimizer
-            else:
-                break
-
-        variables = super().get_variables(only_trainable=only_trainable, only_saved=only_saved)
-
-        return variables

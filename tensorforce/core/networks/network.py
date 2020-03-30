@@ -324,10 +324,10 @@ class LayeredNetwork(LayerbasedNetwork):
 
     @tf_function(num_args=3)
     def apply(self, x, horizons, internals, return_internals):
+        registered_tensors = dict(x)
         if isinstance(x, dict) and len(x) == 1:
             x = next(iter(x.values()))
 
-        registered_tensors = dict(x)
         next_internals = OrderedDict()
         for layer in self.layers:
             if isinstance(layer, Register):

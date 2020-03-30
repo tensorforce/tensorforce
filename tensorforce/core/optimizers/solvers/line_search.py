@@ -16,7 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core import parameter_modules
+from tensorforce.core import parameter_modules, tf_function
 from tensorforce.core.optimizers.solvers import Iterative
 
 
@@ -28,7 +28,8 @@ class LineSearch(Iterative):
     """
 
     def __init__(
-        self, name, max_iterations, accept_ratio, mode, parameter, unroll_loop=False
+        self, name, max_iterations, accept_ratio, mode, parameter, unroll_loop=False,
+        values_spec=None
     ):
         """
         Creates a new line search solver instance.
@@ -47,7 +48,7 @@ class LineSearch(Iterative):
 
         assert accept_ratio >= 0.0
         self.accept_ratio = self.add_module(
-            name='accept-ratio', module=accept_ratio, modules=parameter_modules, dtype='float',
+            name='accept_ratio', module=accept_ratio, modules=parameter_modules, dtype='float',
             min_value=0.0, max_value=1.0
         )
 
@@ -63,23 +64,51 @@ class LineSearch(Iterative):
             min_value=0.0, max_value=1.0
         )
 
-    def tf_solve(self, fn_x, x_init, base_value, target_value, estimated_improvement=None):
+        self.values_spec = values_spec
+
+    def input_signature(self, function):
+        if function == 'end' or function == 'next_step' or function == 'step':
+            return [
+                util.to_tensor_spec(value_spec=self.values_spec, batched=True),
+                util.to_tensor_spec(value_spec=self.values_spec, batched=True),
+                util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=True),
+                util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=True),
+                util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=True)
+            ]
+
+        elif function == 'solve' or function == 'start':
+            return [
+                util.to_tensor_spec(value_spec=self.values_spec, batched=True),
+                util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=True),
+                util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=True),
+                util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=True)
+            ]
+
+        else:
+            return super().input_signature(function=function)
+
+    @tf_function(num_args=4)
+    def solve(self, x_init, base_value, target_value, estimated_improvement, fn_x):
         """
         Iteratively optimizes $f(x)$ for $x$ on the line between $x'$ and $x_0$.
 
         Args:
-            fn_x: A callable returning the value $f(x)$ at $x$.
             x_init: Initial solution guess $x_0$.
             base_value: Value $f(x')$ at $x = x'$.
             target_value: Value $f(x_0)$ at $x = x_0$.
             estimated_improvement: Estimated improvement for $x = x_0$, $f(x')$ if None.
+            fn_x: A callable returning the value $f(x)$ at $x$.
 
         Returns:
             A solution $x$ to the problem as given by the solver.
         """
-        return super().tf_solve(fn_x, x_init, base_value, target_value, estimated_improvement)
+        return super().solve(
+            x_init=x_init, base_value=base_value, target_value=target_value,
+            estimated_improvement=estimated_improvement, fn_x=fn_x
+        )
 
-    def tf_start(self, x_init, base_value, target_value, estimated_improvement):
+    @tf_function(num_args=4)
+    def start(self, x_init, base_value, target_value, estimated_improvement):
         """
         Initialization step preparing the arguments for the first iteration of the loop body.
 
@@ -90,12 +119,9 @@ class LineSearch(Iterative):
             estimated_improvement: Estimated value at $x = x_0$, $f(x')$ if None.
 
         Returns:
-            Initial arguments for tf_step.
+            Initial arguments for step.
         """
         self.base_value = base_value
-
-        if estimated_improvement is None:  # TODO: Is this a good alternative?
-            estimated_improvement = tf.abs(x=base_value)
 
         difference = target_value - self.base_value
         epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
@@ -113,7 +139,8 @@ class LineSearch(Iterative):
 
         return x_init, deltas, improvement, last_improvement, estimated_improvement
 
-    def tf_step(self, x, deltas, improvement, last_improvement, estimated_improvement):
+    @tf_function(num_args=5)
+    def step(self, x, deltas, improvement, last_improvement, estimated_improvement):
         """
         Iteration loop body of the line search algorithm.
 
@@ -146,7 +173,8 @@ class LineSearch(Iterative):
 
         return next_x, next_deltas, next_improvement, improvement, next_estimated_improvement
 
-    def tf_next_step(self, x, deltas, improvement, last_improvement, estimated_improvement):
+    @tf_function(num_args=5)
+    def next_step(self, x, deltas, improvement, last_improvement, estimated_improvement):
         """
         Termination condition: max number of iterations, or no improvement for last step, or  
         improvement less than acceptable ratio, or estimated value not positive.
@@ -167,7 +195,8 @@ class LineSearch(Iterative):
         epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
         return tf.math.logical_and(x=next_step, y=(estimated_improvement > epsilon))
 
-    def tf_end(self, x_final, deltas, improvement, last_improvement, estimated_improvement):
+    @tf_function(num_args=5)
+    def end(self, x_final, deltas, improvement, last_improvement, estimated_improvement):
         """
         Termination step preparing the return value.
 

@@ -119,7 +119,7 @@ class AutoNetwork(LayeredNetwork):
                 final_layers.append(dict(type='dense', name=('dense' + str(n)), size=final_size))
 
         # Rnn
-        if isinstance(rnn, int):
+        if rnn is not False:
             final_layers.append(
                 dict(type='internal_lstm', name='lstm', size=final_size, horizon=rnn)
             )
@@ -136,7 +136,7 @@ class AutoNetwork(LayeredNetwork):
         else:
             internals_spec = OrderedDict()
 
-        if network is None and isinstance(kwargs.get('rnn'), int):
+        if network is None and kwargs.get('rnn', False) is not False:
             if kwargs.get('final_size') is None:
                 final_size = kwargs['size']
             else:

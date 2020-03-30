@@ -19,6 +19,7 @@ import numpy as np
 import tensorflow as tf
 
 from tensorforce import util
+from tensorforce.core import tf_function
 from tensorforce.core.models import Model
 
 
@@ -47,7 +48,8 @@ class ConstantModel(Model):
         # check values
         self.action_values = action_values
 
-    def tf_core_act(self, states, internals, auxiliaries):
+    @tf_function(num_args=3)
+    def core_act(self, states, internals, auxiliaries):
         assert len(internals) == 0
 
         actions = OrderedDict()
@@ -110,5 +112,6 @@ class ConstantModel(Model):
 
         return actions, OrderedDict()
 
-    def tf_core_observe(self, states, internals, auxiliaries, actions, terminal, reward):
+    @tf_function(num_args=6)
+    def core_observe(self, states, internals, auxiliaries, actions, terminal, reward):
         return util.no_operation()

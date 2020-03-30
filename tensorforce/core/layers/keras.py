@@ -62,10 +62,10 @@ class Keras(Layer):
 
     @tf_function(num_args=0)
     def regularize(self):
-        regularization_loss = super().tf_regularize()
-
         if len(self.keras_layer.losses) > 0:
-            regularization_loss += tf.math.add_n(inputs=self.keras_layer.losses)
+            regularization_loss = tf.math.add_n(inputs=self.keras_layer.losses)
+        else:
+            regularization_loss = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
 
         return regularization_loss
 

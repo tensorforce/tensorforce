@@ -16,7 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core import Module
+from tensorforce.core import Module, tf_function
 
 
 class Optimizer(Module):
@@ -24,34 +24,64 @@ class Optimizer(Module):
     Base class for optimizers.
 
     Args:
-        name (string): Module name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
+        states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        auxiliaries_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        optimized_module (module): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(self, name, summary_labels=None):
+    _TF_MODULE_IGNORED_PROPERTIES = Module._TF_MODULE_IGNORED_PROPERTIES | {'optimized_module'}
+
+    def __init__(
+        self, summary_labels=None, name=None, states_spec=None, internals_spec=None,
+        auxiliaries_spec=None, actions_spec=None, optimized_module=None
+    ):
         super().__init__(name=name, summary_labels=summary_labels)
 
-    def tf_step(self, variables, **kwargs):
+        self.states_spec = states_spec
+        self.internals_spec = internals_spec
+        self.auxiliaries_spec = auxiliaries_spec
+        self.actions_spec = actions_spec
+        self.optimized_module = optimized_module
+
+    def additional_arguments(self):
+        return ()
+
+    def input_signature(self, function):
+        if function == 'step' or function == 'update':
+            return [
+                # [
+                #     util.to_tensor_spec(
+                #         value_spec=dict(type=util.dtype(x=x), shape=util.shape(x=x)), batched=False
+                #     ) for x in self.optimized_module.trainable_variables
+                # ],
+                [
+                    util.to_tensor_spec(value_spec=self.states_spec, batched=True),
+                    util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
+                    util.to_tensor_spec(value_spec=self.internals_spec, batched=True),
+                    util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True),
+                    util.to_tensor_spec(value_spec=self.actions_spec, batched=True),
+                    util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=True)
+                ]
+            ]
+
+        else:
+            return super().input_signature(function=function)
+
+    @tf_function(num_args=1)
+    def step(self, arguments, variables, **kwargs):
         raise NotImplementedError
 
-    def tf_apply_step(self, variables, deltas):
-        if len(variables) != len(deltas):
-            raise TensorforceError("Invalid variables and deltas lists.")
-
-        assignments = list()
-        for variable, delta in zip(variables, deltas):
-            assignments.append(variable.assign_add(delta=delta, read_value=False))
-
-        with tf.control_dependencies(control_inputs=assignments):
-            return util.no_operation()
-
-    def tf_minimize(self, variables, **kwargs):
+    @tf_function(num_args=1)
+    def update(self, arguments, variables, **kwargs):
         if any(variable.dtype != util.tf_dtype(dtype='float') for variable in variables):
             raise TensorforceError.unexpected()
 
-        deltas = self.step(variables=variables, **kwargs)
+        deltas = self.step(arguments=arguments, variables=variables, **kwargs)
 
         update_norm = tf.linalg.global_norm(t_list=deltas)
         deltas = self.add_summary(
@@ -69,31 +99,5 @@ class Optimizer(Module):
                 label='updates-histogram', name=('update-' + name[:-2]), tensor=deltas[n]
             )
 
-        # TODO: experimental
-        # with tf.control_dependencies(control_inputs=deltas):
-        #     zero = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
-        #     false = tf.constant(value=False, dtype=util.tf_dtype(dtype='bool'))
-        #     deltas = [self.cond(
-        #         pred=tf.math.reduce_all(input_tensor=tf.math.equal(x=delta, y=zero)),
-        #         true_fn=(lambda: tf.Print(delta, (variable.name,))),
-        #         false_fn=(lambda: delta)) for delta, variable in zip(deltas, variables)
-        #     ]
-        #     assertions = [
-        #         tf.debugging.assert_equal(
-        #             x=tf.math.reduce_all(input_tensor=tf.math.equal(x=delta, y=zero)), y=false,
-        #             message="Zero delta check."
-        #         ) for delta, variable in zip(deltas, variables)
-        #         if util.product(xs=util.shape(x=delta)) > 4 and 'distribution' not in variable.name
-        #     ]
-
-        # with tf.control_dependencies(control_inputs=assertions):
         with tf.control_dependencies(control_inputs=deltas):
             return util.no_operation()
-
-    def add_variable(self, name, dtype, shape, is_trainable=False, initializer='zeros'):
-        if is_trainable:
-            raise TensorforceError("Invalid trainable variable.")
-
-        return super().add_variable(
-            name=name, dtype=dtype, shape=shape, is_trainable=is_trainable, initializer=initializer
-        )

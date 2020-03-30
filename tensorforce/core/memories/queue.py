@@ -19,6 +19,7 @@ import numpy as np
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
+from tensorforce.core import tf_function
 from tensorforce.core.memories import Memory
 
 
@@ -115,7 +116,8 @@ class Queue(Memory):
             name='episode-count', dtype='long', shape=(), is_trainable=False, initializer='zeros'
         )
 
-    def tf_enqueue(self, states, internals, auxiliaries, actions, terminal, reward):
+    @tf_function(num_args=6)
+    def enqueue(self, states, internals, auxiliaries, actions, terminal, reward):
         zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
         one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
         three = tf.constant(value=3, dtype=util.tf_dtype(dtype='long'))
@@ -266,16 +268,9 @@ class Queue(Memory):
         with tf.control_dependencies(control_inputs=(assignment,)):
             return util.no_operation()
 
-    def tf_retrieve(self, indices, values):
-        # if values is None:
-        #     is_single_value = False
-        #     values = ('states', 'internals', 'actions', 'terminal', 'reward')
-        if isinstance(values, str):
-            is_single_value = True
-            values = [values]
-        else:
-            is_single_value = False
-            values = list(values)
+    @tf_function(num_args=1)
+    def retrieve(self, indices, values):
+        values = list(values)
 
         # Retrieve values
         for n, name in enumerate(values):
@@ -292,28 +287,20 @@ class Queue(Memory):
         # # Stop gradients
         # values = util.fmap(function=tf.stop_gradient, xs=values)
 
-        # Return values or single value
-        if is_single_value:
-            return values[0]
-        else:
-            return values
+        # Return values
+        return values
 
-    def tf_predecessors(self, indices, horizon, sequence_values=(), initial_values=()):
+    @tf_function(num_args=2)
+    def predecessors(self, indices, horizon, sequence_values, initial_values):
+        if sequence_values is None:
+            sequence_values = ()
+        if initial_values is None:
+            initial_Values = ()
         if sequence_values == () and initial_values == ():
             raise TensorforceError.unexpected()
 
-        if isinstance(sequence_values, str):
-            is_single_sequence_value = True
-            sequence_values = [sequence_values]
-        else:
-            is_single_sequence_value = False
-            sequence_values = list(sequence_values)
-        if isinstance(initial_values, str):
-            is_single_initial_value = True
-            initial_values = [initial_values]
-        else:
-            is_single_initial_value = False
-            initial_values = list(initial_values)
+        sequence_values = list(sequence_values)
+        initial_values = list(initial_values)
 
         zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
         one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
@@ -322,7 +309,7 @@ class Queue(Memory):
         def body(lengths, predecessor_indices, mask):
             previous_index = tf.math.mod(x=(predecessor_indices[:, :1] - one), y=capacity)
             predecessor_indices = tf.concat(values=(previous_index, predecessor_indices), axis=1)
-            previous_terminal = self.retrieve(indices=previous_index, values='terminal')
+            previous_terminal = tf.gather(params=self.buffers['terminal'], indices=previous_index)
             is_not_terminal = tf.math.logical_and(
                 x=tf.math.logical_not(x=tf.math.greater(x=previous_terminal, y=zero)),
                 y=mask[:, :1]
@@ -464,38 +451,25 @@ class Queue(Memory):
         # initial_values = util.fmap(function=tf.stop_gradient, xs=initial_values)
 
         if len(sequence_values) == 0:
-            if is_single_initial_value:
-                initial_values = initial_values[0]
-            return initial_values
+            return lengths, initial_values
 
         elif len(initial_values) == 0:
-            if is_single_sequence_value:
-                sequence_values = sequence_values[0]
             return tf.stack(values=(starts, lengths), axis=1), sequence_values
 
         else:
-            if is_single_sequence_value:
-                sequence_values = sequence_values[0]
-            if is_single_initial_value:
-                initial_values = initial_values[0]
             return tf.stack(values=(starts, lengths), axis=1), sequence_values, initial_values
 
-    def tf_successors(self, indices, horizon, sequence_values=(), final_values=()):
+    @tf_function(num_args=2)
+    def successors(self, indices, horizon, sequence_values, final_values):
+        if sequence_values is None:
+            sequence_values = ()
+        if final_values is None:
+            initial_Values = ()
         if sequence_values == () and final_values == ():
             raise TensorforceError.unexpected()
 
-        if isinstance(sequence_values, str):
-            is_single_sequence_value = True
-            sequence_values = [sequence_values]
-        else:
-            is_single_sequence_value = False
-            sequence_values = list(sequence_values)
-        if isinstance(final_values, str):
-            is_single_final_value = True
-            final_values = [final_values]
-        else:
-            is_single_final_value = False
-            final_values = list(final_values)
+        sequence_values = list(sequence_values)
+        final_values = list(final_values)
 
         zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
         one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
@@ -503,7 +477,7 @@ class Queue(Memory):
 
         def body(lengths, successor_indices, mask):
             current_index = successor_indices[:, -1:]
-            current_terminal = self.retrieve(indices=current_index, values='terminal')
+            current_terminal = tf.gather(params=self.buffers['terminal'], indices=current_index)
             is_not_terminal = tf.math.logical_and(
                 x=tf.math.logical_not(x=tf.math.greater(x=current_terminal, y=zero)),
                 y=mask[:, -1:]
@@ -647,18 +621,10 @@ class Queue(Memory):
         # final_values = util.fmap(function=tf.stop_gradient, xs=final_values)
 
         if len(sequence_values) == 0:
-            if is_single_final_value:
-                final_values = final_values[0]
-            return final_values
+            return lengths, final_values
 
         elif len(final_values) == 0:
-            if is_single_sequence_value:
-                sequence_values = sequence_values[0]
             return tf.stack(values=(starts, lengths), axis=1), sequence_values
 
         else:
-            if is_single_sequence_value:
-                sequence_values = sequence_values[0]
-            if is_single_final_value:
-                final_values = final_values[0]
             return tf.stack(values=(starts, lengths), axis=1), sequence_values, final_values

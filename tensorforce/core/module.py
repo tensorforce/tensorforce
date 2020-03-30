@@ -56,8 +56,15 @@ def tf_function(num_args):
         assert function not in check
         check.add(function)
 
-        def decorated(self, **kwargs):
-            assert len(kwargs) >= num_args
+        def decorated(self, *args, **kwargs):
+            if len(kwargs) > 0:
+                assert len(args) == 0 and len(kwargs) >= num_args
+                all_args = list(kwargs.values())
+                is_args = False
+            else:
+                assert len(kwargs) == 0 and len(args) == num_args
+                all_args = list(args)
+                is_args = True
             name = function.__name__
             assert function.__qualname__.endswith('.' + name)
 
@@ -65,28 +72,19 @@ def tf_function(num_args):
                 setattr(self, name + '_graphs', OrderedDict())
 
             function_graphs = getattr(self, name + '_graphs')
-            all_args = list(kwargs.values())
             # graph_signature = (function.__qualname__,) + tuple(all_args[num_args:])
             graph_signature = tuple(all_args[num_args:])
-            graph_input = [
-                list(arg.values()) if isinstance(arg, dict) else arg for arg in all_args[:num_args]
-            ]
+            graph_input = util.to_list(xs=all_args[:num_args])
 
             if graph_signature not in function_graphs:
                 assert len(function_graphs) == 0 or \
                     len(next(iter(function_graphs))) == len(graph_signature)
 
                 input_signature = self.input_signature(function=name)
-                # print(self, name, num_args, len(input_signature), len(graph_input))
                 assert len(input_signature) == len(graph_input)
                 signature_kwargs = dict(list(kwargs.items())[num_args:])
 
                 def function_graph(*args):
-                    graph_kwargs = {
-                        key: OrderedDict(zip(kwargs[key], arg)) if isinstance(arg, list) else arg
-                        for key, arg in zip(kwargs, args)
-                    }
-                    # print(self, self.is_subscope, self.name, Module.global_scope)
                     if self.is_subscope and self.name not in Module.global_scope:
                         Module.global_scope.append(self.name)
                         pop_global_scope = True
@@ -94,16 +92,20 @@ def tf_function(num_args):
                         pop_global_scope = False
                     if self.device is not None:
                         self.device.__enter__()
-                    # print(function, graph_kwargs, signature_kwargs)
                     # with self.name_scope:
-                    results = Module.with_name_scope(method=function)(
-                        self, **graph_kwargs, **signature_kwargs
-                    )
+                    if is_args:
+                        results = Module.with_name_scope(method=function)(
+                            self, *args, **signature_kwargs
+                        )
+                    else:
+                        graph_kwargs = util.from_list(xs=args, ys=kwargs)
+                        results = Module.with_name_scope(method=function)(
+                            self, **graph_kwargs, **signature_kwargs
+                        )
                     if self.device is not None:
                         self.device.__exit__(None, None, None)
                     if pop_global_scope:
                         Module.global_scope.pop()
-                    # print(name, 'results:', results)
                     return results
 
                 # function_graph = partial(function, self, **graph_kwargs)
@@ -116,8 +118,7 @@ def tf_function(num_args):
             qualname, function_graph = function_graphs[graph_signature]
 
             if function.__qualname__ != qualname:
-                print('Overwritten:', function.__qualname__)
-                return function(self, **kwargs)
+                return function(self, *args, **kwargs)
             else:
                 return function_graph(*graph_input)
 
@@ -144,9 +145,9 @@ class Module(tf.Module):
     """
 
     _TF_MODULE_IGNORED_PROPERTIES = frozenset((
-        "_self_unconditional_checkpoint_dependencies",
-        "_self_unconditional_dependency_names",
-        "parent"
+        '_self_unconditional_checkpoint_dependencies',
+        '_self_unconditional_dependency_names',
+        'parent'
     ))
 
     global_scope = None
@@ -291,13 +292,13 @@ class Module(tf.Module):
 
             if self.is_root:
                 # Timestep counter
-                self.timestep = self.add_variable(
-                    name='timestep', dtype='long', shape=(), is_trainable=False,
+                self.timesteps = self.add_variable(
+                    name='timesteps', dtype='long', shape=(), is_trainable=False,
                     initializer='zeros', is_global=True
                 )
                 collection = self.graph.get_collection(name='global_step')
                 assert len(collection) == 0
-                self.graph.add_to_collection(name='global_step', value=self.timestep)
+                self.graph.add_to_collection(name='global_step', value=self.timesteps)
 
                 if self.summarizer_spec is not None:
                     with tf.name_scope(name='summarizer'):
@@ -354,17 +355,17 @@ class Module(tf.Module):
                 )
 
                 # Delayed global-timestep assign operation
-                self.timestep.assign(value=self.assignment_input['long'], name='timestep-assign')
+                self.timesteps.assign(value=self.assignment_input['long'], name='timestep-assign')
 
                 # Episode counter
-                self.episode = self.add_variable(
-                    name='episode', dtype='long', shape=(), is_trainable=False, initializer='zeros',
-                    is_global=True
+                self.episodes = self.add_variable(
+                    name='episodes', dtype='long', shape=(), is_trainable=False,
+                    initializer='zeros', is_global=True
                 )
 
                 # Update counter
-                self.update = self.add_variable(
-                    name='update', dtype='long', shape=(), is_trainable=False, initializer='zeros',
+                self.updates = self.add_variable(
+                    name='updates', dtype='long', shape=(), is_trainable=False, initializer='zeros',
                     is_global=True
                 )
 
@@ -375,7 +376,7 @@ class Module(tf.Module):
                         )
                         self.summarize_step_input = self.add_placeholder(
                             name='summarize-step', dtype='long', shape=(), batched=False,
-                            default=self.global_tensor(name='timestep')
+                            default=self.global_tensor(name='timesteps')
                         )
                         self.custom_summaries = OrderedDict()
                         for name, summary in self.summarizer_spec['custom'].items():
@@ -500,7 +501,7 @@ class Module(tf.Module):
 
                     elif isinstance(self.summarizer_spec['frequency'], int):
                         if function_name in ('act', 'independent_act'):
-                            step = self.global_tensor(name='timestep')
+                            step = self.global_tensor(name='timesteps')
                             frequency = tf.constant(
                                 value=self.summarizer_spec['frequency'],
                                 dtype=util.tf_dtype(dtype='long')
@@ -516,11 +517,11 @@ class Module(tf.Module):
 
                     elif function_name in self.summarizer_spec['frequency']:
                         if function_name in ('act', 'independent_act'):
-                            step = self.global_tensor(name='timestep')
+                            step = self.global_tensor(name='timesteps')
                         elif function_name in ('observe', 'experience'):
-                            step = self.global_tensor(name='episode')
+                            step = self.global_tensor(name='episodes')
                         elif function_name == 'update':
-                            step = self.global_tensor(name='update')
+                            step = self.global_tensor(name='updates')
                         elif function_name == 'reset':
                             raise TensorforceError.value(
                                 name='module', argument='summarizer[frequency]',
@@ -573,7 +574,11 @@ class Module(tf.Module):
                 default_summarizer.__exit__(None, None, None)
 
     def input_signature(self, function):
-        return None
+        if function == 'regularize':
+            return ()
+
+        else:
+            return None
 
     def create_tf_function(self, name, tf_function):
         input_signature = self.input_signature(function=name[name.index('.') + 1:])
@@ -782,14 +787,14 @@ class Module(tf.Module):
 
         scoped_name = '/'.join(Module.global_scope[:n + 1]) + '/' + name
         collection = self.root.graph.get_collection(name=scoped_name)
-        print(name, scoped_name, tensor, collection)
         # assert len(collection) == 0
         collection = self.root.graph.get_collection_ref(name=scoped_name)
         if len(collection) > 0:
             assert len(collection) == 1
             previous = collection[0]
             collection[0] = tensor
-            return tf.identity(input=previous)
+            # return tf.identity(input=previous)
+            return previous
         else:
             self.root.graph.add_to_collection(name=scoped_name, value=tensor)
 
@@ -965,7 +970,7 @@ class Module(tf.Module):
 
         # get/assign operation (delayed for timestep)
         util.identity_operation(x=variable, operation_name=(name + '-output'))
-        if name != 'timestep':
+        if name != 'timesteps':
             module = self
             while not module.is_root:
                 module = module.parent
@@ -1367,6 +1372,12 @@ class Module(tf.Module):
         return list(self._flatten(recursive=False, predicate=(lambda x: isinstance(x, tf.Module))))
 
     @property
+    def this_trainable_variables(self):
+        return list(self._flatten(recursive=False, predicate=(
+            lambda x: isinstance(x, tf.Variable) and getattr(x, 'trainable', False)
+        )))
+
+    @property
     def trainable_variables(self):
         variables = list(self._flatten(recursive=False, predicate=(
             lambda x: isinstance(x, tf.Variable) and getattr(x, 'trainable', False)
@@ -1382,6 +1393,8 @@ class Module(tf.Module):
             lambda x: isinstance(x, tf.Variable) and getattr(x, 'is_saved', True)
         )))
         for module in self.this_submodules:
-            if getattr(module, 'is_saved', True):
+            if not hasattr(module, 'is_saved'):
+                variables.extend(module.variables)
+            elif module.is_saved:
                 variables.extend(module.saved_variables)
         return variables

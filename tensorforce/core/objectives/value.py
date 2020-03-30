@@ -35,16 +35,21 @@ class Value(Objective):
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
+        states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        auxiliaries_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
-<<<<<<< HEAD
-        self, value='state', huber_loss=0.0, early_reduce=False, summary_labels=None, name=None
-=======
-        self, name, value='state', huber_loss=0.0, early_reduce=True, summary_labels=None
->>>>>>> 1655f4abc89d5fc6e92d0ca66ea038bfdd6e7443
+        self, value='state', huber_loss=0.0, early_reduce=True, summary_labels=None, name=None,
+        states_spec=None, internals_spec=None, auxiliaries_spec=None, actions_spec=None
     ):
-        super().__init__(summary_labels=summary_labels, name=name)
+        super().__init__(
+            summary_labels=summary_labels, name=name, states_spec=states_spec,
+            internals_spec=internals_spec, auxiliaries_spec=auxiliaries_spec,
+            actions_spec=actions_spec
+        )
 
         assert value in ('state', 'action')
         self.value = value
@@ -58,10 +63,13 @@ class Value(Objective):
         self.early_reduce = early_reduce
 
     @tf_function(num_args=6)
-    def loss_per_instance(self, states, horizons, internals, auxiliaries, actions, reward):
+    def loss(self, states, horizons, internals, auxiliaries, actions, reward, policy):
         if not self.early_reduce:
             reward = tf.expand_dims(input=reward, axis=1)
 
+        internals = OrderedDict(
+            ((name, internals[name]) for name in policy.internals_spec(policy=policy))
+        )
         if self.value == 'state':
             value = policy.states_value(
                 states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,

@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
+from collections import OrderedDict
+
 import tensorflow as tf
 
 from tensorforce import util
@@ -28,22 +30,18 @@ class DeterministicPolicyGradient(Objective):
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
+        states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        auxiliaries_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def input_signature(self, function):
-        if function == 'initial_gradients':
-            return [
-                util.to_tensor_spec(value_spec=self.parent.states_spec, batched=True),
-                util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
-                util.to_tensor_spec(value_spec=self.parent.internals_spec, batched=True),
-                util.to_tensor_spec(value_spec=self.parent.auxiliaries_spec, batched=True)
-            ]
-
-        else:
-            return super().input_signature(function=function)
-
     @tf_function(num_args=6)
-    def tf_loss_per_instance(self, states, horizons, internals, auxiliaries, actions, reward):
+    def loss(self, states, horizons, internals, auxiliaries, actions, reward, policy):
+        internals = OrderedDict(
+            ((name, internals[name]) for name in policy.internals_spec(policy=policy))
+        )
+
         policy_actions = policy.act(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
             return_internals=False
@@ -61,30 +59,27 @@ class DeterministicPolicyGradient(Objective):
         # tf.math.reduce_mean(input_tensor=, axis=1)
 
         return summed_actions
-
-    @tf_function(num_args=4)
-    def tf_initial_gradients(self, states, horizons, internals, auxiliaries):
-        actions = policy.act(
-            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-            return_internals=False
-        )
-        actions_value = baseline.actions_value(
-            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-            actions=actions, reduced=True, return_per_action=False
-        )
-        assert len(actions) == 1 and len(util.shape(x=list(actions.values())[0])) == 1
-        gradients = -tf.gradients(ys=actions_value, xs=list(actions.values()))[0][0]
-
-        return gradients
-
+ 
     def optimizer_arguments(self, policy, baseline, **kwargs):
         arguments = super().optimizer_arguments()
 
         def fn_initial_gradients(states, horizons, internals, auxiliaries, actions, reward):
-            return self.initial_gradients(
-                policy=policy, baseline=baseline, states=states, horizons=horizons,
-                internals=internals, auxiliaries=auxiliaries
+            policy_internals = OrderedDict(
+                ((name, internals[name]) for name in policy.internals_spec(policy=policy))
             )
+            actions = policy.act(
+                states=states, horizons=horizons, internals=policy_internals,
+                auxiliaries=auxiliaries, return_internals=False
+            )
+            baseline_internals = OrderedDict(
+                ((name, internals[name]) for name in baseline.internals_spec(policy=baseline))
+            )
+            actions_value = baseline.actions_value(
+                states=states, horizons=horizons, internals=baseline_internals,
+                auxiliaries=auxiliaries, actions=actions, reduced=True, return_per_action=False
+            )
+            assert len(actions) == 1 and len(util.shape(x=list(actions.values())[0])) == 1
+            return -tf.gradients(ys=actions_value, xs=list(actions.values()))[0][0]
 
         arguments['fn_initial_gradients'] = fn_initial_gradients
 

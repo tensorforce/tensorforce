@@ -16,7 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core import parameter_modules
+from tensorforce.core import parameter_modules, tf_function
 from tensorforce.core.optimizers import Optimizer
 from tensorforce.core.optimizers.solvers import solver_modules
 
@@ -26,8 +26,6 @@ class NaturalGradient(Optimizer):
     Natural gradient optimizer (specification key: `natural_gradient`).
 
     Args:
-        name (string): Module name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         learning_rate (parameter, float >= 0.0): Learning rate as KL-divergence of distributions
             between optimization steps (<span style="color:#C00000"><b>required</b></span>).
         cg_max_iterations (int >= 0): Maximum number of conjugate gradient iterations.
@@ -38,31 +36,47 @@ class NaturalGradient(Optimizer):
             (<span style="color:#00C000"><b>default</b></span>: false).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
+        states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        auxiliaries_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        optimized_module (module): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
-        self, name, learning_rate, cg_max_iterations=10, cg_damping=1e-3, cg_unroll_loop=False,
-        summary_labels=None
+        self, learning_rate, cg_max_iterations=10, cg_damping=1e-3, cg_unroll_loop=False,
+        summary_labels=None, name=None, states_spec=None, internals_spec=None,
+        auxiliaries_spec=None, actions_spec=None, optimized_module=None
     ):
-        super().__init__(name=name, summary_labels=summary_labels)
+        super().__init__(
+            summary_labels=summary_labels, name=name, states_spec=states_spec,
+            internals_spec=internals_spec, auxiliaries_spec=auxiliaries_spec,
+            actions_spec=actions_spec, optimized_module=optimized_module
+        )
 
         self.learning_rate = self.add_module(
-            name='learning-rate', module=learning_rate, modules=parameter_modules, dtype='float',
+            name='learning_rate', module=learning_rate, modules=parameter_modules, dtype='float',
             min_value=0.0
         )
 
         self.conjugate_gradient = self.add_module(
             name='conjugate_gradient', module='conjugate_gradient', modules=solver_modules,
-            max_iterations=cg_max_iterations, damping=cg_damping, unroll_loop=cg_unroll_loop
+            max_iterations=cg_max_iterations, damping=cg_damping, unroll_loop=cg_unroll_loop,
+            values_spec=[
+                dict(type=util.dtype(x=x), shape=util.shape(x=x))
+                for x in self.optimized_module.trainable_variables
+            ]
         )
 
-    def tf_step(
-        self, variables, arguments, fn_loss, fn_kl_divergence, return_estimated_improvement=False,
-        **kwargs
-    ):
+    @tf_function(num_args=1)
+    def step(self, arguments, variables, fn_loss, **kwargs):
         # Optimize: argmin(w) loss(w + delta) such that kldiv(P(w) || P(w + delta)) = learning_rate
         # For more details, see our blogpost:
         # https://reinforce.io/blog/end-to-end-computation-graphs-for-reinforcement-learning/
+
+        fn_kl_divergence = kwargs['fn_kl_divergence']
+        return_estimated_improvement = kwargs.get('return_estimated_improvement', False)
 
         # Calculates the product x * F of a given vector x with the fisher matrix F.
         # Incorporating the product prevents having to calculate the entire matrix explicitly.
@@ -102,12 +116,21 @@ class NaturalGradient(Optimizer):
 
         # grad(loss)
         loss_gradients = tf.gradients(ys=loss, xs=variables)
+        print(loss_gradients)
+
+        actual_variables = list()
+        actual_gradients = list()
+        for variable, gradient in zip(variables, loss_gradients):
+            if gradient is not None:
+                actual_variables.append(variable)
+                actual_gradients.append(gradient)
 
         # Solve the following system for delta' via the conjugate gradient solver.
         # [delta' * F] * delta' = -grad(loss)
         # --> delta'  (= lambda * delta)
         deltas = self.conjugate_gradient.solve(
-            fn_x=fisher_matrix_product, x_init=None, b=[-grad for grad in loss_gradients]
+            x_init=[tf.zeros_like(input=x) for x in actual_variables],
+            b=[-grad for grad in actual_gradients], fn_x=fisher_matrix_product
         )
 
         # delta' * F
@@ -146,9 +169,11 @@ class NaturalGradient(Optimizer):
             ])
 
             # Apply natural gradient improvement.
-            applied = self.apply_step(variables=variables, deltas=estimated_deltas)
+            assignments = list()
+            for variable, delta in zip(variables, estimated_deltas):
+                assignments.append(variable.assign_add(delta=delta, read_value=False))
 
-            with tf.control_dependencies(control_inputs=(applied,)):
+            with tf.control_dependencies(control_inputs=assignments):
                 # Trivial operation to enforce control dependency
                 estimated_delta = util.fmap(function=util.identity_operation, xs=estimated_deltas)
                 if return_estimated_improvement:

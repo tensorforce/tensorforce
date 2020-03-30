@@ -114,10 +114,10 @@ class Rnn(TransformationBase):
 
     @tf_function(num_args=0)
     def regularize(self):
-        regularization_loss = super().tf_regularize()
-
         if len(self.rnn.losses) > 0:
-            regularization_loss += tf.math.add_n(inputs=self.rnn.losses)
+            regularization_loss = tf.math.add_n(inputs=self.rnn.losses)
+        else:
+            regularization_loss = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
 
         return regularization_loss
 

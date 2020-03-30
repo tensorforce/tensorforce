@@ -41,18 +41,18 @@ class Iterative(Solver):
             self.max_iterations = max_iterations
         else:
             self.max_iterations = self.add_module(
-                name='max-iterations', module=max_iterations, modules=parameter_modules,
+                name='max_iterations', module=max_iterations, modules=parameter_modules,
                 dtype='int', min_value=0
             )
 
-    def tf_solve(self, fn_x, x_init, *args):
+    def solve(self, x_init, fn_x=None, **kwargs):
         """
         Iteratively solves an equation/optimization for $x$ involving an expression $f(x)$.
 
         Args:
-            fn_x: A callable returning an expression $f(x)$ given $x$.
             x_init: Initial solution guess $x_0$.
             *args: Additional solver-specific arguments.
+            fn_x: A callable returning an expression $f(x)$ given $x$.
 
         Returns:
             A solution $x$ to the problem as given by the solver.
@@ -60,7 +60,7 @@ class Iterative(Solver):
         self.fn_x = fn_x
 
         # Initialization step
-        args = self.start(x_init, *args)
+        args = self.start(x_init=x_init, **kwargs)
 
         # Iteration loop with termination condition
         if self.unroll_loop:
@@ -83,7 +83,7 @@ class Iterative(Solver):
 
         return solution
 
-    def tf_start(self, x_init, *args):
+    def start(self, x_init, **kwargs):
         """
         Initialization step preparing the arguments for the first iteration of the loop body.
 
@@ -92,11 +92,11 @@ class Iterative(Solver):
             *args: Additional solver-specific arguments.
 
         Returns:
-            Initial arguments for tf_step.
+            Initial arguments for step.
         """
-        return (x_init,) + args
+        return (x_init,) + tuple(kwargs.values())
 
-    def tf_step(self, x, *args):
+    def step(self, x, *args):
         """
         Iteration loop body of the iterative solver.
 
@@ -109,7 +109,7 @@ class Iterative(Solver):
         """
         raise NotImplementedError
 
-    def tf_next_step(self, x, *args):
+    def next_step(self, x, *args):
         """
         Termination condition (default: max number of iterations).
 
@@ -122,12 +122,12 @@ class Iterative(Solver):
         """
         return util.tf_always_true()
 
-    def tf_end(self, x_final, *args):
+    def end(self, x_final, *args):
         """
         Termination step preparing the return value.
 
         Args:
-            x: Final solution estimate.
+            x_final: Final solution estimate.
             *args: Additional solver-specific arguments.
 
         Returns:

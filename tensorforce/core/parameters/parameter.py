@@ -117,8 +117,9 @@ class Parameter(Module):
 
         parameter = self.parameter_value(step=step)
 
-        parameter = self.add_summary(label='parameters', name=self.name, tensor=parameter)
-
         self.set_global_tensor(name='value', tensor=parameter)
 
+        parameter = self.add_summary(label='parameters', name=self.name, tensor=parameter)
+
+        # return tf.stop_gradient(input=parameter)
         return parameter

@@ -104,7 +104,7 @@ class Policy(Module):
             value = tf.math.reduce_mean(input_tensor=value, axis=1)
 
             if return_per_action:
-                values[name] = util.fmap(
+                values = util.fmap(
                     function=(lambda x: tf.math.reduce_mean(input_tensor=x, axis=1)), xs=values
                 )
                 return value, values

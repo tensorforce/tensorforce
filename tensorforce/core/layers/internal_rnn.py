@@ -44,7 +44,7 @@ class InternalRnn(TemporalLayer, TransformationBase):
             (<span style="color:#00C000"><b>default</b></span>: none).
         dropout (parameter, 0.0 <= float < 1.0): Dropout rate
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
-        is_trainable (bool): Whether layer variables are trainable
+        vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
         input_spec (specification): Input tensor specification
             (<span style="color:#00C000"><b>internal use</b></span>).
@@ -58,11 +58,11 @@ class InternalRnn(TemporalLayer, TransformationBase):
 
     def __init__(
         self, name, cell, size, horizon, bias=False, activation=None, dropout=0.0,
-        is_trainable=True, input_spec=None, summary_labels=None, l2_regularization=None, **kwargs
+        vars_trainable=True, input_spec=None, summary_labels=None, l2_regularization=None, **kwargs
     ):
         super().__init__(
             name=name, size=size, bias=bias, activation=activation, dropout=dropout,
-            is_trainable=is_trainable, input_spec=input_spec, summary_labels=summary_labels,
+            vars_trainable=vars_trainable, input_spec=input_spec, summary_labels=summary_labels,
             l2_regularization=l2_regularization, temporal_processing='iterative', horizon=horizon
         )
 
@@ -141,7 +141,7 @@ class InternalRnn(TemporalLayer, TransformationBase):
         # for variable in self.cell.trainable_weights:
         #     name = variable.name[variable.name.rindex(self.name + '/') + len(self.name) + 1: -2]
         #     self.variables[name] = variable
-        #     if self.is_trainable:
+        #     if self.vars_trainable:
         #         self.trainable_variables[name] = variable
         # for variable in self.cell.non_trainable_weights:
         #     name = variable.name[variable.name.rindex(self.name + '/') + len(self.name) + 1: -2]
@@ -208,7 +208,7 @@ class InternalGru(InternalRnn):
             (<span style="color:#00C000"><b>default</b></span>: none).
         dropout (parameter, 0.0 <= float < 1.0): Dropout rate
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
-        is_trainable (bool): Whether layer variables are trainable
+        vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
         input_spec (specification): Input tensor specification
             (<span style="color:#00C000"><b>internal use</b></span>).
@@ -221,12 +221,12 @@ class InternalGru(InternalRnn):
     """
 
     def __init__(
-        self, name, size, horizon, bias=False, activation=None, dropout=0.0, is_trainable=True,
+        self, name, size, horizon, bias=False, activation=None, dropout=0.0, vars_trainable=True,
         input_spec=None, summary_labels=None, l2_regularization=None, **kwargs
     ):
         super().__init__(
             name=name, cell='gru', size=size, horizon=horizon, bias=bias, activation=activation,
-            dropout=dropout, is_trainable=is_trainable, input_spec=input_spec,
+            dropout=dropout, vars_trainable=vars_trainable, input_spec=input_spec,
             summary_labels=summary_labels, l2_regularization=l2_regularization, **kwargs
         )
 
@@ -258,7 +258,7 @@ class InternalLstm(InternalRnn):
             (<span style="color:#00C000"><b>default</b></span>: none).
         dropout (parameter, 0.0 <= float < 1.0): Dropout rate
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
-        is_trainable (bool): Whether layer variables are trainable
+        vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
         input_spec (specification): Input tensor specification
             (<span style="color:#00C000"><b>internal use</b></span>).
@@ -271,12 +271,12 @@ class InternalLstm(InternalRnn):
     """
 
     def __init__(
-        self, name, size, horizon, bias=False, activation=None, dropout=0.0, is_trainable=True,
+        self, name, size, horizon, bias=False, activation=None, dropout=0.0, vars_trainable=True,
         input_spec=None, summary_labels=None, l2_regularization=None, **kwargs
     ):
         super().__init__(
             name=name, cell='lstm', size=size, horizon=horizon, bias=bias, activation=activation,
-            dropout=dropout, is_trainable=is_trainable, input_spec=input_spec,
+            dropout=dropout, vars_trainable=vars_trainable, input_spec=input_spec,
             summary_labels=summary_labels, l2_regularization=l2_regularization, **kwargs
         )
 

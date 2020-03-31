@@ -32,12 +32,14 @@ MODULE_STACK = list()
 
 def get_global_scope():
     for n, module in enumerate(MODULE_STACK):
-        if isinstance(module, Module):
-            yield module.name
-        elif n == 1 and isinstance(module, str):
-            yield module
-        else:
-            raise TensorforceError.unexpected()
+        assert isinstance(module, (Module, tf.name_scope))
+        yield module.name
+        # elif n == 1 and isinstance(module, str):
+        #     yield module
+        # else:
+        #     raise TensorforceError.unexpected()
+
+
 
 
 def tf_function(num_args):
@@ -243,7 +245,8 @@ class Module(tf.Module):
     def initialize(self):
         # Check whether module is already initialized
         if self.is_initialized:
-            raise TensorforceError(message="Module is already initialized.")
+            return
+            raise TensorforceError(message=("Module is already initialized: " + str(self)))
 
         # Set internal attributes
         self.input_tensors = OrderedDict()
@@ -537,7 +540,7 @@ class Module(tf.Module):
     def create_api_function(self, name, api_function):
         # Call API TensorFlow function
         MODULE_STACK.append(self)
-        MODULE_STACK.append(name[name.index('.') + 1:])
+        MODULE_STACK.append(tf.name_scope(name=name[name.index('.') + 1:]))
 
         if self.device is not None:
             self.device.__enter__()
@@ -836,13 +839,6 @@ class Module(tf.Module):
                 assert len(self.root.graph.get_collection(name=scoped_name)) == 0
                 self.root.graph.add_to_collection(name=scoped_name, value=variable)
 
-        # Add summary
-        if (summarize is None and is_trainable) or summarize:
-            variable = self.add_summary(
-                label='variables', name=name, tensor=variable, mean_variance=True
-            )
-            variable = self.add_summary(label='variables-histogram', name=name, tensor=variable)
-
         # get/assign operation (delayed for timestep)
         util.identity_operation(x=variable, operation_name=(name + '-output'))
         if name != 'timesteps':
@@ -850,6 +846,13 @@ class Module(tf.Module):
             while not module.is_root:
                 module = module.parent
             variable.assign(value=module.assignment_input[dtype], name=(name + '-assign'))
+
+        # Add summary
+        if (summarize is None and is_trainable) or summarize:
+            variable = self.add_summary(
+                label='variables', name=name, tensor=variable, mean_variance=True
+            )
+            variable = self.add_summary(label='variables-histogram', name=name, tensor=variable)
 
         return variable
 
@@ -912,10 +915,6 @@ class Module(tf.Module):
         # # Check whether not in nested condition
         # if Module.cond_counter > 1:
         #     return False
-
-        # Temporary
-        if label == 'variables' or label == 'variables-histogram':
-            return False
 
         # Check whether given label is logged
         if util.is_iterable(x=label):
@@ -1011,7 +1010,7 @@ class Module(tf.Module):
 
         # TensorFlow summaries
         assert Module.global_summary_step is not None
-        step = self.global_tensor(name=Module.global_summary_step)
+        step = self.root.timesteps  # self.global_tensor(name=Module.global_summary_step)
         summaries = list()
         for name, tensor in tensors.items():
             shape = util.shape(x=tensor)

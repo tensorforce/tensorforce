@@ -40,7 +40,7 @@ class Embedding(TransformationBase):
             (<span style="color:#00C000"><b>default</b></span>: "tanh").
         dropout (parameter, 0.0 <= float < 1.0): Dropout rate
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
-        is_trainable (bool): Whether layer variables are trainable
+        vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
         input_spec (specification): Input tensor specification
             (<span style="color:#00C000"><b>internal use</b></span>).
@@ -53,7 +53,7 @@ class Embedding(TransformationBase):
 
     def __init__(
         self, name, size, num_embeddings=None, max_norm=None, bias=False, activation='tanh',
-        dropout=0.0, is_trainable=True, input_spec=None, summary_labels=None,
+        dropout=0.0, vars_trainable=True, input_spec=None, summary_labels=None,
         l2_regularization=None
     ):
         """
@@ -69,7 +69,7 @@ class Embedding(TransformationBase):
         """
         super().__init__(
             name=name, size=size, bias=bias, activation=activation, dropout=dropout,
-            is_trainable=is_trainable, input_spec=input_spec, summary_labels=summary_labels,
+            vars_trainable=vars_trainable, input_spec=input_spec, summary_labels=summary_labels,
             l2_regularization=l2_regularization
         )
 
@@ -111,7 +111,7 @@ class Embedding(TransformationBase):
 
         self.weights = self.add_variable(
             name='embeddings', dtype='float', shape=(self.num_embeddings, self.size),
-            is_trainable=self.is_trainable, initializer=initializer
+            is_trainable=self.vars_trainable, initializer=initializer
         )
 
     @tf_function(num_args=1)

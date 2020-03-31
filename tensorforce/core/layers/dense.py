@@ -35,7 +35,7 @@ class Dense(TransformationBase):
             (<span style="color:#00C000"><b>default</b></span>: "relu").
         dropout (parameter, 0.0 <= float < 1.0): Dropout rate
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
-        is_trainable (bool): Whether layer variables are trainable
+        vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
         input_spec (specification): Input tensor specification
             (<span style="color:#00C000"><b>internal use</b></span>).
@@ -70,7 +70,7 @@ class Dense(TransformationBase):
         in_size = self.input_spec['shape'][0]
         self.weights = self.add_variable(
             name='weights', dtype='float', shape=(in_size, self.size),
-            is_trainable=self.is_trainable, initializer=initializer
+            is_trainable=self.vars_trainable, initializer=initializer
         )
 
     @tf_function(num_args=1)

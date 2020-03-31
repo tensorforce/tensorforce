@@ -52,14 +52,18 @@ class TestSummaries(UnittestBase, unittest.TestCase):
         baseline_objective = 'policy_gradient'
         baseline_optimizer = 'adam'
 
+        #  "parameters"
         agent, environment = self.prepare(
             summarizer=dict(
-                directory=self.__class__.directory, labels='all', frequency=2, custom=dict(
-                    audio=dict(type='audio', sample_rate=44100, max_outputs=1),
-                    histogram=dict(type='histogram'),
-                    image=dict(type='image', max_outputs=1),
-                    scalar=dict(type='scalar')
-                )
+                directory=self.__class__.directory, labels=[
+                    "distributions", "dropout", "entropies", "graph", "kl-divergences", "losses", "relu", "rewards", "update-norm", "updates", "variables"
+                ], frequency=2,
+                # custom=dict(
+                #     audio=dict(type='audio', sample_rate=44100, max_outputs=1),
+                #     histogram=dict(type='histogram'),
+                #     image=dict(type='image', max_outputs=1),
+                #     scalar=dict(type='scalar')
+                # )
             ), reward_estimation=reward_estimation, baseline_policy=baseline_policy,
             baseline_objective=baseline_objective, baseline_optimizer=baseline_optimizer
         )

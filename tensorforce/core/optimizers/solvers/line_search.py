@@ -29,7 +29,7 @@ class LineSearch(Iterative):
 
     def __init__(
         self, name, max_iterations, accept_ratio, mode, parameter, unroll_loop=False,
-        values_spec=None
+        fn_values_spec=None
     ):
         """
         Creates a new line search solver instance.
@@ -64,24 +64,24 @@ class LineSearch(Iterative):
             min_value=0.0, max_value=1.0
         )
 
-        self.values_spec = values_spec
+        self.fn_values_spec = fn_values_spec
 
     def input_signature(self, function):
         if function == 'end' or function == 'next_step' or function == 'step':
             return [
-                util.to_tensor_spec(value_spec=self.values_spec, batched=True),
-                util.to_tensor_spec(value_spec=self.values_spec, batched=True),
-                util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=True),
-                util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=True),
-                util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=True)
+                util.to_tensor_spec(value_spec=self.fn_values_spec(), batched=False),
+                util.to_tensor_spec(value_spec=self.fn_values_spec(), batched=False),
+                util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=False),
+                util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=False),
+                util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=False)
             ]
 
         elif function == 'solve' or function == 'start':
             return [
-                util.to_tensor_spec(value_spec=self.values_spec, batched=True),
-                util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=True),
-                util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=True),
-                util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=True)
+                util.to_tensor_spec(value_spec=self.fn_values_spec(), batched=False),
+                util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=False),
+                util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=False),
+                util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=False)
             ]
 
         else:

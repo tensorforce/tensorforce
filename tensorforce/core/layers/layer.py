@@ -38,14 +38,18 @@ class Layer(Module):
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
-    registered_layers = OrderedDict()
+    # registered_layers = OrderedDict()
 
     def __init__(self, name, input_spec=None, summary_labels=None, l2_regularization=None):
         super().__init__(
             name=name, summary_labels=summary_labels, l2_regularization=l2_regularization
         )
 
-        Layer.registered_layers[self.name] = self
+        module = self
+        while isinstance(module, Layer):
+            module = module.parent
+        if isinstance(module, (tensorforce.core.networks.LayerbasedNetwork)):
+            module.registered_layers[self.name] = self
 
         self.input_spec = util.valid_value_spec(
             value_spec=self.default_input_spec(), accept_underspecified=True, return_normalized=True
@@ -294,7 +298,7 @@ class TransformationBase(Layer):
             (<span style="color:#00C000"><b>default</b></span>: none).
         dropout (parameter, 0.0 <= float < 1.0): Dropout rate
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
-        is_trainable (bool): Whether layer variables are trainable
+        vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
         input_spec (specification): Input tensor specification
             (<span style="color:#00C000"><b>internal use</b></span>).
@@ -306,7 +310,7 @@ class TransformationBase(Layer):
     """
 
     def __init__(
-        self, name, size, bias=False, activation=None, dropout=0.0, is_trainable=True,
+        self, name, size, bias=False, activation=None, dropout=0.0, vars_trainable=True,
         input_spec=None, summary_labels=None, l2_regularization=None, **kwargs
     ):
         super().__init__(
@@ -331,15 +335,15 @@ class TransformationBase(Layer):
                 name='dropout', module='dropout', modules=tensorforce.core.layer_modules,
                 rate=dropout, input_spec=self.output_spec()
             )
-        self.is_trainable = is_trainable
+        self.vars_trainable = vars_trainable
 
     def tf_initialize(self):
         super().tf_initialize()
 
         if self.bias:
             self.bias = self.add_variable(
-                name='bias', dtype='float', shape=(self.size,), is_trainable=self.is_trainable,
-                initializer=('zeros' if self.is_trainable else 'normal')
+                name='bias', dtype='float', shape=(self.size,), is_trainable=self.vars_trainable,
+                initializer=('zeros' if self.vars_trainable else 'normal')
             )
 
         else:

@@ -95,6 +95,8 @@ class LayerbasedNetwork(Network):
     Base class for networks using Tensorforce layers.
     """
 
+    _TF_MODULE_IGNORED_PROPERTIES = Module._TF_MODULE_IGNORED_PROPERTIES | {'registered_layers'}
+
     def __init__(self, name, inputs_spec, device=None, summary_labels=None, l2_regularization=None):
         """
         Layer-based network constructor.
@@ -104,7 +106,8 @@ class LayerbasedNetwork(Network):
             l2_regularization=l2_regularization
         )
 
-        self.registered_tensors_spec = dict(self.inputs_spec)
+        self.registered_layers = OrderedDict()
+        self.registered_tensors_spec = OrderedDict(self.inputs_spec)
 
         if len(self.inputs_spec) == 1:
             self._output_spec = next(iter(self.inputs_spec.values()))

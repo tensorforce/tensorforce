@@ -978,7 +978,8 @@ class TensorforceModel(Model):
             if self.is_summary_logged(label=('entropy', 'action-entropies', 'entropies')):
                 entropies = self.policy.entropy(
                     states=states, horizons=horizons, internals=policy_internals,
-                    auxiliaries=auxiliaries, include_per_action=(len(self.actions_spec) > 1)
+                    auxiliaries=auxiliaries, reduced=True,
+                    return_per_action=(len(self.actions_spec) > 1)
                 )
             if self.is_summary_logged(label=('entropy', 'entropies')):
                 if len(self.actions_spec) == 1:
@@ -987,17 +988,17 @@ class TensorforceModel(Model):
                         pass_tensors=optimized
                     )
                 else:
+                    entropy, entropies = entropies
                     optimized = self.add_summary(
-                        label=('entropy', 'entropies'), name='entropy', tensor=entropies['*'],
+                        label=('entropy', 'entropies'), name='entropy', tensor=entropy,
                         pass_tensors=optimized
                     )
-            if len(self.actions_spec) > 1 and \
-                    self.is_summary_logged(label=('action-entropies', 'entropies')):
-                for name in self.actions_spec:
-                    optimized = self.add_summary(
-                        label=('action-entropies', 'entropies'), name=(name + '-entropy'),
-                        tensor=entropies[name], pass_tensors=optimized
-                    )
+                    if self.is_summary_logged(label=('action-entropies', 'entropies')):
+                        for name in self.actions_spec:
+                            optimized = self.add_summary(
+                                label=('action-entropies', 'entropies'), name=(name + '-entropy'),
+                                tensor=entropies[name], pass_tensors=optimized
+                            )
 
             # KL divergence summaries
             if self.is_summary_logged(

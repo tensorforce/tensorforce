@@ -31,7 +31,7 @@ class Linear(Layer):
             (<span style="color:#C00000"><b>required</b></span>).
         bias (bool): Whether to add a trainable bias variable
             (<span style="color:#00C000"><b>default</b></span>: true).
-        is_trainable (bool): Whether layer variables are trainable
+        vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
         input_spec (specification): Input tensor specification
             (<span style="color:#00C000"><b>internal use</b></span>).
@@ -42,7 +42,7 @@ class Linear(Layer):
     """
 
     def __init__(
-        self, name, size, bias=True, is_trainable=True, input_spec=None, summary_labels=None,
+        self, name, size, bias=True, vars_trainable=True, input_spec=None, summary_labels=None,
         l2_regularization=None
     ):
         super().__init__(
@@ -53,19 +53,19 @@ class Linear(Layer):
         if len(self.input_spec['shape']) == 1:
             self.linear = self.add_module(
                 name='linear', module=Dense, size=size, bias=bias, activation=None, dropout=0.0,
-                is_trainable=is_trainable, input_spec=self.input_spec
+                vars_trainable=vars_trainable, input_spec=self.input_spec
             )
 
         elif len(self.input_spec['shape']) == 2:
             self.linear = self.add_module(
                 name='linear', module=Conv1d, size=size, window=1, bias=bias, activation=None,
-                dropout=0.0, is_trainable=is_trainable, input_spec=self.input_spec
+                dropout=0.0, vars_trainable=vars_trainable, input_spec=self.input_spec
             )
 
         elif len(self.input_spec['shape']) == 3:
             self.linear = self.add_module(
                 name='linear', module=Conv2d, size=size, window=1, bias=bias, activation=None,
-                dropout=0.0, is_trainable=is_trainable, input_spec=self.input_spec
+                dropout=0.0, vars_trainable=vars_trainable, input_spec=self.input_spec
             )
 
         else:

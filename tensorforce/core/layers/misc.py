@@ -19,7 +19,7 @@ import tensorflow as tf
 
 from tensorforce import TensorforceError, util
 import tensorforce.core
-from tensorforce.core import parameter_modules, tf_function
+from tensorforce.core import Module, parameter_modules, tf_function
 from tensorforce.core.layers import Layer
 
 
@@ -146,9 +146,9 @@ class Block(Layer):
                 name=layer_name, module=layer_spec, modules=tensorforce.core.layer_modules,
                 input_spec=self._input_spec
             )
-            self._input_spec = self.layers[n].output_spec
+            self._input_spec = self.layers[n].output_spec()
 
-        return self.layers[0].default_input_spec()
+        return dict(self.layers[0].input_spec)
 
     def output_spec(self):
         return self.layers[-1].output_spec()
@@ -303,36 +303,41 @@ class Reuse(Layer):
             (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         layer (string): Name of a previously defined layer
             (<span style="color:#C00000"><b>required</b></span>).
-        is_trainable (bool): Whether reused layer variables are kept trainable
-            (<span style="color:#00C000"><b>default</b></span>: true).
         input_spec (specification): Input tensor specification
             (<span style="color:#00C000"><b>internal use</b></span>).
     """
 
-    def __init__(self, name, layer, is_trainable=True, input_spec=None):
+    # _TF_MODULE_IGNORED_PROPERTIES = Module._TF_MODULE_IGNORED_PROPERTIES | {'reused_layer'}
+
+    def __init__(self, name, layer, input_spec=None):
+        # if layer not in Layer.registered_layers:
+        #     raise TensorforceError.value(name='reuse', argument='layer', value=layer)
+
+        self.layer = layer
+
         super().__init__(
             name=name, input_spec=input_spec, summary_labels=None, l2_regularization=0.0
         )
 
-        self.layer = layer
-        self.is_trainable = is_trainable
-
-        if self.layer not in Layer.registered_layers:
-            raise TensorforceError.value(name='reuse', argument='layer', value=self.layer)
-
-        self.layer = Layer.registered_layers[self.layer]
+    @property
+    def reused_layer(self):
+        module = self
+        while isinstance(module, Layer):
+            module = module.parent
+        assert isinstance(module, (tensorforce.core.networks.LayerbasedNetwork))
+        return module.registered_layers[self.layer]
 
     def default_input_spec(self):
-        return dict(self.layer.input_spec)
+        return dict(self.reused_layer.input_spec)
 
     def output_spec(self):
-        return self.layer.output_spec()
+        return self.reused_layer.output_spec()
 
     @tf_function(num_args=1)
     def apply(self, x):
-        return self.layer.apply(x=x)
+        return self.reused_layer.apply(x=x)
 
     def get_available_summaries(self):
         summaries = super().get_available_summaries()
-        summaries.update(self.layer.get_available_summaries())
+        summaries.update(self.reused_layer.get_available_summaries())
         return sorted(summaries)

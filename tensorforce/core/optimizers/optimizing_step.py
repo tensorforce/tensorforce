@@ -63,10 +63,10 @@ class OptimizingStep(UpdateModifier):
         self.line_search = self.add_module(
             name='line_search', module='line_search', modules=solver_modules,
             max_iterations=ls_max_iterations, accept_ratio=ls_accept_ratio, mode=ls_mode,
-            parameter=ls_parameter, unroll_loop=ls_unroll_loop, values_spec=[
+            parameter=ls_parameter, unroll_loop=ls_unroll_loop, fn_values_spec=(lambda: [
                 dict(type=util.dtype(x=x), shape=util.shape(x=x))
                 for x in self.optimized_module.trainable_variables
-            ]
+            ])
         )
 
     @tf_function(num_args=1)
@@ -110,7 +110,6 @@ class OptimizingStep(UpdateModifier):
                     # Negative value since line search maximizes.
                     return -fn_comparative_loss(**arguments, reference=reference)
 
-            print(deltas, loss_before, loss_step, estimated_improvement)
             return self.line_search.solve(
                 x_init=deltas, base_value=loss_before, target_value=loss_step,
                 estimated_improvement=estimated_improvement, fn_x=evaluate_step

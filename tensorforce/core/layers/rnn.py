@@ -40,7 +40,7 @@ class Rnn(TransformationBase):
             (<span style="color:#00C000"><b>default</b></span>: none).
         dropout (parameter, 0.0 <= float < 1.0): Dropout rate
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
-        is_trainable (bool): Whether layer variables are trainable
+        vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
         input_spec (specification): Input tensor specification
             (<span style="color:#00C000"><b>internal use</b></span>).
@@ -54,11 +54,11 @@ class Rnn(TransformationBase):
 
     def __init__(
         self, name, cell, size, return_final_state=True, bias=False, activation=None, dropout=0.0,
-        is_trainable=True, input_spec=None, summary_labels=None, l2_regularization=None, **kwargs
+        vars_trainable=True, input_spec=None, summary_labels=None, l2_regularization=None, **kwargs
     ):
         super().__init__(
             name=name, size=size, bias=bias, activation=activation, dropout=dropout,
-            is_trainable=is_trainable, input_spec=input_spec, summary_labels=summary_labels,
+            vars_trainable=vars_trainable, input_spec=input_spec, summary_labels=summary_labels,
             l2_regularization=l2_regularization
         )
 
@@ -159,7 +159,7 @@ class Gru(Rnn):
             (<span style="color:#00C000"><b>default</b></span>: none).
         dropout (parameter, 0.0 <= float < 1.0): Dropout rate
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
-        is_trainable (bool): Whether layer variables are trainable
+        vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
         input_spec (specification): Input tensor specification
             (<span style="color:#00C000"><b>internal use</b></span>).
@@ -173,12 +173,13 @@ class Gru(Rnn):
 
     def __init__(
         self, name, size, return_final_state=True, bias=False, activation=None, dropout=0.0,
-        is_trainable=True, input_spec=None, summary_labels=None, l2_regularization=None, **kwargs
+        vars_trainable=True, input_spec=None, summary_labels=None, l2_regularization=None, **kwargs
     ):
         super().__init__(
             name=name, cell='gru', size=size, return_final_state=return_final_state, bias=bias,
-            activation=activation, dropout=dropout, input_spec=input_spec,
-            summary_labels=summary_labels, l2_regularization=l2_regularization, **kwargs
+            activation=activation, dropout=dropout, vars_trainable=vars_trainable,
+            input_spec=input_spec, summary_labels=summary_labels,
+            l2_regularization=l2_regularization, **kwargs
         )
 
 
@@ -202,7 +203,7 @@ class Lstm(Rnn):
             (<span style="color:#00C000"><b>default</b></span>: none).
         dropout (parameter, 0.0 <= float < 1.0): Dropout rate
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
-        is_trainable (bool): Whether layer variables are trainable
+        vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
         input_spec (specification): Input tensor specification
             (<span style="color:#00C000"><b>internal use</b></span>).
@@ -216,10 +217,11 @@ class Lstm(Rnn):
 
     def __init__(
         self, name, size, return_final_state=True, bias=False, activation=None, dropout=0.0,
-        is_trainable=True, input_spec=None, summary_labels=None, l2_regularization=None, **kwargs
+        vars_trainable=True, input_spec=None, summary_labels=None, l2_regularization=None, **kwargs
     ):
         super().__init__(
             name=name, cell='lstm', size=size, return_final_state=return_final_state, bias=bias,
-            activation=activation, dropout=dropout, input_spec=input_spec,
-            summary_labels=summary_labels, l2_regularization=l2_regularization, **kwargs
+            activation=activation, dropout=dropout, vars_trainable=vars_trainable,
+            input_spec=input_spec, summary_labels=summary_labels,
+            l2_regularization=l2_regularization, **kwargs
         )

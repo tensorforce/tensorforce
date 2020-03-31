@@ -48,7 +48,7 @@ class Conv1d(TransformationBase):
             (<span style="color:#00C000"><b>default</b></span>: "relu").
         dropout (parameter, 0.0 <= float < 1.0): Dropout rate
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
-        is_trainable (bool): Whether layer variables are trainable
+        vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
         input_spec (specification): Input tensor specification
             (<span style="color:#00C000"><b>internal use</b></span>).
@@ -60,7 +60,7 @@ class Conv1d(TransformationBase):
 
     def __init__(
         self, name, size, window=3, stride=1, padding='same', dilation=1, bias=True,
-        activation='relu', dropout=0.0, is_trainable=True, input_spec=None, summary_labels=None,
+        activation='relu', dropout=0.0, vars_trainable=True, input_spec=None, summary_labels=None,
         l2_regularization=None
     ):
         # For output_spec in TransformationBase.__init__()
@@ -71,7 +71,7 @@ class Conv1d(TransformationBase):
 
         super().__init__(
             name=name, size=size, bias=bias, activation=activation, dropout=dropout,
-            is_trainable=is_trainable, input_spec=input_spec, summary_labels=summary_labels,
+            vars_trainable=vars_trainable, input_spec=input_spec, summary_labels=summary_labels,
             l2_regularization=l2_regularization
         )
 
@@ -109,7 +109,7 @@ class Conv1d(TransformationBase):
 
         self.weights = self.add_variable(
             name='weights', dtype='float', shape=(self.window, in_size, self.size),
-            is_trainable=self.is_trainable, initializer=initializer
+            is_trainable=self.vars_trainable, initializer=initializer
         )
 
     @tf_function(num_args=1)
@@ -147,7 +147,7 @@ class Conv2d(TransformationBase):
             (<span style="color:#00C000"><b>default</b></span>: "relu").
         dropout (parameter, 0.0 <= float < 1.0): Dropout rate
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
-        is_trainable (bool): Whether layer variables are trainable
+        vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
         input_spec (specification): Input tensor specification
             (<span style="color:#00C000"><b>internal use</b></span>).
@@ -159,7 +159,7 @@ class Conv2d(TransformationBase):
 
     def __init__(
         self, name, size, window=3, stride=1, padding='same', dilation=1, bias=True,
-        activation='relu', dropout=0.0, is_trainable=True, input_spec=None, summary_labels=None,
+        activation='relu', dropout=0.0, vars_trainable=True, input_spec=None, summary_labels=None,
         l2_regularization=None
     ):
         # For output_spec in TransformationBase.__init__()
@@ -187,7 +187,7 @@ class Conv2d(TransformationBase):
 
         super().__init__(
             name=name, size=size, bias=bias, activation=activation, dropout=dropout,
-            is_trainable=is_trainable, input_spec=input_spec, summary_labels=summary_labels,
+            vars_trainable=vars_trainable, input_spec=input_spec, summary_labels=summary_labels,
             l2_regularization=l2_regularization
         )
 
@@ -228,7 +228,7 @@ class Conv2d(TransformationBase):
 
         self.weights = self.add_variable(
             name='weights', dtype='float', shape=(self.window + (in_size, self.size)),
-            is_trainable=self.is_trainable, initializer=initializer
+            is_trainable=self.vars_trainable, initializer=initializer
         )
 
     @tf_function(num_args=1)
@@ -269,7 +269,7 @@ class Conv1dTranspose(TransformationBase):
             (<span style="color:#00C000"><b>default</b></span>: "relu").
         dropout (parameter, 0.0 <= float < 1.0): Dropout rate
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
-        is_trainable (bool): Whether layer variables are trainable
+        vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
         input_spec (specification): Input tensor specification
             (<span style="color:#00C000"><b>internal use</b></span>).
@@ -281,7 +281,7 @@ class Conv1dTranspose(TransformationBase):
 
     def __init__(
         self, name, size, window=3, output_width=None, stride=1, padding='same', dilation=1,
-        bias=True, activation='relu', dropout=0.0, is_trainable=True, input_spec=None,
+        bias=True, activation='relu', dropout=0.0, vars_trainable=True, input_spec=None,
         summary_labels=None, l2_regularization=None
     ):
         # For output_spec in TransformationBase.__init__()
@@ -293,7 +293,7 @@ class Conv1dTranspose(TransformationBase):
 
         super().__init__(
             name=name, size=size, bias=bias, activation=activation, dropout=dropout,
-            is_trainable=is_trainable, input_spec=input_spec, summary_labels=summary_labels,
+            vars_trainable=vars_trainable, input_spec=input_spec, summary_labels=summary_labels,
             l2_regularization=l2_regularization
         )
 
@@ -334,7 +334,7 @@ class Conv1dTranspose(TransformationBase):
 
         self.weights = self.add_variable(
             name='weights', dtype='float', shape=(self.window, in_size, self.size),
-            is_trainable=self.is_trainable, initializer=initializer
+            iss_trainable=self.vars_trainable, initializer=initializer
         )
 
     @tf_function(num_args=1)
@@ -375,7 +375,7 @@ class Conv2dTranspose(TransformationBase):
             (<span style="color:#00C000"><b>default</b></span>: "relu").
         dropout (parameter, 0.0 <= float < 1.0): Dropout rate
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
-        is_trainable (bool): Whether layer variables are trainable
+        vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
         input_spec (specification): Input tensor specification
             (<span style="color:#00C000"><b>internal use</b></span>).
@@ -387,7 +387,7 @@ class Conv2dTranspose(TransformationBase):
 
     def __init__(
         self, name, size, window=3, output_shape=None, stride=1, padding='same', dilation=1,
-        bias=True, activation='relu', dropout=0.0, is_trainable=True, input_spec=None,
+        bias=True, activation='relu', dropout=0.0, vars_trainable=True, input_spec=None,
         summary_labels=None, l2_regularization=None
     ):
         # For output_spec in TransformationBase.__init__()
@@ -429,7 +429,7 @@ class Conv2dTranspose(TransformationBase):
 
         super().__init__(
             name=name, size=size, bias=bias, activation=activation, dropout=dropout,
-            is_trainable=is_trainable, input_spec=input_spec, summary_labels=summary_labels,
+            vars_trainable=vars_trainable, input_spec=input_spec, summary_labels=summary_labels,
             l2_regularization=l2_regularization
         )
 
@@ -474,7 +474,7 @@ class Conv2dTranspose(TransformationBase):
 
         self.weights = self.add_variable(
             name='weights', dtype='float', shape=(self.window + (in_size, self.size)),
-            is_trainable=self.is_trainable, initializer=initializer
+            is_trainable=self.vars_trainable, initializer=initializer
         )
 
     @tf_function(num_args=1)

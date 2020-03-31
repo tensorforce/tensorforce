@@ -52,7 +52,7 @@ class ConjugateGradient(Iterative):
 
     """
 
-    def __init__(self, name, max_iterations, damping, unroll_loop=False, values_spec=None):
+    def __init__(self, name, max_iterations, damping, unroll_loop=False, fn_values_spec=None):
         """
         Creates a new conjugate gradient solver instance.
 
@@ -68,21 +68,21 @@ class ConjugateGradient(Iterative):
             max_value=1.0
         )
 
-        self.values_spec = values_spec
+        self.fn_values_spec = fn_values_spec
 
     def input_signature(self, function):
         if function == 'end' or function == 'next_step' or function == 'step':
             return [
-                util.to_tensor_spec(value_spec=self.values_spec, batched=True),
-                util.to_tensor_spec(value_spec=self.values_spec, batched=True),
-                util.to_tensor_spec(value_spec=self.values_spec, batched=True),
-                util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=True)
+                util.to_tensor_spec(value_spec=self.fn_values_spec(), batched=False),
+                util.to_tensor_spec(value_spec=self.fn_values_spec(), batched=False),
+                util.to_tensor_spec(value_spec=self.fn_values_spec(), batched=False),
+                util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=False)
             ]
 
         elif function == 'solve' or function == 'start':
             return [
-                util.to_tensor_spec(value_spec=self.values_spec, batched=True),
-                util.to_tensor_spec(value_spec=self.values_spec, batched=True)
+                util.to_tensor_spec(value_spec=self.fn_values_spec(), batched=False),
+                util.to_tensor_spec(value_spec=self.fn_values_spec(), batched=False)
             ]
 
         else:

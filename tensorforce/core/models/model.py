@@ -1269,7 +1269,7 @@ class Model(Module):
         path = os.path.join(directory, filename)
 
         if append is not None:
-            append = self.global_tensor(name=append)
+            append = self.root.graph.get_collection(name=util.join_scopes(self.name, append))[0]
 
         if format == 'tensorflow':
             if self.summarizer_spec is not None:

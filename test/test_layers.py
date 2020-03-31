@@ -75,8 +75,8 @@ class TestLayers(UnittestBase, unittest.TestCase):
 
         states = dict(type='float', shape=(3,))
         network = [
-            dict(type='internal_rnn', cell='gru', size=8, length=2),
-            dict(type='internal_lstm', size=8, length=2)
+            dict(type='internal_rnn', cell='gru', size=8, horizon=2),
+            dict(type='internal_lstm', size=8, horizon=2)
         ]
         self.unittest(states=states, policy=dict(network=network))
 
@@ -103,7 +103,7 @@ class TestLayers(UnittestBase, unittest.TestCase):
         states = dict(type='float', shape=(3,))
         network = [
             dict(type='block', name='test', layers=[
-                dict(type='dense', size=3), dict(type='dense', size=3)
+                dict(type='dense', size=4), dict(type='dense', size=3)
             ]),
             dict(type='reuse', layer='test')
         ]

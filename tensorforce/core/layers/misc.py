@@ -151,10 +151,7 @@ class Block(Layer):
         return self.layers[0].default_input_spec()
 
     def output_spec(self):
-        output_spec = super().output_spec()
-        for layer in self.layers:
-            output_spec = layer.get_output_spec(input_spec=output_spec)
-        return input_spec
+        return self.layers[-1].output_spec()
 
     @tf_function(num_args=1)
     def apply(self, x):
@@ -231,7 +228,7 @@ class Function(Layer):
 
     # (requires function as first argument)
     def __init__(
-        self, name, function, output_spec=None, input_spec=None, summary_labels=None,
+        self, function, name, output_spec=None, input_spec=None, summary_labels=None,
         l2_regularization=None
     ):
         super().__init__(
@@ -243,10 +240,12 @@ class Function(Layer):
         self._output_spec = output_spec
 
     def output_spec(self):
-        if self._output_spec is None:
-            return super().output_spec()
-        else:
-            return dict(self._output_spec)
+        output_spec = super().output_spec()
+
+        if self._output_spec is not None:
+            output_spec.update(self._output_spec)
+
+        return output_spec
 
     @tf_function(num_args=1)
     def apply(self, x):

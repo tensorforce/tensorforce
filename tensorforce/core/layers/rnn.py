@@ -97,7 +97,10 @@ class Rnn(TransformationBase):
         output_spec = super().output_spec()
 
         if self.return_final_state:
-            output_spec['shape'] = output_spec['shape'][:-2] + (self.size,)
+            if self.cell == 'gru':
+                output_spec['shape'] = output_spec['shape'][:-2] + (self.size,)
+            elif self.cell == 'lstm':
+                output_spec['shape'] = output_spec['shape'][:-2] + (2 * self.size,)
         elif self.squeeze:
             output_spec['shape'] = output_spec['shape'][:-1]
         else:

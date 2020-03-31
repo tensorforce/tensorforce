@@ -49,7 +49,7 @@ class Keras(Layer):
         return dict(type=None, shape=None)
 
     def output_spec(self):
-        output_spec = super.output_spec()
+        output_spec = super().output_spec()
 
         shape = self.keras_layer.compute_output_shape(input_shape=((None,) + output_spec['shape']))
 

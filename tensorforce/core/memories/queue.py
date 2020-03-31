@@ -42,8 +42,9 @@ class Queue(Memory):
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
+    # (requires capacity as first argument)
     def __init__(
-        self, name, capacity=None, values_spec=None, min_capacity=0, device=None,
+        self, capacity=None, name=None, values_spec=None, min_capacity=0, device=None,
         summary_labels=None
     ):
         super().__init__(

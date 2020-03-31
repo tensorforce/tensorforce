@@ -13,12 +13,12 @@
 # limitations under the License.
 # ==============================================================================
 
-from collections import Counter, OrderedDict
+from collections import Counter
 
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core import Module, tf_function
+from tensorforce.core import layer_modules, Module, tf_function
 from tensorforce.core.layers import PreprocessingLayer, TemporalLayer
 from tensorforce.core.networks import LayerbasedNetwork
 

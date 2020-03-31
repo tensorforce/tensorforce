@@ -247,13 +247,13 @@ class Pool2d(Layer):
                 output_spec['shape'][2]
             )
         elif self.padding == 'valid':
-            input_spec['shape'] = (
+            output_spec['shape'] = (
                 ceil((output_spec['shape'][0] - (self.window[1] - 1)) / self.stride[1]),
                 ceil((output_spec['shape'][1] - (self.window[2] - 1)) / self.stride[2]),
                 output_spec['shape'][2]
             )
 
-        return input_spec
+        return output_spec
 
     @tf_function(num_args=1)
     def apply(self, x):

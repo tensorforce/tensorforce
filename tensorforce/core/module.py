@@ -149,13 +149,12 @@ class Module(tf.Module):
 
         super().__init__(name=name)
 
-        MODULE_STACK.append(self)
-
         self.is_root = is_root
         self.device = device
         self.is_initialized = False
 
         if self.is_root:
+            MODULE_STACK.clear()
             self.is_trainable = True
             self.is_saved = True
             self.global_tensors_spec = OrderedDict()
@@ -164,10 +163,12 @@ class Module(tf.Module):
             self.query_tensors = None
             self.available_summaries = None
         else:
-            assert MODULE_STACK[-1] is self
-            self.parent = MODULE_STACK[-2]
+            assert len(MODULE_STACK) > 0
+            self.parent = MODULE_STACK[-1]
             self.is_trainable = None
             self.is_saved = None
+
+        MODULE_STACK.append(self)
 
         if self.is_root and summary_labels is None:
             self.summary_labels = set()
@@ -347,10 +348,11 @@ class Module(tf.Module):
                         self.summarize_input = self.add_placeholder(
                             name='summarize', dtype='float', shape=None, batched=False
                         )
-                        self.summarize_step_input = self.add_placeholder(
-                            name='summarize-step', dtype='long', shape=(), batched=False,
-                            default=self.global_tensor(name='timesteps')
-                        )
+                        # self.summarize_step_input = self.add_placeholder(
+                        #     name='summarize-step', dtype='long', shape=(), batched=False,
+                        #     default=self.timesteps
+                        # )
+                        self.summarize_step_input = self.timesteps
                         self.custom_summaries = OrderedDict()
                         for name, summary in self.summarizer_spec['custom'].items():
                             if summary['type'] == 'audio':
@@ -393,7 +395,7 @@ class Module(tf.Module):
                         condition = tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
 
                     elif 'variables' in self.summarizer_spec['frequency']:
-                        step = Module.retrieve_tensor(name=Module.global_summary_step)
+                        step = self.global_tensor(name=Module.global_summary_step)
                         frequency = tf.constant(
                             value=self.summarizer_spec['frequency']['variables'],
                             dtype=util.tf_dtype(dtype='long')
@@ -453,7 +455,7 @@ class Module(tf.Module):
 
                     elif isinstance(self.summarizer_spec['frequency'], int):
                         if function_name in ('act', 'independent_act'):
-                            step = self.global_tensor(name='timesteps')
+                            step = self.timesteps
                             frequency = tf.constant(
                                 value=self.summarizer_spec['frequency'],
                                 dtype=util.tf_dtype(dtype='long')
@@ -469,11 +471,11 @@ class Module(tf.Module):
 
                     elif function_name in self.summarizer_spec['frequency']:
                         if function_name in ('act', 'independent_act'):
-                            step = self.global_tensor(name='timesteps')
+                            step = self.timesteps
                         elif function_name in ('observe', 'experience'):
-                            step = self.global_tensor(name='episodes')
+                            step = self.episodes
                         elif function_name == 'update':
-                            step = self.global_tensor(name='updates')
+                            step = self.updates
                         elif function_name == 'reset':
                             raise TensorforceError.value(
                                 name='module', argument='summarizer[frequency]',
@@ -1009,7 +1011,7 @@ class Module(tf.Module):
 
         # TensorFlow summaries
         assert Module.global_summary_step is not None
-        step = Module.retrieve_tensor(name=Module.global_summary_step)
+        step = self.global_tensor(name=Module.global_summary_step)
         summaries = list()
         for name, tensor in tensors.items():
             shape = util.shape(x=tensor)
@@ -1055,7 +1057,7 @@ class Module(tf.Module):
 
         # default_module
         if default_module is not None and default_module not in modules and \
-                 not issubclass(default_module, Module):
+                not issubclass(default_module, Module):
             raise TensorforceError.value(
                 name='Module.add_module', argument='default_module', value=default_module
             )
@@ -1100,8 +1102,8 @@ class Module(tf.Module):
             elif modules is not None and module in modules:
                 # Keyword module specification
                 return Module.get_module_class_and_args(
-                    name=name, module=modules[module], default_module=default_module,
-                    disable_first_arg=True, **kwargs
+                    name=name, module=modules[module], modules=modules,
+                    default_module=default_module, disable_first_arg=True, **kwargs
                 )
 
             elif 'default' in modules or default_module is not None:

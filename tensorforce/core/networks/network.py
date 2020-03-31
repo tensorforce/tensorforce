@@ -95,9 +95,7 @@ class LayerbasedNetwork(Network):
     Base class for networks using Tensorforce layers.
     """
 
-    def __init__(
-        self, name, inputs_spec, device=None, summary_labels=None, l2_regularization=None
-    ):
+    def __init__(self, name, inputs_spec, device=None, summary_labels=None, l2_regularization=None):
         """
         Layer-based network constructor.
         """
@@ -169,7 +167,6 @@ class LayerbasedNetwork(Network):
         module_cls, args, kwargs = Module.get_module_class_and_args(
             name=name, module=module, modules=modules, default_module=default_module, **kwargs
         )
-        print(module_cls)
         if len(args) > 0:
             assert len(kwargs) == 0
             module_cls = args[0]
@@ -286,7 +283,7 @@ class LayeredNetwork(LayerbasedNetwork):
             assert layers is not None and 'name' in kwargs
             for name, spec in cls.internals_from_layers_spec(
                 layers_spec=layers, layer_counter=Counter()
-            ).items():
+            ):
                 internals_spec['{}-{}'.format(kwargs['name'], name)] = spec
 
         return internals_spec

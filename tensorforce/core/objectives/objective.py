@@ -49,6 +49,9 @@ class Objective(Module):
     def reference_spec(self):
         return dict(type='float', shape=())
 
+    def optimizer_arguments(self, **kwargs):
+        return OrderedDict()
+
     def input_signature(self, function):
         if function == 'loss':
             return [
@@ -107,6 +110,3 @@ class Objective(Module):
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
             actions=actions, reward=reward, policy=policy
         )
-
-    def optimizer_arguments(self, **kwargs):
-        return OrderedDict()

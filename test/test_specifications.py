@@ -15,6 +15,7 @@
 
 import unittest
 
+from tensorforce.core import tf_function
 from tensorforce.core.memories import Replay
 from tensorforce.core.networks import LayerbasedNetwork
 from test.unittest_base import UnittestBase
@@ -28,7 +29,8 @@ class TestNetwork(LayerbasedNetwork):
         self.layer1 = self.add_module(name='dense0', module=dict(type='dense', size=8))
         self.layer2 = self.add_module(name='dense1', module=dict(type='dense', size=8))
 
-    def tf_apply(self, x, internals, return_internals=False):
+    @tf_function(num_args=3)
+    def apply(self, x, horizons, internals, return_internals):
         x = self.layer2.apply(x=self.layer1.apply(x=next(iter(x.values()))))
         if return_internals:
             return x, dict()

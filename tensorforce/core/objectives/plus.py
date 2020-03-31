@@ -13,8 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-from collections import OrderedDict
-
+from tensorforce import util
 import tensorforce.core
 from tensorforce.core import tf_function
 from tensorforce.core.objectives import Objective
@@ -49,74 +48,70 @@ class Plus(Objective):
         )
 
         self.objective1 = self.add_module(
-            name='objective1', module=objective1, modules=tensorforce.core.objective_modules
+            name='objective1', module=objective1, modules=tensorforce.core.objective_modules,
+            states_spec=states_spec, internals_spec=internals_spec,
+            auxiliaries_spec=auxiliaries_spec, actions_spec=actions_spec
         )
+
         self.objective2 = self.add_module(
-            name='objective2', module=objective2, modules=tensorforce.core.objective_modules
+            name='objective2', module=objective2, modules=tensorforce.core.objective_modules,
+            states_spec=states_spec, internals_spec=internals_spec,
+            auxiliaries_spec=auxiliaries_spec, actions_spec=actions_spec
         )
+
+    def reference_spec(self):
+        return [self.objective1.reference_spec(), self.objective2.reference_spec()]
+
+    def optimizer_arguments(self, **kwargs):
+        arguments = super().optimizer_arguments()
+        util.deep_disjoint_update(
+            target=arguments, source=self.objective1.optimizer_arguments(**kwargs)
+        )
+        util.deep_disjoint_update(
+            target=arguments, source=self.objective2.optimizer_arguments(**kwargs)
+        )
+        return arguments
 
     @tf_function(num_args=6)
-    def loss(self, states, horizons, internals, auxiliaries, actions, reward):
-        kwargs1 = OrderedDict()
-        kwargs2 = OrderedDict()
-        for key, value in kwargs.items():
-            assert len(value) == 2 and (value[0] is not None or value[1] is not None)
-            if value[0] is not None:
-                kwargs1[key] = value[0]
-            if value[1] is not None:
-                kwargs2[key] = value[1]
-
-        loss1 = self.objective1.loss_per_instance(
+    def loss(self, states, horizons, internals, auxiliaries, actions, reward, policy):
+        loss1 = self.objective1.loss(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-            actions=actions, reward=reward, **kwargs1
+            actions=actions, reward=reward, policy=policy
         )
 
-        loss2 = self.objective2.loss_per_instance(
+        loss2 = self.objective2.loss(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-            actions=actions, reward=reward, **kwargs2
+            actions=actions, reward=reward, policy=policy
         )
 
         return loss1 + loss2
 
-    def optimizer_arguments(self, **kwargs):
-        arguments = super().optimizer_arguments()
-        arguments1 = self.objective1.optimizer_arguments(**kwargs)
-        arguments2 = self.objective1.optimizer_arguments(**kwargs)
-        for key, function in arguments1:
-            if key in arguments2:
+    @tf_function(num_args=6)
+    def reference(self, states, horizons, internals, auxiliaries, actions, reward, policy):
+        reference1 = self.objective1.reference(
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+            actions=actions, reward=reward, policy=policy
+        )
 
-                def plus_function(states, horizons, internals, auxiliaries, actions, reward):
-                    value1 = function(
-                        states=states, horizons=horizons, internals=internals,
-                        auxiliaries=auxiliaries, actions=actions, reward=reward
-                    )
-                    value2 = arguments2[key](
-                        states=states, horizons=horizons, internals=internals,
-                        auxiliaries=auxiliaries, actions=actions, reward=reward
-                    )
-                    return (value1, value2)
+        reference2 = self.objective2.reference(
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+            actions=actions, reward=reward, policy=policy
+        )
 
-            else:
+        return (reference1, reference2)
 
-                def plus_function(states, horizons, internals, auxiliaries, actions, reward):
-                    value1 = function(
-                        states=states, horizons=horizons, internals=internals,
-                        auxiliaries=auxiliaries, actions=actions, reward=reward
-                    )
-                    return (value1, None)
+    @tf_function(num_args=7)
+    def comparative_loss(
+        self, states, horizons, internals, auxiliaries, actions, reward, reference, policy
+    ):
+        loss1 = self.objective1.comparative_loss(
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+            actions=actions, reward=reward, reference=reference[0], policy=policy
+        )
 
-            arguments[key] = plus_function
+        loss2 = self.objective2.comparative_loss(
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+            actions=actions, reward=reward, reference=reference[1], policy=policy
+        )
 
-        for key, function in arguments2:
-            if key not in arguments1:
-
-                def plus_function(states, horizons, internals, auxiliaries, actions, reward):
-                    value2 = function(
-                        states=states, horizons=horizons, internals=internals,
-                        auxiliaries=auxiliaries, actions=actions, reward=reward
-                    )
-                    return (None, value2)
-
-            arguments[key] = plus_function
-
-        return arguments
+        return loss1 + loss2

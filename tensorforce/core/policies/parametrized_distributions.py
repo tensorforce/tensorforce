@@ -127,17 +127,13 @@ class ParametrizedDistributions(Stochastic, ActionValue):
 
         if policy is None:
             assert 'name' in kwargs and 'states_spec' in kwargs
-            network_cls, first_arg, network_kwargs = Module.get_module_class_and_kwargs(
+            network_cls, network_args, network_kwargs = Module.get_module_class_and_args(
                 name='network', module=network, modules=network_modules,
                 inputs_spec=kwargs['states_spec']
             )
 
-            if first_arg is None:
-                for name, spec in network_cls.internals_spec(**network_kwargs).items():
-                    internals_spec['{}-{}'.format(kwargs['name'], name)] = spec
-            else:
-                for name, spec in network_cls.internals_spec(first_arg, **network_kwargs).items():
-                    internals_spec['{}-{}'.format(kwargs['name'], name)] = spec
+            for name, spec in network_cls.internals_spec(*network_args, **network_kwargs).items():
+                internals_spec['{}-{}'.format(kwargs['name'], name)] = spec
 
         else:
             assert network == 'auto' and len(kwargs) == 0

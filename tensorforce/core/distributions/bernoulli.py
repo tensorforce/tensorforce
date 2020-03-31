@@ -79,11 +79,6 @@ class Bernoulli(Distribution):
                 input_spec=input_spec
             )
 
-        self.register_global_tensor(
-            name=(self.name + '-probability'),
-            spec=dict(type='float', shape=self.action_spec['shape']), batched=True
-        )
-
     @tf_function(num_args=1)
     def parametrize(self, x):
         one = tf.constant(value=1.0, dtype=util.tf_dtype(dtype='float'))
@@ -110,7 +105,7 @@ class Bernoulli(Distribution):
         true_logit = tf.math.log(x=probability)
         false_logit = tf.math.log(x=(one - probability))
 
-        self.set_global_tensor(name=(self.name + '-probability'), tensor=probability)
+        self.set_global_tensor(name='probability', tensor=probability)
 
         return [true_logit, false_logit, probability, states_value]
 

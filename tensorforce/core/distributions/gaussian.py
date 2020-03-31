@@ -87,15 +87,6 @@ class Gaussian(Distribution):
                 input_spec=input_spec
             )
 
-        self.register_global_tensor(
-            name=(self.name + '-mean'), spec=dict(type='float', shape=self.action_spec['shape']),
-            batched=True
-        )
-        self.register_global_tensor(
-            name=(self.name + '-stddev'), spec=dict(type='float', shape=self.action_spec['shape']),
-            batched=True
-        )
-
     @tf_function(num_args=1)
     def parametrize(self, x):
         log_epsilon = tf.constant(value=log(util.epsilon), dtype=util.tf_dtype(dtype='float'))
@@ -120,8 +111,8 @@ class Gaussian(Distribution):
         # Standard deviation
         stddev = tf.exp(x=log_stddev)
 
-        self.set_global_tensor(name=(self.name + '-mean'), tensor=mean)
-        self.set_global_tensor(name=(self.name + '-stddev'), tensor=stddev)
+        self.set_global_tensor(name='mean', tensor=mean)
+        self.set_global_tensor(name='stddev', tensor=stddev)
 
         return [mean, stddev, log_stddev]
 

@@ -55,30 +55,22 @@ class TensorforceModel(Model):
                 )
 
         # Policy internals specification
-        policy_cls, first_arg, kwargs = Module.get_module_class_and_kwargs(
+        policy_cls, args, kwargs = Module.get_module_class_and_args(
             name='policy', module=policy, modules=policy_modules, states_spec=preprocessed_states,
             actions_spec=actions
         )
-        if first_arg is None:
-            self.policy_internals_spec = policy_cls.internals_spec(**kwargs)
-        else:
-            self.policy_internals_spec = policy_cls.internals_spec(first_arg, **kwargs)
+        self.policy_internals_spec = policy_cls.internals_spec(*args, **kwargs)
         internals = OrderedDict()
         for internal_name, spec in self.policy_internals_spec.items():
             internals[internal_name] = spec
 
         # Baseline internals specification
-        if baseline_policy is None:
-            pass
-        else:
-            baseline_cls, first_arg, kwargs = Module.get_module_class_and_kwargs(
+        if baseline_policy is not None:
+            baseline_cls, args, kwargs = Module.get_module_class_and_args(
                 name='baseline', module=baseline_policy, modules=policy_modules,
                 states_spec=preprocessed_states, actions_spec=actions
             )
-            if first_arg is None:
-                self.baseline_internals_spec = baseline_cls.internals_spec(**kwargs)
-            else:
-                self.baseline_internals_spec = baseline_cls.internals_spec(first_arg, **kwargs)
+            self.baseline_internals_spec = baseline_cls.internals_spec(*args, **kwargs)
             for internal_name, spec in self.baseline_internals_spec.items():
                 if internal_name in internals:
                     raise TensorforceError.collision(
@@ -168,6 +160,11 @@ class TensorforceModel(Model):
         if baseline_optimizer is None and baseline_objective is not None:
             baseline_optimizer = 1.0
 
+        if baseline_optimizer is None or isinstance(baseline_optimizer, float):
+            baseline_is_trainable = True
+        else:
+            baseline_is_trainable = False
+
         # Baseline
         if baseline_policy is None:
             self.separate_baseline_policy = False
@@ -175,10 +172,9 @@ class TensorforceModel(Model):
             self.baseline = self.policy
         else:
             self.separate_baseline_policy = True
-            is_trainable = (baseline_optimizer is None or isinstance(baseline_optimizer, float))
             self.baseline = self.add_module(
-                name='baseline', module=baseline_policy, modules=policy_modules, is_subscope=True,
-                is_trainable=is_trainable, states_spec=self.states_spec,
+                name='baseline', module=baseline_policy, modules=policy_modules,
+                is_trainable=baseline_is_trainable, states_spec=self.states_spec,
                 auxiliaries_spec=self.auxiliaries_spec, actions_spec=self.actions_spec
             )
 
@@ -196,13 +192,12 @@ class TensorforceModel(Model):
             self.baseline_loss_weight = None
             self.baseline_optimizer = self.add_module(
                 name='baseline_optimizer', module=baseline_optimizer,
-                modules=optimizer_modules, is_subscope=True, is_trainable=False,
-                states_spec=self.states_spec, internals_spec=self.baseline_internals_spec,
-                auxiliaries_spec=self.auxiliaries_spec, actions_spec=self.actions_spec,
-                optimized_module=self.baseline
+                modules=optimizer_modules, is_trainable=False, states_spec=self.states_spec,
+                internals_spec=self.baseline_internals_spec, auxiliaries_spec=self.auxiliaries_spec,
+                actions_spec=self.actions_spec, optimized_module=self.baseline
             )
         self.optimizer = self.add_module(
-            name='optimizer', module=optimizer, modules=optimizer_modules, is_trainable=False,
+            name='optimizer', module=optimizer, modules=optimizer_modules,
             states_spec=self.states_spec, internals_spec=internals_spec,
             auxiliaries_spec=self.auxiliaries_spec, actions_spec=self.actions_spec,
             optimized_module=self
@@ -210,7 +205,7 @@ class TensorforceModel(Model):
 
         # Objectives
         self.objective = self.add_module(
-            name='objective', module=objective, modules=objective_modules, is_trainable=False,
+            name='objective', module=objective, modules=objective_modules,
             states_spec=self.states_spec, internals_spec=self.policy_internals_spec,
             auxiliaries_spec=self.auxiliaries_spec, actions_spec=self.actions_spec
         )
@@ -218,7 +213,7 @@ class TensorforceModel(Model):
             baseline_objective = objective
         self.baseline_objective = self.add_module(
             name='baseline_objective', module=baseline_objective, modules=objective_modules,
-            is_subscope=True, is_trainable=False, states_spec=self.states_spec,
+            is_trainable=baseline_is_trainable, states_spec=self.states_spec,
             internals_spec=self.baseline_internals_spec, auxiliaries_spec=self.auxiliaries_spec,
             actions_spec=self.actions_spec
         )
@@ -235,7 +230,7 @@ class TensorforceModel(Model):
             )
         max_past_horizon = self.baseline.max_past_horizon(on_policy=False)
         self.estimator = self.add_module(
-            name='estimator', module=Estimator, is_trainable=False,  # is_subscope=True,
+            name='estimator', module=Estimator, is_trainable=False,
             is_saved=False, values_spec=self.values_spec, horizon=reward_estimation['horizon'],
             discount=reward_estimation.get('discount', 1.0),
             estimate_horizon=reward_estimation.get('estimate_horizon', estimate_horizon),
@@ -800,7 +795,7 @@ class TensorforceModel(Model):
             )
 
         # Optimizer arguments
-        independent = self.set_global_tensor(
+        self.set_global_tensor(
             name='independent', tensor=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
         )
 
@@ -1027,8 +1022,6 @@ class TensorforceModel(Model):
                         pass_tensors=optimized
                     )
 
-        self.set_global_tensor(name='independent', tensor=independent)
-
         return optimized
 
     @tf_function(num_args=6)
@@ -1151,7 +1144,7 @@ class TensorforceModel(Model):
         )
 
         # Optimizer arguments
-        independent = self.set_global_tensor(
+        self.set_global_tensor(
             name='independent', tensor=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
         )
 
@@ -1226,8 +1219,6 @@ class TensorforceModel(Model):
                     label=('baseline-loss', 'losses'), name='baseline-loss', tensor=loss,
                     pass_tensors=optimized
                 )
-
-        independent = self.set_global_tensor(name='independent', tensor=independent)
 
         return optimized
 

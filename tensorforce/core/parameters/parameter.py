@@ -25,7 +25,7 @@ class Parameter(Module):
 
     Args:
         unit ("timesteps" | "episodes" | "updates"): Unit of parameter schedule
-            (<span style="color:#00C000"><b>default</b></span>: none).
+            (<span style="color:#00C000"><b>default</b></span>: timesteps).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
@@ -36,8 +36,8 @@ class Parameter(Module):
     """
 
     def __init__(
-        self, unit=None, summary_labels=None, name=None, dtype=None, shape=(), min_value=None,
-        max_value=None
+        self, unit='timesteps', summary_labels=None, name=None, dtype=None, shape=(),
+        min_value=None, max_value=None
     ):
         super().__init__(name=name, summary_labels=summary_labels)
 
@@ -89,13 +89,6 @@ class Parameter(Module):
                     hint=('> ' + str(max_value))
                 )
 
-    def input_signature(self, function):
-        if function == 'value':
-            return ()
-
-        else:
-            return super().input_signature(function=function)
-
     def min_value(self):
         return None
 
@@ -105,35 +98,27 @@ class Parameter(Module):
     def final_value(self):
         raise NotImplementedError
 
-    def parameter_value(self):
+    def parameter_value(self, step):
         raise NotImplementedError
 
-    def tf_initialize(self):
-        super().tf_initialize()
+    def input_signature(self, function):
+        if function == 'value':
+            return ()
 
+        else:
+            return super().input_signature(function=function)
+
+    @tf_function(num_args=0)
+    def value(self):
         if self.unit is None:
             step = None
         else:
             step = self.global_tensor(name=self.unit)
 
-        default = self.parameter_value(step=step)
-
-        # Temporarily leave module variable scope, otherwise placeholder name is unnecessarily long
-        if self.device is not None:
-            raise TensorforceError.unexpected()
-
-        # self.scope.__exit__(None, None, None)
-
-        self.parameter_input = self.add_placeholder(
-            name=self.name, dtype=self.dtype, shape=self.shape, batched=False, default=default
-        )
-
-        # self.scope.__enter__()
-
-    @tf_function(num_args=0)
-    def value(self):
-        parameter = tf.identity(input=self.parameter_input)
+        parameter = self.parameter_value(step=step)
 
         parameter = self.add_summary(label='parameters', name=self.name, tensor=parameter)
+
+        self.set_global_tensor(name='value', tensor=parameter)
 
         return parameter

@@ -102,13 +102,11 @@ class Preprocessor(LayerbasedNetwork):
                 layer_name = layer_type + str(layer_counter[layer_type])
                 layer_counter[layer_type] += 1
 
-            layer_cls, first_arg, kwargs = Module.get_module_class_and_kwargs(
+            layer_cls, args, kwargs = Module.get_module_class_and_args(
                 name=layer_name, module=layer_spec, modules=layer_modules, input_spec=input_spec
             )
-            if first_arg is None:
-                input_spec = layer_cls.output_spec(**kwargs)
-            else:
-                input_spec = layer_cls.output_spec(first_arg, **kwargs)
+
+            input_spec = layer_cls.output_spec(*args, **kwargs)
 
         return input_spec
 

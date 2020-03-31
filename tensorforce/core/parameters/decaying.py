@@ -16,7 +16,6 @@
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core import Module
 from tensorforce.core.parameters import Parameter
 
 
@@ -313,7 +312,6 @@ class Decaying(Parameter):
             value = value * self.scale
 
         return util.py_dtype(dtype=self.dtype)(value)
-
 
     def parameter_value(self, step):
         initial_value = tf.constant(value=self.initial_value, dtype=util.tf_dtype(dtype='float'))

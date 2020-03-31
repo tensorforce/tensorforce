@@ -88,15 +88,6 @@ class Beta(Distribution):
                 input_spec=input_spec
             )
 
-        self.register_global_tensor(
-            name=(self.name + '-alpha'), spec=dict(type='float', shape=self.action_spec['shape']),
-            batched=True
-        )
-        self.register_global_tensor(
-            name=(self.name + '-beta'), spec=dict(type='float', shape=self.action_spec['shape']),
-            batched=True
-        )
-
     @tf_function(num_args=1)
     def parametrize(self, x):
         # Softplus to ensure alpha and beta >= 1
@@ -127,8 +118,8 @@ class Beta(Distribution):
         # Log norm
         log_norm = tf.math.lgamma(x=alpha) + tf.math.lgamma(x=beta) - tf.math.lgamma(x=alpha_beta)
 
-        self.set_global_tensor(name=(self.name + '-alpha'), tensor=alpha)
-        self.set_global_tensor(name=(self.name + '-beta'), tensor=beta)
+        self.set_global_tensor(name='alpha', tensor=alpha)
+        self.set_global_tensor(name='beta', tensor=beta)
 
         return [alpha, beta, alpha_beta, log_norm]
 

@@ -28,33 +28,21 @@ from tensorforce import TensorforceError, util
 import tensorforce.core
 
 
-check = set()
+MODULE_STACK = list()
 
-
-# if self.is_subscope:
-#     Module.global_scope.append(self.name)
-# if self.device is not None:
-#     self.device.__enter__()
-# scope = tf.name_scope(name=name)
-# Module.scope_stack.append(scope)
-# scope.__enter__()
-# results = tf_function(*args, **kwargs)
-# scope.__exit__(None, None, None)
-# Module.scope_stack.pop()
-# if self.device is not None:
-#     self.device.__exit__(None, None, None)
-# if self.is_subscope:
-#     Module.global_scope.pop()
-# return results
-
-
+def get_global_scope():
+    for n, module in enumerate(MODULE_STACK):
+        if isinstance(module, Module):
+            yield module.name
+        elif n == 1 and isinstance(module, str):
+            yield module
+        else:
+            raise TensorforceError.unexpected()
 
 
 def tf_function(num_args):
 
     def decorator(function):
-        assert function not in check
-        check.add(function)
 
         def decorated(self, *args, **kwargs):
             if len(kwargs) > 0:
@@ -85,11 +73,11 @@ def tf_function(num_args):
                 signature_kwargs = dict(list(kwargs.items())[num_args:])
 
                 def function_graph(*args):
-                    if self.is_subscope and self.name not in Module.global_scope:
-                        Module.global_scope.append(self.name)
-                        pop_global_scope = True
+                    if self not in MODULE_STACK:
+                        MODULE_STACK.append(self)
+                        pop_module_stack = True
                     else:
-                        pop_global_scope = False
+                        pop_module_stack = False
                     if self.device is not None:
                         self.device.__enter__()
                     # with self.name_scope:
@@ -104,8 +92,9 @@ def tf_function(num_args):
                         )
                     if self.device is not None:
                         self.device.__exit__(None, None, None)
-                    if pop_global_scope:
-                        Module.global_scope.pop()
+                    if pop_module_stack:
+                        popped = MODULE_STACK.pop()
+                        assert popped is self
                     return results
 
                 # function_graph = partial(function, self, **graph_kwargs)
@@ -150,18 +139,7 @@ class Module(tf.Module):
         'parent'
     ))
 
-    global_scope = None
-    scope_stack = None
-    # while_counter = None
-    # cond_counter = None
-
-    # global_tensors_spec = None
-    global_tensors = None  # per agent, main module, or so
-    queryable_tensors = None
-
     global_summary_step = None
-
-    current_parent = None
 
     def __init__(
         self, name, is_root=False, device=None, summary_labels=None, l2_regularization=None
@@ -171,11 +149,25 @@ class Module(tf.Module):
 
         super().__init__(name=name)
 
+        MODULE_STACK.append(self)
+
         self.is_root = is_root
         self.device = device
         self.is_initialized = False
-        self.parent = Module.current_parent
-        Module.current_parent = None
+
+        if self.is_root:
+            self.is_trainable = True
+            self.is_saved = True
+            self.global_tensors_spec = OrderedDict()
+            self.input_tensors = None
+            self.output_tensors = None
+            self.query_tensors = None
+            self.available_summaries = None
+        else:
+            assert MODULE_STACK[-1] is self
+            self.parent = MODULE_STACK[-2]
+            self.is_trainable = None
+            self.is_saved = None
 
         if self.is_root and summary_labels is None:
             self.summary_labels = set()
@@ -198,23 +190,6 @@ class Module(tf.Module):
                 modules=tensorforce.core.parameter_modules, is_trainable=False, dtype='float',
                 min_value=0.0
             )
-
-        if self.is_root:
-            self.is_subscope = True
-            self.is_trainable = True
-            self.is_saved = True
-        else:
-            self.is_subscope = None
-            self.is_trainable = None
-            self.is_saved = None
-
-        if self.is_root:
-            Module.global_scope = [self.name]
-            self.global_tensors_spec = OrderedDict()
-            self.input_tensors = None
-            self.output_tensors = None
-            self.query_tensors = None
-            self.available_summaries = None
 
     @property
     def root(self):
@@ -276,14 +251,12 @@ class Module(tf.Module):
         self.available_summaries = set()
 
         if self.is_root:
-            assert Module.global_scope == [self.name]
-            Module.global_scope = list()
-            # Module.while_counter = 0
-            # Module.cond_counter = 0
+            popped = MODULE_STACK.pop()
+            assert popped is self
 
-        # TensorFlow device and scope
-        if self.is_subscope:
-            Module.global_scope.append(self.name)
+        MODULE_STACK.append(self)
+
+        # TensorFlow device
         if self.device is not None:
             self.device = tf.device(device_name_or_function=self.device)
             self.device.__enter__()
@@ -336,7 +309,7 @@ class Module(tf.Module):
                         if self.summary_labels == 'all' or 'graph' in self.summary_labels:
                             pass
 
-                    Module.global_summary_step = 'timestep'
+                    Module.global_summary_step = 'timesteps'
                     condition = tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
                     record_summaries = tf.summary.record_if(condition=condition)
                     record_summaries.__enter__()
@@ -414,7 +387,7 @@ class Module(tf.Module):
 
                     record_summaries.__exit__(None, None, None)
 
-                    Module.global_summary_step = 'update'
+                    Module.global_summary_step = 'updates'
                     if 'frequency' not in self.summarizer_spec or \
                             isinstance(self.summarizer_spec['frequency'], int):
                         condition = tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
@@ -449,35 +422,14 @@ class Module(tf.Module):
 
         if self.device is not None:
             self.device.__exit__(None, None, None)
-        if self.is_subscope:
-            Module.global_scope.pop()
 
-        if self.is_root:
-            assert len(Module.global_scope) == 0
-            Module.global_scope = None
-            # Module.while_counter = None
-            # Module.cond_counter = None
-            # Module.global_tensors = None
+        popped = MODULE_STACK.pop()
+        assert popped is self
 
         # Internal TensorFlow functions, prefixed by 'tf_'
         for attribute in sorted(dir(self)):
             if attribute.startswith('tf_') and attribute != 'tf_initialize':
-                function_name = attribute[3:]
-
-                if not util.is_valid_name(name=function_name):
-                    raise TensorforceError.unexpected()
-                if hasattr(self, function_name):
-                    raise TensorforceError.unexpected()
-
-                tf_function = getattr(self, attribute)
-                if not callable(tf_function):
-                    raise TensorforceError.unexpected()
-
-                function = self.create_tf_function(
-                    name='{}.{}'.format(self.name, function_name), tf_function=tf_function
-                )
-
-                setattr(self, function_name, function)
+                assert False
 
         #  API TensorFlow functions, prefixed by 'api_'
         for attribute in sorted(dir(self)):
@@ -489,11 +441,11 @@ class Module(tf.Module):
                     continue
 
                 if function_name in ('act', 'independent_act'):
-                    Module.global_summary_step = 'timestep'
+                    Module.global_summary_step = 'timesteps'
                 elif function_name in ('observe', 'experience'):
-                    Module.global_summary_step = 'episode'
+                    Module.global_summary_step = 'episodes'
                 elif function_name == 'update':
-                    Module.global_summary_step = 'update'
+                    Module.global_summary_step = 'updates'
 
                 if self.summarizer_spec is not None:
                     if 'frequency' not in self.summarizer_spec:
@@ -580,51 +532,15 @@ class Module(tf.Module):
         else:
             return None
 
-    def create_tf_function(self, name, tf_function):
-        input_signature = self.input_signature(function=name[name.index('.') + 1:])
-        if input_signature is not None:
-            assert False
-            tf_function = tf.function(
-                func=tf_function, input_signature=input_signature, autograph=False
-            )
-
-        # Call internal TensorFlow function
-        def fn(*args, **kwargs):
-            if self.is_subscope and self.name not in Module.global_scope:
-                Module.global_scope.append(self.name)
-                pop_global_scope = True
-            else:
-                pop_global_scope = False
-            if self.device is not None:
-                self.device.__enter__()
-            scope = tf.name_scope(name=name)
-            Module.scope_stack.append(scope)
-            scope.__enter__()
-            results = tf_function(*args, **kwargs)
-            scope.__exit__(None, None, None)
-            Module.scope_stack.pop()
-            if self.device is not None:
-                self.device.__exit__(None, None, None)
-            if pop_global_scope:
-                Module.global_scope.pop()
-            return results
-
-        return fn
-
     def create_api_function(self, name, api_function):
         # Call API TensorFlow function
-        Module.global_scope = name.split('.')
-        assert len(Module.global_scope) == 2
-        Module.scope_stack = list()
-        # Module.while_counter = 0
-        # Module.cond_counter = 0
-        Module.global_tensors = OrderedDict()
-        Module.queryable_tensors = OrderedDict()
+        MODULE_STACK.append(self)
+        MODULE_STACK.append(name[name.index('.') + 1:])
 
         if self.device is not None:
             self.device.__enter__()
         scope = tf.name_scope(name=name)
-        Module.scope_stack.append(scope)
+        # Module.scope_stack.append(scope)
         scope.__enter__()
 
         results = api_function()
@@ -635,26 +551,30 @@ class Module(tf.Module):
 
         # Function-level identity operation for retrieval
         query_tensors = set()
-        for scoped_name, tensor in Module.queryable_tensors.items():
-            tensor = util.identity_operation(x=tensor, operation_name=(scoped_name + '-query'))
+        # for scoped_name, tensor in Module.queryable_tensors.items():
+        #     tensor = util.identity_operation(x=tensor, operation_name=(scoped_name + '-query'))
+        #     assert tensor.name.endswith('-query:0')
+        #     assert scoped_name not in query_tensors
+        #     query_tensors.add(scoped_name)
+        for scoped_name in self.global_tensors_spec:
+            scoped_name1 = scoped_name.replace('agent/', '')
+            scoped_name2 = scoped_name.replace('agent/', name.replace('.', '/') + '/')
+            collection = self.root.graph.get_collection(name=scoped_name2)
+            if len(collection) == 0:
+                continue
+            tensor = util.identity_operation(x=collection[0], operation_name=(scoped_name1 + '-query'))
             assert tensor.name.endswith('-query:0')
             assert scoped_name not in query_tensors
             query_tensors.add(scoped_name)
         self.query_tensors[name[name.index('.') + 1:]] = sorted(query_tensors)
 
         scope.__exit__(None, None, None)
-        Module.scope_stack.pop()
         if self.device is not None:
             self.device.__exit__(None, None, None)
 
-        assert Module.global_scope == name.split('.')
-        Module.global_scope = None
-        assert len(Module.scope_stack) == 0
-        Module.scope_stack = None
-        # Module.while_counter = None
-        # Module.cond_counter = None
-        Module.global_tensors = None
-        Module.queryable_tensors = None
+        MODULE_STACK.pop()
+        popped = MODULE_STACK.pop()
+        assert popped is self
 
         def fn(query=None, **kwargs):
             # Feed_dict dictionary
@@ -700,24 +620,24 @@ class Module(tf.Module):
 
     def cond(self, pred, true_fn, false_fn):
 
-        def true_fn_wrapper():
-            for scope in Module.scope_stack:
-                scope.__enter__()
-            result = true_fn()
-            for scope in reversed(Module.scope_stack):
-                scope.__exit__(None, None, None)
-            return result
+        # def true_fn_wrapper():
+        #     for scope in Module.scope_stack:
+        #         scope.__enter__()
+        #     result = true_fn()
+        #     for scope in reversed(Module.scope_stack):
+        #         scope.__exit__(None, None, None)
+        #     return result
 
-        def false_fn_wrapper():
-            for scope in Module.scope_stack:
-                scope.__enter__()
-            result = false_fn()
-            for scope in reversed(Module.scope_stack):
-                scope.__exit__(None, None, None)
-            return result
+        # def false_fn_wrapper():
+        #     for scope in Module.scope_stack:
+        #         scope.__enter__()
+        #     result = false_fn()
+        #     for scope in reversed(Module.scope_stack):
+        #         scope.__exit__(None, None, None)
+        #     return result
 
         # Module.cond_counter += 1
-        x = tf.cond(pred=pred, true_fn=true_fn_wrapper, false_fn=false_fn_wrapper)
+        x = tf.cond(pred=pred, true_fn=true_fn, false_fn=false_fn)
         # Module.cond_counter -= 1
         return x
 
@@ -736,98 +656,49 @@ class Module(tf.Module):
         # Module.while_counter -= 1
         return x
 
-    def register_global_tensor(self, name, spec, batched, tensor=None):
-        assert not self.is_initialized
-        spec = dict(spec)
-        spec['batched'] = batched
-        assert util.valid_value_spec(value_spec=spec)
-
-        assert Module.global_scope is not None
-        scoped_name = '/'.join(Module.global_scope) + '/' + name
-
-        assert scoped_name not in self.root.global_tensors_spec
-        self.root.global_tensors_spec[scoped_name] = spec
-
-        if tensor is not None:
-            if not isinstance(tensor, (tf.Tensor, tf.Variable)):
-                raise TensorforceError.unexpected()
-            if len(self.root.graph.get_collection(name=scoped_name)) > 0:
-                raise TensorforceError.unexpected()
-            self.root.graph.add_to_collection(name=scoped_name, value=tensor)
-
-    def global_tensor_spec(self, name):
-        assert not self.is_initialized
-        for n in range(len(Module.global_scope), 0, -1):
-            scoped_name = '/'.join(Module.global_scope[:n]) + '/' + name
-            if scoped_name in self.root.global_tensors_spec:
-                break
-        else:
-            assert False
-
-        spec = dict(self.root.global_tensors_spec[scoped_name])
-        spec.pop('batched')
-        return spec
-
     def set_global_tensor(self, name, tensor):
         assert self.is_initialized
+
         if not isinstance(tensor, tf.Tensor):
             raise TensorforceError.unexpected()
 
-        api_fn_agnostic_scope = list(Module.global_scope)
-        api_fn_agnostic_scope.pop(1)
-        for n in range(len(api_fn_agnostic_scope), 0, -1):
-            scoped_name = '/'.join(api_fn_agnostic_scope[:n]) + '/' + name
-            if scoped_name in self.root.global_tensors_spec:
-                spec = self.root.global_tensors_spec[scoped_name]
-                if not util.is_consistent_with_value_spec(value_spec=spec, x=tensor):
-                    raise TensorforceError.unexpected()
-                break
+        spec = dict(type=util.dtype(x=tensor), shape=util.shape(x=tensor))
+        scoped_name = util.join_scopes(*get_global_scope(), name)
+        if scoped_name in self.root.global_tensors_spec:
+            assert self.root.global_tensors_spec[scoped_name] == spec
         else:
-            assert False
+            self.root.global_tensors_spec[scoped_name] = spec
 
-        scoped_name = '/'.join(Module.global_scope[:n + 1]) + '/' + name
-        collection = self.root.graph.get_collection(name=scoped_name)
-        # assert len(collection) == 0
         collection = self.root.graph.get_collection_ref(name=scoped_name)
-        if len(collection) > 0:
-            assert len(collection) == 1
-            previous = collection[0]
+        if len(collection) > 1:
+            raise TensorforceError.unexpected()
+        elif len(collection) > 0:
             collection[0] = tensor
-            # return tf.identity(input=previous)
-            return previous
         else:
             self.root.graph.add_to_collection(name=scoped_name, value=tensor)
 
     def global_tensor(self, name):
         assert self.is_initialized
 
-        api_fn_agnostic_scope = list(Module.global_scope)
-        api_fn_agnostic_scope.pop(1)
-        for n in range(len(api_fn_agnostic_scope), 0, -1):
-            scoped_name = '/'.join(api_fn_agnostic_scope[:n]) + '/' + name
+        global_scope = list(get_global_scope())
+        for n in range(len(global_scope), 0, -1):
+            scoped_name = util.join_scopes(*global_scope[:n], name)
             if scoped_name in self.root.global_tensors_spec:
                 break
         else:
-            assert False
+            raise TensorforceError.unexpected()
 
         collection = self.root.graph.get_collection(name=scoped_name)
-        if len(collection) > 1:
+        if len(collection) != 1:
             raise TensorforceError.unexpected()
-        elif len(collection) == 1:
-            # Created during initialization, so variable
-            return tf.identity(input=collection[0])
-        else:
 
-            scoped_name = '/'.join(Module.global_scope[:n + 1]) + '/' + name
-            collection = self.root.graph.get_collection(name=scoped_name)
-            if len(collection) != 1:
-                raise TensorforceError.unexpected()
-            return collection[0]
+        return collection[0]
 
     def add_variable(
         self, name, dtype, shape, is_trainable, initializer='zeros', is_saved=True, is_global=False,
         summarize=None
     ):
+        assert not self.is_initialized
         # name
         if not util.is_valid_name(name=name):
             raise TensorforceError.value(name='Module.add_variable', argument='name', value=name)
@@ -956,10 +827,12 @@ class Module(tf.Module):
             variable.is_saved = is_saved
 
             if is_global:
-                # Register global variable with TensorFlow
-                self.register_global_tensor(
-                    name=name, spec=dict(type=dtype, shape=shape), batched=False, tensor=variable
-                )
+                # Register variable as global tensor
+                scoped_name = util.join_scopes(*get_global_scope(), name)
+                assert scoped_name not in self.root.global_tensors_spec
+                self.root.global_tensors_spec[scoped_name] = dict(type=dtype, shape=shape)
+                assert len(self.root.graph.get_collection(name=scoped_name)) == 0
+                self.root.graph.add_to_collection(name=scoped_name, value=variable)
 
         # Add summary
         if (summarize is None and is_trainable) or summarize:
@@ -1125,14 +998,14 @@ class Module(tf.Module):
                 tensors[name + '-mean'] = mean
                 tensors[name + '-variance'] = variance
 
-        # Scope handling
-        if Module.scope_stack is not None:
-            for scope in reversed(Module.scope_stack[1:]):
-                scope.__exit__(None, None, None)
-            if len(Module.global_scope) > 0:
-                temp_scope = tf.name_scope(name='/'.join(Module.global_scope))
-                temp_scope.__enter__()
-            tensors = util.fmap(function=util.identity_operation, xs=tensors)
+        # # Scope handling
+        # if Module.scope_stack is not None:
+        #     for scope in reversed(Module.scope_stack[1:]):
+        #         scope.__exit__(None, None, None)
+        #     if len(Module.global_scope) > 0:
+        #         temp_scope = tf.name_scope(name='/'.join(Module.global_scope))
+        #         temp_scope.__enter__()
+        #     tensors = util.fmap(function=util.identity_operation, xs=tensors)
 
         # TensorFlow summaries
         assert Module.global_summary_step is not None
@@ -1156,37 +1029,50 @@ class Module(tf.Module):
                 assert not util.is_iterable(x=label) and label.endswith('-histogram')
                 summaries.append(tf.summary.histogram(name=name, data=tensor, step=step))
 
-        # Scope handling
-        if Module.scope_stack is not None:
-            if len(Module.global_scope) > 0:
-                temp_scope.__exit__(None, None, None)
-            for scope in Module.scope_stack[1:]:
-                scope.__enter__()
+        # # Scope handling
+        # if Module.scope_stack is not None:
+        #     if len(Module.global_scope) > 0:
+        #         temp_scope.__exit__(None, None, None)
+        #     for scope in Module.scope_stack[1:]:
+        #         scope.__enter__()
 
         with tf.control_dependencies(control_inputs=summaries):
             return util.fmap(function=util.identity_operation, xs=pass_tensors)
 
     @staticmethod
-    def get_module_class_and_kwargs(
+    def get_module_class_and_args(
         name, module=None, modules=None, default_module=None, disable_first_arg=False, **kwargs
     ):
         # name
         if not util.is_valid_name(name=name):
             raise TensorforceError.value(name='Module.add_module', argument='name', value=name)
-        # module
-        # ???
+
         # modules
         if modules is not None and not isinstance(modules, dict):
             raise TensorforceError.type(
                 name='Module.add_module', argument='modules', dtype=type(modules)
             )
+
         # default_module
-        # ???
+        if default_module is not None and default_module not in modules and \
+                 not issubclass(default_module, Module):
+            raise TensorforceError.value(
+                name='Module.add_module', argument='default_module', value=default_module
+            )
+
+        # disable_first_arg
+        if not isinstance(disable_first_arg, bool):
+            raise TensorforceError.type(
+                name='Module.add_module', argument='disable_first_arg',
+                dtype=type(disable_first_arg)
+            )
+
+        # module
         if isinstance(module, dict):
             # Dictionary module specification (type either given via 'type' or 'default_module')
             util.deep_disjoint_update(target=kwargs, source=module)
             module = kwargs.pop('type', default_module)
-            return Module.get_module_class_and_kwargs(
+            return Module.get_module_class_and_args(
                 name=name, module=module, modules=modules, default_module=default_module,
                 disable_first_arg=True, **kwargs
             )
@@ -1196,7 +1082,7 @@ class Module(tf.Module):
                 # JSON file module specification
                 with open(module, 'r') as fp:
                     module = json.load(fp=fp)
-                return Module.get_module_class_and_kwargs(
+                return Module.get_module_class_and_args(
                     name=name, module=module, modules=modules, default_module=default_module,
                     disable_first_arg=True, **kwargs
                 )
@@ -1206,14 +1092,14 @@ class Module(tf.Module):
                 library_name, module_name = module.rsplit('.', 1)
                 library = importlib.import_module(name=library_name)
                 module = getattr(library, module_name)
-                return Module.get_module_class_and_kwargs(
+                return Module.get_module_class_and_args(
                     name=name, module=module, modules=modules, default_module=default_module,
                     disable_first_arg=True, **kwargs
                 )
 
             elif modules is not None and module in modules:
                 # Keyword module specification
-                return Module.get_module_class_and_kwargs(
+                return Module.get_module_class_and_args(
                     name=name, module=modules[module], default_module=default_module,
                     disable_first_arg=True, **kwargs
                 )
@@ -1230,7 +1116,7 @@ class Module(tf.Module):
                     kwargs['_first_arg'] = module
                 if default_module is None:
                     default_module = modules['default']
-                return Module.get_module_class_and_kwargs(
+                return Module.get_module_class_and_args(
                     name=name, module=default_module, modules=modules, **kwargs
                 )
 
@@ -1247,62 +1133,53 @@ class Module(tf.Module):
                 kwargs['_first_arg'] = module
             if default_module is None:
                 default_module = modules['default']
-            return Module.get_module_class_and_kwargs(
+            return Module.get_module_class_and_args(
                 name=name, module=default_module, modules=modules, **kwargs
             )
 
         elif callable(module):
-            first_arg = kwargs.pop('_first_arg', None)
+            if '_first_arg' in kwargs:
+                args = (kwargs.pop('_first_arg'),)
+            else:
+                args = ()
             kwargs['name'] = name
-            return module, first_arg, kwargs
+            return module, args, kwargs
 
         else:
             raise TensorforceError.value(name='Module.add_module', argument='module', value=module)
 
     def add_module(
-        self, name, module=None, modules=None, default_module=None, is_subscope=False,
-        is_trainable=True, is_saved=True, **kwargs
+        self, name, module=None, modules=None, default_module=None, is_trainable=True,
+        is_saved=True, **kwargs
     ):
         # name
         if any(name == module.name for module in self.this_submodules):
             raise TensorforceError.exists(name='module', value=name)
-        # module, modules, default_module: checked in get_module_class_and_kwargs(...)
-        # is_subscope
-        if not isinstance(is_subscope, bool):
-            raise TensorforceError.type(
-                name='Module.add_module', argument='is_subscope', dtype=type(is_subscope)
-            )
+
         # is_trainable
         if not isinstance(is_trainable, bool):
             raise TensorforceError.type(
                 name='Module.add_module', argument='is_trainable', dtype=type(is_trainable)
             )
+
         # is_saved
         if not isinstance(is_saved, bool):
             raise TensorforceError.type(
                 name='Module.add_module', argument='is_saved', dtype=type(is_saved)
             )
 
-        module_cls, first_arg, kwargs = Module.get_module_class_and_kwargs(
+        # module, modules, default_module
+        module_cls, args, kwargs = Module.get_module_class_and_args(
             name=name, module=module, modules=modules, default_module=default_module, **kwargs
         )
 
-        # Global scope handling
-        if is_subscope:
-            Module.global_scope.append(name)
-
         # Module constructor
-        assert Module.current_parent is None
-        Module.current_parent = self
-        if first_arg is None:
-            module = module_cls(**kwargs)
-        else:
-            module = module_cls(first_arg, **kwargs)
-        assert Module.current_parent is None
+        module = module_cls(*args, **kwargs)
+        popped = MODULE_STACK.pop()
+        assert popped is module
 
         assert not module.is_root
         assert not module.is_initialized
-        module.is_subscope = is_subscope
         if module.is_trainable is None:
             module.is_trainable = is_trainable
         else:
@@ -1312,54 +1189,7 @@ class Module(tf.Module):
         else:
             assert is_saved  # default
 
-        # Global scope handling
-        if is_subscope:
-            Module.global_scope.pop()
-
         return module
-
-    # def get_variables(self, only_trainable=False, only_saved=False):
-    #     if only_trainable:
-    #         return self.trainable_variables
-    #     else:
-    #         return self.variables
-
-    #     # only_trainable
-    #     if not isinstance(only_trainable, bool):
-    #         raise TensorforceError.type(
-    #             name='Module.get_variables', argument='only_trainable', dtype=type(only_trainable)
-    #         )
-    #     # only_saved
-    #     if not isinstance(only_saved, bool):
-    #         raise TensorforceError.type(
-    #             name='Module.get_variables', argument='only_saved', dtype=type(only_saved)
-    #         )
-    #     # not both
-    #     if only_trainable and only_saved:
-    #         raise TensorforceError(
-    #             message="Module.get_variables argument only_trainable should not be used together "
-    #                     "with argument only_saved."
-    #         )
-
-    #     if only_trainable:
-    #         # Only trainable variables
-    #         variables = list(self.trainable_variables.values())
-    #         for module in self.trainable_modules.values():
-    #             variables.extend(module.get_variables(only_trainable=only_trainable))
-
-    #     elif only_saved:
-    #         # Only saved variables
-    #         variables = list(self.saved_variables.values())
-    #         for module in self.saved_modules.values():
-    #             variables.extend(module.get_variables(only_saved=only_saved))
-
-    #     else:
-    #         # All variables
-    #         variables = list(self.variables.values())
-    #         for module in self.modules.values():
-    #             variables.extend(module.get_variables(only_trainable=only_trainable))
-
-    #     return variables
 
     def get_available_summaries(self):
         summaries = set(self.available_summaries)

@@ -84,12 +84,6 @@ class Categorical(Distribution):
                 size=(size * num_values), input_spec=input_spec
             )
 
-        self.register_global_tensor(
-            name=(self.name + '-probabilities'),
-            spec=dict(type='float', shape=(self.action_spec['shape'] + (num_values,))),
-            batched=True
-        )
-
     def input_signature(self, function):
         if function == 'parametrize':
             return [
@@ -129,7 +123,7 @@ class Categorical(Distribution):
         # "Normalized" logits
         logits = tf.math.log(x=tf.maximum(x=probabilities, y=epsilon))
 
-        self.set_global_tensor(name=(self.name + '-probabilities'), tensor=probabilities)
+        self.set_global_tensor(name='probabilities', tensor=probabilities)
 
         return [logits, probabilities, states_value, action_values]
 

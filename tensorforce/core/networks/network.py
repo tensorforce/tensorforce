@@ -159,26 +159,27 @@ class LayerbasedNetwork(Network):
         return tf.math.reduce_max(input_tensor=tf.stack(values=past_horizons, axis=0), axis=0)
 
     def add_module(
-        self, name, module=None, modules=None, default_module=None, is_subscope=False,
-        is_trainable=True, is_saved=True, **kwargs
+        self, name, module=None, modules=None, default_module=None, is_trainable=True,
+        is_saved=True, **kwargs
     ):
         # Default modules
         if modules is None:
             modules = layer_modules
 
-        module, first_arg, kwargs = Module.get_module_class_and_kwargs(
+        module_cls, args, kwargs = Module.get_module_class_and_args(
             name=name, module=module, modules=modules, default_module=default_module, **kwargs
         )
-        if first_arg is not None:
+        print(module_cls)
+        if len(args) > 0:
             assert len(kwargs) == 0
-            module = first_arg
+            module_cls = args[0]
 
         # Default input_spec
-        if not issubclass(module, Layer):
+        if not issubclass(module_cls, Layer):
             pass
 
         elif kwargs.get('input_spec') is None:
-            if module is Retrieve:
+            if module_cls is Retrieve:
                 if 'tensors' not in kwargs:
                     raise TensorforceError.required(name='retrieve layer', argument='tensors')
                 kwargs['input_spec'] = OrderedDict()
@@ -194,11 +195,11 @@ class LayerbasedNetwork(Network):
             else:
                 kwargs['input_spec'] = self._output_spec
 
-        elif module is Retrieve:
+        elif module_cls is Retrieve:
             raise TensorforceError.invalid(name='retrieve layer', argument='input_spec')
 
         layer = super().add_module(
-            module=module, modules=modules, default_module=default_module, is_subscope=is_subscope,
+            module=module_cls, modules=modules, default_module=default_module,
             is_trainable=is_trainable, is_saved=is_saved, **kwargs
         )
 
@@ -310,17 +311,13 @@ class LayeredNetwork(LayerbasedNetwork):
                 layer_name = layer_type + str(layer_counter[layer_type])
                 layer_counter[layer_type] += 1
 
-            layer_cls, first_arg, layer_kwargs = Module.get_module_class_and_kwargs(
+            layer_cls, args, kwargs = Module.get_module_class_and_args(
                 name=layer_name, module=layers_spec, modules=layer_modules
             )
 
             if issubclass(layer_cls, TemporalLayer):
-                if first_arg is None:
-                    for name, spec in layer_cls.internals_spec(**layer_kwargs).items():
-                        yield '{}-{}'.format(layer_name, name), spec
-                else:
-                    for name, spec in layer_cls.internals_spec(first_arg, **layer_kwargs).items():
-                        yield '{}-{}'.format(layer_name, name), spec
+                for name, spec in layer_cls.internals_spec(*args, **kwargs).items():
+                    yield '{}-{}'.format(layer_name, name), spec
 
     @tf_function(num_args=3)
     def apply(self, x, horizons, internals, return_internals):

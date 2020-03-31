@@ -16,7 +16,6 @@
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core import Module
 from tensorforce.core.parameters import Parameter
 
 

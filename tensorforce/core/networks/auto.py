@@ -141,16 +141,13 @@ class AutoNetwork(LayeredNetwork):
                 final_size = kwargs['size']
             else:
                 final_size = kwargs['final_size']
-            layer_cls, first_arg, layer_kwargs = Module.get_module_class_and_kwargs(
+
+            layer_cls, layer_args, layer_kwargs = Module.get_module_class_and_args(
                 name='lstm', module='internal_lstm', modules=layer_modules, size=final_size,
                 horizon=kwargs['rnn']
             )
 
-            if first_arg is None:
-                for name, spec in layer_cls.internals_spec(**layer_kwargs).items():
-                    internals_spec['{}-{}-{}'.format(kwargs['name'], 'lstm', name)] = spec
-            else:
-                for name, spec in layer_cls.internals_spec(first_arg, **layer_kwargs).items():
-                    internals_spec['{}-{}-{}'.format(kwargs['name'], 'lstm', name)] = spec
+            for name, spec in layer_cls.internals_spec(*layer_args, **layer_kwargs).items():
+                internals_spec['{}-{}-{}'.format(kwargs['name'], 'lstm', name)] = spec
 
         return internals_spec

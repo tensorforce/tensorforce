@@ -257,14 +257,6 @@ class Model(Module):
             is_trainable=False, dtype='float', min_value=0.0
         )
 
-        # Register global tensors
-        self.register_global_tensor(
-            name='independent', spec=dict(type='bool', shape=()), batched=False
-        )
-        self.register_global_tensor(
-            name='deterministic', spec=dict(type='bool', shape=()), batched=False
-        )
-
     def input_signature(self, function):
         if function == 'core_act':
             return [
@@ -287,58 +279,17 @@ class Model(Module):
             return super().input_signature(function=function)
 
     def initialize(self):
-        """
-        Sets up the TensorFlow model graph, starts the servers (distributed mode), creates summarizers
-        and savers, initializes (and enters) the TensorFlow session.
-        """
         tf.compat.v1.reset_default_graph()
 
-        # Create/get our graph, setup local model/global model links, set scope and device.
-        graph_default_context = self.setup_graph()
+        self.graph = tf.Graph()
+        graph_default_context = self.graph.as_default()
+        graph_default_context.__enter__()
+        tf.random.set_seed(seed=self.seed)
 
-        # Start a tf Server (in case of distributed setup). Only start once.
-        # if self.execution_type == "distributed" and self.server is None and self.is_local_model:
-        # if self.execution_spec is None or self.execution_type == 'local' or not self.is_local_model:
-        if True:
-            self.server = None
-        else:
-            # Creates and stores a tf server (and optionally joins it if we are a parameter-server).
-            # Only relevant, if we are running in distributed mode.
-            self.server = tf.compat.v1.train.Server(
-                server_or_cluster_def=self.distributed_spec["cluster_spec"],
-                job_name=self.distributed_spec["job"],
-                task_index=self.distributed_spec["task_index"],
-                protocol=self.distributed_spec.get("protocol"),
-                config=self.distributed_spec.get("session_config"),
-                start=True
-            )
-            if self.distributed_spec["job"] == "ps":
-                self.server.join()
-                # This is unreachable?
-                quit()
+        self.global_model = None
+        self.server = None
 
         super().initialize()
-
-        # If we are a global model -> return here.
-        # Saving, syncing, finalizing graph, session is done by local replica model.
-        # if self.execution_spec is not None and self.execution_type == "distributed" and not self.is_local_model:
-        #     return
-
-        # Saver/Summary -> Scaffold.
-        # Creates the tf.compat.v1.train.Saver object and stores it in self.saver.
-        # if self.execution_spec is None or self.execution_type == "single":
-        # if True:
-        #     saved_variables = self.get_variables(only_saved=True)
-        # else:
-        #     saved_variables = self.global_model.get_variables(only_saved=True)
-
-        # global_variables += [self.global_episode, self.global_timestep]
-
-        # for c in self.get_savable_components():
-        #     c.register_saver_ops()
-
-        # TensorFlow saver object
-        # TODO potentially make other options configurable via saver spec.
 
         # possibility to turn off?
         if self.saver_spec is None:
@@ -363,143 +314,20 @@ class Model(Module):
             filename=None
         )
 
-        self.setup_scaffold()
-
-        # Create necessary hooks for the upcoming session.
-        hooks = self.setup_hooks()
-
-        # We are done constructing: Finalize our graph, create and enter the session.
-        self.setup_session(self.server, hooks, graph_default_context)
-
-        if self.saver_directory is not None:
-            self.save(
-                directory=self.saver_directory, filename=self.saver_filename, format='tensorflow',
-                append='timesteps', no_act_pb=True
-            )
-
-    def setup_graph(self):
-        """
-        Creates our Graph and figures out, which shared/global model to hook up to.
-        If we are in a global-model's setup procedure, we do not create
-        a new graph (return None as the context). We will instead use the already existing local replica graph
-        of the model.
-
-        Returns: None or the graph's as_default()-context.
-        """
-        graph_default_context = None
-
-        # Single (non-distributed) mode.
-        # if self.execution_spec is None or self.execution_type == 'single':
-        if True:
-            self.graph = tf.Graph()
-            graph_default_context = self.graph.as_default()
-            graph_default_context.__enter__()
-            self.global_model = None
-
-        # Distributed tf
-        elif self.execution_type == 'distributed':
-            # Parameter-server -> Do not build any graph.
-            if self.distributed_spec["job"] == "ps":
-                return None
-
-            # worker -> construct the global (main) model; the one hosted on the ps,
-            elif self.distributed_spec["job"] == "worker":
-                # The local replica model.
-                if self.is_local_model:
-                    graph = tf.Graph()
-                    graph_default_context = graph.as_default()
-                    graph_default_context.__enter__()
-
-                    # Now that the graph is created and entered -> deepcopoy ourselves and setup global model first,
-                    # then continue.
-                    self.global_model = deepcopy(self)
-                    # Switch on global construction/setup-mode for the pass to setup().
-                    self.global_model.is_local_model = False
-                    self.global_model.setup()
-
-                    self.graph = graph
-
-                    # self.as_local_model() for all optimizers:
-                    # self.optimizer_spec = dict(
-                    #     type='global_optimizer',
-                    #     optimizer=self.optimizer_spec
-                    # )
-
-                    self.scope += '-worker' + str(self.distributed_spec["task_index"])
-                # The global_model (whose Variables are hosted by the ps).
-                else:
-                    self.graph = tf.get_default_graph()  # lives in the same graph as local model
-                    self.global_model = None
-                    self.device = tf.compat.v1.train.replica_device_setter(
-                        # Place its Variables on the parameter server(s) (round robin).
-                        #ps_device="/job:ps",  # default
-                        # Train-ops for the global_model are hosted locally (on this worker's node).
-                        worker_device=self.device,
-                        cluster=self.distributed_spec["cluster_spec"]
-                    )
-            else:
-                raise TensorforceError("Unsupported job type: {}!".format(self.distributed_spec["job"]))
+        # global_variables += [self.global_episode, self.global_timestep]
+        init_op = tf.compat.v1.variables_initializer(var_list=tf.compat.v1.global_variables())
+        if self.summarizer_spec is not None:
+            init_op = tf.group(init_op, self.summarizer_init)
+        if self.graph_summary is None:
+            ready_op = tf.compat.v1.report_uninitialized_variables(var_list=self.variables)
+            ready_for_local_init_op = None
+            local_init_op = None
         else:
-            raise TensorforceError("Unsupported distributed type: {}!".format(self.distributed_spec["type"]))
-
-        if self.seed is not None:
-            tf.random.set_seed(seed=self.seed)
-
-        return graph_default_context
-
-    def setup_scaffold(self):
-        """
-        Creates the tf.compat.v1.train.Scaffold object and assigns it to self.scaffold.
-        Other fields of the Scaffold are generated automatically.
-        """
-        # if self.execution_spec is None or self.execution_type == "single":
-        if True:
-            # global_variables += [self.global_episode, self.global_timestep]
-            init_op = tf.compat.v1.variables_initializer(var_list=tf.compat.v1.global_variables())
-            if self.summarizer_spec is not None:
-                init_op = tf.group(init_op, self.summarizer_init)
-            if self.graph_summary is None:
-                ready_op = tf.compat.v1.report_uninitialized_variables(var_list=self.variables)
-                ready_for_local_init_op = None
-                local_init_op = None
-            else:
-                ready_op = None
-                ready_for_local_init_op = tf.compat.v1.report_uninitialized_variables(
-                    var_list=self.variables
-                )
-                local_init_op = self.graph_summary
-
-        else:
-            # Global and local variable initializers.
-            global_variables = self.global_model.variables
-            # global_variables += [self.global_episode, self.global_timestep]
-            local_variables = self.variables
-            init_op = tf.compat.v1.variables_initializer(var_list=global_variables)
-            if self.summarizer_spec is not None:
-                init_op = tf.group(init_op, self.summarizer_init)
-            ready_op = tf.compat.v1.report_uninitialized_variables(
-                var_list=(global_variables + local_variables)
-            )
+            ready_op = None
             ready_for_local_init_op = tf.compat.v1.report_uninitialized_variables(
-                var_list=global_variables
+                var_list=self.variables
             )
-            if self.graph_summary is None:
-                local_init_op = tf.group(
-                    tf.compat.v1.variables_initializer(var_list=local_variables),
-                    # Synchronize values of trainable variables.
-                    *(tf.assign(ref=local_var, value=global_var) for local_var, global_var in zip(
-                        self.trainable_variables, self.global_model.trainable_variables
-                    ))
-                )
-            else:
-                local_init_op = tf.group(
-                    tf.compat.v1.variables_initializer(var_list=local_variables),
-                    self.graph_summary,
-                    # Synchronize values of trainable variables.
-                    *(tf.assign(ref=local_var, value=global_var) for local_var, global_var in zip(
-                        self.trainable_variables, self.global_model.trainable_variables
-                    ))
-                )
+            local_init_op = self.graph_summary
 
         def init_fn(scaffold, session):
             if self.saver_spec is not None and self.saver_spec.get('load', True):
@@ -530,106 +358,42 @@ class Model(Module):
             copy_from_scaffold=None
         )
 
-    def setup_hooks(self):
-        """
-        Creates and returns a list of hooks to use in a session. Populates self.saver_directory.
-
-        Returns: List of hooks to use in a session.
-        """
-        hooks = list()
-
         # Checkpoint saver hook
-        if self.saver_spec is not None:  # and (self.execution_type == 'single' or self.distributed_spec['task_index'] == 0):
+        if self.saver_spec is not None:
             self.saver_directory = self.saver_spec['directory']
             self.saver_filename = self.saver_spec.get('filename', self.name)
             frequency = self.saver_spec.get('frequency', 600)
             if frequency is not None:
-                hooks.append(tf.compat.v1.train.CheckpointSaverHook(
+                hooks = [tf.compat.v1.train.CheckpointSaverHook(
                     checkpoint_dir=self.saver_directory, save_secs=frequency, save_steps=None,
                     saver=None,  # None since given via 'scaffold' argument.
                     checkpoint_basename=self.saver_filename, scaffold=self.scaffold, listeners=None
-                ))
+                )]
         else:
+            hooks = list()
             self.saver_directory = None
             self.saver_filename = self.name
 
-        # Stop at step hook
-        # hooks.append(tf.compat.v1.train.StopAtStepHook(
-        #     num_steps=???,  # This makes more sense, if load and continue training.
-        #     last_step=None  # Either one or the other has to be set.
-        # ))
+        # TensorFlow non-distributed monitored session object
+        self.monitored_session = tf.compat.v1.train.SingularMonitoredSession(
+            hooks=hooks,
+            scaffold=self.scaffold,
+            master='',  # Default value.
+            config=self.execution.get('session_config'),
+            checkpoint_dir=None
+        )
 
-        # # Step counter hook
-        # hooks.append(tf.compat.v1.train.StepCounterHook(
-        #     every_n_steps=counter_config.get('steps', 100),  # Either one or the other has to be set.
-        #     every_n_secs=counter_config.get('secs'),  # Either one or the other has to be set.
-        #     output_dir=None,  # None since given via 'summary_writer' argument.
-        #     summary_writer=summary_writer
-        # ))
-
-        # Other available hooks:
-        # tf.compat.v1.train.FinalOpsHook(final_ops, final_ops_feed_dict=None)
-        # tf.compat.v1.train.GlobalStepWaiterHook(wait_until_step)
-        # tf.compat.v1.train.LoggingTensorHook(tensors, every_n_iter=None, every_n_secs=None)
-        # tf.compat.v1.train.NanTensorHook(loss_tensor, fail_on_nan_loss=True)
-        # tf.compat.v1.train.ProfilerHook(save_steps=None, save_secs=None, output_dir='', show_dataflow=True, show_memory=False)
-
-        return hooks
-
-    def setup_session(self, server, hooks, graph_default_context):
-        """
-        Creates and then enters the session for this model (finalizes the graph).
-
-        Args:
-            server (tf.compat.v1.train.Server): The tf.compat.v1.train.Server object to connect to (None for single execution).
-            hooks (list): A list of (saver, summary, etc..) hooks to be passed to the session.
-            graph_default_context: The graph as_default() context that we are currently in.
-        """
-        # if self.execution_spec is not None and self.execution_type == "distributed":
-        if False:
-            # if self.distributed_spec['task_index'] == 0:
-            # TensorFlow chief session creator object
-            session_creator = tf.compat.v1.train.ChiefSessionCreator(
-                scaffold=self.scaffold,
-                master=server.target,
-                config=self.execution.get('session_config'),
-                checkpoint_dir=None,
-                checkpoint_filename_with_path=None
-            )
-            # else:
-            #     # TensorFlow worker session creator object
-            #     session_creator = tf.compat.v1.train.WorkerSessionCreator(
-            #         scaffold=self.scaffold,
-            #         master=server.target,
-            #         config=self.execution_spec.get('session_config'),
-            #     )
-
-            # TensorFlow monitored session object
-            self.monitored_session = tf.compat.v1.train.MonitoredSession(
-                session_creator=session_creator,
-                hooks=hooks,
-                stop_grace_period_secs=120  # Default value.
-            )
-            # from tensorflow.python.debug import DumpingDebugWrapperSession
-            # self.monitored_session = DumpingDebugWrapperSession(self.monitored_session, self.tf_session_dump_dir)
-
-        else:
-            # TensorFlow non-distributed monitored session object
-            self.monitored_session = tf.compat.v1.train.SingularMonitoredSession(
-                hooks=hooks,
-                scaffold=self.scaffold,
-                master='',  # Default value.
-                config=self.execution.get('session_config'),
-                checkpoint_dir=None
-            )
-
-        if graph_default_context:
-            graph_default_context.__exit__(None, None, None)
+        graph_default_context.__exit__(None, None, None)
         self.graph.finalize()
 
-        # enter the session to be ready for acting/learning
         self.monitored_session.__enter__()
         self.session = self.monitored_session._tf_sess()
+
+        if self.saver_directory is not None:
+            self.save(
+                directory=self.saver_directory, filename=self.saver_filename, format='tensorflow',
+                append='timesteps', no_act_pb=True
+            )
 
     def close(self):
         if self.summarizer_spec is not None:

@@ -110,7 +110,8 @@ class OptimizingStep(UpdateModifier):
                     # Negative value since line search maximizes.
                     return -fn_comparative_loss(**arguments, reference=reference)
 
+            print(deltas, loss_before, loss_step, estimated_improvement)
             return self.line_search.solve(
-                fn_x=evaluate_step, x_init=deltas, base_value=loss_before, target_value=loss_step,
-                estimated_improvement=estimated_improvement
+                x_init=deltas, base_value=loss_before, target_value=loss_step,
+                estimated_improvement=estimated_improvement, fn_x=evaluate_step
             )

@@ -83,15 +83,16 @@ class ClippingStep(UpdateModifier):
                         )
                     clipped_deltas.append(clipped_delta)
 
-            for variable, delta, clipped_delta in zip(variables, deltas, clipped_deltas):
-                assignments.append(
-                    variable.assign_add(delta=(clipped_delta - delta), read_value=False)
-                )
-
             clipped_deltas = self.add_summary(
                 label='update-norm', name='update-norm-unclipped', tensor=update_norm,
                 pass_tensors=clipped_deltas
             )
+
+            assignments = list()
+            for variable, delta, clipped_delta in zip(variables, deltas, clipped_deltas):
+                assignments.append(
+                    variable.assign_add(delta=(clipped_delta - delta), read_value=False)
+                )
 
         with tf.control_dependencies(control_inputs=assignments):
             return util.fmap(function=util.identity_operation, xs=clipped_deltas)

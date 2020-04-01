@@ -5,5 +5,5 @@ msgpack
 msgpack-numpy
 numpy
 pytest
-scipy==1.2.0
+scipy
 tqdm

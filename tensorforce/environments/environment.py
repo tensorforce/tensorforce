@@ -400,8 +400,8 @@ class RemoteEnvironment(Environment):
     @classmethod
     def remote(cls, connection, environment, max_episode_timesteps=None, **kwargs):
         try:
-            environment = None
-            environment = Environment.create(
+            env = None
+            env = Environment.create(
                 environment=environment, max_episode_timesteps=max_episode_timesteps, **kwargs
             )
 
@@ -410,7 +410,7 @@ class RemoteEnvironment(Environment):
 
                 if function in ('reset', 'execute'):
                     environment_start = time.time()
-                result = getattr(environment, function)(**kwargs)
+                result = getattr(env, function)(**kwargs)
                 if function in ('reset', 'execute'):
                     seconds = time.time() - environment_start
                     if function == 'reset':
@@ -431,8 +431,8 @@ class RemoteEnvironment(Environment):
             )
 
             try:
-                if environment is not None:
-                    environment.close()
+                if env is not None:
+                    env.close()
             except BaseException:
                 pass
             finally:
@@ -483,7 +483,7 @@ class RemoteEnvironment(Environment):
         else:
             self.__class__.proxy_close(connection=self.connection)
             etype, value, traceback = result
-            raise TensorforceError(message='{}: {}'.format(etype, value)).with_traceback(traceback)
+            raise TensorforceError(message='\n{}\n{}: {}`'.format(''.join(traceback), etype, value))
 
     def __str__(self):
         self.send(function='__str__')

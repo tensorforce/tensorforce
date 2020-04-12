@@ -44,7 +44,7 @@ class Conv1d(TransformationBase):
             (<span style="color:#00C000"><b>default</b></span>: true).
         activation ('crelu' | 'elu' | 'leaky-relu' | 'none' | 'relu' | 'selu' | 'sigmoid' |
             'softmax' | 'softplus' | 'softsign' | 'swish' | 'tanh'): Activation nonlinearity
-            (<span style="color:#00C000"><b>default</b></span>: "relu").
+            (<span style="color:#00C000"><b>default</b></span>: relu).
         dropout (parameter, 0.0 <= float < 1.0): Dropout rate
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
         is_trainable (bool): Whether layer variables are trainable

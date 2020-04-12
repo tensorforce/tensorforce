@@ -36,10 +36,10 @@ class InternalRnn(StatefulLayer, TransformationBase):
             (<span style="color:#C00000"><b>required</b></span>).
         length (parameter, long > 0): ???+1 (<span style="color:#C00000"><b>required</b></span>).
         bias (bool): Whether to add a trainable bias variable
-            (<span style="color:#00C000"><b>default</b></span>: false).
+            (<span style="color:#00C000"><b>default</b></span>: true).
         activation ('crelu' | 'elu' | 'leaky-relu' | 'none' | 'relu' | 'selu' | 'sigmoid' |
             'softmax' | 'softplus' | 'softsign' | 'swish' | 'tanh'): Activation nonlinearity
-            (<span style="color:#00C000"><b>default</b></span>: none).
+            (<span style="color:#00C000"><b>default</b></span>: tanh).
         dropout (parameter, 0.0 <= float < 1.0): Dropout rate
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
         is_trainable (bool): Whether layer variables are trainable
@@ -55,7 +55,7 @@ class InternalRnn(StatefulLayer, TransformationBase):
     """
 
     def __init__(
-        self, name, cell, size, length, bias=False, activation=None, dropout=0.0,
+        self, name, cell, size, length, bias=True, activation='tanh', dropout=0.0,
         is_trainable=True, input_spec=None, summary_labels=None, l2_regularization=None, **kwargs
     ):
         self.cell_type = cell

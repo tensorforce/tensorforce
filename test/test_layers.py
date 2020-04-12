@@ -147,10 +147,12 @@ class TestLayers(UnittestBase, unittest.TestCase):
     def test_preprocessing(self):
         self.start_tests(name='preprocessing')
 
-        states = dict(type='float', shape=(3,))
+        states = dict(type='float', shape=())
         preprocessing = dict(
-            state=dict(type='clipping', lower=-1.0, upper=1.0),
-            reward=[dict(type='clipping', lower=-1.0, upper=1.0)]
+            state=[
+                dict(type='sequence', length=3, concatenate=False),
+                dict(type='clipping', lower=-1.0, upper=1.0)
+            ], reward=[dict(type='clipping', lower=-1.0, upper=1.0)]
         )
         network = [dict(type='dense', name='test', size=8)]
         self.unittest(states=states, preprocessing=preprocessing, policy=dict(network=network))
@@ -159,11 +161,11 @@ class TestLayers(UnittestBase, unittest.TestCase):
         preprocessing = dict(
             state=[
                 dict(type='image', height=2, width=2, grayscale=True),
-                dict(type='deltafier', concatenate=0)
-            ],
-            reward=dict(type='deltafier')
+                dict(type='deltafier', concatenate=0),
+                dict(type='sequence', length=4)
+            ], reward=dict(type='deltafier')
         )
-        network = [dict(type='reshape', shape=8)]
+        network = [dict(type='reshape', shape=32)]
         agent, environment = self.prepare(
             min_timesteps=4, states=states, require_all=True, policy=dict(network=network),
             preprocessing=preprocessing
@@ -180,7 +182,9 @@ class TestLayers(UnittestBase, unittest.TestCase):
         internals = agent.initial_internals()
         terminal = False
         while not terminal:
-            actions, next_internals = agent.act(states=states, internals=internals, independent=True)
+            actions, next_internals = agent.act(
+                states=states, internals=internals, independent=True
+            )
             next_states, terminal, reward = environment.execute(actions=actions)
             agent.experience(
                 states=states, internals=internals, actions=actions, terminal=terminal,
@@ -189,8 +193,6 @@ class TestLayers(UnittestBase, unittest.TestCase):
             states = next_states
             internals = next_internals
         agent.update()
-
-        # TODO: Sequence missing
 
     def test_rnn(self):
         self.start_tests(name='rnn')

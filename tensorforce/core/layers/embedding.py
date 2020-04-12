@@ -33,10 +33,10 @@ class Embedding(TransformationBase):
         max_norm (float): If set, embeddings are clipped if their L2-norm is larger
             (<span style="color:#00C000"><b>default</b></span>: none).
         bias (bool): Whether to add a trainable bias variable
-            (<span style="color:#00C000"><b>default</b></span>: false).
+            (<span style="color:#00C000"><b>default</b></span>: true).
         activation ('crelu' | 'elu' | 'leaky-relu' | 'none' | 'relu' | 'selu' | 'sigmoid' |
             'softmax' | 'softplus' | 'softsign' | 'swish' | 'tanh'): Activation nonlinearity
-            (<span style="color:#00C000"><b>default</b></span>: "tanh").
+            (<span style="color:#00C000"><b>default</b></span>: tanh).
         dropout (parameter, 0.0 <= float < 1.0): Dropout rate
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
         is_trainable (bool): Whether layer variables are trainable
@@ -51,7 +51,7 @@ class Embedding(TransformationBase):
     """
 
     def __init__(
-        self, name, size, num_embeddings=None, max_norm=None, bias=False, activation='tanh',
+        self, name, size, num_embeddings=None, max_norm=None, bias=True, activation='tanh',
         dropout=0.0, is_trainable=True, input_spec=None, summary_labels=None,
         l2_regularization=None
     ):

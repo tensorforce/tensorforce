@@ -31,7 +31,7 @@ class Dense(TransformationBase):
             (<span style="color:#00C000"><b>default</b></span>: true).
         activation ('crelu' | 'elu' | 'leaky-relu' | 'none' | 'relu' | 'selu' | 'sigmoid' |
             'softmax' | 'softplus' | 'softsign' | 'swish' | 'tanh'): Activation nonlinearity
-            (<span style="color:#00C000"><b>default</b></span>: "relu").
+            (<span style="color:#00C000"><b>default</b></span>: tanh).
         dropout (parameter, 0.0 <= float < 1.0): Dropout rate
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
         is_trainable (bool): Whether layer variables are trainable
@@ -45,7 +45,7 @@ class Dense(TransformationBase):
     """
 
     def __init__(
-        self, name, size, bias=True, activation='relu', dropout=0.0, is_trainable=True,
+        self, name, size, bias=True, activation='tanh', dropout=0.0, is_trainable=True,
         input_spec=None, summary_labels=None, l2_regularization=None
     ):
         super().__init__(

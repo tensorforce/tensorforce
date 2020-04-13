@@ -45,7 +45,7 @@ class Dense(TransformationBase):
     """
 
     def __init__(
-        self, size, bias=False, activation='tanh', dropout=0.0, vars_trainable=True,
+        self, size, bias=True, activation='tanh', dropout=0.0, vars_trainable=True,
         summary_labels=None, l2_regularization=None, name=None, input_spec=None
     ):
         super().__init__(

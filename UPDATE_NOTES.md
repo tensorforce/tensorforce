@@ -13,6 +13,8 @@ This file records all major updates and new features, starting from version 0.5.
 - Argument `batch_size` now mandatory for all agent classes
 - Removed `Estimator` argument `capacity`, now always automatically inferred
 - Internal changes related to agent arguments `memory`, `update` and `reward_estimation`
+- Changed the default `bias` and `activation` argument of some layers
+- Fixed issues with `sequence` preprocessor
 
 - Auto network `internal_rnn` --> `rnn`
 - internal_rnn `length` --> `horizon`

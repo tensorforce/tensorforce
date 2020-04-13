@@ -32,10 +32,10 @@ class Rnn(TransformationBase):
         return_final_state (bool): Whether to return the final state instead of the per-step
             outputs (<span style="color:#00C000"><b>default</b></span>: true).
         bias (bool): Whether to add a trainable bias variable
-            (<span style="color:#00C000"><b>default</b></span>: false).
+            (<span style="color:#00C000"><b>default</b></span>: true).
         activation ('crelu' | 'elu' | 'leaky-relu' | 'none' | 'relu' | 'selu' | 'sigmoid' |
             'softmax' | 'softplus' | 'softsign' | 'swish' | 'tanh'): Activation nonlinearity
-            (<span style="color:#00C000"><b>default</b></span>: none).
+            (<span style="color:#00C000"><b>default</b></span>: tanh).
         dropout (parameter, 0.0 <= float < 1.0): Dropout rate
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
         vars_trainable (bool): Whether layer variables are trainable
@@ -52,7 +52,7 @@ class Rnn(TransformationBase):
     """
 
     def __init__(
-        self, cell, size, return_final_state=True, bias=False, activation=None, dropout=0.0,
+        self, cell, size, return_final_state=True, bias=True, activation='tanh', dropout=0.0,
         vars_trainable=True, summary_labels=None, l2_regularization=None, name=None,
         input_spec=None, **kwargs
     ):

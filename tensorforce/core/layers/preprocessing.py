@@ -155,6 +155,10 @@ class Deltafier(PreprocessingLayer):
 
     @tf_function(num_args=1)
     def apply(self, x):
+        assertion = tf.debugging.assert_equal(
+            x=tf.shape(input=x)[0], y=1,
+            message="Deltafier preprocessor currently not compatible with batched Agent.act."
+        )
 
         def first_delta():
             assignment = self.has_previous.assign(
@@ -166,9 +170,10 @@ class Deltafier(PreprocessingLayer):
         def later_delta():
             return x - tf.concat(values=(self.previous, x[:-1]), axis=0)
 
-        delta = self.cond(pred=self.has_previous, true_fn=later_delta, false_fn=first_delta)
+        with tf.control_dependencies(control_inputs=(assertion,)):
+            delta = self.cond(pred=self.has_previous, true_fn=later_delta, false_fn=first_delta)
 
-        assignment = self.previous.assign(value=x[-1:], read_value=False)
+            assignment = self.previous.assign(value=x[-1:], read_value=False)
 
         with tf.control_dependencies(control_inputs=(assignment,)):
             if self.concatenate is False:
@@ -263,6 +268,7 @@ class Sequence(PreprocessingLayer):
     def __init__(
         self, length, axis=-1, concatenate=True, summary_labels=None, name=None, input_spec=None
     ):
+        assert length > 1
         self.length = length
         self.axis = axis
         self.concatenate = concatenate
@@ -296,9 +302,15 @@ class Sequence(PreprocessingLayer):
             is_saved=False
         )
 
+        shape = self.input_spec['shape']
+        if self.concatenate:
+            shape = (1,) + shape[:self.axis] + (shape[self.axis] * (self.length - 1),) + \
+                shape[self.axis + 1:]
+        else:
+            shape = (1,) + shape[:self.axis] + (self.length - 1,) + shape[self.axis:]
         self.previous = self.variable(
-            name='previous', dtype='float', shape=((self.length - 1,) + self.input_spec.shape),
-            initializer='zeros', is_trainable=False, is_saved=False
+            name='previous', dtype='float', shape=shape, initializer='zeros', is_trainable=False,
+            is_saved=False
         )
 
     @tf_function(num_args=0)
@@ -310,8 +322,12 @@ class Sequence(PreprocessingLayer):
 
     @tf_function(num_args=1)
     def apply(self, x):
+        assertion = tf.debugging.assert_equal(
+            x=tf.shape(input=x)[0], y=1,
+            message="Sequence preprocessor currently not compatible with batched Agent.act."
+        )
 
-        def first_sequence():
+        def first_timestep():
             assignment = self.has_previous.assign(
                 value=tf_util.constant(value=True, dtype='bool'), read_value=False
             )
@@ -324,21 +340,31 @@ class Sequence(PreprocessingLayer):
                     self.length if dims == self.axis + 1 else 1
                     for dims in range(tf_util.rank(x=current))
                 )
-                return tf.tile(input=x, multiples=multiples)
+                return tf.tile(input=current, multiples=multiples)
 
-        def later_sequence():
-            tf.concat(values=(self.previous, x))
+        def other_timesteps():
             if self.concatenate:
                 current = x
             else:
                 current = tf.expand_dims(input=x, axis=(self.axis + 1))
             return tf.concat(values=(self.previous, current), axis=(self.axis + 1))
 
-        sequence = self.cond(pred=self.has_previous, true_fn=later_sequence, false_fn=first_sequence)
+        with tf.control_dependencies(control_inputs=(assertion,)):
+            xs = self.cond(
+                pred=self.has_previous, true_fn=other_timesteps, false_fn=first_timestep
+            )
 
-        assignment = self.previous.assign(
-            value=tf.concat(values=(self.previous, x), axis=0)[-self.length + 1:], read_value=False
-        )
+            if self.concatenate:
+                begin = tuple(
+                    self.input_spec['shape'][dims - 1] if dims == self.axis + 1 else 0
+                    for dims in range(util.rank(x=xs))
+                )
+            else:
+                begin = tuple(1 if dims == self.axis + 1 else 0 for dims in range(util.rank(x=xs)))
+
+            assignment = self.previous.assign(
+                value=tf.slice(input_=xs, begin=begin, size=self.previous.shape), read_value=False
+            )
 
         with tf.control_dependencies(control_inputs=(assignment,)):
             return tf_util.identity(input=sequence)

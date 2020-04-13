@@ -13,12 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 
-from collections import OrderedDict
-
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core import layer_modules, Module, tf_function
+from tensorforce.core import layer_modules, TensorDict, TensorSpec, TensorsSpec, tf_function, \
+    tf_util
 from tensorforce.core.distributions import Distribution
 
 
@@ -27,74 +26,65 @@ class Categorical(Distribution):
     Categorical distribution, for discrete integer actions (specification key: `categorical`).
 
     Args:
-        name (string): Distribution name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
-        action_spec (specification): Action specification
-            (<span style="color:#0000C0"><b>internal use</b></span>).
-        embedding_shape (iter[int > 0]): Embedding shape
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): <span style="color:#0000C0"><b>internal use</b></span>.
+        action_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        input_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(self, name, action_spec, embedding_shape, summary_labels=None):
-        parameters_spec = OrderedDict(
-            logits=dict(type='float', shape=(action_spec['shape'] + (action_spec['num_values'],))),
-            probabilities=dict(
-                type='float', shape=(action_spec['shape'] + (action_spec['num_values'],))
+    def __init__(self, summary_labels=None, name=None, action_spec=None, input_spec=None):
+        parameters_spec = TensorsSpec(
+            logits=TensorSpec(type='float', shape=(action_spec.shape + (action_spec.num_values,))),
+            probabilities=TensorSpec(
+                type='float', shape=(action_spec.shape + (action_spec.num_values,))
             ),
-            states_value=dict(type='float', shape=action_spec['shape']),
-            action_values=dict(
-                type='float', shape=(action_spec['shape'] + (action_spec['num_values'],))
+            states_value=TensorSpec(type='float', shape=action_spec.shape),
+            action_values=TensorSpec(
+                type='float', shape=(action_spec.shape + (action_spec.num_values,))
             )
         )
 
         super().__init__(
-            name=name, action_spec=action_spec, embedding_shape=embedding_shape,
-            parameters_spec=parameters_spec, summary_labels=summary_labels
+            summary_labels=summary_labels, name=name, action_spec=action_spec,
+            input_spec=input_spec, parameters_spec=parameters_spec
         )
+        num_values = self.action_spec.num_values
 
-        input_spec = dict(type='float', shape=self.embedding_shape)
-        num_values = self.action_spec['num_values']
-
-        if len(self.embedding_shape) == 1:
-            action_size = util.product(xs=self.action_spec['shape'])
+        if len(self.input_spec.shape) == 1:
+            action_size = util.product(xs=self.action_spec.shape)
             self.deviations = self.add_module(
                 name='deviations', module='linear', modules=layer_modules,
-                size=(action_size * num_values), input_spec=input_spec
+                size=(action_size * num_values), input_spec=self.input_spec
             )
 
         else:
-            if len(self.embedding_shape) < 1 or len(self.embedding_shape) > 3:
+            if len(self.input_spec.shape) < 1 or len(self.input_spec.shape) > 3:
                 raise TensorforceError.value(
-                    name=name, argument='embedding_shape', value=self.embedding_shape,
+                    name=name, argument='input_spec.shape', value=self.input_spec.shape,
                     hint='invalid rank'
                 )
-            if self.embedding_shape[:-1] == self.action_spec['shape'][:-1]:
-                size = self.action_spec['shape'][-1]
-            elif self.embedding_shape[:-1] == self.action_spec['shape']:
+            if self.input_spec.shape[:-1] == self.action_spec.shape[:-1]:
+                size = self.action_spec.shape[-1]
+            elif self.input_spec.shape[:-1] == self.action_spec.shape:
                 size = 1
             else:
                 raise TensorforceError.value(
-                    name=name, argument='embedding_shape', value=self.embedding_shape,
+                    name=name, argument='input_spec.shape', value=self.input_spec.shape,
                     hint='not flattened and incompatible with action shape'
                 )
             self.deviations = self.add_module(
                 name='deviations', module='linear', modules=layer_modules,
-                size=(size * num_values), input_spec=input_spec
+                size=(size * num_values), input_spec=self.input_spec
             )
 
     def input_signature(self, function):
         if function == 'parametrize':
             return [
-                util.to_tensor_spec(
-                    value_spec=dict(type='float', shape=self.embedding_shape), batched=True
-                ), util.to_tensor_spec(
-                    value_spec=dict(
-                        type='bool',
-                        shape=(self.action_spec['shape'] + (self.action_spec['num_values'],))
-                    ), batched=True
-                )
+                self.input_spec.signature(batched=True),
+                TensorSpec(
+                    type='bool', shape=(self.action_spec.shape + (self.action_spec.num_values,))
+                ).signature(batched=True)
             ]
 
         else:
@@ -102,15 +92,14 @@ class Categorical(Distribution):
 
     @tf_function(num_args=2)
     def parametrize(self, x, mask):
-        epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
-        shape = (-1,) + self.action_spec['shape'] + (self.action_spec['num_values'],)
-        value_shape = (-1,) + self.action_spec['shape'] + (1,)
+        epsilon = tf_util.constant(value=util.epsilon, dtype='float')
+        shape = (-1,) + self.action_spec.shape + (self.action_spec.num_values,)
 
         # Deviations
         action_values = self.deviations.apply(x=x)
         action_values = tf.reshape(tensor=action_values, shape=shape)
         min_float = tf.fill(
-            dims=tf.shape(input=action_values), value=util.tf_dtype(dtype='float').min
+            dims=tf.shape(input=action_values), value=tf_util.get_dtype(type='float').min
         )
 
         # States value
@@ -123,16 +112,17 @@ class Categorical(Distribution):
         # "Normalized" logits
         logits = tf.math.log(x=tf.maximum(x=probabilities, y=epsilon))
 
-        self.set_global_tensor(name='probabilities', tensor=probabilities)
-
-        return [logits, probabilities, states_value, action_values]
+        return TensorDict(
+            logits=logits, probabilities=probabilities, states_value=states_value,
+            action_values=action_values
+        )
 
     @tf_function(num_args=2)
     def sample(self, parameters, temperature):
-        logits, probabilities, _, _ = parameters
+        logits, probabilities = parameters.get('logits', 'probabilities')
 
         summary_probs = probabilities
-        for _ in range(len(self.action_spec['shape'])):
+        for _ in range(len(self.action_spec.shape)):
             summary_probs = tf.math.reduce_mean(input_tensor=summary_probs, axis=1)
 
         logits, probabilities = self.add_summary(
@@ -140,52 +130,48 @@ class Categorical(Distribution):
             pass_tensors=(logits, probabilities), enumerate_last_rank=True
         )
 
-        one = tf.constant(value=1.0, dtype=util.tf_dtype(dtype='float'))
-        epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
+        one = tf_util.constant(value=1.0, dtype='float')
+        epsilon = tf_util.constant(value=util.epsilon, dtype='float')
 
         # Deterministic: maximum likelihood action
         definite = tf.argmax(input=logits, axis=-1)
-        definite = tf.dtypes.cast(x=definite, dtype=util.tf_dtype('int'))
+        definite = tf_util.cast(x=definite, dtype='int')
 
         # Set logits to minimal value
-        min_float = tf.fill(dims=tf.shape(input=logits), value=util.tf_dtype(dtype='float').min)
+        min_float = tf.fill(dims=tf.shape(input=logits), value=tf_util.get_dtype(type='float').min)
         logits = logits / temperature
         logits = tf.where(condition=(probabilities < epsilon), x=min_float, y=logits)
 
         # Non-deterministic: sample action using Gumbel distribution
         uniform_distribution = tf.random.uniform(
             shape=tf.shape(input=logits), minval=epsilon, maxval=(one - epsilon),
-            dtype=util.tf_dtype(dtype='float')
+            dtype=tf_util.get_dtype(type='float')
         )
         gumbel_distribution = -tf.math.log(x=-tf.math.log(x=uniform_distribution))
         sampled = tf.argmax(input=(logits + gumbel_distribution), axis=-1)
-        sampled = tf.dtypes.cast(x=sampled, dtype=util.tf_dtype('int'))
+        sampled = tf_util.cast(x=sampled, dtype='int')
 
         return tf.where(condition=(temperature < epsilon), x=definite, y=sampled)
 
     @tf_function(num_args=2)
     def log_probability(self, parameters, action):
-        logits, _, _, _ = parameters
+        logits = parameters['logits']
 
-        if util.tf_dtype(dtype='int') not in (tf.int32, tf.int64):
-            action = tf.dtypes.cast(x=action, dtype=tf.int32)
-
-        logits = tf.gather(
-            params=logits, indices=tf.expand_dims(input=action, axis=-1), batch_dims=-1
-        )
+        action = tf.expand_dims(input=tf_util.int32(x=action), axis=-1)
+        logits = tf.gather(params=logits, indices=action, batch_dims=-1)
 
         return tf.squeeze(input=logits, axis=-1)
 
     @tf_function(num_args=1)
     def entropy(self, parameters):
-        logits, probabilities, _, _ = parameters
+        logits, probabilities = parameters.get('logits', 'probabilities')
 
         return -tf.reduce_sum(input_tensor=(probabilities * logits), axis=-1)
 
     @tf_function(num_args=2)
     def kl_divergence(self, parameters1, parameters2):
-        logits1, probabilities1, _, _ = parameters1
-        logits2, _, _, _ = parameters2
+        logits1, probabilities1 = parameters1.get('logits', 'probabilities')
+        logits2 = parameters2['logits']
 
         log_prob_ratio = logits1 - logits2
 
@@ -193,19 +179,16 @@ class Categorical(Distribution):
 
     @tf_function(num_args=2)
     def action_value(self, parameters, action):
-        _, _, _, action_values = parameters
+        action_values = parameters['action_values']
 
-        if util.tf_dtype(dtype='int') not in (tf.int32, tf.int64):
-            action = tf.dtypes.cast(x=action, dtype=tf.int32)
-
-        action = tf.expand_dims(input=action, axis=-1)
+        action = tf.expand_dims(input=tf_util.int32(x=action), axis=-1)
         action_values = tf.gather(params=action_values, indices=action, batch_dims=-1)
         action_values = tf.squeeze(input=action_values, axis=-1)
 
-        return action_values  # states_value + tf.squeeze(input=logits, axis=-1)
+        return action_values  # TODO: states_value + tf.squeeze(input=logits, axis=-1)
 
     @tf_function(num_args=1)
     def states_value(self, parameters):
-        _, _, states_value, _ = parameters
+        states_value = parameters['states_value']
 
         return states_value

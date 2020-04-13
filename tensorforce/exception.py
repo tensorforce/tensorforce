@@ -76,6 +76,12 @@ class TensorforceError(Exception):
         )
 
     @staticmethod
+    def required_attribute(name, attribute):
+        return TensorforceError(
+            message="Required {name} attribute {attribute}.".format(name=name, attribute=attribute)
+        )
+
+    @staticmethod
     def required(name, argument, expected=None, condition=None):
         if condition is None:
             if expected is None:

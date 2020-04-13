@@ -23,8 +23,6 @@ from test.unittest_base import UnittestBase
 
 class TestParameters(UnittestBase, unittest.TestCase):
 
-    require_observe = True
-
     def float_unittest(self, exploration):
         agent, environment = self.prepare(min_timesteps=3, exploration=exploration)
 

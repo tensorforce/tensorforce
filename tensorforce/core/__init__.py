@@ -13,7 +13,13 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce.core.module import Module, tf_function
+# utils
+from tensorforce.core.utils import ArrayDict, ModuleDict, NestedDict, TensorDict, TensorSpec, \
+    TensorsSpec, tf_util, VariableDict
+
+# Basics
+from tensorforce.core.config import TensorforceConfig
+from tensorforce.core.module import Module, tf_function  # TODO: part of Module
 from tensorforce.core.parameters import parameter_modules
 
 # Require parameter_modules
@@ -27,9 +33,12 @@ from tensorforce.core.distributions import distribution_modules
 from tensorforce.core.networks import network_modules
 
 # Require network_modules
+from tensorforce.core.policies import policy_modules
+
+# TODO: import models?
 
 
 __all__ = [
     'distribution_modules', 'layer_modules', 'memory_modules', 'Module', 'network_modules',
-    'optimizer_modules', 'parameter_modules', 'tf_function'
+    'objective_modules', 'optimizer_modules', 'parameter_modules', 'policy_modules', 'tf_function'
 ]

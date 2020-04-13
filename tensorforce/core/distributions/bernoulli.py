@@ -13,12 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 
-from collections import OrderedDict
-
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core import layer_modules, Module, tf_function
+from tensorforce.core import layer_modules, TensorDict, TensorSpec, TensorsSpec, tf_function, \
+    tf_util
 from tensorforce.core.distributions import Distribution
 
 
@@ -27,67 +26,62 @@ class Bernoulli(Distribution):
     Bernoulli distribution, for binary boolean actions (specification key: `bernoulli`).
 
     Args:
-        name (string): Distribution name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
-        action_spec (specification): Action specification
-            (<span style="color:#0000C0"><b>internal use</b></span>).
-        embedding_shape (iter[int > 0]): Embedding shape
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): <span style="color:#0000C0"><b>internal use</b></span>.
+        action_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        input_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(self, name, action_spec, embedding_shape, summary_labels=None):
-        parameters_spec = OrderedDict(
-            true_logit=dict(type='float', shape=action_spec['shape']),
-            false_logit=dict(type='float', shape=action_spec['shape']),
-            probability_logit=dict(type='float', shape=action_spec['shape']),
-            states_value=dict(type='float', shape=action_spec['shape'])
+    def __init__(self, summary_labels=None, name=None, action_spec=None, input_spec=None):
+        parameters_spec = TensorsSpec(
+            true_logit=TensorSpec(type='float', shape=action_spec.shape),
+            false_logit=TensorSpec(type='float', shape=action_spec.shape),
+            probability=TensorSpec(type='float', shape=action_spec.shape),
+            states_value=TensorSpec(type='float', shape=action_spec.shape)
         )
 
         super().__init__(
-            name=name, action_spec=action_spec, embedding_shape=embedding_shape,
-            parameters_spec=parameters_spec, summary_labels=summary_labels
+            summary_labels=summary_labels, name=name, action_spec=action_spec,
+            input_spec=input_spec, parameters_spec=parameters_spec
         )
 
-        input_spec = dict(type='float', shape=self.embedding_shape)
-
-        if len(self.embedding_shape) == 1:
-            action_size = util.product(xs=self.action_spec['shape'], empty=0)
+        if len(self.input_spec.shape) == 1:
+            action_size = util.product(xs=self.action_spec.shape, empty=0)
             self.logit = self.add_module(
                 name='logit', module='linear', modules=layer_modules, size=action_size,
-                input_spec=input_spec
+                input_spec=self.input_spec
             )
 
         else:
-            if len(self.embedding_shape) < 1 or len(self.embedding_shape) > 3:
+            if len(self.input_spec.shape) < 1 or len(self.input_spec.shape) > 3:
                 raise TensorforceError.value(
-                    name=name, argument='embedding_shape', value=self.embedding_shape,
+                    name=name, argument='input_spec.shape', value=self.input_spec.shape,
                     hint='invalid rank'
                 )
-            if self.embedding_shape[:-1] == self.action_spec['shape'][:-1]:
-                size = self.action_spec['shape'][-1]
-            elif self.embedding_shape[:-1] == self.action_spec['shape']:
+            if self.input_spec.shape[:-1] == self.action_spec.shape[:-1]:
+                size = self.action_spec.shape[-1]
+            elif self.input_spec.shape[:-1] == self.action_spec.shape:
                 size = 0
             else:
                 raise TensorforceError.value(
-                    name=name, argument='embedding_shape', value=self.embedding_shape,
+                    name=name, argument='input_spec.shape', value=self.input_spec.shape,
                     hint='not flattened and incompatible with action shape'
                 )
             self.logit = self.add_module(
                 name='logit', module='linear', modules=layer_modules, size=size,
-                input_spec=input_spec
+                input_spec=self.input_spec
             )
 
     @tf_function(num_args=1)
     def parametrize(self, x):
-        one = tf.constant(value=1.0, dtype=util.tf_dtype(dtype='float'))
-        epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
-        shape = (-1,) + self.action_spec['shape']
+        one = tf_util.constant(value=1.0, dtype='float')
+        epsilon = tf_util.constant(value=util.epsilon, dtype='float')
+        shape = (-1,) + self.action_spec.shape
 
         # Logit
         logit = self.logit.apply(x=x)
-        if len(self.embedding_shape) == 1:
+        if len(self.input_spec.shape) == 1:
             logit = tf.reshape(tensor=logit, shape=shape)
 
         # States value
@@ -105,16 +99,19 @@ class Bernoulli(Distribution):
         true_logit = tf.math.log(x=probability)
         false_logit = tf.math.log(x=(one - probability))
 
-        self.set_global_tensor(name='probability', tensor=probability)
-
-        return [true_logit, false_logit, probability, states_value]
+        return TensorDict(
+            true_logit=true_logit, false_logit=false_logit, probability=probability,
+            states_value=states_value
+        )
 
     @tf_function(num_args=2)
     def sample(self, parameters, temperature):
-        true_logit, false_logit, probability, _ = parameters
+        true_logit, false_logit, probability = parameters.get(
+            'true_logit', 'false_logit', 'probability'
+        )
 
         summary_probability = probability
-        for _ in range(len(self.action_spec['shape'])):
+        for _ in range(len(self.action_spec.shape)):
             summary_probability = tf.math.reduce_mean(input_tensor=summary_probability, axis=1)
 
         true_logit, false_logit, probability = self.add_summary(
@@ -122,8 +119,8 @@ class Bernoulli(Distribution):
             pass_tensors=(true_logit, false_logit, probability)
         )
 
-        half = tf.constant(value=0.5, dtype=util.tf_dtype(dtype='float'))
-        epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
+        half = tf_util.constant(value=0.5, dtype='float')
+        epsilon = tf_util.constant(value=util.epsilon, dtype='float')
 
         # Deterministic: true if >= 0.5
         definite = tf.greater_equal(x=probability, y=half)
@@ -133,7 +130,7 @@ class Bernoulli(Distribution):
         e_false_logit = tf.math.exp(x=(false_logit / temperature))
         probability = e_true_logit / (e_true_logit + e_false_logit)
         uniform = tf.random.uniform(
-            shape=tf.shape(input=probability), dtype=util.tf_dtype(dtype='float')
+            shape=tf.shape(input=probability), dtype=tf_util.get_dtype(type='float')
         )
         sampled = tf.greater_equal(x=probability, y=uniform)
 
@@ -141,37 +138,39 @@ class Bernoulli(Distribution):
 
     @tf_function(num_args=2)
     def log_probability(self, parameters, action):
-        true_logit, false_logit, _, _ = parameters
+        true_logit, false_logit = parameters.get('true_logit', 'false_logit')
 
         return tf.where(condition=action, x=true_logit, y=false_logit)
 
     @tf_function(num_args=1)
     def entropy(self, parameters):
-        true_logit, false_logit, probability, _ = parameters
+        true_logit, false_logit, probability = parameters.get(
+            'true_logit', 'false_logit', 'probability'
+        )
 
-        one = tf.constant(value=1.0, dtype=util.tf_dtype(dtype='float'))
+        one = tf_util.constant(value=1.0, dtype='float')
 
         return -probability * true_logit - (one - probability) * false_logit
 
     @tf_function(num_args=2)
     def kl_divergence(self, parameters1, parameters2):
-        true_logit1, false_logit1, probability1, _ = parameters1
-        true_logit2, false_logit2, _, _ = parameters2
+        true_logit1, false_logit1, probability1, _ = parameters1.get(
+            'true_logit', 'false_logit', 'probability'
+        )
+        true_logit2, false_logit2, _, _ = parameters2.get('true_logit', 'false_logit')
 
         true_log_prob_ratio = true_logit1 - true_logit2
         false_log_prob_ratio = false_logit1 - false_logit2
 
-        one = tf.constant(value=1.0, dtype=util.tf_dtype(dtype='float'))
+        one = tf_util.constant(value=1.0, dtype='float')
 
         return probability1 * true_log_prob_ratio + (one - probability1) * false_log_prob_ratio
 
     @tf_function(num_args=2)
     def action_value(self, parameters, action):
-        true_logit, false_logit, _, states_value = parameters
-
-        # if action is None:
-        #     states_value = tf.expand_dims(input=states_value, axis=-1)
-        #     logits = tf.stack(values=(false_logit, true_logit), axis=-1)
+        true_logit, false_logit, states_value = parameters.get(
+            'true_logit', 'false_logit', 'states_value'
+        )
 
         logits = tf.where(condition=action, x=true_logit, y=false_logit)
 
@@ -179,6 +178,6 @@ class Bernoulli(Distribution):
 
     @tf_function(num_args=1)
     def states_value(self, parameters):
-        _, _, _, states_value = parameters
+        states_value = parameters['states_value']
 
         return states_value

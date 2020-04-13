@@ -27,9 +27,7 @@ class TestTensorforceAgent(UnittestAgent, unittest.TestCase):
     def test_act_experience_update(self):
         self.start_tests(name='act-experience-update')
 
-        agent, environment = self.prepare(
-            require_all=True, update=dict(unit='episodes', batch_size=1)
-        )
+        agent, environment = self.prepare(update=dict(unit='episodes', batch_size=1))
 
         for n in range(2):
             states = environment.reset()
@@ -51,9 +49,7 @@ class TestTensorforceAgent(UnittestAgent, unittest.TestCase):
         # FEATURES.MD
         self.start_tests(name='pretrain')
 
-        agent, environment = self.prepare(
-            require_all=True, recorder=dict(directory=self.__class__.directory)
-        )
+        agent, environment = self.prepare(recorder=dict(directory=self.__class__.directory))
 
         for _ in range(3):
             states = environment.reset()
@@ -67,7 +63,6 @@ class TestTensorforceAgent(UnittestAgent, unittest.TestCase):
 
         # recorder currently does not include internal states
         agent = Agent.create(agent=self.agent_spec(
-            require_all=True,
             policy=dict(network=dict(type='auto', size=8, depth=1, rnn=False))
         ), environment=environment)
 

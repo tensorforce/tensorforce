@@ -172,7 +172,7 @@ class OpenAIGym(Environment):
         if drop_states_indices is None:
             self.drop_states_indices = None
         else:
-            assert util.is_atomic_values_spec(values_spec=self.states_spec)
+            assert 'shape' in self.states_spec
             self.drop_states_indices = sorted(drop_states_indices)
             assert len(self.states_spec['shape']) == 1
             num_dropped = len(self.drop_states_indices)

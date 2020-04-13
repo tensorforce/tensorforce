@@ -13,12 +13,9 @@
 # limitations under the License.
 # ==============================================================================
 
-from collections import OrderedDict
-
 import tensorflow as tf
 
-from tensorforce import util
-from tensorforce.core import Module, tf_function
+from tensorforce.core import Module, TensorSpec, tf_function
 
 
 class Objective(Module):
@@ -33,11 +30,12 @@ class Objective(Module):
         internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         auxiliaries_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        reward_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
         self, summary_labels=None, name=None, states_spec=None, internals_spec=None,
-        auxiliaries_spec=None, actions_spec=None
+        auxiliaries_spec=None, actions_spec=None, reward_spec=None
     ):
         super().__init__(name=name, summary_labels=summary_labels)
 
@@ -45,43 +43,44 @@ class Objective(Module):
         self.internals_spec = internals_spec
         self.auxiliaries_spec = auxiliaries_spec
         self.actions_spec = actions_spec
+        self.reward_spec = reward_spec
 
     def reference_spec(self):
-        return dict(type='float', shape=())
+        return TensorSpec(type='float', shape=())
 
     def optimizer_arguments(self, **kwargs):
-        return OrderedDict()
+        return dict()
 
     def input_signature(self, function):
         if function == 'loss':
             return [
-                util.to_tensor_spec(value_spec=self.states_spec, batched=True),
-                util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
-                util.to_tensor_spec(value_spec=self.internals_spec, batched=True),
-                util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True),
-                util.to_tensor_spec(value_spec=self.actions_spec, batched=True),
-                util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=True)
+                self.states_spec.signature(batched=True),
+                TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                self.internals_spec.signature(batched=True),
+                self.auxiliaries_spec.signature(batched=True),
+                self.actions_spec.signature(batched=True),
+                self.reward_spec.signature(batched=True)
             ]
 
         elif function == 'reference':
             return [
-                util.to_tensor_spec(value_spec=self.states_spec, batched=True),
-                util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
-                util.to_tensor_spec(value_spec=self.internals_spec, batched=True),
-                util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True),
-                util.to_tensor_spec(value_spec=self.actions_spec, batched=True),
-                util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=True)
+                self.states_spec.signature(batched=True),
+                TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                self.internals_spec.signature(batched=True),
+                self.auxiliaries_spec.signature(batched=True),
+                self.actions_spec.signature(batched=True),
+                self.reward_spec.signature(batched=True)
             ]
 
         elif function == 'comparative_loss':
             return [
-                util.to_tensor_spec(value_spec=self.states_spec, batched=True),
-                util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
-                util.to_tensor_spec(value_spec=self.internals_spec, batched=True),
-                util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True),
-                util.to_tensor_spec(value_spec=self.actions_spec, batched=True),
-                util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=True),
-                util.to_tensor_spec(value_spec=self.reference_spec(), batched=True)
+                self.states_spec.signature(batched=True),
+                TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                self.internals_spec.signature(batched=True),
+                self.auxiliaries_spec.signature(batched=True),
+                self.actions_spec.signature(batched=True),
+                self.reward_spec.signature(batched=True),
+                self.reference_spec().signature(batched=True)
             ]
 
         else:

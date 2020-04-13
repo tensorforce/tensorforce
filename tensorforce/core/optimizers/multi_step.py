@@ -15,8 +15,7 @@
 
 import tensorflow as tf
 
-from tensorforce import util
-from tensorforce.core import parameter_modules, tf_function
+from tensorforce.core import parameter_modules, tf_function, tf_util
 from tensorforce.core.optimizers import UpdateModifier
 
 
@@ -35,22 +34,17 @@ class MultiStep(UpdateModifier):
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
-        states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        auxiliaries_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         optimized_module (module): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
         self, optimizer, num_steps, unroll_loop=False, summary_labels=None, name=None,
-        states_spec=None, internals_spec=None, auxiliaries_spec=None, actions_spec=None,
-        optimized_module=None
+        arguments_spec=None, optimized_module=None
     ):
         super().__init__(
-            optimizer=optimizer, summary_labels=summary_labels, name=name, states_spec=states_spec,
-            internals_spec=internals_spec, auxiliaries_spec=auxiliaries_spec,
-            actions_spec=actions_spec, optimized_module=optimized_module
+            optimizer=optimizer, summary_labels=summary_labels, name=name,
+            arguments_spec=arguments_spec, optimized_module=optimized_module
         )
 
         assert isinstance(unroll_loop, bool)
@@ -90,9 +84,9 @@ class MultiStep(UpdateModifier):
                 return (deltas,)
 
             num_steps = self.num_steps.value()
-            deltas = self.while_loop(
-                cond=util.tf_always_true, body=body, loop_vars=(deltas,), back_prop=False,
-                maximum_iterations=num_steps
+            deltas = tf.while_loop(
+                cond=tf_util.always_true, body=body, loop_vars=(deltas,), back_prop=False,
+                maximum_iterations=tf_util.int32(x=num_steps)
             )[0]
 
             return deltas

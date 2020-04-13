@@ -27,25 +27,16 @@ class Optimizer(Module):
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
-        states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        auxiliaries_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         optimized_module (module): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     _TF_MODULE_IGNORED_PROPERTIES = Module._TF_MODULE_IGNORED_PROPERTIES | {'optimized_module'}
 
-    def __init__(
-        self, summary_labels=None, name=None, states_spec=None, internals_spec=None,
-        auxiliaries_spec=None, actions_spec=None, optimized_module=None
-    ):
+    def __init__(self, summary_labels=None, name=None, arguments_spec=None, optimized_module=None):
         super().__init__(name=name, summary_labels=summary_labels)
 
-        self.states_spec = states_spec
-        self.internals_spec = internals_spec
-        self.auxiliaries_spec = auxiliaries_spec
-        self.actions_spec = actions_spec
+        self.arguments_spec = arguments_spec
         self.optimized_module = optimized_module
 
     def additional_arguments(self):
@@ -53,21 +44,7 @@ class Optimizer(Module):
 
     def input_signature(self, function):
         if function == 'step' or function == 'update':
-            return [
-                # [
-                #     util.to_tensor_spec(
-                #         value_spec=dict(type=util.dtype(x=x), shape=util.shape(x=x)), batched=False
-                #     ) for x in self.optimized_module.trainable_variables
-                # ],
-                [
-                    util.to_tensor_spec(value_spec=self.states_spec, batched=True),
-                    util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
-                    util.to_tensor_spec(value_spec=self.internals_spec, batched=True),
-                    util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True),
-                    util.to_tensor_spec(value_spec=self.actions_spec, batched=True),
-                    util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=True)
-                ]
-            ]
+            return [self.arguments_spec.signature(batched=True)]
 
         else:
             return super().input_signature(function=function)
@@ -78,7 +55,7 @@ class Optimizer(Module):
 
     @tf_function(num_args=1)
     def update(self, arguments, variables, **kwargs):
-        if any(variable.dtype != util.tf_dtype(dtype='float') for variable in variables):
+        if any(variable.dtype != util.get_dtype(type='float') for variable in variables):
             raise TensorforceError.unexpected()
 
         deltas = self.step(arguments=arguments, variables=variables, **kwargs)
@@ -100,4 +77,4 @@ class Optimizer(Module):
             )
 
         with tf.control_dependencies(control_inputs=deltas):
-            return util.no_operation()
+            return tf.no_op()

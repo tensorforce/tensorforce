@@ -17,7 +17,7 @@ from collections import Counter
 
 import tensorflow as tf
 
-from tensorforce import TensorforceError, util
+from tensorforce import TensorforceError
 from tensorforce.core import layer_modules, Module, tf_function
 from tensorforce.core.layers import PreprocessingLayer, TemporalLayer
 from tensorforce.core.networks import LayerbasedNetwork
@@ -52,70 +52,37 @@ class Preprocessor(LayerbasedNetwork):
             )
 
         super().__init__(
-            device=device, summary_labels=summary_labels, l2_regularization=l2_regularization,
-            name=name, inputs_spec=inputs_spec
+            layers=[layers], device=device, summary_labels=summary_labels,
+            l2_regularization=l2_regularization, name=name, inputs_spec=inputs_spec
         )
 
-        if isinstance(layers, (dict, str)):
-            layers = [layers]
-
-        self.layers = list()
-        layer_counter = Counter()
-        for layer_spec in layers:
-            if 'name' in layer_spec:
-                layer_name = layer_spec['name']
-            else:
-                if isinstance(layer_spec, dict) and isinstance(layer_spec.get('type'), str):
-                    layer_type = layer_spec['type']
-                else:
-                    layer_type = 'layer'
-                layer_name = layer_type + str(layer_counter[layer_type])
-                layer_counter[layer_type] += 1
-
-            # layer_name = self.name + '-' + layer_name
-            layer = self.add_module(name=layer_name, module=layer_spec)
-            if isinstance(layer, (Register, Retrieve, TemporalLayer)):
-                raise TensorforceError.type(
-                    name='preprocessor', argument='layer', value='Register/Retrieve/TemporalLayer'
-                )
-            self.layers.append(layer)
-
-    @classmethod
-    def internals_spec(cls, **kwargs):
+    @property
+    def internals_spec(self):
         raise NotImplementedError
-
-    @classmethod
-    def output_spec(cls, input_spec, layers, **kwargs):
-        input_spec = dict(input_spec)
-        if isinstance(layers, (dict, str)):
-            layers = [layers]
-
-        layer_counter = Counter()
-        for layer_spec in layers:
-            if 'name' in layer_spec:
-                layer_name = layer_spec['name']
-            else:
-                if isinstance(layer_spec, dict) and isinstance(layer_spec.get('type'), str):
-                    layer_type = layer_spec['type']
-                else:
-                    layer_type = 'layer'
-                layer_name = layer_type + str(layer_counter[layer_type])
-                layer_counter[layer_type] += 1
-
-            layer_cls, args, kwargs = Module.get_module_class_and_args(
-                name=layer_name, module=layer_spec, modules=layer_modules, input_spec=input_spec
-            )
-
-            input_spec = layer_cls.output_spec(*args, **kwargs)
-
-        return input_spec
 
     def internals_init(self):
         raise NotImplementedError
 
+    def max_past_horizon(self, on_policy):
+        raise NotImplementedError
+
+    def past_horizon(self, on_policy):
+        raise NotImplementedError
+
+    def add_module(self, *args, **kwargs):
+        layer = super().add_module(*args, **kwargs)
+
+        if not isinstance(layer, (Layer, Parameter)):
+            raise TensorforceError.type(name='layer', argument='submodule', dtype=type(layer))
+
+        return layer
+
     def input_signature(self, function):
         if function == 'apply':
-            return [util.to_tensor_spec(value_spec=self.inputs_spec, batched=True)]
+            return [self.inputs_spec.signature(batched=True)]
+
+        elif function == 'reset':
+            return ()
 
         else:
             return super().input_signature(function=function)
@@ -123,13 +90,34 @@ class Preprocessor(LayerbasedNetwork):
     @tf_function(num_args=0)
     def reset(self):
         operations = list()
+
         for layer in self.layers:
             if isinstance(layer, PreprocessingLayer):
                 operations.append(layer.reset())
+
         return tf.group(*operations)
 
     @tf_function(num_args=1)
     def apply(self, x):
+        registered_tensors = x.copy()
+        x = x.pop()
+
         for layer in self.layers:
-            x = layer.apply(x=x)
+            if isinstance(layer, Register):
+                if layer.tensor in registered_tensors:
+                    raise TensorforceError.exists(name='registered tensor', value=layer.tensor)
+                x = layer.apply(x=x)
+                registered_tensors[layer.tensor] = x
+
+            elif isinstance(layer, Retrieve):
+                x = TensorsDict()
+                for tensor in layer.tensors:
+                    if tensor not in registered_tensors:
+                        raise TensorforceError.exists_not(name='registered tensor', value=tensor)
+                    x[tensor] = registered_tensors[tensor]
+                x = layer.apply(x=x)
+
+            else:
+                x = layer.apply(x=x)
+
         return x

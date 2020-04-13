@@ -28,7 +28,6 @@ from test.unittest_base import UnittestBase
 class TestSaving(UnittestBase, unittest.TestCase):
 
     min_timesteps = 3
-    require_observe = True
 
     directory = 'test/test-saving'
 

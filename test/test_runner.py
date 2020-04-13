@@ -29,7 +29,6 @@ class TestRunner(UnittestBase, unittest.TestCase):
         update=dict(unit='episodes', batch_size=12),
         objective='policy_gradient', reward_estimation=dict(horizon=3)
     )
-    require_observe = True
 
     def test_single(self):
         self.start_tests(name='single')

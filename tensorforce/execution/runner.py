@@ -13,11 +13,10 @@
 # limitations under the License.
 # ==============================================================================
 
-from collections import OrderedDict
 import time
-from tqdm import tqdm
 
 import numpy as np
+from tqdm import tqdm
 
 from tensorforce import Agent, Environment, TensorforceError, util
 from tensorforce.environments import RemoteEnvironment

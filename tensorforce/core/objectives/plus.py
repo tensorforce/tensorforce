@@ -35,16 +35,17 @@ class Plus(Objective):
         internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         auxiliaries_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        reward_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
         self, objective1, objective2, summary_labels=None, name=None, states_spec=None,
-        internals_spec=None, auxiliaries_spec=None, actions_spec=None
+        internals_spec=None, auxiliaries_spec=None, actions_spec=None, reward_spec=None
     ):
         super().__init__(
             summary_labels=summary_labels, name=name, states_spec=states_spec,
             internals_spec=internals_spec, auxiliaries_spec=auxiliaries_spec,
-            actions_spec=actions_spec
+            actions_spec=actions_spec, reward_spec=reward_spec
         )
 
         self.objective1 = self.add_module(

@@ -15,7 +15,7 @@
 
 import tensorflow as tf
 
-from tensorforce import TensorforceError, util
+from tensorforce import TensorforceError
 from tensorforce.core.parameters import Parameter
 
 
@@ -46,7 +46,7 @@ class PiecewiseConstant(Parameter):
             if dtype != 'bool':
                 raise TensorforceError.unexpected()
         elif isinstance(values[0], int):
-            if dtype not in ('int', 'long'):
+            if dtype != 'int':
                 raise TensorforceError.unexpected()
         elif isinstance(values[0], float):
             if dtype != 'float':
@@ -80,7 +80,6 @@ class PiecewiseConstant(Parameter):
             boundaries=self.boundaries, values=self.values
         )(step=step)
 
-        if not util.is_dtype(x=parameter, dtype=self.dtype):
-            parameter = tf.dtypes.cast(x=parameter, dtype=util.tf_dtype(dtype=self.dtype))
+        parameter = tf_util.cast(x=parameter, dtype=self.spec.type)
 
         return parameter

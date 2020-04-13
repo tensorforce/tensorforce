@@ -16,13 +16,13 @@
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core import Module, parameter_modules, tf_function
+from tensorforce.core import parameter_modules, tf_function, tf_util
 from tensorforce.core.optimizers import Optimizer
 
 
 class Synchronization(Optimizer):
     """
-    Synchronization optimizer, which updates variables periodically to the value of a corresponding  
+    Synchronization optimizer, which updates variables periodically to the value of a corresponding
     set of source variables (specification key: `synchronization`).
 
     Args:
@@ -35,25 +35,21 @@ class Synchronization(Optimizer):
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
-        states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        auxiliaries_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         optimized_module (module): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
-        self, sync_frequency=1, update_weight=1.0, summary_labels=None, name=None, states_spec=None,
-        internals_spec=None, auxiliaries_spec=None, actions_spec=None, optimized_module=None
+        self, sync_frequency=1, update_weight=1.0, summary_labels=None, name=None,
+        arguments_spec=None, optimized_module=None
     ):
         super().__init__(
-            summary_labels=summary_labels, name=name, states_spec=states_spec,
-            internals_spec=internals_spec, auxiliaries_spec=auxiliaries_spec,
-            actions_spec=actions_spec, optimized_module=optimized_module
+            summary_labels=summary_labels, name=name, arguments_spec=arguments_spec,
+            optimized_module=optimized_module
         )
 
         self.sync_frequency = self.add_module(
-            name='sync_frequency', module=sync_frequency, modules=parameter_modules, dtype='long',
+            name='sync_frequency', module=sync_frequency, modules=parameter_modules, dtype='int',
             min_value=1
         )
 
@@ -62,11 +58,12 @@ class Synchronization(Optimizer):
             min_value=0.0, max_value=1.0
         )
 
-    def tf_initialize(self):
-        super().tf_initialize()
+    def initialize(self):
+        super().initialize()
 
-        self.next_sync = self.add_variable(
-            name='next-sync', dtype='long', shape=(), is_trainable=False
+        self.next_sync = self.variable(
+            name='next-sync', dtype='int', shape=(), initializer='zeros', is_trainable=False,
+            is_saved=True
         )
 
     @tf_function(num_args=1)
@@ -74,11 +71,11 @@ class Synchronization(Optimizer):
         source_variables = kwargs['source_variables']
 
         assert all(
-            util.shape(source) == util.shape(target)
+            tf_util.shape(x=source) == tf_util.shape(x=target)
             for source, target in zip(source_variables, variables)
         )
 
-        one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
+        one = tf_util.constant(value=1, dtype='int')
 
         def apply_sync():
             next_sync_updated = self.next_sync.assign(
@@ -96,7 +93,7 @@ class Synchronization(Optimizer):
 
             with tf.control_dependencies(control_inputs=assignments):
                 # Trivial operation to enforce control dependency
-                return util.fmap(function=util.identity_operation, xs=deltas)
+                return util.fmap(function=tf_util.identity, xs=deltas)
 
         def no_sync():
             next_sync_updated = self.next_sync.assign_sub(delta=one, read_value=False)
@@ -104,12 +101,10 @@ class Synchronization(Optimizer):
             with tf.control_dependencies(control_inputs=(next_sync_updated,)):
                 deltas = list()
                 for variable in variables:
-                    delta = tf.zeros(
-                        shape=util.shape(variable), dtype=util.tf_dtype(dtype='float')
-                    )
+                    delta = tf_util.zeros(shape=tf_util.shape(x=variable), dtype='float')
                     deltas.append(delta)
                 return deltas
 
         skip_sync = tf.math.greater(x=self.next_sync, y=one)
 
-        return self.cond(pred=skip_sync, true_fn=no_sync, false_fn=apply_sync)
+        return tf.cond(pred=skip_sync, true_fn=no_sync, false_fn=apply_sync)

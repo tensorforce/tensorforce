@@ -13,8 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce import util
-from tensorforce.core import Module, tf_function
+from tensorforce.core import Module, TensorSpec, tf_function
 
 
 class Memory(Module):
@@ -22,22 +21,20 @@ class Memory(Module):
     Base class for memories.
 
     Args:
-        name (string): Memory name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
-        values_spec (specification): Values specification
-            (<span style="color:#0000C0"><b>internal use</b></span>).
-        min_capacity (int >= 0): Minimum memory capacity
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         device (string): Device name
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): <span style="color:#0000C0"><b>internal use</b></span>.
+        values_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        min_capacity (int >= 0): <span style="color:#0000C0"><b>internal use</b></span>.
     """
+
     def __init__(
-        self, name, values_spec, min_capacity=0, device=None, summary_labels=None,
-        l2_regularization=None
+        self, device=None, summary_labels=None, l2_regularization=None, name=None, values_spec=None,
+        min_capacity=None
     ):
         super().__init__(
             name=name, device=device, summary_labels=summary_labels,
@@ -46,48 +43,33 @@ class Memory(Module):
 
         self.values_spec = values_spec
 
-
-    def input_signature(self, function):
-        if function == 'action_value':
-            return [
-                util.to_tensor_spec(value_spec=self.parameters_spec, batched=True),
-                util.to_tensor_spec(value_spec=self.action_spec, batched=True)
-            ]
-
     def input_signature(self, function):
         if function == 'enqueue':
-            return [
-                util.to_tensor_spec(value_spec=self.values_spec['states'], batched=True),
-                util.to_tensor_spec(value_spec=self.values_spec['internals'], batched=True),
-                util.to_tensor_spec(value_spec=self.values_spec['auxiliaries'], batched=True),
-                util.to_tensor_spec(value_spec=self.values_spec['actions'], batched=True),
-                util.to_tensor_spec(value_spec=self.values_spec['terminal'], batched=True),
-                util.to_tensor_spec(value_spec=self.values_spec['reward'], batched=True)
-            ]
+            return self.values_spec.signature(batched=True)
 
         elif function == 'predecessors':
             return [
-                util.to_tensor_spec(value_spec=dict(type='long', shape=()), batched=True),
-                util.to_tensor_spec(value_spec=dict(type='long', shape=()), batched=False)
+                TensorSpec(type='int', shape=()).signature(batched=True),
+                TensorSpec(type='int', shape=()).signature(batched=False)
             ]
 
         elif function == 'retrieve':
-            return [util.to_tensor_spec(value_spec=dict(type='long', shape=()), batched=True)]
+            return [TensorSpec(type='int', shape=()).signature(batched=True)]
 
         elif function == 'retrieve_episodes':
-            return [util.to_tensor_spec(value_spec=dict(type='long', shape=()), batched=False)]
+            return [TensorSpec(type='int', shape=()).signature(batched=False)]
 
         elif function == 'retrieve_timesteps':
             return [
-                util.to_tensor_spec(value_spec=dict(type='long', shape=()), batched=False),
-                util.to_tensor_spec(value_spec=dict(type='long', shape=()), batched=False),
-                util.to_tensor_spec(value_spec=dict(type='long', shape=()), batched=False)
+                TensorSpec(type='int', shape=()).signature(batched=False),
+                TensorSpec(type='int', shape=()).signature(batched=False),
+                TensorSpec(type='int', shape=()).signature(batched=False)
             ]
 
         elif function == 'successors':
             return [
-                util.to_tensor_spec(value_spec=dict(type='long', shape=()), batched=True),
-                util.to_tensor_spec(value_spec=dict(type='long', shape=()), batched=False)
+                TensorSpec(type='int', shape=()).signature(batched=True),
+                TensorSpec(type='int', shape=()).signature(batched=False)
             ]
 
         else:

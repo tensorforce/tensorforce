@@ -94,10 +94,11 @@ class DuelingDQN(TensorforceAgent):
             for reward/return/advantage
             (<span style="color:#00C000"><b>default</b></span>: none).
 
-        exploration (parameter | dict[parameter], float >= 0.0): Exploration, global or per action,
-            defined as the probability for uniformly random output in case of `bool` and `int`
-            actions, and the standard deviation of Gaussian noise added to every output in case of
-            `float` actions (<span style="color:#00C000"><b>default</b></span>: 0.0).
+        exploration (parameter | dict[parameter], float >= 0.0): Exploration, global or per
+            action-name or -type, defined as the probability for uniformly random output in case of
+            `bool` and `int` actions, and the standard deviation of Gaussian noise added to every
+            output in case of `float` actions
+            (<span style="color:#00C000"><b>default</b></span>: 0.0).
         variable_noise (parameter, float >= 0.0): Standard deviation of Gaussian noise added to all
             trainable float variables (<span style="color:#00C000"><b>default</b></span>: 0.0).
 

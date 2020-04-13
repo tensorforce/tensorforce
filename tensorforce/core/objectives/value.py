@@ -13,11 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
-from collections import OrderedDict
-
 import tensorflow as tf
 
-from tensorforce import util
 from tensorforce.core import parameter_modules, tf_function
 from tensorforce.core.objectives import Objective
 
@@ -41,16 +38,18 @@ class Value(Objective):
         internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         auxiliaries_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        reward_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
         self, value='state', huber_loss=0.0, early_reduce=True, summary_labels=None, name=None,
-        states_spec=None, internals_spec=None, auxiliaries_spec=None, actions_spec=None
+        states_spec=None, internals_spec=None, auxiliaries_spec=None, actions_spec=None,
+        reward_spec=None
     ):
         super().__init__(
             summary_labels=summary_labels, name=name, states_spec=states_spec,
             internals_spec=internals_spec, auxiliaries_spec=auxiliaries_spec,
-            actions_spec=actions_spec
+            actions_spec=actions_spec, reward_spec=reward_spec
         )
 
         assert value in ('state', 'action')
@@ -82,19 +81,19 @@ class Value(Objective):
 
         difference = value - reward
 
-        zero = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
-        half = tf.constant(value=0.5, dtype=util.tf_dtype(dtype='float'))
+        zero = tf_util.constant(value=0.0, dtype='float')
+        half = tf_util.constant(value=0.5, dtype='float')
 
         huber_loss = self.huber_loss.value()
         skip_huber_loss = tf.math.equal(x=huber_loss, y=zero)
 
         def no_huber_loss():
-            return half * tf.square(x=difference)
+            return half * tf.math.square(x=difference)
 
         def apply_huber_loss():
-            inside_huber_bounds = tf.math.less_equal(x=tf.abs(x=difference), y=huber_loss)
-            quadratic = half * tf.square(x=difference)
-            linear = huber_loss * (tf.abs(x=difference) - half * huber_loss)
+            inside_huber_bounds = tf.math.less_equal(x=tf.math.abs(x=difference), y=huber_loss)
+            quadratic = half * tf.math.square(x=difference)
+            linear = huber_loss * (tf.math.abs(x=difference) - half * huber_loss)
             return tf.where(condition=inside_huber_bounds, x=quadratic, y=linear)
 
         loss = self.cond(pred=skip_huber_loss, true_fn=no_huber_loss, false_fn=apply_huber_loss)

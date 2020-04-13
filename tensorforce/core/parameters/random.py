@@ -15,7 +15,6 @@
 
 import tensorflow as tf
 
-from tensorforce import util
 from tensorforce.core.parameters import Parameter
 
 
@@ -55,7 +54,7 @@ class Random(Parameter):
         self, distribution, summary_labels=None, name=None, dtype=None, shape=(), min_value=None,
         max_value=None, **kwargs
     ):
-        assert dtype in ('int', 'long', 'float')
+        assert dtype in ('int', 'float')
         assert distribution in ('normal', 'uniform')
 
         self.distribution = distribution
@@ -68,49 +67,41 @@ class Random(Parameter):
 
     def min_value(self):
         if self.distribution == 'uniform':
-            if self.dtype == 'int' or self.dtype == 'long':
-                return int(self.kwargs.get('minval', 0))
-            elif self.dtype == 'float':
-                return int(self.kwargs.get('minval', 0.0))
+            return self.spec.py_type()(self.kwargs.get('minval', 0))
+
         else:
             return super().min_value()
 
     def max_value(self):
         if self.distribution == 'uniform':
-            if self.dtype == 'int' or self.dtype == 'long':
-                return float(self.kwargs['maxval'])
-            elif self.dtype == 'float':
-                return float(self.kwargs.get('maxval', 1.0))
+            return self.spec.py_type()(self.kwargs.get('maxval', 1.0))
+
         else:
             return super().max_value()
 
     def final_value(self):
         if self.distribution == 'normal':
-            return util.py_dtype(dtype=self.dtype)(self.kwargs.get('mean', 0.0))
+            return self.spec.py_type()(self.kwargs.get('mean', 0.0))
 
         elif self.distribution == 'uniform':
-            if self.kwargs.get('maxval', None) is None:
-                return 0.5
-
-            else:
-                return util.py_dtype(dtype=self.dtype)(
-                    self.kwargs['maxval'] - self.kwargs.get('minval', 0)
-                )
+            return self.spec.py_type()(
+                (self.kwargs.get('maxval', 1.0) + self.kwargs.get('minval', 0.0)) / 2.0
+            )
 
         else:
-            assert False
+            return super().final_value()
 
     def parameter_value(self, step):
         if self.distribution == 'normal':
             parameter = tf.random.normal(
-                shape=self.shape, dtype=util.tf_dtype(dtype=self.dtype),
-                mean=self.kwargs.get('mean', 0.0), stddev=self.kwargs.get('stddev', 1.0)
+                shape=self.spec.shape, dtype=self.spec.tf_type(), mean=self.kwargs.get('mean', 0.0),
+                stddev=self.kwargs.get('stddev', 1.0)
             )
 
         elif self.distribution == 'uniform':
             parameter = tf.random.uniform(
-                shape=self.shape, dtype=util.tf_dtype(dtype=self.dtype),
-                minval=self.kwargs.get('minval', 0), maxval=self.kwargs.get('maxval', None)
+                shape=self.spec.shape, dtype=self.spec.tf_type(),
+                minval=self.kwargs.get('minval', 0), maxval=self.kwargs.get('maxval')
             )
 
         return parameter

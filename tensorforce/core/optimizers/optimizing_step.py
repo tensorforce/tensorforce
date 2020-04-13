@@ -15,8 +15,8 @@
 
 import tensorflow as tf
 
-from tensorforce import TensorforceError, util
-from tensorforce.core import tf_function
+from tensorforce import TensorforceError
+from tensorforce.core import TensorSpec, tf_function, tf_util
 from tensorforce.core.optimizers import UpdateModifier
 from tensorforce.core.optimizers.solvers import solver_modules
 
@@ -42,29 +42,25 @@ class OptimizingStep(UpdateModifier):
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
-        states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        auxiliaries_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         optimized_module (module): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
         self, optimizer, ls_max_iterations=10, ls_accept_ratio=0.9, ls_mode='exponential',
-        ls_parameter=0.5, ls_unroll_loop=False, summary_labels=None, name=None, states_spec=None,
-        internals_spec=None, auxiliaries_spec=None, actions_spec=None, optimized_module=None
+        ls_parameter=0.5, ls_unroll_loop=False, summary_labels=None, name=None, arguments_spec=None,
+        optimized_module=None
     ):
         super().__init__(
-            optimizer=optimizer, summary_labels=summary_labels, name=name, states_spec=states_spec,
-            internals_spec=internals_spec, auxiliaries_spec=auxiliaries_spec,
-            actions_spec=actions_spec, optimized_module=optimized_module
+            optimizer=optimizer, summary_labels=summary_labels, name=name,
+            arguments_spec=arguments_spec, optimized_module=optimized_module
         )
 
         self.line_search = self.add_module(
             name='line_search', module='line_search', modules=solver_modules,
             max_iterations=ls_max_iterations, accept_ratio=ls_accept_ratio, mode=ls_mode,
             parameter=ls_parameter, unroll_loop=ls_unroll_loop, fn_values_spec=(lambda: [
-                dict(type=util.dtype(x=x), shape=util.shape(x=x))
+                TensorSpec(type=tf_util.dtype(x=x), shape=tf_util.shape(x=x))
                 for x in self.optimized_module.trainable_variables
             ])
         )
@@ -93,7 +89,7 @@ class OptimizingStep(UpdateModifier):
                 estimated_improvement = -estimated_improvement
             else:
                 # TODO: Is this a good alternative?
-                estimated_improvement = tf.abs(x=loss_before)
+                estimated_improvement = tf.math.abs(x=loss_before)
 
         with tf.control_dependencies(control_inputs=deltas):
             # Negative value since line search maximizes.

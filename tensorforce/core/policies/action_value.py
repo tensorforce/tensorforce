@@ -13,12 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-from collections import OrderedDict
-
-import tensorflow as tf
-
-from tensorforce import util
-from tensorforce.core import tf_function
+from tensorforce.core import TensorSpec, tf_function
 from tensorforce.core.policies import Policy
 
 
@@ -42,44 +37,40 @@ class ActionValue(Policy):
     def input_signature(self, function):
         if function == 'actions_value':
             return [
-                util.to_tensor_spec(value_spec=self.states_spec, batched=True),
-                util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
-                util.to_tensor_spec(value_spec=self.internals_spec(policy=self), batched=True),
-                util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True),
-                util.to_tensor_spec(value_spec=self.actions_spec, batched=True)
+                self.states_spec.signature(batched=True),
+                TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                self.internals_spec.signature(batched=True),
+                self.auxiliaries_spec.signature(batched=True),
+                self.actions_spec.signature(batched=True)
             ]
 
         elif function == 'actions_values':
             return [
-                util.to_tensor_spec(value_spec=self.states_spec, batched=True),
-                util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
-                util.to_tensor_spec(value_spec=self.internals_spec(policy=self), batched=True),
-                util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True),
-                util.to_tensor_spec(value_spec=self.actions_spec, batched=True)
+                self.states_spec.signature(batched=True),
+                TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                self.internals_spec.signature(batched=True),
+                self.auxiliaries_spec.signature(batched=True),
+                self.actions_spec.signature(batched=True)
             ]
 
         elif function == 'states_value':
             return [
-                util.to_tensor_spec(value_spec=self.states_spec, batched=True),
-                util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
-                util.to_tensor_spec(value_spec=self.internals_spec(policy=self), batched=True),
-                util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True)
+                self.states_spec.signature(batched=True),
+                TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                self.internals_spec.signature(batched=True),
+                self.auxiliaries_spec.signature(batched=True)
             ]
 
         elif function == 'states_values':
             return [
-                util.to_tensor_spec(value_spec=self.states_spec, batched=True),
-                util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
-                util.to_tensor_spec(value_spec=self.internals_spec(policy=self), batched=True),
-                util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True)
+                self.states_spec.signature(batched=True),
+                TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                self.internals_spec.signature(batched=True),
+                self.auxiliaries_spec.signature(batched=True)
             ]
 
         else:
             return super().input_signature(function=function)
-
-    @tf_function(num_args=4)
-    def act(self, states, horizons, internals, auxiliaries):
-        raise NotImplementedError
 
     @tf_function(num_args=5)
     def actions_value(

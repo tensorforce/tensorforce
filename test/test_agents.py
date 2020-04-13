@@ -16,6 +16,8 @@
 import pytest
 import unittest
 
+import tensorflow as tf
+
 from tensorforce import Agent, Environment
 from test.unittest_base import UnittestBase
 
@@ -23,7 +25,6 @@ from test.unittest_base import UnittestBase
 class TestAgents(UnittestBase, unittest.TestCase):
 
     agent = dict()
-    require_observe = True
 
     def test_ac(self):
         self.start_tests(name='AC')

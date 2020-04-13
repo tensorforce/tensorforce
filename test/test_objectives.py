@@ -20,8 +20,6 @@ from test.unittest_base import UnittestBase
 
 class TestObjectives(UnittestBase, unittest.TestCase):
 
-    require_observe = True
-
     def test_deterministic_policy_gradient(self):
         self.start_tests(name='deterministic-policy-gradient')
 

@@ -15,8 +15,7 @@
 
 import tensorflow as tf
 
-from tensorforce import util
-from tensorforce.core import tf_function
+from tensorforce.core import tf_function, tf_util
 from tensorforce.core.layers import Layer
 
 
@@ -28,47 +27,60 @@ class Keras(Layer):
         layer (string): Keras layer class name, see
             `TensorFlow docs <https://www.tensorflow.org/api_docs/python/tf/keras/layers>`__
             (<span style="color:#C00000"><b>required</b></span>).
+        summary_labels ('all' | iter[string]): Labels of summaries to record
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        l2_regularization (float >= 0.0): Scalar controlling L2 regularization
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): Layer name
+            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
+        input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
         kwargs: Arguments for the Keras layer, see
             `TensorFlow docs <https://www.tensorflow.org/api_docs/python/tf/keras/layers>`__.
     """
 
     def __init__(
-        self, name, layer, input_spec=None, summary_labels=None, l2_regularization=None, **kwargs
+        self, layer, summary_labels=None, l2_regularization=None, name=None, input_spec=None,
+        **kwargs
     ):
         super().__init__(
-            name=name, input_spec=input_spec, summary_labels=summary_labels,
-            l2_regularization=l2_regularization
+            summary_labels=summary_labels, l2_regularization=l2_regularization, name=name,
+            input_spec=input_spec
         )
 
         self.keras_layer = getattr(tf.keras.layers, layer)(
-            name=name, dtype=util.tf_dtype(dtype='float'), input_shape=input_spec['shape'],
-            **kwargs
+            name=name, dtype=tf_util.get_dtype(type='float'), input_shape=input_spec.shape, **kwargs
         )
-
-    def default_input_spec(self):
-        return dict(type=None, shape=None)
 
     def output_spec(self):
         output_spec = super().output_spec()
 
-        shape = self.keras_layer.compute_output_shape(input_shape=((None,) + output_spec['shape']))
+        output_spec.type = 'float'
+        output_spec.shape = self.keras_layer.compute_output_shape(
+            input_shape=((None,) + output_spec.shape)
+        )[1:]
 
-        return dict(type='float', shape=tuple(shape.as_list()[1:]))
+        return output_spec
 
-    def tf_initialize(self):
-        super().tf_initialize()
+    def initialize(self):
+        super().initialize()
 
-        self.keras_layer.build(input_shape=((None,) + self.input_spec['shape']))
+        if self.device is not None:
+            self.device.__enter__()
+        self.keras_layer.build(input_shape=((None,) + self.input_spec.shape))
+        if self.device is not None:
+            self.device.__exit__(None, None, None)
 
     @tf_function(num_args=0)
     def regularize(self):
-        if len(self.keras_layer.losses) > 0:
-            regularization_loss = tf.math.add_n(inputs=self.keras_layer.losses)
-        else:
-            regularization_loss = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
+        regularization_loss = super().regularize()
+
+        if len(self.rnn.losses) > 0:
+            regularization_loss += tf.math.add_n(inputs=self.keras_layer.losses)
 
         return regularization_loss
 
     @tf_function(num_args=1)
     def apply(self, x):
-        return self.keras_layer.call(inputs=x)
+        x = self.keras_layer.call(inputs=x)
+
+        return x

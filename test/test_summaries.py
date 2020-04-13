@@ -23,8 +23,6 @@ from test.unittest_base import UnittestBase
 
 class TestSummaries(UnittestBase, unittest.TestCase):
 
-    require_observe = True
-
     directory = 'test/test-summaries'
 
     def test_summaries(self):

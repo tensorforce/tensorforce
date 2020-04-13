@@ -30,10 +30,7 @@ class TestEnvironments(UnittestBase, unittest.TestCase):
     def test_remote_environments(self):
         self.start_tests(name='remote-environments')
 
-        agent = self.agent_spec(
-            require_observe=True, update=dict(unit='episodes', batch_size=1),
-            parallel_interactions=2
-        )
+        agent = self.agent_spec(update=dict(unit='episodes', batch_size=1), parallel_interactions=2)
         environment = self.environment_spec()
 
         runner = Runner(

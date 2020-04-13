@@ -98,10 +98,11 @@ class ActorCritic(TensorforceAgent):
             for reward/return/advantage
             (<span style="color:#00C000"><b>default</b></span>: none).
 
-        exploration (parameter | dict[parameter], float >= 0.0): Exploration, global or per action,
-            defined as the probability for uniformly random output in case of `bool` and `int`
-            actions, and the standard deviation of Gaussian noise added to every output in case of
-            `float` actions (<span style="color:#00C000"><b>default</b></span>: 0.0).
+        exploration (parameter | dict[parameter], float >= 0.0): Exploration, global or per
+            action-name or -type, defined as the probability for uniformly random output in case of
+            `bool` and `int` actions, and the standard deviation of Gaussian noise added to every
+            output in case of `float` actions
+            (<span style="color:#00C000"><b>default</b></span>: 0.0).
         variable_noise (parameter, float >= 0.0): Standard deviation of Gaussian noise added to all
             trainable float variables (<span style="color:#00C000"><b>default</b></span>: 0.0).
 
@@ -120,11 +121,6 @@ class ActorCritic(TensorforceAgent):
             for instance, to enable multiple parallel episodes, environments or (centrally
             controlled) agents within an environment
             (<span style="color:#00C000"><b>default</b></span>: 1).
-        seed (int): Random seed to set for Python, NumPy (both set globally!) and TensorFlow,
-            environment seed has to be set separately for a fully deterministic execution
-            (<span style="color:#00C000"><b>default</b></span>: none).
-        execution (specification): TensorFlow execution configuration with the following attributes
-            (<span style="color:#00C000"><b>default</b></span>: standard): ...
         saver (specification): TensorFlow saver configuration for periodic implicit saving, as
             alternative to explicit saving via agent.save(...), with the following attributes
             (<span style="color:#00C000"><b>default</b></span>: no saver):
@@ -220,8 +216,8 @@ class ActorCritic(TensorforceAgent):
         # Regularization
         l2_regularization=0.0, entropy_regularization=0.0,
         # TensorFlow etc
-        name='agent', device=None, parallel_interactions=1, seed=None, execution=None, saver=None,
-        summarizer=None, recorder=None, config=None
+        name='agent', device=None, parallel_interactions=1, config=None, saver=None,
+        summarizer=None, recorder=None
     ):
         self.spec = OrderedDict(
             agent='ac',
@@ -236,9 +232,8 @@ class ActorCritic(TensorforceAgent):
             preprocessing=preprocessing,
             exploration=exploration, variable_noise=variable_noise,
             l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
-            name=name, device=device, parallel_interactions=parallel_interactions, seed=seed,
-                execution=execution, saver=saver, summarizer=summarizer, recorder=recorder,
-                config=config
+            name=name, device=device, parallel_interactions=parallel_interactions, config=config,
+                saver=saver, summarizer=summarizer, recorder=recorder
         )
 
         policy = dict(network=network, temperature=1.0)
@@ -265,12 +260,11 @@ class ActorCritic(TensorforceAgent):
         super().__init__(
             # Agent
             states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
-            parallel_interactions=parallel_interactions, buffer_observe=True, seed=seed,
-            recorder=recorder, config=config,
+            parallel_interactions=parallel_interactions, config=config, recorder=recorder,
             # Model
-            name=name, device=device, execution=execution, saver=saver, summarizer=summarizer,
             preprocessing=preprocessing, exploration=exploration, variable_noise=variable_noise,
-            l2_regularization=l2_regularization,
+            l2_regularization=l2_regularization, name=name, device=device, saver=saver,
+            summarizer=summarizer,
             # TensorforceModel
             policy=policy, memory=memory, update=update, optimizer=optimizer, objective=objective,
             reward_estimation=reward_estimation, baseline_policy=baseline_policy,

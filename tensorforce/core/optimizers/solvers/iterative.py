@@ -15,8 +15,7 @@
 
 import tensorflow as tf
 
-from tensorforce import util
-from tensorforce.core import parameter_modules
+from tensorforce.core import parameter_modules, tf_util
 from tensorforce.core.optimizers.solvers import Solver
 
 
@@ -75,10 +74,10 @@ class Iterative(Solver):
 
         else:
             # TensorFlow while loop
-            max_iterations = tf.identity(input=self.max_iterations.value())
-            args = self.while_loop(
+            max_iterations = self.max_iterations.value()
+            args = tf.while_loop(
                 cond=self.next_step, body=self.step, loop_vars=args, back_prop=False,
-                maximum_iterations=max_iterations
+                maximum_iterations=tf_util.int32(x=max_iterations)
             )
 
         solution = self.end(*args)
@@ -122,7 +121,7 @@ class Iterative(Solver):
         Returns:
             True if another iteration should be performed.
         """
-        return util.tf_always_true()
+        return tf_util.constant(value=True, dtype='bool')
 
     def end(self, x_final, *args):
         """

@@ -16,7 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core import tf_function, parameter_modules
+from tensorforce.core import parameter_modules, TensorSpec, tf_function, tf_util
 from tensorforce.core.layers import Layer
 
 
@@ -26,22 +26,21 @@ class ExponentialNormalization(Layer):
     `exponential_normalization`).
 
     Args:
-        name (string): Layer name
-            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         decay (parameter, 0.0 <= float <= 1.0): Decay rate
             (<span style="color:#00C000"><b>default</b></span>: 0.999).
         axes (iter[int >= 0]): Normalization axes, excluding batch axis
             (<span style="color:#00C000"><b>default</b></span>: all but last axis).
-        input_spec (specification): Input tensor specification
-            (<span style="color:#00C000"><b>internal use</b></span>).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): Layer name
+            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
+        input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(self, name, decay=0.999, axes=None, input_spec=None, summary_labels=None):
-        super().__init__(name=name, input_spec=input_spec, summary_labels=summary_labels)
+    def __init__(self, decay=0.999, axes=None, summary_labels=None, name=None, input_spec=None):
+        super().__init__(summary_labels=summary_labels, name=name, input_spec=input_spec)
 
         self.decay = self.add_module(
             name='decay', module=decay, modules=parameter_modules, dtype='float', min_value=0.0,
@@ -51,12 +50,12 @@ class ExponentialNormalization(Layer):
         self.axes = axes if axes is None else tuple(axes)
 
     def default_input_spec(self):
-        return dict(type='float', shape=None)
+        return TensorSpec(type='float', shape=None)
 
-    def tf_initialize(self):
-        super().tf_initialize()
+    def initialize(self):
+        super().initialize()
 
-        shape = self.input_spec['shape']
+        shape = self.input_spec.shape
         if self.axes is None:
             if len(shape) > 0:
                 self.axes = tuple(range(len(shape) - 1))
@@ -67,23 +66,20 @@ class ExponentialNormalization(Layer):
             shape = tuple(1 if axis in self.axes else dims for axis, dims in enumerate(shape))
         shape = (1,) + shape
 
-        self.moving_mean = self.add_variable(
-            name='mean', dtype='float', shape=shape, is_trainable=False, initializer='zeros'
+        self.moving_mean = self.variable(
+            name='mean', dtype='float', shape=shape, initializer='zeros', is_trainable=False,
+            is_saved=True
         )
 
-        self.moving_variance = self.add_variable(
-            name='variance', dtype='float', shape=shape, is_trainable=False, initializer='zeros'
+        self.moving_variance = self.variable(
+            name='variance', dtype='float', shape=shape, initializer='zeros', is_trainable=False,
+            is_saved=True
         )
 
-        self.after_first_call = self.add_variable(
-            name='after-first-call', dtype='bool', shape=(), is_trainable=False,
-            initializer='zeros'
+        self.after_first_call = self.variable(
+            name='after-first-call', dtype='bool', shape=(), initializer='zeros',
+            is_trainable=False, is_saved=True
         )
-
-        # self.update_on_optimization = self.add_variable(
-        #     name='update-on-optimization', dtype='bool', shape=(), is_trainable=False,
-        #     initializer='zeros'
-        # )
 
     @tf_function(num_args=1)
     def apply(self, x):
@@ -92,11 +88,11 @@ class ExponentialNormalization(Layer):
             return self.moving_mean, self.moving_variance
 
         def apply_update():
-            one = tf.constant(value=1.0, dtype=util.tf_dtype(dtype='float'))
+            one = tf_util.constant(value=1.0, dtype='float')
             axes = tuple(1 + axis for axis in self.axes)
 
             decay = self.decay.value()
-            batch_size = tf.dtypes.cast(x=tf.shape(input=x)[0], dtype=util.tf_dtype(dtype='float'))
+            batch_size = tf_util.cast(x=tf.shape(input=x)[0], dtype='float')
             decay = tf.math.pow(x=decay, y=batch_size)
 
             mean = tf.math.reduce_mean(input_tensor=x, axis=axes, keepdims=True)
@@ -115,8 +111,7 @@ class ExponentialNormalization(Layer):
 
             with tf.control_dependencies(control_inputs=(mean, variance)):
                 assignment = self.after_first_call.assign(
-                    value=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool')),
-                    read_value=False
+                    value=tf_util.constant(value=True, dtype='bool'), read_value=False
                 )
 
             with tf.control_dependencies(control_inputs=(assignment,)):
@@ -125,20 +120,11 @@ class ExponentialNormalization(Layer):
 
             return mean, variance
 
-        # optimization = Module.retrieve_tensor(name='optimization')
-        # update_on_optimization = tf.where(
-        #     condition=self.after_first_call, x=self.update_on_optimization, y=optimization
-        # )
-        # update_on_optimization = self.update_on_optimization.assign(value=update_on_optimization)
-        # skip_update = tf.math.logical_or(
-        #     x=Module.retrieve_tensor(name='independent'),
-        #     y=tf.math.not_equal(x=update_on_optimization, y=optimization)
-        # )
         skip_update = self.global_tensor(name='independent')
 
         mean, variance = self.cond(pred=skip_update, true_fn=no_update, false_fn=apply_update)
 
-        epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
+        epsilon = tf_util.constant(value=util.epsilon, dtype='float')
         reciprocal_stddev = tf.math.rsqrt(x=tf.maximum(x=variance, y=epsilon))
 
         x = (x - tf.stop_gradient(input=mean)) * tf.stop_gradient(input=reciprocal_stddev)
@@ -151,27 +137,26 @@ class InstanceNormalization(Layer):
     Instance normalization layer (specification key: `instance_normalization`).
 
     Args:
-        name (string): Layer name
-            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         axes (iter[int >= 0]): Normalization axes, excluding batch axis
             (<span style="color:#00C000"><b>default</b></span>: all).
-        input_spec (specification): Input tensor specification
-            (<span style="color:#00C000"><b>internal use</b></span>).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): Layer name
+            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
+        input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(self, name, axes=None, input_spec=None, summary_labels=None):
-        super().__init__(name=name, input_spec=input_spec, summary_labels=summary_labels)
+    def __init__(self, axes=None, summary_labels=None, name=None, input_spec=None):
+        super().__init__(summary_labels=summary_labels, name=name, input_spec=input_spec)
 
         self.axes = axes if axes is None else tuple(axes)
 
     def default_input_spec(self):
-        return dict(type='float', shape=None)
+        return TensorSpec(type='float', shape=None)
 
     @tf_function(num_args=1)
     def apply(self, x):
-        epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
+        epsilon = tf_util.constant(value=util.epsilon, dtype='float')
 
         if self.axes is None:
             mean, variance = tf.nn.moments(

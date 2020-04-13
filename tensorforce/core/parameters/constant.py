@@ -13,9 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
-import tensorflow as tf
-
-from tensorforce import TensorforceError, util
+from tensorforce import TensorforceError
+from tensorforce.core import tf_util
 from tensorforce.core.parameters import Parameter
 
 
@@ -42,7 +41,7 @@ class Constant(Parameter):
             if dtype != 'bool':
                 raise TensorforceError.unexpected()
         elif isinstance(value, int):
-            if dtype not in ('int', 'long'):
+            if dtype != 'int':
                 raise TensorforceError.unexpected()
         elif isinstance(value, float):
             if dtype != 'float':
@@ -67,6 +66,6 @@ class Constant(Parameter):
         return self.constant_value
 
     def parameter_value(self, step):
-        parameter = tf.constant(value=self.constant_value, dtype=util.tf_dtype(dtype=self.dtype))
+        parameter = tf_util.constant(value=self.constant_value, dtype=self.spec.type)
 
         return parameter

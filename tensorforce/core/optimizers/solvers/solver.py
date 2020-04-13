@@ -18,8 +18,8 @@ from tensorforce.core import Module
 
 class Solver(Module):
     """
-    Generic TensorFlow-based solver which solves a not yet further specified  
-    equation/optimization problem.
+    Generic TensorFlow-based solver which solves a not yet further specified equation/optimization
+    problem.
     """
 
     def solve(self, *args, fn_x=None):

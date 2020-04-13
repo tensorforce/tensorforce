@@ -13,12 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
-from collections import OrderedDict
-
-import tensorflow as tf
-
-from tensorforce import util
-from tensorforce.core import Module, parameter_modules, tf_function
+from tensorforce.core import ModuleDict, parameter_modules, TensorDict, TensorSpec, tf_function, \
+    tf_util
 from tensorforce.core.policies import Policy
 
 
@@ -55,7 +51,7 @@ class Stochastic(Policy):
         if isinstance(temperature, dict) and \
                 all(name in self.actions_spec for name in temperature):
             # Different temperature per action
-            self.temperature = OrderedDict()
+            self.temperature = ModuleDict()
             for name in self.actions_spec:
                 if name in temperature:
                     self.temperature[name] = self.add_module(
@@ -72,103 +68,97 @@ class Stochastic(Policy):
     def input_signature(self, function):
         if function == 'entropy':
             return [
-                util.to_tensor_spec(value_spec=self.states_spec, batched=True),
-                util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
-                util.to_tensor_spec(value_spec=self.internals_spec(policy=self), batched=True),
-                util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True)
+                self.states_spec.signature(batched=True),
+                TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                self.internals_spec.signature(batched=True),
+                self.auxiliaries_spec.signature(batched=True)
             ]
 
         elif function == 'entropies':
             return [
-                util.to_tensor_spec(value_spec=self.states_spec, batched=True),
-                util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
-                util.to_tensor_spec(value_spec=self.internals_spec(policy=self), batched=True),
-                util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True)
+                self.states_spec.signature(batched=True),
+                TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                self.internals_spec.signature(batched=True),
+                self.auxiliaries_spec.signature(batched=True)
             ]
 
         elif function == 'kl_divergence':
             return [
-                util.to_tensor_spec(value_spec=self.states_spec, batched=True),
-                util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
-                util.to_tensor_spec(value_spec=self.internals_spec(policy=self), batched=True),
-                util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True),
-                [
-                    util.to_tensor_spec(value_spec=distribution.parameters_spec, batched=True)
-                    for distribution in self.distributions.values()
-                ]
+                self.states_spec.signature(batched=True),
+                TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                self.internals_spec.signature(batched=True),
+                self.auxiliaries_spec.signature(batched=True),
+                self.distributions.fmap(function=(lambda x: x.parameters_spec))
+                    .signature(batched=True)
             ]
 
         elif function == 'kl_divergences':
             return [
-                util.to_tensor_spec(value_spec=self.states_spec, batched=True),
-                util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
-                util.to_tensor_spec(value_spec=self.internals_spec(policy=self), batched=True),
-                util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True),
-                [
-                    util.to_tensor_spec(value_spec=distribution.parameters_spec, batched=True)
-                    for distribution in self.distributions.values()
-                ]
+                self.states_spec.signature(batched=True),
+                TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                self.internals_spec.signature(batched=True),
+                self.auxiliaries_spec.signature(batched=True),
+                self.distributions.fmap(function=(lambda x: x.parameters_spec))
+                    .signature(batched=True)
             ]
 
         elif function == 'kldiv_reference':
             return [
-                util.to_tensor_spec(value_spec=self.states_spec, batched=True),
-                util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
-                util.to_tensor_spec(value_spec=self.internals_spec(policy=self), batched=True),
-                util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True)
+                self.states_spec.signature(batched=True),
+                TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                self.internals_spec.signature(batched=True),
+                self.auxiliaries_spec.signature(batched=True)
             ]
 
         elif function == 'log_probability':
             return [
-                util.to_tensor_spec(value_spec=self.states_spec, batched=True),
-                util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
-                util.to_tensor_spec(value_spec=self.internals_spec(policy=self), batched=True),
-                util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True),
-                util.to_tensor_spec(value_spec=self.actions_spec, batched=True)
+                self.states_spec.signature(batched=True),
+                TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                self.internals_spec.signature(batched=True),
+                self.auxiliaries_spec.signature(batched=True),
+                self.actions_spec.signature(batched=True)
             ]
 
         elif function == 'log_probabilities':
             return [
-                util.to_tensor_spec(value_spec=self.states_spec, batched=True),
-                util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
-                util.to_tensor_spec(value_spec=self.internals_spec(policy=self), batched=True),
-                util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True),
-                util.to_tensor_spec(value_spec=self.actions_spec, batched=True)
+                self.states_spec.signature(batched=True),
+                TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                self.internals_spec.signature(batched=True),
+                self.auxiliaries_spec.signature(batched=True),
+                self.actions_spec.signature(batched=True)
             ]
 
         elif function == 'sample_actions':
             return [
-                util.to_tensor_spec(value_spec=self.states_spec, batched=True),
-                util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
-                util.to_tensor_spec(value_spec=self.internals_spec(policy=self), batched=True),
-                util.to_tensor_spec(value_spec=self.auxiliaries_spec, batched=True),
-                [
-                    util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=False)
-                    for _ in self.actions_spec
-                ]
+                self.states_spec.signature(batched=True),
+                TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                self.internals_spec.signature(batched=True),
+                self.auxiliaries_spec.signature(batched=True),
+                self.actions_spec.fmap(function=(lambda x: TensorSpec(type='float', shape=())))
+                    .signature(batched=False)
             ]
 
         else:
             return super().input_signature(function=function)
 
     @tf_function(num_args=4)
-    def act(self, states, horizons, internals, auxiliaries, return_internals):
-        deterministic = self.global_tensor(name='deterministic')
+    def act(self, states, horizons, internals, auxiliaries, deterministic, return_internals):
+        zero = tf_util.constant(value=0.0, dtype='float')
 
-        zero = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
-        temperatures = OrderedDict()
-        if isinstance(self.temperature, dict):
+        temperatures = TensorDict()
+        if deterministic:
+            for name in self.actions_spec:
+                temperatures[name] = zero
+        elif isinstance(self.temperature, dict):
             for name in self.actions_spec:
                 if name in self.temperature:
-                    temperatures[name] = tf.where(
-                        condition=deterministic, x=zero, y=self.temperature[name].value()
-                    )
+                    temperatures[name] = self.temperature[name].value()
                 else:
                     temperatures[name] = zero
         else:
-            value = tf.where(condition=deterministic, x=zero, y=self.temperature.value())
+            temperature = self.temperature.value()
             for name in self.actions_spec:
-                temperatures[name] = value
+                temperatures[name] = temperature
 
         return self.sample_actions(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,

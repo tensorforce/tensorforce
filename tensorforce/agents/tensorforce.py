@@ -129,14 +129,15 @@ class TensorforceAgent(Agent):
             none (<span style="color:#00C000"><b>default</b></span>: none).
 
         preprocessing (dict[specification]): Preprocessing as layer or list of layers, see
-            [preprocessing](../modules/preprocessing.html), specified per state-type or -name, and
+            [preprocessing](../modules/preprocessing.html), specified per state-name or -type, and
             for reward/return/advantage
             (<span style="color:#00C000"><b>default</b></span>: none).
 
-        exploration (parameter | dict[parameter], float >= 0.0): Exploration, global or per action,
-            defined as the probability for uniformly random output in case of `bool` and `int`
-            actions, and the standard deviation of Gaussian noise added to every output in case of
-            `float` actions (<span style="color:#00C000"><b>default</b></span>: 0.0).
+        exploration (parameter | dict[parameter], float >= 0.0): Exploration, global or per
+            action-name or -type, defined as the probability for uniformly random output in case of
+            `bool` and `int` actions, and the standard deviation of Gaussian noise added to every
+            output in case of `float` actions
+            (<span style="color:#00C000"><b>default</b></span>: 0.0).
         variable_noise (parameter, float >= 0.0): Standard deviation of Gaussian noise added to all
             trainable float variables (<span style="color:#00C000"><b>default</b></span>: 0.0).
 
@@ -155,16 +156,15 @@ class TensorforceAgent(Agent):
             for instance, to enable multiple parallel episodes, environments or (centrally
             controlled) agents within an environment
             (<span style="color:#00C000"><b>default</b></span>: 1).
-        buffer_observe (bool | int > 0): Maximum number of timesteps within an episode to buffer
-            before executing internal observe operations, to reduce calls to TensorFlow for
-            improved performance
-            (<span style="color:#00C000"><b>default</b></span>: max_episode_timesteps or 1000,
-            unless summarizer specified).
-        seed (int): Random seed to set for Python, NumPy (both set globally!) and TensorFlow,
-            environment seed has to be set separately for a fully deterministic execution
-            (<span style="color:#00C000"><b>default</b></span>: none).
-        execution (specification): TensorFlow execution configuration with the following attributes
-            (<span style="color:#00C000"><b>default</b></span>: standard): ...
+        config (specification): ...
+            buffer_observe (bool | int > 0): Maximum number of timesteps within an episode to buffer
+                before executing internal observe operations, to reduce calls to TensorFlow for
+                improved performance
+                (<span style="color:#00C000"><b>default</b></span>: max_episode_timesteps or 1000,
+                unless summarizer specified).
+            seed (int): Random seed to set for Python, NumPy (both set globally!) and TensorFlow,
+                environment seed has to be set separately for a fully deterministic execution
+                (<span style="color:#00C000"><b>default</b></span>: none).
         saver (specification): TensorFlow saver configuration for periodic implicit saving, as
             alternative to explicit saving via agent.save(...), with the following attributes
             (<span style="color:#00C000"><b>default</b></span>: no saver):
@@ -254,24 +254,36 @@ class TensorforceAgent(Agent):
         # Regularization
         l2_regularization=0.0, entropy_regularization=0.0,
         # TensorFlow etc
-        name='agent', device=None, parallel_interactions=1, buffer_observe=True, seed=None,
-        execution=None, saver=None, summarizer=None, recorder=None, config=None
+        name='agent', device=None, parallel_interactions=1, config=None, saver=None,
+        summarizer=None, recorder=None
     ):
         if not hasattr(self, 'spec'):
             self.spec = OrderedDict(
                 agent='tensorforce',
+                # Environment
                 states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
+                # Agent
                 policy=policy, memory=memory, update=update, optimizer=optimizer,
                 objective=objective, reward_estimation=reward_estimation,
+                # Baseline
                 baseline_policy=baseline_policy, baseline_optimizer=baseline_optimizer,
                 baseline_objective=baseline_objective,
+                # Preprocessing
                 preprocessing=preprocessing,
+                # Exploration
                 exploration=exploration, variable_noise=variable_noise,
+                # Regularization
                 l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
+                # TensorFlow etc
                 name=name, device=device, parallel_interactions=parallel_interactions,
-                buffer_observe=buffer_observe, seed=seed, execution=execution, saver=saver,
-                summarizer=summarizer, recorder=recorder, config=config
+                config=config, saver=saver, summarizer=summarizer, recorder=recorder
             )
+
+        if config is None:
+            config = dict()
+            buffer_observe = True
+        else:
+            buffer_observe = config.get('buffer_observe', True)
 
         if isinstance(update, int) or update['unit'] == 'timesteps':
             if parallel_interactions > 1:
@@ -290,8 +302,7 @@ class TensorforceAgent(Agent):
 
         super().__init__(
             states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
-            parallel_interactions=parallel_interactions, buffer_observe=buffer_observe, seed=seed,
-            recorder=recorder
+            parallel_interactions=parallel_interactions, config=config, recorder=recorder
         )
 
         if isinstance(update, int):
@@ -308,17 +319,17 @@ class TensorforceAgent(Agent):
 
         self.model = TensorforceModel(
             # Model
-            name=name, device=device, parallel_interactions=self.parallel_interactions,
-            buffer_observe=self.buffer_observe, seed=seed, execution=execution, saver=saver,
-            summarizer=summarizer, config=config, states=self.states_spec,
-            actions=self.actions_spec, preprocessing=preprocessing, exploration=exploration,
-            variable_noise=variable_noise, l2_regularization=l2_regularization,
+            states=self.states_spec, actions=self.actions_spec, preprocessing=preprocessing,
+            exploration=exploration, variable_noise=variable_noise,
+            l2_regularization=l2_regularization, name=name, device=device,
+            parallel_interactions=self.parallel_interactions, config=self.config, saver=saver,
+            summarizer=summarizer,
             # TensorforceModel
             policy=policy, memory=memory, update=update, optimizer=optimizer, objective=objective,
             reward_estimation=reward_estimation, baseline_policy=baseline_policy,
             baseline_optimizer=baseline_optimizer, baseline_objective=baseline_objective,
             entropy_regularization=entropy_regularization,
-            max_episode_timesteps=max_episode_timesteps
+            max_episode_timesteps=self.max_episode_timesteps
         )
 
         self.experience_size = self.model.estimator.capacity

@@ -44,14 +44,14 @@ class UnittestBase(object):
     states = dict(
         bool_state=dict(type='bool', shape=(1,)),
         int_state=dict(type='int', shape=(2,), num_values=4),
-        float_state=dict(type='float', shape=(1, 1, 2)),
-        bounded_state=dict(type='float', shape=(), min_value=-0.5, max_value=0.5)
+        float_state=dict(type='float', shape=(1, 2)),
+        bounded_state=dict(type='float', shape=(), min_value=1.0, max_value=2.0)
     )
     actions = dict(
         bool_action=dict(type='bool', shape=(1,)),
         int_action=dict(type='int', shape=(2,), num_values=4),
-        float_action=dict(type='float', shape=(1, 1)),
-        bounded_action=dict(type='float', shape=(2,), min_value=-0.5, max_value=0.5)
+        float_action=dict(type='float', shape=(1, 2)),
+        bounded_action=dict(type='float', shape=(), min_value=1.0, max_value=2.0)
     )
     max_episode_timesteps = 5
 
@@ -67,15 +67,14 @@ class UnittestBase(object):
         objective='policy_gradient', reward_estimation=dict(horizon=3)
     )
 
-    # Tensorforce config
-    require_observe = False
-    require_all = False
-
     def setUp(self):
-        warnings.filterwarnings(
-            action='ignore',
-            message='Converting sparse IndexedSlices to a dense Tensor of unknown shape'
-        )
+        # TODO: turn on again?
+        # warnings.filterwarnings(
+        #     action='ignore',
+        #     message='Converting sparse IndexedSlices to a dense Tensor of unknown shape'
+        # )
+        # tf.config.experimental_run_functions_eagerly(run_eagerly=True)
+        pass
 
     def start_tests(self, name=None):
         """
@@ -134,19 +133,12 @@ class UnittestBase(object):
             states=states, actions=actions, min_timesteps=min_timesteps
         )
 
-    def agent_spec(self, require_observe=False, require_all=False, **agent):
+    def agent_spec(self, **agent):
         for key, value in self.__class__.agent.items():
             if key not in agent:
                 agent[key] = value
 
-        if self.__class__.require_all or require_all:
-            config = None
-        elif self.__class__.require_observe or require_observe:
-            config = dict(api_functions=['reset', 'act', 'independent_act', 'observe'])
-        else:
-            config = dict(api_functions=['reset', 'act', 'independent_act'])
-
-        return dict(agent=agent, config=config)
+        return dict(agent=agent)
 
     def prepare(
         self,
@@ -158,7 +150,7 @@ class UnittestBase(object):
         exclude_bool_action=False, exclude_int_action=False, exclude_float_action=False,
         exclude_bounded_action=False,
         # agent
-        require_observe=False, require_all=False, **agent
+        **agent
     ):
         """
         Generic unit-test preparation.
@@ -185,7 +177,7 @@ class UnittestBase(object):
         else:
             raise TensorforceError.unexpected()
 
-        agent = self.agent_spec(require_observe=require_observe, require_all=require_all, **agent)
+        agent = self.agent_spec(**agent)
 
         agent = Agent.create(agent=agent, environment=environment)
 
@@ -203,7 +195,7 @@ class UnittestBase(object):
         exclude_bool_action=False, exclude_int_action=False, exclude_float_action=False,
         exclude_bounded_action=False,
         # agent
-        require_observe=False, require_all=False, **agent
+        **agent
     ):
         """
         Generic unit-test.
@@ -223,7 +215,7 @@ class UnittestBase(object):
         elif max_episode_timesteps is None:
             max_episode_timesteps = self.__class__.max_episode_timesteps
 
-        agent = self.agent_spec(require_observe=require_observe, require_all=require_all, **agent)
+        agent = self.agent_spec(**agent)
 
         assert (num_updates is not None) + (num_episodes is not None) + \
             (num_timesteps is not None) <= 1
@@ -236,14 +228,13 @@ class UnittestBase(object):
         assert (num_updates is not None) + (num_episodes is not None) + \
             (num_timesteps is not None) == 1
 
-        evaluation = not any([
-            require_all, require_observe, self.__class__.require_all,
-            self.__class__.require_observe
-        ])
+        # evaluation = not any([
+        #     require_all, require_observe, self.__class__.require_all,
+        #     self.__class__.require_observe
+        # ])
 
         runner = Runner(
-            agent=agent, environment=environment, max_episode_timesteps=max_episode_timesteps,
-            evaluation=evaluation
+            agent=agent, environment=environment, max_episode_timesteps=max_episode_timesteps
         )
         runner.run(
             num_episodes=num_episodes, num_timesteps=num_timesteps, num_updates=num_updates,

@@ -13,11 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-from collections import OrderedDict
-
-from tensorforce import TensorforceError, util
-from tensorforce.core import layer_modules, Module, tf_function
-from tensorforce.core.layers import InternalLstm
+from tensorforce import TensorforceError
 from tensorforce.core.networks import LayeredNetwork
 
 
@@ -66,24 +62,26 @@ class AutoNetwork(LayeredNetwork):
             ))
 
             # Embed bool and int states
-            requires_embedding = spec['type'] in ('bool', 'int')
+            requires_embedding = (spec.type == 'bool' or spec.type == 'int')
             if requires_embedding:
                 state_layers.append(dict(
                     type='embedding', name=(input_name + '_embedding'), size=size
                 ))
 
             # Shape-specific layer type
-            if len(spec['shape']) == 1 - requires_embedding:
+            if spec.rank == 1 - requires_embedding:
                 layer = 'dense'
-            elif len(spec['shape']) == 2 - requires_embedding:
+            elif spec.rank == 2 - requires_embedding:
                 layer = 'conv1d'
-            elif len(spec['shape']) == 3 - requires_embedding:
+            elif spec.rank == 3 - requires_embedding:
                 layer = 'conv2d'
-            elif len(spec['shape']) == 0:
+            elif spec.rank == 0:
                 state_layers.append(dict(type='flatten', name=(input_name + '_flatten')))
                 layer = 'dense'
             else:
-                raise TensorforceError.unexpected()
+                raise TensorforceError.value(
+                    name='AutoNetwork', argument='input rank', value=spec.rank, hint='>= 3'
+                )
 
             # Repeat layer according to depth (one less if embedded)
             for n in range(depth - requires_embedding):
@@ -92,7 +90,7 @@ class AutoNetwork(LayeredNetwork):
                 ))
 
             # Max pool if rank greater than one
-            if len(spec['shape']) > 1 - requires_embedding:
+            if len(spec.shape) > 1 - requires_embedding:
                 state_layers.append(dict(
                     type='pooling', name=(input_name + '_pooling'), reduction='max'
                 ))
@@ -128,26 +126,3 @@ class AutoNetwork(LayeredNetwork):
             layers=layers, device=device, summary_labels=summary_labels,
             l2_regularization=l2_regularization, name=name, inputs_spec=inputs_spec
         )
-
-    @classmethod
-    def internals_spec(cls, network=None, **kwargs):
-        if network is not None:
-            internals_spec = super().internals_spec(network=network, **kwargs)
-        else:
-            internals_spec = OrderedDict()
-
-        if network is None and kwargs.get('rnn', False) is not False:
-            if kwargs.get('final_size') is None:
-                final_size = kwargs['size']
-            else:
-                final_size = kwargs['final_size']
-
-            layer_cls, layer_args, layer_kwargs = Module.get_module_class_and_args(
-                name='lstm', module='internal_lstm', modules=layer_modules, size=final_size,
-                horizon=kwargs['rnn']
-            )
-
-            for name, spec in layer_cls.internals_spec(*layer_args, **layer_kwargs).items():
-                internals_spec['{}-{}-{}'.format(kwargs['name'], 'lstm', name)] = spec
-
-        return internals_spec

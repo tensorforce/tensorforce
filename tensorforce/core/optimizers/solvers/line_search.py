@@ -16,7 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core import parameter_modules, tf_function
+from tensorforce.core import parameter_modules, TensorSpec, tf_function, tf_util
 from tensorforce.core.optimizers.solvers import Iterative
 
 
@@ -70,32 +70,32 @@ class LineSearch(Iterative):
         if function == 'end' or function == 'next_step' or function == 'step':
             if self.mode == 'linear':
                 return [
-                    util.to_tensor_spec(value_spec=self.fn_values_spec(), batched=False),
-                    util.to_tensor_spec(value_spec=self.fn_values_spec(), batched=False),
-                    util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=False),
-                    util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=False),
-                    util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=False),
+                    self.fn_values_spec().signature(batched=False),
+                    self.fn_values_spec().signature(batched=False),
+                    TensorSpec(type='float', shape=()).signature(batched=False),
+                    TensorSpec(type='float', shape=()).signature(batched=False),
+                    TensorSpec(type='float', shape=()).signature(batched=False),
                     [
-                        util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=False),
-                        util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=False)
+                        TensorSpec(type='float', shape=()).signature(batched=False),
+                        TensorSpec(type='float', shape=()).signature(batched=False)
                     ]
                 ]
             else:
                 return [
-                    util.to_tensor_spec(value_spec=self.fn_values_spec(), batched=False),
-                    util.to_tensor_spec(value_spec=self.fn_values_spec(), batched=False),
-                    util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=False),
-                    util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=False),
-                    util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=False),
-                    util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=False)
+                    self.fn_values_spec().signature(batched=False),
+                    self.fn_values_spec().signature(batched=False),
+                    TensorSpec(type='float', shape=()).signature(batched=False),
+                    TensorSpec(type='float', shape=()).signature(batched=False),
+                    TensorSpec(type='float', shape=()).signature(batched=False),
+                    TensorSpec(type='float', shape=()).signature(batched=False)
                 ]
 
         elif function == 'solve' or function == 'start':
             return [
-                util.to_tensor_spec(value_spec=self.fn_values_spec(), batched=False),
-                util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=False),
-                util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=False),
-                util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=False)
+                self.fn_values_spec().signature(batched=False),
+                TensorSpec(type='float', shape=()).signature(batched=False),
+                TensorSpec(type='float', shape=()).signature(batched=False),
+                TensorSpec(type='float', shape=()).signature(batched=False)
             ]
 
         else:
@@ -136,8 +136,8 @@ class LineSearch(Iterative):
             Initial arguments for step.
         """
         difference = target_value - base_value
-        epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
-        improvement = difference / tf.maximum(x=estimated_improvement, y=epsilon)
+        epsilon = tf_util.constant(value=util.epsilon, dtype='float')
+        improvement = difference / tf.math.maximum(x=estimated_improvement, y=epsilon)
 
         last_improvement = improvement - 1.0
         parameter = self.parameter.value()
@@ -185,16 +185,18 @@ class LineSearch(Iterative):
         target_value = self.fn_x(next_deltas)
 
         difference = target_value - base_value
-        epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
-        next_improvement = difference / tf.maximum(x=next_estimated_improvement, y=epsilon)
+        epsilon = tf_util.constant(value=util.epsilon, dtype='float')
+        next_improvement = difference / tf.math.maximum(x=next_estimated_improvement, y=epsilon)
 
         return next_x, next_deltas, next_improvement, improvement, next_estimated_improvement, \
             additional
 
     @tf_function(num_args=6)
-    def next_step(self, x, deltas, improvement, last_improvement, estimated_improvement, additional):
+    def next_step(
+        self, x, deltas, improvement, last_improvement, estimated_improvement, additional
+    ):
         """
-        Termination condition: max number of iterations, or no improvement for last step, or  
+        Termination condition: max number of iterations, or no improvement for last step, or
         improvement less than acceptable ratio, or estimated value not positive.
 
         Args:
@@ -211,11 +213,13 @@ class LineSearch(Iterative):
         improved = improvement > last_improvement
         accept_ratio = self.accept_ratio.value()
         next_step = tf.math.logical_and(x=improved, y=(improvement < accept_ratio))
-        epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
+        epsilon = tf_util.constant(value=util.epsilon, dtype='float')
         return tf.math.logical_and(x=next_step, y=(estimated_improvement > epsilon))
 
     @tf_function(num_args=6)
-    def end(self, x_final, deltas, improvement, last_improvement, estimated_improvement, additional):
+    def end(
+        self, x_final, deltas, improvement, last_improvement, estimated_improvement, additional
+    ):
         """
         Termination step preparing the return value.
 
@@ -236,8 +240,8 @@ class LineSearch(Iterative):
         def undo_deltas():
             value = self.fn_x([-delta for delta in deltas])
             with tf.control_dependencies(control_inputs=(value,)):
-                return util.fmap(function=util.identity_operation, xs=x_final)
+                return util.fmap(function=tf_util.identity, xs=x_final)
 
         skip_undo_deltas = improvement > last_improvement
-        x_final = self.cond(pred=skip_undo_deltas, true_fn=accept_deltas, false_fn=undo_deltas)
+        x_final = tf.cond(pred=skip_undo_deltas, true_fn=accept_deltas, false_fn=undo_deltas)
         return x_final

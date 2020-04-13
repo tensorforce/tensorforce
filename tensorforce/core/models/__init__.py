@@ -15,6 +15,7 @@
 
 from tensorforce.core.models.model import Model
 
+# Require Model
 from tensorforce.core.models.constant import ConstantModel
 from tensorforce.core.models.tensorforce import TensorforceModel
 from tensorforce.core.models.random import RandomModel

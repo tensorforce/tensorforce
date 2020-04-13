@@ -16,7 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core import parameter_modules, tf_function
+from tensorforce.core import parameter_modules, TensorSpec, tf_function
 from tensorforce.core.optimizers.solvers import Iterative
 
 
@@ -73,16 +73,16 @@ class ConjugateGradient(Iterative):
     def input_signature(self, function):
         if function == 'end' or function == 'next_step' or function == 'step':
             return [
-                util.to_tensor_spec(value_spec=self.fn_values_spec(), batched=False),
-                util.to_tensor_spec(value_spec=self.fn_values_spec(), batched=False),
-                util.to_tensor_spec(value_spec=self.fn_values_spec(), batched=False),
-                util.to_tensor_spec(value_spec=dict(type='float', shape=()), batched=False)
+                self.fn_values_spec().signature(batched=False),
+                self.fn_values_spec().signature(batched=False),
+                self.fn_values_spec().signature(batched=False),
+                TensorSpec(type='float', shape=()).signature(batched=False)
             ]
 
         elif function == 'solve' or function == 'start':
             return [
-                util.to_tensor_spec(value_spec=self.fn_values_spec(), batched=False),
-                util.to_tensor_spec(value_spec=self.fn_values_spec(), batched=False)
+                self.fn_values_spec().signature(batched=False),
+                self.fn_values_spec().signature(batched=False)
             ]
 
         else:
@@ -130,21 +130,21 @@ class ConjugateGradient(Iterative):
         def apply_damping():
             return [A_conj + damping * conj for A_conj, conj in zip(A_conjugate, conjugate)]
 
-        zero = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
+        zero = tf_util.constant(value=0.0, dtype='float')
         skip_damping = tf.math.equal(x=damping, y=zero)
-        A_conjugate = self.cond(pred=skip_damping, true_fn=no_damping, false_fn=apply_damping)
+        A_conjugate = tf.cond(pred=skip_damping, true_fn=no_damping, false_fn=apply_damping)
 
         # cAc := c_t^T * Ac
-        conjugate_A_conjugate = tf.add_n(
+        conjugate_A_conjugate = tf.math.add_n(
             inputs=[
-                tf.reduce_sum(input_tensor=(conj * A_conj))
+                tf.math.reduce_sum(input_tensor=(conj * A_conj))
                 for conj, A_conj in zip(conjugate, A_conjugate)
             ]
         )
 
         # \alpha := r_t^2 / cAc
-        epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
-        alpha = squared_residual / tf.maximum(x=conjugate_A_conjugate, y=epsilon)
+        epsilon = tf_util.constant(value=util.epsilon, dtype='float')
+        alpha = squared_residual / tf.math.maximum(x=conjugate_A_conjugate, y=epsilon)
 
         # x_{t+1} := x_t + \alpha * c_t
         next_x = [t + alpha * conj for t, conj in zip(x, conjugate)]
@@ -153,12 +153,12 @@ class ConjugateGradient(Iterative):
         next_residual = [res - alpha * A_conj for res, A_conj in zip(residual, A_conjugate)]
 
         # r_{t+1}^2 := r_{t+1}^T * r_{t+1}
-        next_squared_residual = tf.add_n(
-            inputs=[tf.reduce_sum(input_tensor=(res * res)) for res in next_residual]
+        next_squared_residual = tf.math.add_n(
+            inputs=[tf.math.reduce_sum(input_tensor=(res * res)) for res in next_residual]
         )
 
         # \beta = r_{t+1}^2 / r_t^2
-        beta = next_squared_residual / tf.maximum(x=squared_residual, y=epsilon)
+        beta = next_squared_residual / tf.math.maximum(x=squared_residual, y=epsilon)
 
         # c_{t+1} := r_{t+1} + \beta * c_t
         next_conjugate = [res + beta * conj for res, conj in zip(next_residual, conjugate)]
@@ -179,7 +179,7 @@ class ConjugateGradient(Iterative):
         Returns:
             True if another iteration should be performed.
         """
-        epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
+        epsilon = tf_util.constant(value=util.epsilon, dtype='float')
 
         return squared_residual >= epsilon
 
@@ -198,15 +198,15 @@ class ConjugateGradient(Iterative):
         """
         if x_init is None:
             # Initial guess is zero vector if not given.
-            x_init = [tf.zeros_like(input=t, dtype=util.tf_dtype(dtype='float')) for t in b]
+            x_init = [tf.zeros_like(input=t) for t in b]
 
         # r_0 := b - A * x_0
         # c_0 := r_0
         conjugate = residual = [t - fx for t, fx in zip(b, self.fn_x(x_init))]
 
         # r_0^2 := r^T * r
-        squared_residual = tf.add_n(
-            inputs=[tf.reduce_sum(input_tensor=(res * res)) for res in residual]
+        squared_residual = tf.math.add_n(
+            inputs=[tf.math.reduce_sum(input_tensor=(res * res)) for res in residual]
         )
 
         return x_init, conjugate, residual, squared_residual

@@ -25,7 +25,6 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         update=dict(unit='episodes', batch_size=1),
         objective='policy_gradient'
     )
-    require_observe = True
 
     def test_no_horizon_estimate(self):
         self.start_tests(name='no horizon estimate')

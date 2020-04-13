@@ -15,8 +15,7 @@
 
 import tensorflow as tf
 
-from tensorforce import util
-from tensorforce.core import tf_function
+from tensorforce.core import tf_function, tf_util
 from tensorforce.core.optimizers import UpdateModifier
 
 
@@ -33,19 +32,16 @@ class GlobalOptimizer(UpdateModifier):
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
-        states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        auxiliaries_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         optimized_module (module): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     @tf_function(num_args=1)
     def step(self, arguments, variables, **kwargs):
-        global_variables = kwargs["global_variables"]
+        global_variables = kwargs['global_variables']
 
         assert all(
-            util.shape(global_variable) == util.shape(local_variable)
+            tf_util.shape(x=global_variable) == tf_util.shape(x=local_variable)
             for global_variable, local_variable in zip(global_variables, variables)
         )
 
@@ -59,8 +55,7 @@ class GlobalOptimizer(UpdateModifier):
         with tf.control_dependencies(control_inputs=assignments):
             update_deltas = list()
             for global_variable, local_variable in zip(global_variables, variables):
-                delta = global_variable - local_variable
-                update_deltas.append(delta)
+                update_deltas.append(global_variable - local_variable)
 
             assignments = list()
             for variable, delta in zip(variables, update_deltas):

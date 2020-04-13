@@ -16,7 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core import parameter_modules, tf_function
+from tensorforce.core import parameter_modules, TensorSpec, tf_function, tf_util
 from tensorforce.core.optimizers import Optimizer
 from tensorforce.core.optimizers.solvers import solver_modules
 
@@ -37,22 +37,17 @@ class NaturalGradient(Optimizer):
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
-        states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        auxiliaries_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         optimized_module (module): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
         self, learning_rate, cg_max_iterations=10, cg_damping=1e-3, cg_unroll_loop=False,
-        summary_labels=None, name=None, states_spec=None, internals_spec=None,
-        auxiliaries_spec=None, actions_spec=None, optimized_module=None
+        summary_labels=None, name=None, arguments_spec=None, optimized_module=None
     ):
         super().__init__(
-            summary_labels=summary_labels, name=name, states_spec=states_spec,
-            internals_spec=internals_spec, auxiliaries_spec=auxiliaries_spec,
-            actions_spec=actions_spec, optimized_module=optimized_module
+            summary_labels=summary_labels, name=name, arguments_spec=arguments_spec,
+            optimized_module=optimized_module
         )
 
         self.learning_rate = self.add_module(
@@ -64,7 +59,7 @@ class NaturalGradient(Optimizer):
             name='conjugate_gradient', module='conjugate_gradient', modules=solver_modules,
             max_iterations=cg_max_iterations, damping=cg_damping, unroll_loop=cg_unroll_loop,
             fn_values_spec=(lambda: [
-                dict(type=util.dtype(x=x), shape=util.shape(x=x))
+                TensorSpec(type=tf_util.dtype(x=x), shape=tf_util.shape(x=x))
                 for x in self.optimized_module.trainable_variables
             ])
         )
@@ -90,25 +85,24 @@ class NaturalGradient(Optimizer):
             # grad(kldiv)
             kldiv_grads = tf.gradients(ys=kldiv, xs=variables)
             kldiv_grads = [
-                tf.zeros_like(input=var) if grad is None else grad  # tf.convert_to_tensor(value=grad)
+                tf.zeros_like(input=var) if grad is None else grad
                 for grad, var in zip(kldiv_grads, variables)
             ]
 
             # delta' * grad(kldiv)
-            delta_kldiv_grads = tf.add_n(inputs=[
-                tf.reduce_sum(input_tensor=(delta * grad))
+            delta_kldiv_grads = tf.math.add_n(inputs=[
+                tf.math.reduce_sum(input_tensor=(delta * grad))
                 for delta, grad in zip(deltas, kldiv_grads)
             ])
 
             # [delta' * F] = grad(delta' * grad(kldiv))
             delta_kldiv_grads2 = tf.gradients(ys=delta_kldiv_grads, xs=variables)
             return [
-                tf.zeros_like(input=var) if grad is None else grad  # tf.convert_to_tensor(value=grad)
+                tf.zeros_like(input=var) if grad is None else grad
                 for grad, var in zip(delta_kldiv_grads2, variables)
             ]
 
         # loss
-        arguments = util.fmap(function=tf.stop_gradient, xs=arguments)
         loss = fn_loss(**arguments)
 
         # grad(loss)
@@ -131,9 +125,9 @@ class NaturalGradient(Optimizer):
 
         # c' = 0.5 * delta' * F * delta'  (= lambda * c)
         # TODO: Why constant and hence KL-divergence sometimes negative?
-        half = tf.constant(value=0.5, dtype=util.tf_dtype(dtype='float'))
-        constant = half * tf.add_n(inputs=[
-            tf.reduce_sum(input_tensor=(delta_F * delta))
+        half = tf_util.constant(value=0.5, dtype='float')
+        constant = half * tf.math.add_n(inputs=[
+            tf.math.reduce_sum(input_tensor=(delta_F * delta))
             for delta_F, delta in zip(delta_fisher_matrix_product, deltas)
         ])
 
@@ -143,21 +137,21 @@ class NaturalGradient(Optimizer):
         def no_step():
             zero_deltas = [tf.zeros_like(input=delta) for delta in deltas]
             if return_estimated_improvement:
-                return zero_deltas, tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
+                return zero_deltas, tf_util.constant(value=0.0, dtype='float')
             else:
                 return zero_deltas
 
         # Natural gradient step if constant > 0
         def apply_step():
             # lambda = sqrt(c' / c)
-            lagrange_multiplier = tf.sqrt(x=(constant / learning_rate))
+            lagrange_multiplier = tf.math.sqrt(x=(constant / learning_rate))
 
             # delta = delta' / lambda
             estimated_deltas = [delta / lagrange_multiplier for delta in deltas]
 
             # improvement = grad(loss) * delta  (= loss_new - loss_old)
-            estimated_improvement = tf.add_n(inputs=[
-                tf.reduce_sum(input_tensor=(grad * delta))
+            estimated_improvement = tf.math.add_n(inputs=[
+                tf.math.reduce_sum(input_tensor=(grad * delta))
                 for grad, delta in zip(loss_gradients, estimated_deltas)
             ])
 
@@ -168,12 +162,12 @@ class NaturalGradient(Optimizer):
 
             with tf.control_dependencies(control_inputs=assignments):
                 # Trivial operation to enforce control dependency
-                estimated_delta = util.fmap(function=util.identity_operation, xs=estimated_deltas)
+                estimated_delta = util.fmap(function=tf_util.identity, xs=estimated_deltas)
                 if return_estimated_improvement:
                     return estimated_delta, estimated_improvement
                 else:
                     return estimated_delta
 
         # Natural gradient step only works if constant > 0
-        skip_step = constant > tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
-        return self.cond(pred=skip_step, true_fn=no_step, false_fn=apply_step)
+        skip_step = constant > tf_util.constant(value=0.0, dtype='float')
+        return tf.cond(pred=skip_step, true_fn=no_step, false_fn=apply_step)

@@ -13,13 +13,10 @@
 # limitations under the License.
 # ==============================================================================
 
-from collections import OrderedDict
-
 import numpy as np
 import tensorflow as tf
 
-from tensorforce import TensorforceError, util
-from tensorforce.core import tf_function
+from tensorforce.core import TensorDict, tf_function, tf_util
 from tensorforce.core.models import Model
 
 
@@ -31,78 +28,76 @@ class RandomModel(Model):
     def __init__(
         self,
         # Model
-        name, device, parallel_interactions, buffer_observe, seed, summarizer, config, states,
-        actions
+        states, actions, name, device, parallel_interactions, summarizer, config
     ):
         super().__init__(
             # Model
-            name=name, device=None, parallel_interactions=parallel_interactions,
-            buffer_observe=buffer_observe, seed=seed, execution=None, saver=None,
-            summarizer=summarizer, config=config, states=states, internals=OrderedDict(),
-            actions=actions, preprocessing=None, exploration=0.0, variable_noise=0.0,
-            l2_regularization=0.0
+            states=states, actions=actions, preprocessing=None, exploration=0.0, variable_noise=0.0,
+            l2_regularization=0.0, name=name, device=None,
+            parallel_interactions=parallel_interactions, saver=None, summarizer=summarizer,
+            config=config
         )
 
     @tf_function(num_args=3)
-    def core_act(self, states, internals, auxiliaries):
-        if len(internals) > 0:
-            raise TensorforceError.unexpected()
+    def core_act(self, states, internals, auxiliaries, deterministic):
+        assert len(internals) == 0
 
-        actions = OrderedDict()
+        actions = TensorDict()
         for name, spec in self.actions_spec.items():
-            batch_size = tf.shape(input=next(iter(states.values())))[0:1]
-            shape = tf.constant(value=spec['shape'], dtype=tf.int32)
-            shape = tf.concat(values=(batch_size, shape), axis=0)
-            dtype = util.tf_dtype(dtype=spec['type'])
+            shape = tf.concat(values=(
+                tf_util.cast(x=tf.shape(input=states.item())[:1], dtype='int'),
+                tf_util.constant(value=spec.shape, dtype='int')
+            ), axis=0)
 
-            if spec['type'] == 'bool':
-                actions[name] = tf.math.less(
-                    x=tf.random.uniform(shape=shape, dtype=util.tf_dtype(dtype='float')),
-                    y=tf.constant(value=0.5, dtype=util.tf_dtype(dtype='float'))
-                )
+            if spec.type == 'bool':
+                # Random bool action: uniform[True, False]
+                half = tf_util.constant(value=0.5, dtype='float')
+                uniform = tf.random.uniform(shape=shape, dtype=tf_util.get_dtype(type='float'))
+                actions[name] = (uniform < half)
 
-            elif spec['type'] == 'int':
-                # (Same code as for Exploration)
-                int_dtype = util.tf_dtype(dtype='int')
-                float_dtype = util.tf_dtype(dtype='float')
-
-                # Action choices
-                choices = list(range(spec['num_values']))
-                choices_tile = ((1,) + spec['shape'] + (1,))
-                choices = np.tile(A=[choices], reps=choices_tile)
-                choices_shape = ((1,) + spec['shape'] + (spec['num_values'],))
-                choices = tf.constant(value=choices, dtype=int_dtype, shape=choices_shape)
-                ones = tf.ones(shape=(len(spec['shape']) + 1,), dtype=int_dtype)
-                batch_size = tf.dtypes.cast(x=shape[0:1], dtype=int_dtype)
-                multiples = tf.concat(values=(batch_size, ones), axis=0)
-                choices = tf.tile(input=choices, multiples=multiples)
-
-                # Random unmasked action
+            elif self.config.enable_int_action_masking and spec.type == 'int' and \
+                    spec.num_values is not None:
+                # Random masked action: uniform[unmasked]
+                # (Similar code as for Model.apply_exploration)
                 mask = auxiliaries[name + '_mask']
-                num_values = tf.math.count_nonzero(input=mask, axis=-1, dtype=int_dtype)
-                action = tf.random.uniform(shape=shape, dtype=float_dtype)
-                action = tf.dtypes.cast(
-                    x=(action * tf.dtypes.cast(x=num_values, dtype=float_dtype)), dtype=int_dtype
+                choices = tf_util.constant(
+                    value=list(range(spec.num_values)), dtype=spec.type,
+                    shape=(tuple(1 for _ in spec.shape) + (1, spec.num_values))
                 )
-
-                # Correct for masked actions
+                one = tf_util.constant(value=1, dtype='int', shape=(1,))
+                multiples = tf.concat(values=(shape, one), axis=0)
+                choices = tf.tile(input=choices, multiples=multiples)
                 choices = tf.boolean_mask(tensor=choices, mask=mask)
-                offset = tf.math.cumsum(x=num_values, axis=-1, exclusive=True)
-                actions[name] = tf.gather(params=choices, indices=(action + offset))
+                mask = tf_util.cast(x=mask, dtype='int')
+                num_unmasked = tf.math.reduce_sum(input_tensor=mask, axis=(spec.rank + 1))
+                masked_offset = tf.math.cumsum(x=num_unmasked, axis=spec.rank, exclusive=True)
+                uniform = tf.random.uniform(shape=shape, dtype=tf_util.get_dtype(type='float'))
+                num_unmasked = tf_util.cast(x=num_unmasked, dtype='float')
+                random_offset = tf_util.cast(x=(uniform * num_unmasked), dtype='int')
+                actions[name] = tf.gather(params=choices, indices=(masked_offset + random_offset))
 
-            elif spec['type'] == 'float':
-                if 'min_value' in spec:
-                    min_value = tf.constant(value=spec['min_value'], dtype=dtype)
-                    max_value = tf.constant(value=spec['max_value'], dtype=dtype)
+            elif spec.type != 'bool' and spec.min_value is not None:
+                if spec.max_value is not None:
+                    # Random bounded action: uniform[min_value, max_value]
                     actions[name] = tf.random.uniform(
-                        shape=shape, minval=min_value, maxval=max_value, dtype=dtype
+                        shape=shape, minval=spec.min_value, maxval=spec.max_value,
+                        dtype=spec.tf_type()
                     )
 
                 else:
-                    actions[name] = tf.random.uniform(shape=shape, dtype=dtype)
+                    # Random left-bounded action: not implemented
+                    raise NotImplementedError
 
-        return actions, OrderedDict()
+            elif spec.type != 'bool' and spec.max_value is not None:
+                # Random right-bounded action: not implemented
+                raise NotImplementedError
+
+            else:
+                # Random unbounded int/float action
+                actions[name] = tf.random.normal(shape=shape, dtype=spec.tf_type())
+
+        return actions, TensorDict()
 
     @tf_function(num_args=6)
     def core_observe(self, states, internals, auxiliaries, actions, terminal, reward):
-        return util.no_operation()
+        return tf_util.constant(value=False, dtype='bool')

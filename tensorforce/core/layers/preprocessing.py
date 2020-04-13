@@ -15,12 +15,31 @@
 
 import tensorflow as tf
 
-from tensorforce import util
-from tensorforce.core import tf_function, parameter_modules
+from tensorforce.core import parameter_modules, TensorSpec, tf_function, tf_util
 from tensorforce.core.layers import Layer
 
 
 class PreprocessingLayer(Layer):
+    """
+    Base class for preprocessing layers which require to be reset.
+
+    Args:
+        summary_labels ('all' | iter[string]): Labels of summaries to record
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): Layer name
+            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
+        input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
+    """
+
+    def __init__(self, summary_labels=None, name=None, input_spec=None):
+        super().__init__(name=name, input_spec=input_spec, summary_labels=summary_labels)
+
+    def input_signature(self, function):
+        if function == 'reset':
+            return ()
+
+        else:
+            return super().input_signature(function=function)
 
     @tf_function(num_args=0)
     def reset(self):
@@ -32,20 +51,19 @@ class Clipping(Layer):
     Clipping layer (specification key: `clipping`).
 
     Args:
-        name (string): Layer name
-            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         upper (parameter, float): Upper clipping value
             (<span style="color:#C00000"><b>required</b></span>).
         lower (parameter, float): Lower clipping value
             (<span style="color:#00C000"><b>default</b></span>: negative upper value).
-        input_spec (specification): Input tensor specification
-            (<span style="color:#00C000"><b>internal use</b></span>).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): Layer name
+            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
+        input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(self, name, upper, lower=None, input_spec=None, summary_labels=None):
-        super().__init__(name=name, input_spec=input_spec, summary_labels=summary_labels)
+    def __init__(self, upper, lower=None, summary_labels=None, name=None, input_spec=None):
+        super().__init__(summary_labels=summary_labels, name=name, input_spec=input_spec)
 
         if lower is None:
             self.lower = None
@@ -61,7 +79,7 @@ class Clipping(Layer):
             )
 
     def default_input_spec(self):
-        return dict(type='float', shape=None)
+        return TensorSpec(type='float', shape=None)
 
     @tf_function(num_args=1)
     def apply(self, x):
@@ -85,65 +103,54 @@ class Deltafier(PreprocessingLayer):
     be used as preprocessing layer (specification key: `deltafier`).
 
     Args:
-        name (string): Layer name
-            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         concatenate (False | int >= 0): Whether to concatenate instead of replace deltas with
             input, and if so, concatenation axis
             (<span style="color:#00C000"><b>default</b></span>: false).
-        input_spec (specification): Input tensor specification
-            (<span style="color:#00C000"><b>internal use</b></span>).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): Layer name
+            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
+        input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(self, name, concatenate=False, input_spec=None, summary_labels=None):
+    def __init__(self, concatenate=False, summary_labels=None, name=None, input_spec=None):
         self.concatenate = concatenate
 
-        super().__init__(name=name, input_spec=input_spec, summary_labels=summary_labels)
-
-    @classmethod
-    def output_spec(cls, concatenate=False, input_spec=None, **kwargs):
-        input_spec = super().output_spec(input_spec=input_spec)
-
-        if concatenate is not False:
-            input_spec['shape'] = tuple(
-                2 * dims if axis == concatenate else dims
-                for axis, dims in enumerate(input_spec['shape'])
-            )
-
-        return input_spec
+        super().__init__(summary_labels=summary_labels, name=name, input_spec=input_spec)
 
     def default_input_spec(self):
-        return dict(type='float', shape=None)
+        return TensorSpec(type='float', shape=None)
 
     def output_spec(self):
         output_spec = super().output_spec()
 
         if self.concatenate is not False:
-            output_spec['shape'] = tuple(
+            output_spec.shape = tuple(
                 2 * dims if axis == self.concatenate else dims
-                for axis, dims in enumerate(output_spec['shape'])
+                for axis, dims in enumerate(output_spec.shape)
             )
 
         return output_spec
 
-    def tf_initialize(self):
-        super().tf_initialize()
+    def initialize(self):
+        super().initialize()
 
-        self.has_previous = self.add_variable(
-            name='has-previous', dtype='bool', shape=(), is_trainable=False, initializer='zeros'
+        self.has_previous = self.variable(
+            name='has-previous', dtype='bool', shape=(), initializer='zeros', is_trainable=False,
+            is_saved=False
         )
 
-        self.previous = self.add_variable(
+        self.previous = self.variable(
             name='previous', dtype='float', shape=((1,) + self.input_spec['shape']),
-            is_trainable=False, initializer='zeros'
+            initializer='zeros', is_trainable=False, is_saved=False
         )
 
     @tf_function(num_args=0)
     def reset(self):
         assignment = self.has_previous.assign(
-            value=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool')), read_value=False
+            value=tf_util.constant(value=False, dtype='bool'), read_value=False
         )
+
         return assignment
 
     @tf_function(num_args=1)
@@ -151,10 +158,10 @@ class Deltafier(PreprocessingLayer):
 
         def first_delta():
             assignment = self.has_previous.assign(
-                value=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool')), read_value=False
+                value=tf_util.constant(value=True, dtype='bool'), read_value=False
             )
             with tf.control_dependencies(control_inputs=(assignment,)):
-                return tf.concat(values=(tf.zeros_like(input=x[:1]), x[1:] - x[:-1]), axis=0)  # dtype=util.tf_dtype(dtype='???'))
+                return tf.concat(values=(tf.zeros_like(input=x[:1]), x[1:] - x[:-1]), axis=0)
 
         def later_delta():
             return x - tf.concat(values=(self.previous, x[:-1]), axis=0)
@@ -165,7 +172,7 @@ class Deltafier(PreprocessingLayer):
 
         with tf.control_dependencies(control_inputs=(assignment,)):
             if self.concatenate is False:
-                return util.identity_operation(x=delta)
+                return tf_util.identity(input=delta)
             else:
                 return tf.concat(values=(x, delta), axis=(self.concatenate + 1))
 
@@ -175,61 +182,45 @@ class Image(Layer):
     Image preprocessing layer (specification key: `image`).
 
     Args:
-        name (string): Layer name
-            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         height (int): Height of resized image
             (<span style="color:#00C000"><b>default</b></span>: no resizing or relative to width).
         width (int): Width of resized image
             (<span style="color:#00C000"><b>default</b></span>: no resizing or relative to height).
         grayscale (bool | iter[float]): Turn into grayscale image, optionally using given weights
             (<span style="color:#00C000"><b>default</b></span>: false).
-        input_spec (specification): Input tensor specification
-            (<span style="color:#00C000"><b>internal use</b></span>).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): Layer name
+            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
+        input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
     def __init__(
-        self, name, height=None, width=None, grayscale=False, input_spec=None, summary_labels=None
+        self, height=None, width=None, grayscale=False, summary_labels=None, name=None,
+        input_spec=None
     ):
         self.height = height
         self.width = width
         self.grayscale = grayscale
 
-        super().__init__(name=name, input_spec=input_spec, summary_labels=summary_labels)
-
-    @classmethod
-    def output_spec(cls, height=None, width=None, grayscale=False, input_spec=None, **kwargs):
-        input_spec = super().output_spec(input_spec=input_spec)
-
-        if height is not None:
-            if width is None:
-                width = round(height * input_spec['shape'][1] / input_spec['shape'][0])
-            input_spec['shape'] = (height, width, input_spec['shape'][2])
-        elif width is not None:
-            height = round(width * input_spec['shape'][0] / input_spec['shape'][1])
-            input_spec['shape'] = (height, width, input_spec['shape'][2])
-        if not isinstance(grayscale, bool) or grayscale:
-            input_spec['shape'] = input_spec['shape'][:2] + (1,)
-
-        return input_spec
+        super().__init__(summary_labels=summary_labels, name=name, input_spec=input_spec)
 
     def default_input_spec(self):
-        return dict(type='float', shape=(0, 0, 0))
+        return TensorSpec(type='float', shape=(0, 0, 0))
 
     def output_spec(self):
         output_spec = super().output_spec()
 
         if self.height is not None:
             if self.width is None:
-                self.width = round(self.height * input_spec['shape'][1] / output_spec['shape'][0])
-            output_spec['shape'] = (self.height, self.width, output_spec['shape'][2])
+                self.width = round(self.height * input_spec.shape[1] / output_spec.shape[0])
+            output_spec.shape = (self.height, self.width, output_spec.shape[2])
         elif self.width is not None:
-            self.height = round(self.width * input_spec['shape'][0] / input_spec['shape'][1])
-            output_spec['shape'] = (self.height, self.width, output_spec['shape'][2])
+            self.height = round(self.width * input_spec.shape[0] / input_spec.shape[1])
+            output_spec.shape = (self.height, self.width, output_spec.shape[2])
 
         if not isinstance(self.grayscale, bool) or self.grayscale:
-            output_spec['shape'] = output_spec['shape'][:2] + (1,)
+            output_spec.shape = output_spec.shape[:2] + (1,)
 
         return output_spec
 
@@ -239,9 +230,8 @@ class Image(Layer):
             x = tf.image.resize(images=x, size=(self.height, self.width))
 
         if not isinstance(self.grayscale, bool):
-            weights = tf.constant(
-                value=self.grayscale, dtype=util.tf_dtype(dtype='float'),
-                shape=(1, 1, 1, len(self.grayscale))
+            weights = tf_util.constant(
+                value=self.grayscale, dtype='float', shape=(1, 1, 1, len(self.grayscale))
             )
             x = tf.reduce_sum(input_tensor=(x * weights), axis=3, keepdims=True)
         elif self.grayscale:
@@ -256,8 +246,6 @@ class Sequence(PreprocessingLayer):
     layer (specification key: `sequence`).
 
     Args:
-        name (string): Layer name
-            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         length (int > 0): Number of inputs to concatenate
             (<span style="color:#C00000"><b>required</b></span>).
         axis (int >= 0): Concatenation axis, excluding batch axis
@@ -265,79 +253,58 @@ class Sequence(PreprocessingLayer):
         concatenate (bool): Whether to concatenate inputs at given axis, otherwise introduce new
             sequence axis
             (<span style="color:#00C000"><b>default</b></span>: true).
-        input_spec (specification): Input tensor specification
-            (<span style="color:#00C000"><b>internal use</b></span>).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): Layer name
+            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
+        input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
     def __init__(
-        self, name, length, axis=-1, concatenate=True, input_spec=None, summary_labels=None
+        self, length, axis=-1, concatenate=True, summary_labels=None, name=None, input_spec=None
     ):
         self.length = length
         self.axis = axis
         self.concatenate = concatenate
 
-        super().__init__(name=name, input_spec=input_spec, summary_labels=summary_labels)
+        super().__init__(summary_labels=summary_labels, name=name, input_spec=input_spec)
 
     def output_spec(self, input_spec):
         output_spec = super().output_spec()
 
-    # @classmethod
-    # def output_spec(cls, length, axis=-1, concatenate=True, input_spec=None, **kwargs):
-    #     input_spec = super().output_spec(input_spec=input_spec)
-
-    #     if concatenate:
-    #         if axis == -1:
-    #             axis = len(input_spec['shape']) - 1
-    #         input_spec['shape'] = tuple(
-    #             length * dims if axis == axis else dims
-    #             for axis, dims in enumerate(input_spec['shape'])
-    #         )
-
-    #     else:
-    #         if axis == -1:
-    #             axis = len(input_spec['shape'])
-    #         shape = input_spec['shape']
-    #         input_spec['shape'] = shape[:axis] + (length,) + shape[axis:]
-
-    #     return input_spec
-
-    # def default_input_spec(self):
-    #     return dict(type=None, shape=None)
-
         if self.concatenate:
             if self.axis == -1:
-                self.axis = len(output_spec['shape']) - 1
-            output_spec['shape'] = tuple(
+                self.axis = len(output_spec.shape) - 1
+            output_spec.shape = tuple(
                 self.length * dims if axis == self.axis else dims
-                for axis, dims in enumerate(output_spec['shape'])
+                for axis, dims in enumerate(output_spec.shape)
             )
 
         else:
             if self.axis == -1:
-                self.axis = len(output_spec['shape'])
-            shape = output_spec['shape']
-            output_spec['shape'] = shape[:self.axis] + (self.length,) + shape[self.axis:]
+                self.axis = len(output_spec.shape)
+            shape = output_spec.shape
+            output_spec.shape = shape[:self.axis] + (self.length,) + shape[self.axis:]
 
         return output_spec
 
-    def tf_initialize(self):
-        super().tf_initialize()
+    def initialize(self):
+        super().initialize()
 
-        self.has_previous = self.add_variable(
-            name='has-previous', dtype='bool', shape=(), is_trainable=False, initializer='zeros'
+        self.has_previous = self.variable(
+            name='has-previous', dtype='bool', shape=(), initializer='zeros', is_trainable=False,
+            is_saved=False
         )
 
-        self.previous = self.add_variable(
-            name='previous', dtype='float', shape=((self.length - 1,) + self.input_spec['shape']),
-            is_trainable=False, initializer='zeros'
+        self.previous = self.variable(
+            name='previous', dtype='float', shape=((self.length - 1,) + self.input_spec.shape),
+            initializer='zeros', is_trainable=False, is_saved=False
         )
 
     @tf_function(num_args=0)
     def reset(self):
         assignment = self.has_previous.assign(
-            value=tf.constant(value=False, dtype=util.tf_dtype(dtype='bool')), read_value=False
+            value=tf_util.constant(value=False, dtype='bool'), read_value=False
         )
         return assignment
 
@@ -346,7 +313,7 @@ class Sequence(PreprocessingLayer):
 
         def first_sequence():
             assignment = self.has_previous.assign(
-                value=tf.constant(value=True, dtype=util.tf_dtype(dtype='bool')), read_value=False
+                value=tf_util.constant(value=True, dtype='bool'), read_value=False
             )
             with tf.control_dependencies(control_inputs=(assignment,)):
                 if self.concatenate:
@@ -355,7 +322,7 @@ class Sequence(PreprocessingLayer):
                     current = tf.expand_dims(input=x, axis=(self.axis + 1))
                 multiples = tuple(
                     self.length if dims == self.axis + 1 else 1
-                    for dims in range(util.rank(x=current))
+                    for dims in range(tf_util.rank(x=current))
                 )
                 return tf.tile(input=x, multiples=multiples)
 
@@ -374,4 +341,4 @@ class Sequence(PreprocessingLayer):
         )
 
         with tf.control_dependencies(control_inputs=(assignment,)):
-            return util.identity_operation(x=sequence)
+            return tf_util.identity(input=sequence)

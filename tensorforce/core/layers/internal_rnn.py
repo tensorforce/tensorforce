@@ -13,14 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 
-from collections import OrderedDict
-from math import sqrt
-
 import numpy as np
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core import tf_function
+from tensorforce.core import TensorSpec, tf_function, tf_util
 from tensorforce.core.layers import TemporalLayer, TransformationBase
 
 
@@ -29,8 +26,6 @@ class InternalRnn(TemporalLayer, TransformationBase):
     Internal state RNN cell layer (specification key: `internal_rnn`).
 
     Args:
-        name (string): Layer name
-            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         cell ('gru' | 'lstm'): The recurrent cell type
             (<span style="color:#C00000"><b>required</b></span>).
         size (int >= 0): Layer output size, 0 implies additionally removing the axis
@@ -46,113 +41,99 @@ class InternalRnn(TemporalLayer, TransformationBase):
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
         vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
-        input_spec (specification): Input tensor specification
-            (<span style="color:#00C000"><b>internal use</b></span>).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): Layer name
+            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
+        input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
         kwargs: Additional arguments for Keras RNN cell layer, see
             `TensorFlow docs <https://www.tensorflow.org/api_docs/python/tf/keras/layers>`__.
     """
 
     def __init__(
-        self, name, cell, size, horizon, bias=False, activation=None, dropout=0.0,
-        vars_trainable=True, input_spec=None, summary_labels=None, l2_regularization=None, **kwargs
+        self, cell, size, horizon, bias=False, activation=None, dropout=0.0, vars_trainable=True,
+        summary_labels=None, l2_regularization=None, name=None, input_spec=None, **kwargs
     ):
         super().__init__(
-            name=name, size=size, bias=bias, activation=activation, dropout=dropout,
-            vars_trainable=vars_trainable, input_spec=input_spec, summary_labels=summary_labels,
-            l2_regularization=l2_regularization, temporal_processing='iterative', horizon=horizon
+            temporal_processing='iterative', horizon=horizon, size=size, bias=bias,
+            activation=activation, dropout=dropout, vars_trainable=vars_trainable,
+            summary_labels=summary_labels, l2_regularization=l2_regularization,  name=name,
+            input_spec=input_spec
         )
 
         self.cell_type = cell
         if self.cell_type == 'gru':
             self.cell = tf.keras.layers.GRUCell(
-                units=self.size, name='cell', **kwargs  # , dtype=util.tf_dtype(dtype='float')
+                units=self.size, name='cell', **kwargs  # , dtype=tf_util.get_dtype(type='float')
             )
         elif self.cell_type == 'lstm':
             self.cell = tf.keras.layers.LSTMCell(
-                units=self.size, name='cell', **kwargs  # , dtype=util.tf_dtype(dtype='float')
+                units=self.size, name='cell', **kwargs  # , dtype=tf_util.get_dtype(type='float')
             )
         else:
-            raise TensorforceError.unexpected()
+            raise TensorforceError.value(
+                name='Rnn', argument='cell', value=self.cell_type, hint='not in {gru,lstm}'
+            )
 
-    @classmethod
-    def internals_spec(cls, layer=None, **kwargs):
-        internals_spec = super().internals_spec()
+    def default_input_spec(self):
+        return TensorSpec(type='float', shape=(0,))
 
-        if 'state' in internals_spec:
-            raise TensorforceError.unexpected()
+    def output_spec(self):
+        output_spec = super().output_spec()
 
-        if layer is None:
-            assert 'cell' in kwargs and 'size' in kwargs
-            cell = kwargs['cell']
-            size = kwargs['size']
+        if self.squeeze:
+            output_spec.shape = output_spec.shape[:-1]
         else:
-            assert len(kwargs) == 0
-            cell = layer.cell_type
-            size = layer.size
+            output_spec.shape = output_spec.shape[:-1] + (self.size,)
 
-        if cell == 'gru':
-            shape = (size,)
-        elif cell == 'lstm':
-            shape = (2, size)
-        internals_spec['state'] = dict(type='float', shape=shape)
+        output_spec.min_value = None
+        output_spec.max_value = None
 
-        return internals_spec
+        return output_spec
 
-    def internals_init(self):
-        internals_init = super().internals_init()
-
-        if 'state' in internals_init:
-            raise TensorforceError.unexpected()
+    @property
+    def internals_spec(self):
+        internals_spec = super().internals_spec
 
         if self.cell_type == 'gru':
             shape = (self.size,)
         elif self.cell_type == 'lstm':
             shape = (2, self.size)
 
-        stddev = min(0.1, sqrt(2.0 / self.size))
+        internals_spec['state'] = TensorSpec(type='float', shape=shape)
+
+        return internals_spec
+
+    def internals_init(self):
+        internals_init = super().internals_init()
+
+        if self.cell_type == 'gru':
+            shape = (self.size,)
+        elif self.cell_type == 'lstm':
+            shape = (2, self.size)
+
+        stddev = min(0.1, np.sqrt(2.0 / self.size))
         internals_init['state'] = np.random.normal(scale=stddev, size=shape)
 
         return internals_init
 
-    def default_input_spec(self):
-        return dict(type='float', shape=(0,))
+    def initialize(self):
+        super().initialize()
 
-    def output_spec(self):
-        output_spec = super().output_spec()
-
-        if self.squeeze:
-            output_spec['shape'] = output_spec['shape'][:-1]
-        else:
-            output_spec['shape'] = output_spec['shape'][:-1] + (self.size,)
-        output_spec.pop('min_value', None)
-        output_spec.pop('max_value', None)
-
-        return output_spec
-
-    def tf_initialize(self):
-        super().tf_initialize()
-
-        self.cell.build(input_shape=self.input_spec['shape'][0])
-
-        # for variable in self.cell.trainable_weights:
-        #     name = variable.name[variable.name.rindex(self.name + '/') + len(self.name) + 1: -2]
-        #     self.variables[name] = variable
-        #     if self.vars_trainable:
-        #         self.trainable_variables[name] = variable
-        # for variable in self.cell.non_trainable_weights:
-        #     name = variable.name[variable.name.rindex(self.name + '/') + len(self.name) + 1: -2]
-        #     self.variables[name] = variable
+        if self.device is not None:
+            self.device.__enter__()
+        self.cell.build(input_shape=self.input_spec.shape[0])
+        if self.device is not None:
+            self.device.__exit__(None, None, None)
 
     @tf_function(num_args=0)
     def regularize(self):
-        if len(self.cell.losses) > 0:
-            regularization_loss = tf.math.add_n(inputs=self.cell.losses)
-        else:
-            regularization_loss = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
+        regularization_loss = super().regularize()
+
+        if len(self.rnn.losses) > 0:
+            regularization_loss += tf.math.add_n(inputs=self.cell.losses)
 
         return regularization_loss
 
@@ -165,25 +146,18 @@ class InternalRnn(TemporalLayer, TransformationBase):
         elif self.cell_type == 'lstm':
             state = (state[:, 0, :], state[:, 1, :])
 
-        if util.tf_dtype(dtype='float') not in (tf.float32, tf.float64):
-            x = tf.dtypes.cast(x=x, dtype=tf.float32)
-            state = util.fmap(function=(lambda x: tf.dtypes.cast(x=x, dtype=tf.float32)), xs=state)
-            state = tf.dtypes.cast(x=state, dtype=tf.float32)
+        x = tf_util.float32(x=x)
+        state = util.fmap(function=tf_util.float32, xs=state)
 
         x, state = self.cell(inputs=x, states=state)
 
-        if util.tf_dtype(dtype='float') not in (tf.float32, tf.float64):
-            x = tf.dtypes.cast(x=x, dtype=util.tf_dtype(dtype='float'))
-            state = util.fmap(
-                function=(lambda x: tf.dtypes.cast(x=x, dtype=util.tf_dtype(dtype='float'))),
-                xs=state
-            )
+        x = tf_util.cast(x=x, dtype='float')
+        state = util.fmap(function=(lambda x: tf_util.cast(x=x, dtype='float')), xs=state)
 
         if self.cell_type == 'gru':
-            state = state[0]
+            internals['state'] = state[0]
         elif self.cell_type == 'lstm':
-            state = tf.stack(values=state, axis=1)
-        internals = OrderedDict(state=state)
+            internals['state'] = tf.stack(values=state, axis=1)
 
         return x, internals
 
@@ -193,8 +167,6 @@ class InternalGru(InternalRnn):
     Internal state GRU cell layer (specification key: `internal_gru`).
 
     Args:
-        name (string): Layer name
-            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         cell ('gru' | 'lstm'): The recurrent cell type
             (<span style="color:#C00000"><b>required</b></span>).
         size (int >= 0): Layer output size, 0 implies additionally removing the axis
@@ -210,32 +182,26 @@ class InternalGru(InternalRnn):
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
         vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
-        input_spec (specification): Input tensor specification
-            (<span style="color:#00C000"><b>internal use</b></span>).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): Layer name
+            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
+        input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
         kwargs: Additional arguments for Keras GRU layer, see
             `TensorFlow docs <https://www.tensorflow.org/api_docs/python/tf/keras/layers/GRUCell>`__.
     """
 
     def __init__(
-        self, name, size, horizon, bias=False, activation=None, dropout=0.0, vars_trainable=True,
-        input_spec=None, summary_labels=None, l2_regularization=None, **kwargs
+        self, size, horizon, bias=False, activation=None, dropout=0.0, vars_trainable=True,
+        summary_labels=None, l2_regularization=None, name=None, input_spec=None, **kwargs
     ):
         super().__init__(
-            name=name, cell='gru', size=size, horizon=horizon, bias=bias, activation=activation,
-            dropout=dropout, vars_trainable=vars_trainable, input_spec=input_spec,
-            summary_labels=summary_labels, l2_regularization=l2_regularization, **kwargs
+            cell='gru', size=size, horizon=horizon, bias=bias, activation=activation,
+            dropout=dropout, vars_trainable=vars_trainable, summary_labels=summary_labels,
+            l2_regularization=l2_regularization, name=name, input_spec=input_spec, **kwargs
         )
-
-    @classmethod
-    def internals_spec(cls, layer=None, **kwargs):
-        if layer is None:
-            return super().internals_spec(cell='gru', **kwargs)
-        else:
-            return super().internals_spec(layer=layer)
 
 
 class InternalLstm(InternalRnn):
@@ -243,8 +209,6 @@ class InternalLstm(InternalRnn):
     Internal state LSTM cell layer (specification key: `internal_lstm`).
 
     Args:
-        name (string): Layer name
-            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         cell ('gru' | 'lstm'): The recurrent cell type
             (<span style="color:#C00000"><b>required</b></span>).
         size (int >= 0): Layer output size, 0 implies additionally removing the axis
@@ -260,29 +224,23 @@ class InternalLstm(InternalRnn):
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
         vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
-        input_spec (specification): Input tensor specification
-            (<span style="color:#00C000"><b>internal use</b></span>).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): Layer name
+            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
+        input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
         kwargs: Additional arguments for Keras LSTM layer, see
             `TensorFlow docs <https://www.tensorflow.org/api_docs/python/tf/keras/layers/LSTMCell>`__.
     """
 
     def __init__(
-        self, name, size, horizon, bias=False, activation=None, dropout=0.0, vars_trainable=True,
-        input_spec=None, summary_labels=None, l2_regularization=None, **kwargs
+        self, size, horizon, bias=False, activation=None, dropout=0.0, vars_trainable=True,
+        summary_labels=None, l2_regularization=None, name=None, input_spec=None, **kwargs
     ):
         super().__init__(
-            name=name, cell='lstm', size=size, horizon=horizon, bias=bias, activation=activation,
-            dropout=dropout, vars_trainable=vars_trainable, input_spec=input_spec,
-            summary_labels=summary_labels, l2_regularization=l2_regularization, **kwargs
+            cell='lstm', size=size, horizon=horizon, bias=bias, activation=activation,
+            dropout=dropout, vars_trainable=vars_trainable, summary_labels=summary_labels,
+            l2_regularization=l2_regularization, name=name, input_spec=input_spec, **kwargs
         )
-
-    @classmethod
-    def internals_spec(cls, layer=None, **kwargs):
-        if layer is None:
-            return super().internals_spec(cell='lstm', **kwargs)
-        else:
-            return super().internals_spec(layer=layer)

@@ -19,7 +19,7 @@ import tensorflow as tf
 
 from tensorforce import TensorforceError, util
 import tensorforce.core
-from tensorforce.core import Module, parameter_modules, tf_function
+from tensorforce.core import parameter_modules, TensorSpec, tf_function, tf_util
 from tensorforce.core.layers import Layer
 
 
@@ -28,21 +28,18 @@ class Activation(Layer):
     Activation layer (specification key: `activation`).
 
     Args:
-        name (string): Layer name
-            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         nonlinearity ('crelu' | 'elu' | 'leaky-relu' | 'none' | 'relu' | 'selu' | 'sigmoid' |
             'softmax' | 'softplus' | 'softsign' | 'swish' | 'tanh'): Nonlinearity
             (<span style="color:#C00000"><b>required</b></span>).
-        input_spec (specification): Input tensor specification
-            (<span style="color:#00C000"><b>internal use</b></span>).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): Layer name
+            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
+        input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(
-        self, name, nonlinearity, input_spec=None, summary_labels=None
-    ):
-        super().__init__(name=name, input_spec=input_spec, summary_labels=summary_labels)
+    def __init__(self, nonlinearity, summary_labels=None, name=None, input_spec=None):
+        super().__init__(summary_labels=summary_labels, name=name, input_spec=input_spec)
 
         # Nonlinearity
         if nonlinearity not in (
@@ -55,7 +52,7 @@ class Activation(Layer):
         self.nonlinearity = nonlinearity
 
     def default_input_spec(self):
-        return dict(type='float', shape=None)
+        return TensorSpec(type='float', shape=None)
 
     @tf_function(num_args=1)
     def apply(self, x):
@@ -107,15 +104,14 @@ class Block(Layer):
     Block of layers (specification key: `block`).
 
     Args:
-        name (string): Layer name
-            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         layers (iter[specification]): Layers configuration, see [layers](../modules/layers.html)
             (<span style="color:#C00000"><b>required</b></span>).
-        input_spec (specification): Input tensor specification
-            (<span style="color:#00C000"><b>internal use</b></span>).
+        name (string): Layer name
+            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
+        input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(self, name, layers, input_spec=None):
+    def __init__(self, layers, name=None, input_spec=None):
         # TODO: handle internal states and combine with layered network
         if len(layers) == 0:
             raise TensorforceError.value(
@@ -125,7 +121,7 @@ class Block(Layer):
         self._input_spec = input_spec
         self.layers = layers
 
-        super().__init__(name=name, input_spec=input_spec, summary_labels=None)
+        super().__init__(name=name, input_spec=input_spec)
 
     def default_input_spec(self):
         layer_counter = Counter()
@@ -148,7 +144,7 @@ class Block(Layer):
             )
             self._input_spec = self.layers[n].output_spec()
 
-        return dict(self.layers[0].input_spec)
+        return self.layers[0].input_spec.copy()
 
     def output_spec(self):
         return self.layers[-1].output_spec()
@@ -157,6 +153,7 @@ class Block(Layer):
     def apply(self, x):
         for layer in self.layers:
             x = layer.apply(x=x)
+
         return x
 
 
@@ -165,18 +162,17 @@ class Dropout(Layer):
     Dropout layer (specification key: `dropout`).
 
     Args:
-        name (string): Layer name
-            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         rate (parameter, 0.0 <= float < 1.0): Dropout rate
             (<span style="color:#C00000"><b>required</b></span>).
-        input_spec (specification): Input tensor specification
-            (<span style="color:#00C000"><b>internal use</b></span>).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): Layer name
+            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
+        input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(self, name, rate, input_spec=None, summary_labels=None):
-        super().__init__(name=name, input_spec=input_spec, summary_labels=summary_labels)
+    def __init__(self, rate, summary_labels=None, name=None, input_spec=None):
+        super().__init__(summary_labels=summary_labels, name=name, input_spec=input_spec)
 
         # Rate
         self.rate = self.add_module(
@@ -185,7 +181,7 @@ class Dropout(Layer):
         )
 
     def default_input_spec(self):
-        return dict(type='float', shape=None)
+        return TensorSpec(type='float', shape=None)
 
     @tf_function(num_args=1)
     def apply(self, x):
@@ -202,7 +198,7 @@ class Dropout(Layer):
             )
 
         skip_dropout = tf.math.logical_not(x=self.global_tensor(name='deterministic'))
-        zero = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
+        zero = tf_util.constant(value=0.0, dtype='float')
         skip_dropout = tf.math.logical_or(x=skip_dropout, y=tf.math.equal(x=rate, y=zero))
         return self.cond(pred=skip_dropout, true_fn=no_dropout, false_fn=apply_dropout)
 
@@ -212,44 +208,40 @@ class Function(Layer):
     Custom TensorFlow function layer (specification key: `function`).
 
     Args:
-        name (string): Layer name
-            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         function (lambda[x -> x]): TensorFlow function
             (<span style="color:#C00000"><b>required</b></span>).
         output_spec (specification): Output tensor specification containing type and/or shape
             information (<span style="color:#00C000"><b>default</b></span>: same as input).
-        input_spec (specification): Input tensor specification
-            (<span style="color:#00C000"><b>internal use</b></span>).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): Layer name
+            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
+        input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
     # (requires function as first argument)
     def __init__(
-        self, function, name, output_spec=None, input_spec=None, summary_labels=None,
-        l2_regularization=None
+        self, function, output_spec=None, summary_labels=None, l2_regularization=None, name=None,
+        input_spec=None
     ):
         super().__init__(
-            name=name, input_spec=input_spec, summary_labels=summary_labels,
-            l2_regularization=l2_regularization
+            summary_labels=summary_labels, l2_regularization=l2_regularization, name=name,
+            input_spec=input_spec
         )
 
         self.function = function
-        self._output_spec = output_spec
+        self._output_spec = TensorSpec(**output_spec)
 
     def output_spec(self):
-        output_spec = super().output_spec()
-
-        if self._output_spec is not None:
-            output_spec.update(self._output_spec)
-
-        return output_spec
+        return self._output_spec
 
     @tf_function(num_args=1)
     def apply(self, x):
-        return self.function(x)
+        x = self.function(x)
+
+        return x
 
 
 class Reshape(Layer):
@@ -257,33 +249,29 @@ class Reshape(Layer):
     Reshape layer (specification key: `reshape`).
 
     Args:
-        name (string): Layer name
-            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         shape (<i>int | iter[int]</i>): New shape
             (<span style="color:#C00000"><b>required</b></span>).
-        input_spec (specification): Input tensor specification
-            (<span style="color:#00C000"><b>internal use</b></span>).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): Layer name
+            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
+        input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(self, name, shape, input_spec=None, summary_labels=None):
-        super().__init__(name=name, input_spec=input_spec, summary_labels=summary_labels)
+    def __init__(self, shape, summary_labels=None, name=None, input_spec=None):
+        super().__init__(summary_labels=summary_labels, name=name, input_spec=input_spec)
 
         if isinstance(shape, int):
             self.shape = (shape,)
         else:
             self.shape = tuple(shape)
 
-    def default_input_spec(self):
-        return dict(type=None, shape=None)
-
     def output_spec(self):
         output_spec = super().output_spec()
 
-        if util.product(xs=output_spec['shape']) != util.product(xs=self.shape):
+        if util.product(xs=output_spec.shape) != util.product(xs=self.shape):
             raise TensorforceError.value(name='Reshape', argument='shape', value=self.shape)
-        output_spec['shape'] = self.shape
+        output_spec.shape = self.shape
 
         return output_spec
 
@@ -292,52 +280,3 @@ class Reshape(Layer):
         x = tf.reshape(tensor=x, shape=((-1,) + self.shape))
 
         return x
-
-
-class Reuse(Layer):
-    """
-    Reuse layer (specification key: `reuse`).
-
-    Args:
-        name (string): Layer name
-            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
-        layer (string): Name of a previously defined layer
-            (<span style="color:#C00000"><b>required</b></span>).
-        input_spec (specification): Input tensor specification
-            (<span style="color:#00C000"><b>internal use</b></span>).
-    """
-
-    # _TF_MODULE_IGNORED_PROPERTIES = Module._TF_MODULE_IGNORED_PROPERTIES | {'reused_layer'}
-
-    def __init__(self, name, layer, input_spec=None):
-        # if layer not in Layer.registered_layers:
-        #     raise TensorforceError.value(name='reuse', argument='layer', value=layer)
-
-        self.layer = layer
-
-        super().__init__(
-            name=name, input_spec=input_spec, summary_labels=None, l2_regularization=0.0
-        )
-
-    @property
-    def reused_layer(self):
-        module = self
-        while isinstance(module, Layer):
-            module = module.parent
-        assert isinstance(module, (tensorforce.core.networks.LayerbasedNetwork))
-        return module.registered_layers[self.layer]
-
-    def default_input_spec(self):
-        return dict(self.reused_layer.input_spec)
-
-    def output_spec(self):
-        return self.reused_layer.output_spec()
-
-    @tf_function(num_args=1)
-    def apply(self, x):
-        return self.reused_layer.apply(x=x)
-
-    def get_available_summaries(self):
-        summaries = super().get_available_summaries()
-        summaries.update(self.reused_layer.get_available_summaries())
-        return sorted(summaries)

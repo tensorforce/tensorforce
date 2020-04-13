@@ -15,8 +15,8 @@
 
 import tensorflow as tf
 
-from tensorforce import TensorforceError, util
-from tensorforce.core import Module, tf_function
+from tensorforce import TensorforceError
+from tensorforce.core import Module, TensorSpec, tf_function, tf_util
 
 
 class Parameter(Module):
@@ -44,49 +44,31 @@ class Parameter(Module):
         assert unit in (None, 'timesteps', 'episodes', 'updates')
         self.unit = unit
 
-        spec = dict(type=dtype, shape=shape)
-        spec = util.valid_value_spec(value_spec=spec, return_normalized=True)
-        self.dtype = spec['type']
-        self.shape = spec['shape']
-
-        assert min_value is None or max_value is None or min_value < max_value
-        if self.dtype == 'bool':
-            if min_value is not None or max_value is not None:
-                raise TensorforceError.unexpected()
-        elif self.dtype in ('int', 'long'):
-            if (min_value is not None and not isinstance(min_value, int)) or \
-                    (max_value is not None and not isinstance(max_value, int)):
-                raise TensorforceError.unexpected()
-        elif self.dtype == 'float':
-            if (min_value is not None and not isinstance(min_value, float)) or \
-                    (max_value is not None and not isinstance(max_value, float)):
-                raise TensorforceError.unexpected()
-        else:
-            assert False
+        self.spec = TensorSpec(type=dtype, shape=shape, min_value=min_value, max_value=max_value)
 
         assert self.min_value() is None or self.max_value() is None or \
             self.min_value() <= self.max_value()
-        if min_value is not None:
+        if self.spec.min_value is not None:
             if self.min_value() is None:
                 raise TensorforceError.value(
                     name=self.name, argument='lower bound', value=self.min_value(),
-                    hint=('not >= ' + str(min_value))
+                    hint=('not >= {}'.format(self.spec.min_value))
                 )
-            elif self.min_value() < min_value:
+            elif self.min_value() < self.spec.min_value:
                 raise TensorforceError.value(
                     name=self.name, argument='lower bound', value=self.min_value(),
-                    hint=('< ' + str(min_value))
+                    hint=('< {}'.format(self.spec.min_value))
                 )
-        if max_value is not None:
+        if self.spec.max_value is not None:
             if self.max_value() is None:
                 raise TensorforceError.value(
                     name=self.name, argument='upper bound', value=self.max_value(),
-                    hint=('not <= ' + str(max_value))
+                    hint=('not <= {}'.format(self.spec.max_value))
                 )
-            elif self.max_value() > max_value:
+            elif self.max_value() > self.spec.max_value:
                 raise TensorforceError.value(
                     name=self.name, argument='upper bound', value=self.max_value(),
-                    hint=('> ' + str(max_value))
+                    hint=('> {}'.format(self.spec.max_value))
                 )
 
     def min_value(self):
@@ -112,14 +94,19 @@ class Parameter(Module):
     def value(self):
         if self.unit is None:
             step = None
-        else:
-            step = self.global_tensor(name=self.unit)
+        elif self.unit == 'timesteps':
+            step = self.root.timesteps
+        elif self.unit == 'episodes':
+            step = self.root.episodes
+        elif self.unit == 'updates':
+            step = self.root.updates
 
         parameter = self.parameter_value(step=step)
-
-        self.set_global_tensor(name='value', tensor=parameter)
-
         parameter = self.add_summary(label='parameters', name=self.name, tensor=parameter)
 
-        # return tf.stop_gradient(input=parameter)
-        return parameter
+        assertions = self.spec.tf_assert(
+            x=parameter, include_type_shape=True,
+            message='Parameter.value: invalid {{issue}} for {name} value.'.format(name=self.name)
+        )
+        with tf.control_dependencies(control_inputs=assertions):
+            return tf_util.identity(input=parameter)

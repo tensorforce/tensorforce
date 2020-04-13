@@ -21,6 +21,6 @@ from test.unittest_agent import UnittestAgent
 class TestConstantAgent(UnittestAgent, unittest.TestCase):
 
     num_episodes = 2
-    config = dict(type='constant')
+    agent = dict(type='constant')
     has_experience = False
     has_update = False

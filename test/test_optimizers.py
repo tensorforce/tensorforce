@@ -20,8 +20,6 @@ from test.unittest_base import UnittestBase
 
 class TestOptimizers(UnittestBase, unittest.TestCase):
 
-    require_observe = True
-
     def test_evolutionary(self):
         self.start_tests(name='evolutionary')
 

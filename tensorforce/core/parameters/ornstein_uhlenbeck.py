@@ -15,7 +15,7 @@
 
 import tensorflow as tf
 
-from tensorforce import util
+from tensorforce.core import tf_util
 from tensorforce.core.parameters import Parameter
 
 
@@ -56,12 +56,12 @@ class OrnsteinUhlenbeck(Parameter):
 
     def min_value(self):
         if self.absolute:
-            return util.py_dtype(dtype=self.dtype)(0.0)
+            return self.spec.py_type()(0.0)
         else:
             super().min_value()
 
     def final_value(self):
-        return util.py_dtype(dtype=self.dtype)(self.mu)
+        return self.spec.py_type()(self.mu)
 
     def parameter_value(self, step):
         self.process = self.add_variable(
@@ -74,9 +74,6 @@ class OrnsteinUhlenbeck(Parameter):
         else:
             parameter = self.process.assign_add(delta=delta)
 
-        if self.dtype != 'float':
-            parameter = tf.dtypes.cast(x=parameter, dtype=util.tf_dtype(dtype=self.dtype))
-        else:
-            parameter = tf.identity(input=parameter)
+        parameter = tf_util.cast(x=parameter, dtype=self.spec.type)
 
         return parameter

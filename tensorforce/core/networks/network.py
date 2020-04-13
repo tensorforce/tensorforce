@@ -13,14 +13,15 @@
 # limitations under the License.
 # ==============================================================================
 
-from collections import Counter, OrderedDict
+from collections import Counter
 
 import tensorflow as tf
 
-from tensorforce import TensorforceError, util
-from tensorforce.core import Module, tf_function
+from tensorforce import TensorforceError
+from tensorforce.core import Module, TensorSpec, TensorsSpec, tf_function, tf_util
 from tensorforce.core.layers import Layer, layer_modules, Register, Retrieve, TemporalLayer
 from tensorforce.core.parameters import Parameter
+from tensorforce.core.utils import ArrayDict
 
 
 class Network(Module):
@@ -46,33 +47,27 @@ class Network(Module):
             l2_regularization=l2_regularization
         )
 
-        assert all(
-            util.is_atomic_values_spec(values_spec=input_spec)
-            for input_spec in inputs_spec.values()
-        )
         self.inputs_spec = inputs_spec
-
-    @classmethod
-    def internals_spec(cls, network=None, **kwargs):
-        return OrderedDict()
-
-    def internals_init(self):
-        return OrderedDict()
 
     def output_spec(self):
         raise NotImplementedError
 
+    @property
+    def internals_spec(self):
+        return TensorsSpec()
+
+    def internals_init(self):
+        return ArrayDict()
+
     def max_past_horizon(self, on_policy):
-        raise NotImplementedError
+        return 0
 
     def input_signature(self, function):
         if function == 'apply':
             return [
-                util.to_tensor_spec(value_spec=self.inputs_spec, batched=True),
-                util.to_tensor_spec(value_spec=dict(type='long', shape=(2,)), batched=True),
-                util.to_tensor_spec(
-                    value_spec=self.__class__.internals_spec(network=self), batched=True
-                )
+                self.inputs_spec.signature(batched=True),
+                TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                self.internals_spec.signature(batched=True)
             ]
 
         elif function == 'past_horizon':
@@ -83,7 +78,7 @@ class Network(Module):
 
     @tf_function(num_args=0)
     def past_horizon(self, on_policy):
-        raise NotImplementedError
+        return tf_util.constant(value=0, dtype='int')
 
     @tf_function(num_args=3)
     def apply(self, x, horizons, internals, return_internals):
@@ -95,35 +90,26 @@ class LayerbasedNetwork(Network):
     Base class for networks using Tensorforce layers.
     """
 
-    _TF_MODULE_IGNORED_PROPERTIES = Module._TF_MODULE_IGNORED_PROPERTIES | {'registered_layers'}
-
     def __init__(self, name, inputs_spec, device=None, summary_labels=None, l2_regularization=None):
-        """
-        Layer-based network constructor.
-        """
         super().__init__(
             name=name, inputs_spec=inputs_spec, device=device, summary_labels=summary_labels,
             l2_regularization=l2_regularization
         )
 
-        self.registered_layers = OrderedDict()
-        self.registered_tensors_spec = OrderedDict(self.inputs_spec)
+        self.registered_tensors_spec = self.inputs_spec.copy()
 
-        if len(self.inputs_spec) == 1:
-            self._output_spec = next(iter(self.inputs_spec.values()))
-        else:
-            self._output_spec = None
+        self._output_spec = self.inputs_spec.item()
 
-    @classmethod
-    def internals_spec(cls, network=None, **kwargs):
-        internals_spec = super().internals_spec(network=network, **kwargs)
+    def output_spec(self):
+        return self._output_spec
 
-        if network is not None:
-            assert len(kwargs) == 0
-            for layer in network.this_submodules:
-                if isinstance(layer, TemporalLayer):
-                    for name, spec in layer.__class__.internals_spec(layer=layer).items():
-                        internals_spec['{}-{}-{}'.format(network.name, layer.name, name)] = spec
+    @property
+    def internals_spec(self):
+        internals_spec = super().internals_spec
+
+        for layer in self.this_submodules:
+            if isinstance(layer, TemporalLayer):
+                internals_spec[layer.name] = layer.internals_spec
 
         return internals_spec
 
@@ -132,16 +118,12 @@ class LayerbasedNetwork(Network):
 
         for layer in self.this_submodules:
             if isinstance(layer, TemporalLayer):
-                for name, init in layer.internals_init().items():
-                    internals_init['{}-{}-{}'.format(self.name, layer.name, name)] = init
+                internals_init[layer.name] = layer.internals_init()
 
         return internals_init
 
-    def output_spec(self):
-        return self._output_spec
-
     def max_past_horizon(self, on_policy):
-        past_horizons = [0]
+        past_horizons = [super().max_past_horizon(on_policy=on_policy)]
 
         for layer in self.this_submodules:
             if isinstance(layer, TemporalLayer):
@@ -151,7 +133,7 @@ class LayerbasedNetwork(Network):
 
     @tf_function(num_args=0)
     def past_horizon(self, on_policy):
-        past_horizons = [tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))]
+        past_horizons = [super().past_horizon(on_policy=on_policy)]
 
         for layer in self.this_submodules:
             if isinstance(layer, TemporalLayer):
@@ -163,10 +145,9 @@ class LayerbasedNetwork(Network):
         self, name, module=None, modules=None, default_module=None, is_trainable=True,
         is_saved=True, **kwargs
     ):
-        # Default modules
+        # Module class and args
         if modules is None:
             modules = layer_modules
-
         module_cls, args, kwargs = Module.get_module_class_and_args(
             name=name, module=module, modules=modules, default_module=default_module, **kwargs
         )
@@ -182,16 +163,18 @@ class LayerbasedNetwork(Network):
             if module_cls is Retrieve:
                 if 'tensors' not in kwargs:
                     raise TensorforceError.required(name='retrieve layer', argument='tensors')
-                kwargs['input_spec'] = OrderedDict()
-                for tensor in kwargs['tensors']:
-                    if tensor not in self.registered_tensors_spec:
-                        raise TensorforceError.exists_not(name='registered tensor', value=tensor)
-                    kwargs['input_spec'][tensor] = self.registered_tensors_spec[tensor]
+                if kwargs['tensors'] not in self.registered_tensors_spec:
+                    raise TensorforceError.exists_not(
+                        name='registered tensor', value=kwargs['tensors']
+                    )
+                kwargs['input_spec'] = self.registered_tensors_spec[kwargs['tensors']]
+
             elif self._output_spec is None:
                 raise TensorforceError.required(
                     name='layer-based network', argument='first layer', expected='retrieve',
                     condition='multiple state/input components'
                 )
+
             else:
                 kwargs['input_spec'] = self._output_spec
 
@@ -250,82 +233,32 @@ class LayeredNetwork(LayerbasedNetwork):
             name=name, inputs_spec=inputs_spec
         )
 
-        self.layers_spec = layers
-        self.layers = list()
+        self.layers = list(self._parse_layers_spec(spec=layers, counter=Counter()))
 
-        self.parse_layers_spec(
-            layers=self.layers, layers_spec=self.layers_spec, layer_counter=Counter()
-        )
-
-    def parse_layers_spec(self, layers, layers_spec, layer_counter):
-        if isinstance(layers_spec, list):
-            for spec in layers_spec:
-                self.parse_layers_spec(layers=layers, layers_spec=spec, layer_counter=layer_counter)
+    def _parse_layers_spec(self, spec, counter):
+        if isinstance(spec, list):
+            for s in spec:
+                yield from self._parse_layers_spec(spec=s, counter=counter)
 
         else:
-            if 'name' in layers_spec:
-                layers_spec = dict(layers_spec)
-                layer_name = layers_spec.pop('name')
+            if 'name' in spec:
+                spec = dict(spec)
+                name = spec.pop('name')
+
             else:
-                if isinstance(layers_spec.get('type'), str):
-                    layer_type = layers_spec['type']
-                else:
+                layer_type = spec.get('type')
+                if not isinstance(layer_type, str):
                     layer_type = 'layer'
-                layer_name = layer_type + str(layer_counter[layer_type])
-                layer_counter[layer_type] += 1
+                name = layer_type + str(counter[layer_type])
+                counter[layer_type] += 1
 
-            layers.append(self.add_module(name=layer_name, module=layers_spec))
-
-    # (requires layers as first argument)
-    @classmethod
-    def internals_spec(cls, layers=None, network=None, **kwargs):
-        assert network is None or layers is None
-        internals_spec = super().internals_spec(network=network)
-
-        if network is None:
-            assert layers is not None and 'name' in kwargs
-            for name, spec in cls.internals_from_layers_spec(
-                layers_spec=layers, layer_counter=Counter()
-            ):
-                internals_spec['{}-{}'.format(kwargs['name'], name)] = spec
-
-        return internals_spec
-
-    @classmethod
-    def internals_from_layers_spec(cls, layers_spec, layer_counter):
-        if isinstance(layers_spec, list):
-            for spec in layers_spec:
-                yield from cls.internals_from_layers_spec(
-                    layers_spec=spec, layer_counter=layer_counter
-                )
-
-        else:
-            if 'name' in layers_spec:
-                layers_spec = dict(layers_spec)
-                layer_name = layers_spec.pop('name')
-            else:
-                if isinstance(layers_spec.get('type'), str):
-                    layer_type = layers_spec['type']
-                else:
-                    layer_type = 'layer'
-                layer_name = layer_type + str(layer_counter[layer_type])
-                layer_counter[layer_type] += 1
-
-            layer_cls, args, kwargs = Module.get_module_class_and_args(
-                name=layer_name, module=layers_spec, modules=layer_modules
-            )
-
-            if issubclass(layer_cls, TemporalLayer):
-                for name, spec in layer_cls.internals_spec(*args, **kwargs).items():
-                    yield '{}-{}'.format(layer_name, name), spec
+            yield self.add_module(name=name, module=spec)
 
     @tf_function(num_args=3)
     def apply(self, x, horizons, internals, return_internals):
-        registered_tensors = dict(x)
-        if isinstance(x, dict) and len(x) == 1:
-            x = next(iter(x.values()))
+        registered_tensors = x.copy()
+        x = x.item()
 
-        next_internals = OrderedDict()
         for layer in self.layers:
             if isinstance(layer, Register):
                 if layer.tensor in registered_tensors:
@@ -334,35 +267,19 @@ class LayeredNetwork(LayerbasedNetwork):
                 registered_tensors[layer.tensor] = x
 
             elif isinstance(layer, Retrieve):
-                x = OrderedDict()
-                for tensor in layer.tensors:
-                    if tensor not in registered_tensors:
-                        raise TensorforceError.exists_not(name='registered tensor', value=tensor)
-                    x[tensor] = registered_tensors[tensor]
-                x = layer.apply(x=x)
+                if layer.tensors not in registered_tensors:
+                    raise TensorforceError.exists_not(name='registered tensor', value=layer.tensors)
+                x = layer.apply(x=registered_tensors[layer.tensors])
 
             elif isinstance(layer, TemporalLayer):
-                layer_internals = OrderedDict(
-                    (name, internals['{}-{}-{}'.format(self.name, layer.name, name)])
-                    for name in layer.__class__.internals_spec(layer=layer)
+                x, internals[layer.name] = layer.apply(
+                    x=x, horizons=horizons, internals=internals[layer.name]
                 )
-                x, layer_internals = layer.apply(
-                    x=x, horizons=horizons, internals=layer_internals
-                )
-                for name, internal in layer_internals.items():
-                    next_internals['{}-{}-{}'.format(self.name, layer.name, name)] = internal
 
             else:
                 x = layer.apply(x=x)
 
-        # starts = tf.range(start=batch_size, dtype=util.tf_dtype(dtype='long'))
-        # lengths = tf.ones(shape=(batch_size,), dtype=util.tf_dtype(dtype='long'))
-        # empty_horizons = tf.concat(values=(starts, lengths))
-        # assertion = tf.debugging.assert_equal(x=horizons, y=empty_horizons, axis=1)
-        # with control_dependencies(control_inputs=(assertion,)):
-        #     x = util.identity_operation(x=x)
-
         if return_internals:
-            return x, next_internals
+            return x, internals
         else:
             return x

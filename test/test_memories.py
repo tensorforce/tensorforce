@@ -20,8 +20,6 @@ from test.unittest_base import UnittestBase
 
 class TestMemories(UnittestBase, unittest.TestCase):
 
-    require_observe = True
-
     def test_recent(self):
         self.start_tests(name='recent')
 

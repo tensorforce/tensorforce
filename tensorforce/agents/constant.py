@@ -101,6 +101,7 @@ class ConstantAgent(Agent):
             record traces (<span style="color:#00C000"><b>default</b></span>: 0).</li>
             <li><b>max-traces</b> (<i>int > 0</i>) &ndash; maximum number of traces to keep
             (<span style="color:#00C000"><b>default</b></span>: all).</li>
+        config (specification): ...
     """
 
     def __init__(
@@ -109,26 +110,29 @@ class ConstantAgent(Agent):
         # Agent
         action_values=None,
         # TensorFlow etc
-        name='agent', device=None, seed=None, summarizer=None, recorder=None, config=None
+        name='agent', device=None, config=None, summarizer=None, recorder=None
     ):
-        self.spec = OrderedDict(
-            agent='constant',
-            states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
-            action_values=action_values,
-            name=name, device=device, seed=seed, summarizer=summarizer, recorder=recorder,
-            config=config
-        )
+        if not hasattr(self, 'spec'):
+            self.spec = OrderedDict(
+                agent='constant',
+                # Environment
+                states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
+                # Agent
+                action_values=action_values,
+                # TensorFlow etc
+                name=name, device=device, summarizer=summarizer, config=config, recorder=recorder
+            )
 
         super().__init__(
             states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
-            parallel_interactions=1, buffer_observe=True, seed=seed, recorder=recorder
+            parallel_interactions=1, config=config, recorder=recorder
         )
 
         self.model = ConstantModel(
             # Model
-            name=name, device=device, parallel_interactions=self.parallel_interactions,
-            buffer_observe=self.buffer_observe, seed=seed, summarizer=summarizer, config=config,
-            states=self.states_spec, actions=self.actions_spec,
+            states=self.states_spec, actions=self.actions_spec, name=name, device=device,
+            parallel_interactions=self.parallel_interactions, config=self.config,
+            summarizer=summarizer,
             # ConstantModel
             action_values=action_values
         )

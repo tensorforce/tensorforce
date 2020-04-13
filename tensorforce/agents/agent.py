@@ -25,6 +25,7 @@ import tensorflow as tf
 
 import tensorforce.agents
 from tensorforce import util, TensorforceError
+from tensorforce.core import ArrayDict, NestedDict, TensorforceConfig
 
 
 class Agent(object):
@@ -184,150 +185,134 @@ class Agent(object):
         return agent
 
     def __init__(
-        # Environment
-        self, states, actions, max_episode_timesteps=None,
-        # TensorFlow etc
-        parallel_interactions=1, buffer_observe=True, seed=None, recorder=None
+        self, states, actions, max_episode_timesteps=None, parallel_interactions=1, config=None,
+        recorder=None
     ):
-        assert hasattr(self, 'spec')
+        self.is_initialized = False
 
-        if seed is not None:
-            assert isinstance(seed, int)
-            random.seed(a=seed)
-            np.random.seed(seed=seed)
+        # Check whether spec attribute exists
+        if not hasattr(self, 'spec'):
+            raise TensorforceError.required_attribute(name='Agent', attribute='spec')
 
-        # States/actions specification
-        self.states_spec = util.valid_values_spec(
-            values_spec=states, value_type='state', return_normalized=True
-        )
-        self.actions_spec = util.valid_values_spec(
-            values_spec=actions, value_type='action', return_normalized=True
-        )
+        # States/actions, plus single state/action flag
+        if 'shape' in states:
+            self.states_spec = dict(state=states)
+            self.single_state = True
+        else:
+            self.states_spec = states
+            self.single_state = False
+        if 'type' in actions:
+            self.actions_spec = dict(action=actions)
+            self.single_action = True
+        else:
+            self.actions_spec = actions
+            self.single_action = False
+
+        # Max episode timesteps
         self.max_episode_timesteps = max_episode_timesteps
 
-        # Check for name overlap
-        for name in self.states_spec:
-            if name in self.actions_spec:
-                raise TensorforceError.collision(
-                    name='name', value=name, group1='states', group2='actions'
-                )
-
-        # Parallel episodes
+        # Parallel interactions
         if isinstance(parallel_interactions, int):
             if parallel_interactions <= 0:
-                raise TensorforceError.value(
-                    name='agent', argument='parallel_interactions', value=parallel_interactions,
+                raise TensorforceError.argument_value(
+                    name='Agent', argument='parallel_interactions', value=parallel_interactions,
                     hint='<= 0'
                 )
             self.parallel_interactions = parallel_interactions
         else:
-            raise TensorforceError.type(
-                name='agent', argument='parallel_interactions', dtype=type(parallel_interactions)
+            raise TensorforceError.argument_type(
+                name='Agent', argument='parallel_interactions', dtype=type(parallel_interactions)
             )
 
         # Buffer observe
+        if config is None:
+            config = dict()
+        buffer_observe = config.get('buffer_observe', True)
         if isinstance(buffer_observe, bool):
             if self.parallel_interactions > 1:
                 if not buffer_observe:
                     raise TensorforceError.required(
-                        name='agent', argument='buffer_observe',
+                        name='Agent', argument='config.buffer_observe',
                         condition='parallel_interactions > 1'
                     )
                 elif self.max_episode_timesteps is None:
                     raise TensorforceError.required(
-                        name='agent', argument='max_episode_timesteps',
+                        name='Agent', argument='max_episode_timesteps',
                         condition='parallel_interactions > 1'
                     )
             if not buffer_observe:
-                self.buffer_observe = 1
+                buffer_observe = 1
             elif self.max_episode_timesteps is None:
-                self.buffer_observe = 100
+                buffer_observe = 100
             else:
-                self.buffer_observe = self.max_episode_timesteps
+                buffer_observe = self.max_episode_timesteps
         elif isinstance(buffer_observe, int):
             if buffer_observe <= 0:
-                raise TensorforceError.value(
-                    name='agent', argument='buffer_observe', value=buffer_observe, hint='<= 0'
+                raise TensorforceError.argument_value(
+                    name='Agent', argument='config.buffer_observe', value=buffer_observe,
+                    hint='<= 0'
                 )
             if self.parallel_interactions > 1:
-                raise TensorforceError.value(
-                    name='agent', argument='buffer_observe', value=buffer_observe,
+                raise TensorforceError.argument_value(
+                    name='Agent', argument='config.buffer_observe', value=buffer_observe,
                     condition='parallel_interactions > 1'
                 )
             if self.max_episode_timesteps is None:
-                self.buffer_observe = buffer_observe
+                buffer_observe = buffer_observe
             else:
-                self.buffer_observe = min(buffer_observe, self.max_episode_timesteps)
+                buffer_observe = min(buffer_observe, self.max_episode_timesteps)
         else:
-            raise TensorforceError.type(
-                name='agent', argument='buffer_observe', dtype=type(buffer_observe)
+            raise TensorforceError.argument_type(
+                name='Agent', argument='config.buffer_observe', dtype=type(buffer_observe)
             )
+
+        # Tensorforce config
+        config['buffer_observe'] = buffer_observe
+        self.config = TensorforceConfig(**config)
+
+        # Random seed
+        if self.config.seed is not None:
+            random.seed(a=self.config.seed)
+            np.random.seed(seed=self.config.seed)
+            tf.random.set_seed(seed=self.config.seed)
 
         # Recorder
         if recorder is None:
             pass
         elif not all(key in ('directory', 'frequency', 'max-traces', 'start') for key in recorder):
-            raise TensorforceError.value(
-                name='agent', argument='recorder', value=list(recorder),
+            raise TensorforceError.argument_value(
+                name='Agent', argument='recorder values', value=list(recorder),
                 hint='not from {directory,frequency,max-traces,start}'
             )
         self.recorder_spec = recorder if recorder is None else dict(recorder)
-
-        self.is_initialized = False
 
     def __str__(self):
         return self.__class__.__name__
 
     def initialize(self):
         """
-        Initializes the agent, usually done as part of Agent.create/load.
+        Initializes the agent, usually done as part of Agent.create() / Agent.load().
         """
+        # Check whether already initialized
         if self.is_initialized:
             raise TensorforceError(
                 message="Agent is already initialized, possibly as part of Agent.create()."
             )
-
         self.is_initialized = True
 
-        # Parallel terminal/reward buffers
-        self.terminal_buffers = np.ndarray(
-            shape=(self.parallel_interactions, self.buffer_observe),
-            dtype=util.np_dtype(dtype='long')
-        )
-        self.reward_buffers = np.ndarray(
-            shape=(self.parallel_interactions, self.buffer_observe),
-            dtype=util.np_dtype(dtype='float')
-        )
+        # Initialize model
+        if not hasattr(self, 'model'):
+            raise TensorforceError.required_attribute(name='Agent', attribute='model')
+        self.model.root_initialize()
 
-        # Recorder buffers if required
-        if self.recorder_spec is not None:
-            self.states_buffers = OrderedDict()
-            self.actions_buffers = OrderedDict()
-            for name, spec in self.states_spec.items():
-                shape = (self.parallel_interactions, self.buffer_observe) + spec['shape']
-                self.states_buffers[name] = np.ndarray(
-                    shape=shape, dtype=util.np_dtype(dtype=spec['type'])
-                )
-            for name, spec in self.actions_spec.items():
-                shape = (self.parallel_interactions, self.buffer_observe) + spec['shape']
-                self.actions_buffers[name] = np.ndarray(
-                    shape=shape, dtype=util.np_dtype(dtype=spec['type'])
-                )
-                if spec['type'] == 'int':
-                    shape = (self.parallel_interactions, self.buffer_observe) + spec['shape'] + \
-                        (spec['num_values'],)
-                    self.states_buffers[name + '_mask'] = np.ndarray(
-                        shape=shape, dtype=util.np_dtype(dtype='bool')
-                    )
-
-            self.num_episodes = 0
-            self.record_states = OrderedDict(((name, list()) for name in self.states_spec))
-            self.record_actions = OrderedDict(((name, list()) for name in self.actions_spec))
-            for name, spec in self.actions_spec.items():
-                if spec['type'] == 'int':
-                    self.record_states[name + '_mask'] = list()
-            self.record_terminal = list()
-            self.record_reward = list()
+        # Value space specifications
+        self.states_spec = self.model.unprocessed_states_spec
+        self.internals_spec = self.model.internals_spec
+        self.auxiliaries_spec = self.model.auxiliaries_spec
+        self.actions_spec = self.model.actions_spec
+        self.terminal_spec = self.model.terminal_spec
+        self.reward_spec = self.model.reward_spec
+        self.parallel_spec = self.model.parallel_spec
 
         # Parallel buffer indices
         self.buffer_indices = np.zeros(
@@ -337,18 +322,31 @@ class Agent(object):
             shape=(self.parallel_interactions,), dtype=util.np_dtype(dtype='bool')
         )
 
-        self.timesteps = 0
-        self.episodes = 0
-        self.updates = 0
+        # Parallel terminal/reward buffers
+        self.buffers = ArrayDict()
+        shape = (self.parallel_interactions, self.config.buffer_observe)
+        self.buffers['terminal'] = np.ndarray(
+            shape=(shape + self.terminal_spec.shape), dtype=self.terminal_spec.np_type()
+        )
+        self.buffers['reward'] = np.ndarray(
+            shape=(shape + self.reward_spec.shape), dtype=self.reward_spec.np_type()
+        )
 
-        # Setup Model
-        if not hasattr(self, 'model'):
-            raise TensorforceError(message="Missing agent attribute model.")
-
-        self.model.initialize()
-
-        self.internals_spec = self.model.internals_spec
-        self.auxiliaries_spec = self.model.auxiliaries_spec
+        # Recorder buffers if required
+        if self.recorder_spec is not None:
+            self.num_episodes = 0
+            self.recorded = NestedDict(type=list, overwrite=False)
+            for name, spec in self.states_spec.items():
+                self.buffers[name] = np.ndarray(shape=(shape + spec.shape), dtype=spec.np_type())
+                self.recorded[name] = list()
+            for name, spec in self.auxiliaries_spec.items():
+                self.buffers[name] = np.ndarray(shape=(shape + spec.shape), dtype=spec.np_type())
+                self.recorded[name] = list()
+            for name, spec in self.actions_spec.items():
+                self.buffers[name] = np.ndarray(shape=(shape + spec.shape), dtype=spec.np_type())
+                self.recorded[name] = list()
+            self.recorded['terminal'] = list()
+            self.recorded['reward'] = list()
 
         if self.model.saver_directory is not None:
             path = os.path.join(self.model.saver_directory, self.model.saver_filename + '.json')
@@ -362,19 +360,21 @@ class Agent(object):
                 os.remove(path)
                 raise
 
-        self.reset()
+        # Reset model
+        self.timesteps, self.episodes, self.updates = self.model.reset()
 
     def close(self):
         """
         Closes the agent.
         """
         self.model.close()
-        self.model = None
+        del self.model
 
     def reset(self):
         """
         Resets all agent buffers and discards unfinished episodes.
         """
+        # Reset parallel buffer indices
         self.buffer_indices = np.zeros(
             shape=(self.parallel_interactions,), dtype=util.np_dtype(dtype='int')
         )
@@ -382,6 +382,7 @@ class Agent(object):
             shape=(self.parallel_interactions,), dtype=util.np_dtype(dtype='bool')
         )
 
+        # Reset model
         self.timesteps, self.episodes, self.updates = self.model.reset()
 
     def initial_internals(self):
@@ -392,15 +393,12 @@ class Agent(object):
         Returns:
             dict[internal]: Dictionary containing initial internal agent state(s).
         """
-        return OrderedDict(**self.model.internals_init)
+        return self.model.internals_init.copy()
 
-    def act(
-        self, states, internals=None, parallel=0, independent=False, deterministic=False,
-        evaluation=False, query=None, **kwargs
-    ):
+    def act(self, states, internals=None, parallel=0, independent=False):
         """
-        Returns action(s) for the given state(s), needs to be followed by `observe(...)` unless
-        independent mode set via `independent`/`evaluation`.
+        Returns action(s) for the given state(s), needs to be followed by `observe()` unless
+        independent mode.
 
         Args:
             states (dict[state] | iter[dict[state]]): Dictionary containing state(s) to be acted on
@@ -415,352 +413,328 @@ class Agent(object):
             independent (bool): Whether act is not part of the main agent-environment interaction,
                 and this call is thus not followed by observe
                 (<span style="color:#00C000"><b>default</b></span>: false).
-            deterministic (bool): Ff independent mode, whether to act deterministically, so no
-                exploration and sampling
-                (<span style="color:#00C000"><b>default</b></span>: false).
-            evaluation (bool): Whether the agent is currently evaluated, implies independent and
-                deterministic
-                (<span style="color:#00C000"><b>default</b></span>: false).
-            query (list[str]): Names of tensors to retrieve
-                (<span style="color:#00C000"><b>default</b></span>: none).
-            kwargs: Additional input values, for instance, for dynamic hyperparameters.
 
         Returns:
             dict[action] | iter[dict[action]], dict[internal] | iter[dict[internal]] if `internals`
-            argument given, plus optional list[str]: Dictionary containing action(s), dictionary
-            containing next internal agent state(s) if independent mode, plus queried tensor values
-            if requested.
+            argument given: Dictionary containing action(s), dictionary containing next internal
+            agent state(s) if independent mode.
         """
-        assert util.reduce_all(predicate=util.not_nan_inf, xs=states)
-
-        if evaluation:
-            if deterministic:
-                raise TensorforceError.invalid(
-                    name='agent.act', argument='deterministic', condition='evaluation = true'
-                )
-            if independent:
-                raise TensorforceError.invalid(
-                    name='agent.act', argument='independent', condition='evaluation = true'
-                )
-            deterministic = independent = True
-
-        if not independent:
-            if internals is not None:
-                raise TensorforceError.invalid(
-                    name='agent.act', argument='internals', condition='independent = false'
-                )
-            if deterministic:
-                raise TensorforceError.invalid(
-                    name='agent.act', argument='deterministic', condition='independent = false'
-                )
-
+        # Independent and internals
         if independent:
             internals_is_none = (internals is None)
             if internals_is_none:
                 if len(self.model.internals_spec) > 0:
                     raise TensorforceError.required(
-                        name='agent.act', argument='internals', condition='independent = true'
+                        name='Agent.act', argument='internals', condition='independent is true'
                     )
-                internals = OrderedDict()
-
-        # Batch states
-        batched = (not isinstance(parallel, int))
-        if batched:
-            if len(parallel) == 0:
-                raise TensorforceError.value(
-                    name='agent.act', argument='parallel', value=parallel, hint='zero-length'
-                )
-            parallel = np.asarray(list(parallel))
-            if isinstance(states[0], dict):
-                states = OrderedDict((
-                    (name, np.asarray([states[n][name] for n in range(len(parallel))]))
-                    for name in states[0]
-                ))
-            else:
-                states = np.asarray(states)
-            if independent:
-                internals = OrderedDict((
-                    (name, np.asarray([internals[n][name] for n in range(len(parallel))]))
-                    for name in internals[0]
-                ))
+                internals = dict()
         else:
-            parallel = np.asarray([parallel])
-            states = util.fmap(
-                function=(lambda x: np.asarray([x])), xs=states,
-                depth=int(isinstance(states, dict))
-            )
-            if independent:
-                internals = util.fmap(function=(lambda x: np.asarray([x])), xs=internals, depth=1)
+            if internals is not None:
+                raise TensorforceError.invalid(
+                    name='Agent.act', argument='internals', condition='independent is false'
+                )
 
-        if not independent and not all(self.timestep_completed[n] for n in parallel):
-            raise TensorforceError(message="Calling agent.act must be preceded by agent.observe.")
+        # Check whether inputs are batched
+        if self.single_state:
+            # TODO: implement
+            assert False
+        else:
+            if isinstance(states, list):
+                num_parallel = len(states)
+                batched = True
+            else:
+                num_parallel = 1
+                batched = False
+        try:
+            parallel = [int(parallel)]
+            num_parallel = 1
+            batched = False
+        except TypeError:
+            parallel = list(parallel)
+            num_parallel = len(parallel)
+            batched = True
 
-        # Auxiliaries
+        # If not independent, check whether previous timesteps were completed
+        if not independent:
+            if not self.timestep_completed[parallel].all():
+                raise TensorforceError(
+                    message="Calling agent.act must be preceded by agent.observe."
+                )
+            self.timestep_completed[parallel] = False
+
+        if batched:
+            # If inputs are batched, check lengths are consistent
+            if num_parallel == 0:
+                raise TensorforceError.argument_value(
+                    name='Agent.act', argument='parallel length', value=parallel, hint='= 0'
+                )
+            if len(states) != num_parallel:
+                raise TensorforceError.argument_value(
+                    name='Agent.act', argument='states length', value=len(states),
+                    hint='!= parallel length'
+                )
+            if independent and not internals_is_none and len(internals) != num_parallel:
+                raise TensorforceError.argument_value(
+                    name='Agent.act', argument='internals length', value=len(internals),
+                    hint='!= states length'
+                )
+
+            # If inputs are batched, turn list of dicts into dict of lists
+            if self.single_state:
+                states = dict(state=states)
+            else:
+                # TODO: recursive
+                # Doesn't use self.states_spec since states also contains auxiliaries
+                states = OrderedDict(((name, [x[name] for x in states]) for name in states[0]))
+            if independent and not internals_is_none:
+                internals = OrderedDict(
+                    ((name, [x[name] for x in internals]) for name in internals[0])
+                )
+
+        else:
+            # If inputs are not batched, batch inputs
+            function = (lambda x: [x])
+            if self.single_state:
+                states = dict(state=[states])
+            else:
+                states = util.fmap(function=function, xs=states, map_types=(tuple, list))
+            if independent and not internals_is_none:
+                internals = util.fmap(function=function, xs=internals, map_types=(tuple, list))
+
+        # Auxiliaries, either in states or default all true
         auxiliaries = OrderedDict()
-        if isinstance(states, dict):
-            states = dict(states)
+        if self.config.enable_int_action_masking:
             for name, spec in self.actions_spec.items():
-                if spec['type'] == 'int' and name + '_mask' in states:
-                    auxiliaries[name + '_mask'] = states.pop(name + '_mask')
+                if spec.type == 'int' and spec.num_values is not None:
+                    # TODO: recursive
+                    auxiliaries[name + '_mask'] = states.pop(name + '_mask', np.ones(
+                        shape=(num_parallel,) + spec.shape + (spec.num_values,),
+                        dtype=spec.np_type()
+                    ))
 
-        # Normalize states dictionary
-        states = util.normalize_values(
-            value_type='state', values=states, values_spec=self.states_spec
-        )
+        # Buffer inputs for recording
+        if self.recorder_spec is not None and not independent and \
+                self.episodes >= self.recorder_spec.get('start', 0):
+            for n in range(num_parallel):
+                index = self.buffer_indices[parallel[n]]
+                for name in self.states_spec:
+                    self.buffers[name][parallel[n], index] = states[name][n]
+                for name in self.auxiliaries_spec:
+                    self.buffers[name][parallel[n], index] = auxiliaries[name][n]
+
+        # Inputs to tensors
+        states = self.states_spec.to_tensor(value=states, batched=True)
+        if independent:
+            internals = self.internals_spec.to_tensor(value=internals, batched=True)
+        auxiliaries = self.auxiliaries_spec.to_tensor(value=auxiliaries, batched=True)
+        parallel_tensor = self.parallel_spec.to_tensor(value=parallel, batched=True)
 
         # Model.act()
         if independent:
-            if query is None:
-                actions, internals = self.model.independent_act(
-                    states=states, internals=internals, auxiliaries=auxiliaries, parallel=parallel,
-                    deterministic=deterministic, **kwargs
-                )
-
-            else:
-                actions, internals, queried = self.model.independent_act(
-                    states=states, internals=internals, auxiliaries=auxiliaries, parallel=parallel,
-                    deterministic=deterministic, query=query, **kwargs
-                )
-
+            actions, internals = self.model.independent_act(
+                states=states, internals=internals, auxiliaries=auxiliaries
+            )
+            assert not internals_is_none or len(internals) == 0
         else:
-            if query is None:
-                actions, self.timesteps = self.model.act(
-                    states=states, auxiliaries=auxiliaries, parallel=parallel, **kwargs
-                )
+            actions, self.timesteps = self.model.act(
+                states=states, auxiliaries=auxiliaries, parallel=parallel_tensor
+            )
 
-            else:
-                actions, self.timesteps, queried = self.model.act(
-                    states=states, auxiliaries=auxiliaries, parallel=parallel, query=query, **kwargs
-                )
+        # Outputs from tensors
+        actions = self.actions_spec.from_tensor(tensor=actions, batched=True)
 
-        if not independent:
-            for n in parallel:
-                self.timestep_completed[n] = False
-
+        # Buffer outputs for recording
         if self.recorder_spec is not None and not independent and \
                 self.episodes >= self.recorder_spec.get('start', 0):
-            for n in range(len(parallel)):
+            for n in range(num_parallel):
                 index = self.buffer_indices[parallel[n]]
-                for name in self.states_spec:
-                    self.states_buffers[name][parallel[n], index] = states[name][n]
-                for name, spec in self.actions_spec.items():
-                    self.actions_buffers[name][parallel[n], index] = actions[name][n]
-                    if spec['type'] == 'int':
-                        name = name + '_mask'
-                        if name in auxiliaries:
-                            self.states_buffers[name][parallel[n], index] = auxiliaries[name][n]
-                        else:
-                            shape = (1,) + spec['shape'] + (spec['num_values'],)
-                            self.states_buffers[name][parallel[n], index] = np.full(
-                                shape=shape, fill_value=True, dtype=util.np_dtype(dtype='bool')
-                            )
-
-        # Reverse normalized actions dictionary
-        actions = util.unpack_values(
-            value_type='action', values=actions, values_spec=self.actions_spec
-        )
+                for name in self.actions_spec:
+                    self.buffers[name][parallel[n], index] = actions[name][n]
 
         # Unbatch actions
         if batched:
-            if isinstance(actions, dict):
+            # If inputs were batched, turn list of dicts into dict of lists
+            if self.single_action:
+                actions = actions['action']
+            else:
+                # TODO: recursive
                 actions = [
-                    OrderedDict(((name, actions[name][n]) for name in actions))
-                    for n in range(len(parallel))
+                    OrderedDict(((name, x[n]) for name, x in actions.items()))
+                    for n in range(num_parallel)
                 ]
+            if independent and not internals_is_none:
+                # TODO: recursive
+                internals = [
+                    OrderedDict(((name, x[n]) for name, x in internals.items()))
+                    for n in range(num_parallel)
+                ]
+
         else:
-            actions = util.fmap(
-                function=(lambda x: x[0]), xs=actions, depth=int(isinstance(actions, dict))
-            )
+            # If inputs were not batched, unbatch outputs
+            function = (lambda x: x.item() if x.shape == (1,) else x[0])
+            if self.single_action:
+                actions = actions['action'][0]
+            else:
+                actions = util.fmap(function=function, xs=actions, map_types=(tuple, list))
             if independent:
-                internals = util.fmap(function=(lambda x: x[0]), xs=internals, depth=1)
+                internals = util.fmap(function=function, xs=internals, map_types=(tuple, list))
 
         if independent and not internals_is_none:
-            if query is None:
-                return actions, internals
-            else:
-                return actions, internals, queried
-
+            return actions, internals
         else:
-            if independent and len(internals) > 0:
-                raise TensorforceError.unexpected()
-            if query is None:
-                return actions
-            else:
-                return actions, queried
+            return actions
 
-    def observe(self, reward, terminal=False, parallel=0, query=None, **kwargs):
+    def observe(self, reward=0.0, terminal=False, parallel=0):
         """
-        Observes reward and whether a terminal state is reached, needs to be preceded by
-        `act(...)`.
+        Observes reward and whether a terminal state is reached, needs to be preceded by `act()`.
 
         Args:
             reward (float | iter[float]): Reward
-                (<span style="color:#C00000"><b>required</b></span>).
-            terminal (bool | 0 | 1 | 2 | iter[...]): Whether a terminal state is reached or 2 if
-                the episode was aborted (<span style="color:#00C000"><b>default</b></span>: false).
+                (<span style="color:#00C000"><b>default</b></span>: 0.0).
+            terminal (bool | 0 | 1 | 2 | iter[...]): Whether a terminal state is reached, or 2 if
+                the episode was aborted
+                (<span style="color:#00C000"><b>default</b></span>: false).
             parallel (int, iter[int]): Parallel execution index
                 (<span style="color:#00C000"><b>default</b></span>: 0).
-            query (list[str]): Names of tensors to retrieve
-                (<span style="color:#00C000"><b>default</b></span>: none).
-            kwargs: Additional input values, for instance, for dynamic hyperparameters.
 
         Returns:
-            (bool | int, optional list[str]): Whether an update was performed, plus queried tensor
-            values if requested.
+            int: Number of performed updates.
         """
-        assert util.reduce_all(predicate=util.not_nan_inf, xs=reward)
+        # Check whether inputs are batched
+        try:
+            parallel = [int(parallel)]
+            num_parallel = 1
+            batched = False
+        except TypeError:
+            parallel = list(parallel)
+            num_parallel = len(parallel)
+            if reward == 0.0:
+                reward = [0.0 for _ in range(num_parallel)]
+            if terminal is False:
+                terminal = [False for _ in range(num_parallel)]
+            batched = True
 
-        if query is not None and self.parallel_interactions > 1:
-            raise TensorforceError.invalid(
-                name='agent.observe', argument='query', condition='parallel_interactions > 1'
-            )
-
-        batched = (not isinstance(parallel, int))
-        if batched:
-            if len(parallel) == 0:
-                raise TensorforceError.value(
-                    name='agent.observe', argument='parallel', value=parallel, hint='zero-length'
-                )
-            if query is not None:
-                raise TensorforceError.invalid(
-                    name='agent.observe', argument='query', condition='len(parallel) > 1'
-                )
-        else:
-            terminal = [terminal]
-            reward = [reward]
-            parallel = [parallel]
-
-        if any(self.timestep_completed[n] for n in parallel):
+        # Check whether current timesteps are not completed
+        if self.timestep_completed[parallel].any():
             raise TensorforceError(message="Calling agent.observe must be preceded by agent.act.")
+        self.timestep_completed[parallel] = True
 
-        num_updates = 0
-        # TODO: Differently if not buffer_observe
-        for terminal, reward, parallel in zip(terminal, reward, parallel):
-            # Update terminal/reward buffer
-            if isinstance(terminal, bool):
-                terminal = int(terminal)
-            index = self.buffer_indices[parallel]
-            self.terminal_buffers[parallel, index] = terminal
-            self.reward_buffers[parallel, index] = reward
-            index += 1
-            self.buffer_indices[parallel] = index
-
-            if self.max_episode_timesteps is not None and index > self.max_episode_timesteps:
-                raise TensorforceError.value(
-                    name='agent.observe', argument='index', value=index,
-                    condition='> max_episode_timesteps'
+        if batched:
+            # If inputs are batched, check lengths are consistent
+            if len(parallel) == 0:
+                raise TensorforceError.argument_value(
+                    name='Agent.observe', argument='parallel length', value=parallel, hint='= 0'
                 )
+            if len(reward) != len(parallel):
+                raise TensorforceError.argument_value(
+                    name='Agent.observe', argument='reward length', value=len(reward),
+                    hint='!= parallel length'
+                )
+            if len(terminal) != len(parallel):
+                raise TensorforceError.argument_value(
+                    name='Agent.observe', argument='terminal length', value=len(terminal),
+                    hint='!= parallel length'
+                )
+            terminal = [int(x) for x in terminal]
 
-            if terminal > 0 or index == self.buffer_observe or query is not None:
-                self.timestep_completed[parallel] = True
-                if query is None:
-                    updated = self.model_observe(parallel=parallel, **kwargs)
-                else:
-                    updated, queried = self.model_observe(parallel=parallel, query=query, **kwargs)
+        else:
+            # If inputs are not batched, batch inputs
+            reward = [reward]
+            terminal = [int(terminal)]
 
-            else:
-                # Increment buffer index
-                self.timestep_completed[parallel] = True
-                updated = False
+        # Process per parallel interaction
+        num_updates = 0
+        for n in range(num_parallel):
 
+            # Buffer inputs
+            p = parallel[n]
+            index = self.buffer_indices[p]
+            self.buffers['terminal'][p, index] = terminal[n]
+            self.buffers['reward'][p, index] = reward[n]
+
+            # Increment buffer index
+            index += 1
+            self.buffer_indices[p] = index
+
+            # Check whether episode is too long
+            if self.max_episode_timesteps is not None and index > self.max_episode_timesteps:
+                raise TensorforceError(message="Episode longer than max_episode_timesteps.")
+
+            # Continue if not terminal and buffer_observe
+            if terminal == 0 and index < self.config.buffer_observe:
+                continue
+
+            # Reset buffer index
+            self.buffer_indices[p] = 0
+
+            # Buffered terminal/reward inputs
+            terminal = self.buffers['terminal'][p, :index]
+            reward = self.buffers['reward'][p, :index]
+
+            # Recorder
+            if self.recorder_spec is not None and \
+                    self.episodes >= self.recorder_spec.get('start', 0):
+
+                # Store buffered values
+                for name in self.states_spec:
+                    self.recorded[name].append(self.states_buffers[name][p, :index].copy())
+                for name in self.auxiliaries_spec:
+                    self.recorded[name].append(self.states_buffers[name][p, :index].copy())
+                for name, spec in self.actions_spec.items():
+                    self.recorded[name].append(self.actions_buffers[name][p, :index].copy())
+                self.recorded['terminal'].append(terminal.copy())
+                self.recorded['reward'].append(reward.copy())
+
+                # If terminal
+                if terminal[-1] > 0:
+                    self.num_episodes += 1
+
+                    # Check whether recording step
+                    if self.num_episodes == self.recorder_spec.get('frequency', 1):
+                        self.num_episodes = 0
+
+                        # Manage recorder directory
+                        directory = self.recorder_spec['directory']
+                        if os.path.isdir(directory):
+                            files = sorted(
+                                f for f in os.listdir(directory)
+                                if os.path.isfile(os.path.join(directory, f))
+                                and f.startswith('trace-')
+                            )
+                        else:
+                            os.makedirs(directory)
+                            files = list()
+                        max_traces = self.recorder_spec.get('max-traces')
+                        if max_traces is not None and len(files) > max_traces - 1:
+                            for filename in files[:-max_traces + 1]:
+                                filename = os.path.join(directory, filename)
+                                os.remove(filename)
+
+                        # Write recording file
+                        filename = os.path.join(directory, 'trace-{}-{}.npz'.format(
+                            self.episodes, time.strftime('%Y%m%d-%H%M%S')
+                        ))
+                        np.savez_compressed(
+                            file=filename,
+                            **util.fmap(function=np.concatenate, xs=self.recorded, depth=1)
+                        )
+
+                        # Clear recorded values
+                        for recorded in self.recorded.values():
+                            recorded.clear()
+
+            # Inputs to tensors
+            terminal = self.terminal_spec.to_tensor(value=terminal, batched=True)
+            reward = self.reward_spec.to_tensor(value=reward, batched=True)
+            parallel_tensor = self.parallel_spec.to_tensor(value=[p], batched=True)
+
+            # Model.observe()
+            updated, self.episodes, self.updates = self.model.observe(
+                terminal=terminal, reward=reward, parallel=parallel_tensor
+            )
             num_updates += int(updated)
 
-        if batched:
-            updated = num_updates
-        else:
-            assert num_updates <= 1
-            updated = (num_updates == 1)
-
-        if query is None:
-            return updated
-        else:
-            return updated, queried
-
-    def model_observe(self, parallel, query=None, **kwargs):
-        assert self.timestep_completed[parallel]
-        index = self.buffer_indices[parallel]
-        terminal = self.terminal_buffers[parallel, :index]
-        reward = self.reward_buffers[parallel, :index]
-
-        if self.recorder_spec is not None and \
-                self.episodes >= self.recorder_spec.get('start', 0):
-            for name in self.states_spec:
-                self.record_states[name].append(
-                    np.array(self.states_buffers[name][parallel, :index])
-                )
-            for name, spec in self.actions_spec.items():
-                self.record_actions[name].append(
-                    np.array(self.actions_buffers[name][parallel, :index])
-                )
-                if spec['type'] == 'int':
-                    self.record_states[name + '_mask'].append(
-                        np.array(self.states_buffers[name + '_mask'][parallel, :index])
-                    )
-            self.record_terminal.append(np.array(terminal))
-            self.record_reward.append(np.array(reward))
-
-            if terminal[-1] > 0:
-                self.num_episodes += 1
-
-                if self.num_episodes == self.recorder_spec.get('frequency', 1):
-                    directory = self.recorder_spec['directory']
-                    if os.path.isdir(directory):
-                        files = sorted(
-                            f for f in os.listdir(directory)
-                            if os.path.isfile(os.path.join(directory, f))
-                            and f.startswith('trace-')
-                        )
-                    else:
-                        os.makedirs(directory)
-                        files = list()
-                    max_traces = self.recorder_spec.get('max-traces')
-                    if max_traces is not None and len(files) > max_traces - 1:
-                        for filename in files[:-max_traces + 1]:
-                            filename = os.path.join(directory, filename)
-                            os.remove(filename)
-
-                    filename = 'trace-{}-{}.npz'.format(
-                        self.episodes, time.strftime('%Y%m%d-%H%M%S')
-                    )
-                    filename = os.path.join(directory, filename)
-                    self.record_states = util.fmap(
-                        function=np.concatenate, xs=self.record_states, depth=1
-                    )
-                    self.record_actions = util.fmap(
-                        function=np.concatenate, xs=self.record_actions, depth=1
-                    )
-                    self.record_terminal = np.concatenate(self.record_terminal)
-                    self.record_reward = np.concatenate(self.record_reward)
-                    np.savez_compressed(
-                        filename, **self.record_states, **self.record_actions,
-                        terminal=self.record_terminal, reward=self.record_reward
-                    )
-                    self.record_states = util.fmap(
-                        function=(lambda x: list()), xs=self.record_states, depth=1
-                    )
-                    self.record_actions = util.fmap(
-                        function=(lambda x: list()), xs=self.record_actions, depth=1
-                    )
-                    self.record_terminal = list()
-                    self.record_reward = list()
-                    self.num_episodes = 0
-
-        # Reset buffer index
-        self.buffer_indices[parallel] = 0
-
-        # Model.observe()
-        if query is None:
-            updated, self.episodes, self.updates = self.model.observe(
-                terminal=terminal, reward=reward, parallel=[parallel], **kwargs
-            )
-            return updated
-
-        else:
-            updated, self.episodes, self.updates, queried = self.model.observe(
-                terminal=terminal, reward=reward, parallel=[parallel], query=query,
-                **kwargs
-            )
-            return updated, queried
+        return num_updates
 
     def save(self, directory=None, filename=None, format='tensorflow', append=None):
         """
@@ -1097,9 +1071,7 @@ class ActonlyAgent(object):
                     auxiliaries[name + '_mask'] = states.pop(name + '_mask')
 
         # Normalize states dictionary
-        states = util.normalize_values(
-            value_type='state', values=states, values_spec=self.states_spec
-        )
+        states = util.input2tensor(value=states, spec=self.states_spec)
 
         # Model.act()
         fetches = (

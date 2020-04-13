@@ -13,8 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-from collections import OrderedDict
-
 import tensorflow as tf
 
 from tensorforce import util
@@ -43,16 +41,18 @@ class PolicyGradient(Objective):
         internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         auxiliaries_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        reward_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
         self, ratio_based=False, clipping_value=0.0, early_reduce=False, summary_labels=None,
-        name=None, states_spec=None, internals_spec=None, auxiliaries_spec=None, actions_spec=None
+        name=None, states_spec=None, internals_spec=None, auxiliaries_spec=None, actions_spec=None,
+        reward_spec=None
     ):
         super().__init__(
             summary_labels=summary_labels, name=name, states_spec=states_spec,
             internals_spec=internals_spec, auxiliaries_spec=auxiliaries_spec,
-            actions_spec=actions_spec
+            actions_spec=actions_spec, reward_spec=reward_spec
         )
 
         self.ratio_based = ratio_based
@@ -70,13 +70,13 @@ class PolicyGradient(Objective):
             return super().reference_spec()
 
         elif self.early_reduce:
-            return dict(type='float', shape=())
+            return TensorSpec(type='float', shape=())
 
         else:
             num_actions = 0
             for spec in self.parent.actions_spec.values():
-                num_actions += util.product(xs=spec['shape'])
-            return dict(type='float', shape=(num_actions,))
+                num_actions += util.product(xs=spec.shape)
+            return TensorSpec(type='float', shape=(num_actions,))
 
     @tf_function(num_args=6)
     def reference(self, states, horizons, internals, auxiliaries, actions, reward, policy):
@@ -101,12 +101,12 @@ class PolicyGradient(Objective):
             actions=actions, reduced=self.early_reduce, return_per_action=False
         )
 
-        zero = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
-        one = tf.constant(value=1.0, dtype=util.tf_dtype(dtype='float'))
+        zero = tf_util.constant(value=0.0, dtype='float')
+        one = tf_util.constant(value=1.0, dtype='float')
         clipping_value = self.clipping_value.value()
 
         if self.ratio_based:
-            scaling = tf.exp(x=(log_probability - tf.stop_gradient(input=reference)))
+            scaling = tf.math.exp(x=(log_probability - tf.stop_gradient(input=reference)))
             min_value = one / (one + clipping_value)
             max_value = one + clipping_value
 
@@ -125,7 +125,7 @@ class PolicyGradient(Objective):
             clipped_scaling = tf.clip_by_value(
                 t=scaling, clip_value_min=min_value, clip_value_max=max_value
             )
-            return tf.minimum(x=(scaling * reward), y=(clipped_scaling * reward))
+            return tf.math.minimum(x=(scaling * reward), y=(clipped_scaling * reward))
 
         skip_clipping = tf.math.equal(x=clipping_value, y=zero)
         scaled = self.cond(pred=skip_clipping, true_fn=no_clipping, false_fn=apply_clipping)

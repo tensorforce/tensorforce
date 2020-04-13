@@ -23,8 +23,6 @@ from test.unittest_base import UnittestBase
 
 class TestSeed(UnittestBase, unittest.TestCase):
 
-    require_observe = True
-
     def test_seed(self):
         self.start_tests()
 

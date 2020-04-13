@@ -15,7 +15,7 @@
 
 import tensorflow as tf
 
-from tensorforce.core import tf_function
+from tensorforce.core import TensorSpec, tf_function
 from tensorforce.core.layers import TransformationBase
 
 
@@ -24,53 +24,64 @@ class Dense(TransformationBase):
     Dense fully-connected layer (specification key: `dense`).
 
     Args:
-        name (string): Layer name
-            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         size (int >= 0): Layer output size, 0 implies additionally removing the axis
             (<span style="color:#C00000"><b>required</b></span>).
         bias (bool): Whether to add a trainable bias variable
             (<span style="color:#00C000"><b>default</b></span>: true).
         activation ('crelu' | 'elu' | 'leaky-relu' | 'none' | 'relu' | 'selu' | 'sigmoid' |
             'softmax' | 'softplus' | 'softsign' | 'swish' | 'tanh'): Activation nonlinearity
-            (<span style="color:#00C000"><b>default</b></span>: "relu").
+            (<span style="color:#00C000"><b>default</b></span>: tanh).
         dropout (parameter, 0.0 <= float < 1.0): Dropout rate
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
         vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
-        input_spec (specification): Input tensor specification
-            (<span style="color:#00C000"><b>internal use</b></span>).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): Layer name
+            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
+        input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
+    def __init__(
+        self, size, bias=False, activation='tanh', dropout=0.0, vars_trainable=True,
+        summary_labels=None, l2_regularization=None, name=None, input_spec=None
+    ):
+        super().__init__(
+            size=size, bias=bias, activation=activation, dropout=dropout,
+            vars_trainable=vars_trainable, summary_labels=summary_labels,
+            l2_regularization=l2_regularization, name=name, input_spec=input_spec
+        )
+
     def default_input_spec(self):
-        return dict(type='float', shape=(0,))
+        return TensorSpec(type='float', shape=(0,))
 
     def output_spec(self):
         output_spec = super().output_spec()
 
         if self.squeeze:
-            output_spec['shape'] = output_spec['shape'][:-1]
+            output_spec.shape = output_spec.shape[:-1]
         else:
-            output_spec['shape'] = output_spec['shape'][:-1] + (self.size,)
-        output_spec.pop('min_value', None)
-        output_spec.pop('max_value', None)
+            output_spec.shape = output_spec.shape[:-1] + (self.size,)
+
+        output_spec.min_value = None
+        output_spec.max_value = None
 
         return output_spec
 
-    def tf_initialize(self):
-        super().tf_initialize()
+    def initialize(self):
+        super().initialize()
+
+        in_size = self.input_spec.shape[0]
 
         initializer = 'orthogonal'
         if self.activation is not None and self.activation.nonlinearity == 'relu':
             initializer += '-relu'
 
-        in_size = self.input_spec['shape'][0]
-        self.weights = self.add_variable(
-            name='weights', dtype='float', shape=(in_size, self.size),
-            is_trainable=self.vars_trainable, initializer=initializer
+        self.weights = self.variable(
+            name='weights', dtype='float', shape=(in_size, self.size), initializer=initializer,
+            is_trainable=self.vars_trainable, is_saved=True
         )
 
     @tf_function(num_args=1)

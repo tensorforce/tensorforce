@@ -17,13 +17,7 @@ import logging
 import os
 
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-
-
-import tensorflow as tf
-
-
-tf.compat.v1.disable_eager_execution()
+# os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
 from tensorforce.exception import TensorforceError

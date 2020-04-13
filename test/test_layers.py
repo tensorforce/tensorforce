@@ -125,7 +125,7 @@ class TestLayers(UnittestBase, unittest.TestCase):
             dict(type='exponential_normalization'),
             dict(type='instance_normalization')
         ]
-        self.unittest(states=states, require_observe=True, policy=dict(network=network))
+        self.unittest(states=states, policy=dict(network=network))
 
     def test_pooling(self):
         self.start_tests(name='pooling')
@@ -165,7 +165,7 @@ class TestLayers(UnittestBase, unittest.TestCase):
         )
         network = [dict(type='reshape', shape=8)]
         agent, environment = self.prepare(
-            min_timesteps=4, states=states, require_all=True, policy=dict(network=network),
+            min_timesteps=4, states=states, policy=dict(network=network),
             preprocessing=preprocessing
         )
 

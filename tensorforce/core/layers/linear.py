@@ -13,11 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 
+import tensorflow as tf
+
 from tensorforce import TensorforceError
-from tensorforce.core import tf_function
-from tensorforce.core.layers import Layer
-from tensorforce.core.layers.dense import Dense
-from tensorforce.core.layers.convolution import Conv1d, Conv2d
+from tensorforce.core import tf_function, TensorSpec
+from tensorforce.core.layers import Conv1d, Conv2d, Dense, Layer
 
 
 class Linear(Layer):
@@ -25,58 +25,61 @@ class Linear(Layer):
     Linear layer (specification key: `linear`).
 
     Args:
-        name (string): Layer name
-            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         size (int >= 0): Layer output size, 0 implies additionally removing the axis
             (<span style="color:#C00000"><b>required</b></span>).
         bias (bool): Whether to add a trainable bias variable
             (<span style="color:#00C000"><b>default</b></span>: true).
         vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
-        input_spec (specification): Input tensor specification
-            (<span style="color:#00C000"><b>internal use</b></span>).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): Layer name
+            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
+        input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
     def __init__(
-        self, name, size, bias=True, vars_trainable=True, input_spec=None, summary_labels=None,
-        l2_regularization=None
+        self, size, bias=True, vars_trainable=True, summary_labels=None, l2_regularization=None,
+        name=None, input_spec=None
     ):
         super().__init__(
-            name=name, input_spec=input_spec, summary_labels=summary_labels,
-            l2_regularization=l2_regularization
+            summary_labels=summary_labels, l2_regularization=l2_regularization, name=name,
+            input_spec=input_spec
         )
 
-        if len(self.input_spec['shape']) == 1:
+        if len(self.input_spec.shape) <= 1:
             self.linear = self.add_module(
                 name='linear', module=Dense, size=size, bias=bias, activation=None, dropout=0.0,
                 vars_trainable=vars_trainable, input_spec=self.input_spec
             )
-
-        elif len(self.input_spec['shape']) == 2:
+        elif len(self.input_spec.shape) == 2:
             self.linear = self.add_module(
                 name='linear', module=Conv1d, size=size, window=1, bias=bias, activation=None,
                 dropout=0.0, vars_trainable=vars_trainable, input_spec=self.input_spec
             )
-
-        elif len(self.input_spec['shape']) == 3:
+        elif len(self.input_spec.shape) == 3:
             self.linear = self.add_module(
                 name='linear', module=Conv2d, size=size, window=1, bias=bias, activation=None,
                 dropout=0.0, vars_trainable=vars_trainable, input_spec=self.input_spec
             )
-
         else:
-            raise TensorforceError.unexpected()
+            raise TensorforceError.value(
+                name='Linear', argument='input rank', value=len(self.input_spec.shape), hint='<= 3'
+            )
 
     def default_input_spec(self):
-        return dict(type='float', shape=None)
+        return TensorSpec(type='float', shape=None)
 
     def output_spec(self):
         return self.linear.output_spec()
 
     @tf_function(num_args=1)
     def apply(self, x):
-        return self.linear.apply(x=x)
+        if len(self.input_spec.shape) == 0:
+            x = tf.expand_dims(input=x, axis=1)
+
+        x = self.linear.apply(x=x)
+
+        return super().apply(x=x)

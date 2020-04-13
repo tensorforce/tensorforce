@@ -15,8 +15,7 @@
 
 import tensorflow as tf
 
-from tensorforce import util
-from tensorforce.core import tf_function
+from tensorforce.core import tf_function, tf_util
 from tensorforce.core.memories import Queue
 
 
@@ -25,27 +24,25 @@ class Recent(Queue):
     Batching memory which always retrieves most recent experiences (specification key: `recent`).
 
     Args:
-        name (string): Memory name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         capacity (int > 0): Memory capacity
             (<span style="color:#00C000"><b>default</b></span>: minimum capacity).
-        values_spec (specification): Values specification
-            (<span style="color:#0000C0"><b>internal use</b></span>).
-        min_capacity (int >= 0): Minimum memory capacity
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         device (string): Device name
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+            (<span style="color:#00C000"><b>default</b></span>: CPU:0).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): <span style="color:#0000C0"><b>internal use</b></span>.
+        values_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        min_capacity (int >= 0): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     @tf_function(num_args=3)
     def retrieve_timesteps(self, n, past_horizon, future_horizon):
-        one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
-        capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))
+        one = tf_util.constant(value=1, dtype='int')
+        capacity = tf_util.constant(value=self.capacity, dtype='int')
 
         # Check whether memory contains at least one valid timestep
-        num_timesteps = tf.minimum(x=self.buffer_index, y=capacity) - past_horizon - future_horizon
+        num_timesteps = tf.math.minimum(x=self.buffer_index, y=capacity)
+        num_timesteps -= past_horizon + future_horizon
         assertion = tf.debugging.assert_greater_equal(x=num_timesteps, y=one)
 
         # Most recent timestep indices range
@@ -57,9 +54,9 @@ class Recent(Queue):
 
     @tf_function(num_args=1)
     def retrieve_episodes(self, n):
-        zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
-        one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
-        capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))
+        zero = tf_util.constant(value=0, dtype='int')
+        one = tf_util.constant(value=1, dtype='int')
+        capacity = tf_util.constant(value=self.capacity, dtype='int')
 
         # Check whether memory contains at least one episode
         assertion = tf.debugging.assert_greater_equal(x=self.episode_count, y=one)

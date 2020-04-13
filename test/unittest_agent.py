@@ -23,8 +23,6 @@ class UnittestAgent(UnittestBase):
     Collection of unit-tests for agent functionality.
     """
 
-    require_observe = True
-
     replacement_action = 'bool'
     has_experience = True
     has_update = True
@@ -53,7 +51,6 @@ class UnittestAgent(UnittestBase):
             agent, environment = self.prepare(
                 # min_timesteps=2,  # too few steps for update otherwise
                 # states=states, actions=actions,
-                require_all=True,
                 # policy=dict(network=dict(type='auto', size=8, depth=1, rnn=2)),
                 # update=1
                 # TODO: shouldn't be necessary!

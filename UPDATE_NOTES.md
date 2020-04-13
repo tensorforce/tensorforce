@@ -17,6 +17,9 @@ This file records all major updates and new features, starting from version 0.5.
 - Auto network `internal_rnn` --> `rnn`
 - internal_rnn `length` --> `horizon`
 - renamed reward summaries
+- Combined long and int types
+- Removed execution arg, moved buffer_observe/seed to config
+- Default memory device CPU:0
 
 
 

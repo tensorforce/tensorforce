@@ -15,7 +15,7 @@
 
 import tensorflow as tf
 
-from tensorforce import util
+from tensorforce.core import tf_util
 from tensorforce.core.parameters import Parameter
 
 
@@ -211,7 +211,7 @@ class Decaying(Parameter):
         else:
             min_value, max_value = self.scale * max_value, self.scale * min_value
 
-        return util.py_dtype(dtype=self.dtype)(min_value)
+        return self.spec.py_type()(min_value)
 
     def max_value(self):
         if self.decay == 'cosine' or self.decay == 'cosine_restarts':
@@ -275,7 +275,7 @@ class Decaying(Parameter):
         else:
             min_value, max_value = self.scale * max_value, self.scale * min_value
 
-        return util.py_dtype(dtype=self.dtype)(max_value)
+        return self.spec.py_type()(max_value)
 
     def final_value(self):
         if self.decay == 'cosine' or self.decay == 'cosine_restarts':
@@ -311,10 +311,10 @@ class Decaying(Parameter):
         if self.scale != 1.0:
             value = value * self.scale
 
-        return util.py_dtype(dtype=self.dtype)(value)
+        return self.spec.py_type()(value)
 
     def parameter_value(self, step):
-        initial_value = tf.constant(value=self.initial_value, dtype=util.tf_dtype(dtype='float'))
+        initial_value = tf_util.constant(value=self.initial_value, dtype='float')
 
         if self.decay == 'cosine':
             assert 0.0 <= self.kwargs.get('alpha', 0.0) <= 1.0
@@ -372,18 +372,17 @@ class Decaying(Parameter):
             )(step=step)
 
         if self.increasing:
-            one = tf.constant(value=1.0, dtype=util.tf_dtype(dtype='float'))
+            one = tf_util.constant(value=1.0, dtype='float')
             parameter = one - parameter
 
         if self.inverse:
-            one = tf.constant(value=1.0, dtype=util.tf_dtype(dtype='float'))
+            one = tf_util.constant(value=1.0, dtype='float')
             parameter = one / parameter
 
         if self.scale != 1.0:
-            scale = tf.constant(value=self.scale, dtype=util.tf_dtype(dtype='float'))
+            scale = tf_util.constant(value=self.scale, dtype='float')
             parameter = parameter * scale
 
-        if self.dtype != 'float':
-            parameter = tf.dtypes.cast(x=parameter, dtype=util.tf_dtype(dtype=self.dtype))
+        parameter = tf_util.cast(x=parameter, dtype=self.spec.type)
 
         return parameter

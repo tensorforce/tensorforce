@@ -18,7 +18,7 @@ from functools import partial
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core import parameter_modules, tf_function
+from tensorforce.core import parameter_modules, tf_function, tf_util
 from tensorforce.core.optimizers import Optimizer
 
 
@@ -67,10 +67,7 @@ class TFOptimizer(Optimizer):
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
-        states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        auxiliaries_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         optimized_module (module): <span style="color:#0000C0"><b>internal use</b></span>.
         kwargs: Arguments for the TensorFlow optimizer, special values "decoupled_weight_decay",
             "lookahead" and "moving_average", see
@@ -81,13 +78,11 @@ class TFOptimizer(Optimizer):
 
     def __init__(
         self, optimizer, learning_rate=3e-4, gradient_norm_clipping=1.0, summary_labels=None,
-        name=None, states_spec=None, internals_spec=None, auxiliaries_spec=None, actions_spec=None,
-        optimized_module=None, **kwargs
+        name=None, arguments_spec=None, optimized_module=None, **kwargs
     ):
         super().__init__(
-            summary_labels=summary_labels, name=name, states_spec=states_spec,
-            internals_spec=internals_spec, auxiliaries_spec=auxiliaries_spec,
-            actions_spec=actions_spec, optimized_module=optimized_module
+            summary_labels=summary_labels, name=name, arguments_spec=arguments_spec,
+            optimized_module=optimized_module
         )
 
         assert optimizer in tensorflow_optimizers
@@ -102,6 +97,11 @@ class TFOptimizer(Optimizer):
         )
         self.optimizer_kwargs = kwargs
 
+        def compose(function1, function2):
+            def composed(*args, **kwargs):
+                return function1(function2(*args, **kwargs))
+            return composed
+
         if 'decoupled_weight_decay' in self.optimizer_kwargs:
             decoupled_weight_decay = self.optimizer_kwargs.pop('decoupled_weight_decay')
             self.optimizer = partial(
@@ -113,7 +113,7 @@ class TFOptimizer(Optimizer):
             if isinstance(lookahead, dict) or lookahead is True:
                 if lookahead is True:
                     lookahead = dict()
-                self.optimizer = util.compose(
+                self.optimizer = compose(
                     function1=partial(tfa.optimizers.Lookahead, name=self.name, **lookahead),
                     function2=self.optimizer
                 )
@@ -122,13 +122,13 @@ class TFOptimizer(Optimizer):
             if isinstance(moving_avg, dict) or moving_avg is True:
                 if moving_avg is True:
                     moving_avg = dict()
-                self.optimizer = util.compose(
+                self.optimizer = compose(
                     function1=partial(tfa.optimizers.MovingAverage, name=self.name, **moving_avg),
                     function2=self.optimizer
                 )
 
-    def tf_initialize(self):
-        super().tf_initialize()
+    def initialize(self):
+        super().initialize()
 
         self.optimizer = self.optimizer(
             learning_rate=self.learning_rate.value, name=self.name, **self.optimizer_kwargs
@@ -136,24 +136,25 @@ class TFOptimizer(Optimizer):
 
     @tf_function(num_args=1)
     def step(self, arguments, variables, fn_loss, fn_initial_gradients=None, **kwargs):
-        arguments = util.fmap(function=tf.stop_gradient, xs=arguments)
+        # Trivial operation to enforce control dependency
+        previous_variables = util.fmap(function=tf_util.identity, xs=variables)
 
-        loss = fn_loss(**arguments)
-
-        # Force loss value and attached control flow to be computed.
-        with tf.control_dependencies(control_inputs=(loss,)):
-            # Trivial operation to enforce control dependency
-            previous_variables = util.fmap(function=util.identity_operation, xs=variables)
-
-        # Get variables before update.
+        # Remember variables before update
         with tf.control_dependencies(control_inputs=previous_variables):
             if fn_initial_gradients is None:
                 initial_gradients = None
             else:
                 initial_gradients = fn_initial_gradients(**arguments)
-                initial_gradients = tf.stop_gradient(input=initial_gradients)
+                # initial_gradients = tf.stop_gradient(input=initial_gradients)   ???
 
-            gradients = tf.gradients(ys=loss, xs=variables, grad_ys=initial_gradients)
+            # gradients = tf.gradients(ys=loss, xs=variables, grad_ys=initial_gradients)
+            with tf.GradientTape(persistent=False, watch_accessed_variables=False) as tape:
+                for variable in variables:
+                    tape.watch(tensor=variable)
+
+                loss = fn_loss(**arguments)
+
+            gradients = tape.gradient(target=loss, sources=variables, output_gradients=None)
 
             actual_variables = list()
             actual_gradients = list()

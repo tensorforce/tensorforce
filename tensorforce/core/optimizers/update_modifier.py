@@ -28,26 +28,19 @@ class UpdateModifier(Optimizer):
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
-        states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        auxiliaries_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         optimized_module (module): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
-        self, optimizer, summary_labels=None, name=None, states_spec=None, internals_spec=None,
-        auxiliaries_spec=None, actions_spec=None, optimized_module=None
+        self, optimizer, summary_labels=None, name=None, arguments_spec=None, optimized_module=None
     ):
         super().__init__(
-            summary_labels=summary_labels, name=name, states_spec=states_spec,
-            internals_spec=internals_spec, auxiliaries_spec=auxiliaries_spec,
-            actions_spec=actions_spec, optimized_module=optimized_module
+            summary_labels=summary_labels, name=name, arguments_spec=arguments_spec,
+            optimized_module=optimized_module
         )
 
         self.optimizer = self.add_module(
             name='optimizer', module=optimizer, modules=tensorforce.core.optimizer_modules,
-            states_spec=self.states_spec, internals_spec=self.internals_spec,
-            auxiliaries_spec=self.auxiliaries_spec, actions_spec=self.actions_spec,
-            optimized_module=self.optimized_module
+            arguments_spec=self.arguments_spec, optimized_module=self.optimized_module
         )

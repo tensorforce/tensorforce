@@ -13,14 +13,9 @@
 # limitations under the License.
 # ==============================================================================
 
-from collections import OrderedDict
-
-import tensorflow as tf
-
 from tensorforce import TensorforceError, util
-from tensorforce.core import distribution_modules, layer_modules, Module, network_modules, \
-    tf_function
-from tensorforce.core.networks import Network
+from tensorforce.core import distribution_modules, layer_modules, ModuleDict, network_modules, \
+    TensorDict, tf_function
 from tensorforce.core.policies import Stochastic, ActionValue
 
 
@@ -75,31 +70,31 @@ class ParametrizedDistributions(Stochastic, ActionValue):
             name='network', module=network, modules=network_modules, inputs_spec=self.states_spec
         )
         output_spec = self.network.output_spec()
-        if output_spec['type'] != 'float':
-            raise TensorforceError(
-                "Invalid output type for network: {}.".format(output_spec['type'])
+        if output_spec.type != 'float':
+            raise TensorforceError.type(
+                name='ParametrizedDistributions', argument='network output', dtype=output_spec.type
             )
-        embedding_shape = output_spec['shape']
 
         # Distributions
-        self.distributions = OrderedDict()
+        self.distributions = ModuleDict()
         for name, spec in self.actions_spec.items():
-            if spec['type'] == 'bool':
+            if spec.type == 'bool':
                 default_module = 'bernoulli'
-            elif spec['type'] == 'int':
+            elif spec.type == 'int':
+                assert spec.num_values is not None
                 default_module = 'categorical'
-            elif spec['type'] == 'float':
-                default_module = 'beta' if 'min_value' in spec else 'gaussian'
+            elif spec.type == 'float':
+                default_module = 'gaussian' if spec.min_value is None else 'beta'
 
             if distributions is None:
                 module = None
             else:
                 module = dict()
-                if spec['type'] in distributions:
-                    if isinstance(distributions[spec['type']], str):
-                        module = distributions[spec['type']]
+                if spec.type in distributions:
+                    if isinstance(distributions[spec.type], str):
+                        module = distributions[spec.type]
                     else:
-                        module.update(distributions[spec['type']])
+                        module.update(distributions[spec.type])
                 if name in distributions:
                     if isinstance(distributions[name], str):
                         module = distributions[name]
@@ -108,7 +103,7 @@ class ParametrizedDistributions(Stochastic, ActionValue):
 
             self.distributions[name] = self.add_module(
                 name=(name + '_distribution'), module=module, modules=distribution_modules,
-                default_module=default_module, action_spec=spec, embedding_shape=embedding_shape
+                default_module=default_module, action_spec=spec, input_spec=output_spec
             )
 
         # States value
@@ -120,35 +115,12 @@ class ParametrizedDistributions(Stochastic, ActionValue):
                 input_spec=output_spec
             )
 
-    # (requires network as first argument)
-    @classmethod
-    def internals_spec(cls, network='auto', policy=None, **kwargs):
-        internals_spec = super().internals_spec()
-
-        if policy is None:
-            assert 'name' in kwargs and 'states_spec' in kwargs
-            network_cls, network_args, network_kwargs = Module.get_module_class_and_args(
-                name='network', module=network, modules=network_modules,
-                inputs_spec=kwargs['states_spec']
-            )
-
-            for name, spec in network_cls.internals_spec(*network_args, **network_kwargs).items():
-                internals_spec['{}-{}'.format(kwargs['name'], name)] = spec
-
-        else:
-            assert network == 'auto' and len(kwargs) == 0
-            for name, spec in policy.network.internals_spec(network=policy.network).items():
-                internals_spec['{}-{}'.format(policy.name, name)] = spec
-
-        return internals_spec
+    @property
+    def internals_spec(self):
+        return self.network.internals_spec
 
     def internals_init(self):
-        internals_init = super().internals_init()
-
-        for name, init in self.network.internals_init().items():
-            internals_init['{}-{}'.format(self.name, name)] = init
-
-        return internals_init
+        return self.network.internals_init()
 
     def max_past_horizon(self, on_policy):
         return self.network.max_past_horizon(on_policy=on_policy)
@@ -158,37 +130,30 @@ class ParametrizedDistributions(Stochastic, ActionValue):
         return self.network.past_horizon(on_policy=on_policy)
 
     @tf_function(num_args=4)
-    def act(self, states, horizons, internals, auxiliaries, return_internals):
+    def act(self, states, horizons, internals, auxiliaries, deterministic, return_internals):
         return Stochastic.act(
             self=self, states=states, horizons=horizons, internals=internals,
-            auxiliaries=auxiliaries, return_internals=return_internals
+            auxiliaries=auxiliaries, deterministic=deterministic, return_internals=return_internals
         )
 
     @tf_function(num_args=5)
     def sample_actions(
         self, states, horizons, internals, auxiliaries, temperatures, return_internals
     ):
-        internals = util.fmap(
-            function=(lambda x: x[len(self.name) + 1:]), xs=internals, depth=1, map_keys=True
-        )
-
         if return_internals:
             embedding, internals = self.network.apply(
                 x=states, horizons=horizons, internals=internals, return_internals=True
-            )
-            internals = util.fmap(
-                function=(lambda x: self.name + '-' + x), xs=internals, depth=1, map_keys=True
             )
         else:
             embedding = self.network.apply(
                 x=states, horizons=horizons, internals=internals, return_internals=False
             )
 
-        actions = OrderedDict()
+        actions = TensorDict()
         for name, spec, distribution, temperature in util.zip_items(
             self.actions_spec, self.distributions, temperatures
         ):
-            if spec['type'] == 'int':
+            if spec.type == 'int':
                 mask = auxiliaries[name + '_mask']
                 parameters = distribution.parametrize(x=embedding, mask=mask)
             else:
@@ -202,17 +167,13 @@ class ParametrizedDistributions(Stochastic, ActionValue):
 
     @tf_function(num_args=5)
     def log_probabilities(self, states, horizons, internals, auxiliaries, actions):
-        internals = util.fmap(
-            function=(lambda x: x[len(self.name) + 1:]), xs=internals, depth=1, map_keys=True
-        )
-
         embedding = self.network.apply(
             x=states, horizons=horizons, internals=internals, return_internals=False
         )
 
-        log_probabilities = OrderedDict()
+        log_probabilities = TensorDict()
         for name, spec, distribution in util.zip_items(self.actions_spec, self.distributions):
-            if spec['type'] == 'int':
+            if spec.type == 'int':
                 mask = auxiliaries[name + '_mask']
                 parameters = distribution.parametrize(x=embedding, mask=mask)
             else:
@@ -225,17 +186,13 @@ class ParametrizedDistributions(Stochastic, ActionValue):
 
     @tf_function(num_args=4)
     def entropies(self, states, horizons, internals, auxiliaries):
-        internals = util.fmap(
-            function=(lambda x: x[len(self.name) + 1:]), xs=internals, depth=1, map_keys=True
-        )
-
         embedding = self.network.apply(
             x=states, horizons=horizons, internals=internals, return_internals=False
         )
 
-        entropies = OrderedDict()
+        entropies = TensorDict()
         for name, spec, distribution in util.zip_items(self.actions_spec, self.distributions):
-            if spec['type'] == 'int':
+            if spec.type == 'int':
                 mask = auxiliaries[name + '_mask']
                 parameters = distribution.parametrize(x=embedding, mask=mask)
             else:
@@ -250,7 +207,7 @@ class ParametrizedDistributions(Stochastic, ActionValue):
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries
         )
 
-        kl_divergences = OrderedDict()
+        kl_divergences = TensorDict()
         for name, distribution in self.distributions.items():
             kl_divergences[name] = distribution.kl_divergence(
                 parameters1=parameters[name], parameters2=other[name]
@@ -260,17 +217,13 @@ class ParametrizedDistributions(Stochastic, ActionValue):
 
     @tf_function(num_args=4)
     def kldiv_reference(self, states, horizons, internals, auxiliaries):
-        internals = util.fmap(
-            function=(lambda x: x[len(self.name) + 1:]), xs=internals, depth=1, map_keys=True
-        )
-
         embedding = self.network.apply(
             x=states, horizons=horizons, internals=internals, return_internals=False
         )
 
-        kldiv_reference = OrderedDict()
+        kldiv_reference = TensorDict()
         for name, spec, distribution in util.zip_items(self.actions_spec, self.distributions):
-            if spec['type'] == 'int':
+            if spec.type == 'int':
                 mask = auxiliaries[name + '_mask']
                 kldiv_reference[name] = distribution.parametrize(x=embedding, mask=mask)
             else:
@@ -280,17 +233,13 @@ class ParametrizedDistributions(Stochastic, ActionValue):
 
     @tf_function(num_args=4)
     def states_values(self, states, horizons, internals, auxiliaries):
-        internals = util.fmap(
-            function=(lambda x: x[len(self.name) + 1:]), xs=internals, depth=1, map_keys=True
-        )
-
         embedding = self.network.apply(
             x=states, horizons=horizons, internals=internals, return_internals=False
         )
 
-        states_values = OrderedDict()
+        states_values = TensorDict()
         for name, spec, distribution in util.zip_items(self.actions_spec, self.distributions):
-            if spec['type'] == 'int':
+            if spec.type == 'int':
                 mask = auxiliaries[name + '_mask']
                 parameters = distribution.parametrize(x=embedding, mask=mask)
             else:
@@ -313,10 +262,6 @@ class ParametrizedDistributions(Stochastic, ActionValue):
             if not reduced or return_per_action:
                 raise TensorforceError.invalid(name='policy.states_value', argument='reduced')
 
-            internals = util.fmap(
-                function=(lambda x: x[len(self.name) + 1:]), xs=internals, depth=1, map_keys=True
-            )
-
             embedding = self.network.apply(
                 x=states, horizons=horizons, internals=internals, return_internals=False
             )
@@ -327,19 +272,15 @@ class ParametrizedDistributions(Stochastic, ActionValue):
 
     @tf_function(num_args=5)
     def actions_values(self, states, horizons, internals, auxiliaries, actions):
-        internals = util.fmap(
-            function=(lambda x: x[len(self.name) + 1:]), xs=internals, depth=1, map_keys=True
-        )
-
         embedding = self.network.apply(
             x=states, horizons=horizons, internals=internals, return_internals=False
         )
 
-        actions_values = OrderedDict()
+        actions_values = TensorDict()
         for name, spec, distribution, action in util.zip_items(
             self.actions_spec, self.distributions, actions
         ):
-            if spec['type'] == 'int':
+            if spec.type == 'int':
                 mask = auxiliaries[name + '_mask']
                 parameters = distribution.parametrize(x=embedding, mask=mask)
             else:

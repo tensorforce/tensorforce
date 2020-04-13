@@ -15,6 +15,7 @@
 
 from tensorforce.core.networks.network import Network, LayerbasedNetwork, LayeredNetwork
 
+# Require LayerbasedNetwork
 from tensorforce.core.networks.auto import AutoNetwork
 from tensorforce.core.networks.preprocessor import Preprocessor
 

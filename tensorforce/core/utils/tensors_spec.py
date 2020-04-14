@@ -25,7 +25,7 @@ class TensorsSpec(NestedDict):
         super().__init__(*args, value_type=TensorSpec, overwrite=False, **kwargs)
 
     def signature(self, batched):
-        return [spec.signature(batched=batched) for spec in super().values()]
+        return [spec.signature(batched=batched) for spec in super(NestedDict, self).values()]
 
     def tf_assert(self, x, batch_size=None, include_type_shape=False, message=None):
         if not isinstance(x, TensorDict):

@@ -175,6 +175,11 @@ class NestedDict(OrderedDict):
                 )
             super().__setitem__(key, value)
 
+    def __repr__(self):
+        return '{type}({items})'.format(type=self.__class__.__name__, items=', '.join(
+            '{key}={value}'.format(key=key, value=value) for key, value in super().items()
+        ))
+
     def item(self):
         return next(iter(self.values()))
 
@@ -199,6 +204,8 @@ class NestedDict(OrderedDict):
                 self[key] = value
         for key, value in kwargs.items():
             self[key] = value
+
+    __str__ = __repr__
 
     has_key = __contains__
 

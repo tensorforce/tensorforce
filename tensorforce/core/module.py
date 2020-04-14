@@ -121,7 +121,7 @@ def tf_function(num_args):
                             self, *args, **spec_kwargs
                         )
                     else:
-                        graph_kwargs = {name: value.from_list(xs=arg) if isinstance(value, TensorDict) else value for (name, value), arg in zip(kwargs.items(), args)}
+                        graph_kwargs = {name: value.from_list(xs=arg) if isinstance(value, TensorDict) else value for (name, value), arg in zip(list(kwargs.items())[:num_args], args)}
                         results = Module.with_name_scope(method=function)(
                             self, **graph_kwargs, **spec_kwargs
                         )

@@ -16,8 +16,8 @@
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core import memory_modules, Module, optimizer_modules, parameter_modules, \
-    TensorSpec, TensorsSpec, tf_function, tf_util
+from tensorforce.core import memory_modules, optimizer_modules, parameter_modules, TensorSpec, \
+    TensorsSpec, tf_function, tf_util
 from tensorforce.core.estimators import Estimator
 from tensorforce.core.models import Model
 from tensorforce.core.networks import Preprocessor
@@ -51,7 +51,7 @@ class TensorforceModel(Model):
                     name=('return_preprocessing'), module=Preprocessor, is_trainable=False,
                     input_spec=self.reward_spec, layers=preprocessing['return']
                 )
-                if self.preprocessing['return'].get_output_spec() != reward_spec:
+                if self.preprocessing['return'].get_output_spec() != self.reward_spec:
                     raise TensorforceError.mismatch(
                         name='preprocessing', argument='return output spec',
                         value1=self.preprocessing['return'].get_output_spec(),
@@ -60,7 +60,7 @@ class TensorforceModel(Model):
             if 'advantage' in preprocessing:
                 self.preprocessing['advantage'] = self.add_module(
                     name=('advantage_preprocessing'), module=Preprocessor, is_trainable=False,
-                    input_spec=reward_spec, layers=preprocessing['advantage']
+                    input_spec=self.reward_spec, layers=preprocessing['advantage']
                 )
                 if self.preprocessing['advantage'].get_output_spec() != self.reward_spec:
                     raise TensorforceError.mismatch(
@@ -192,9 +192,9 @@ class TensorforceModel(Model):
         self.optimizer = self.add_module(
             name='optimizer', module=optimizer, modules=optimizer_modules, optimized_module=self,
             arguments_spec=TensorsSpec(
-                    states=self.states_spec, horizons=TensorSpec(type='int', shape=(2,)),
-                    internals=internals_spec, auxiliaries_spec=self.auxiliaries_spec,
-                    actions_spec=self.actions_spec, reward_spec=self.reward_spec
+                states=self.states_spec, horizons=TensorSpec(type='int', shape=(2,)),
+                internals=internals_spec, auxiliaries_spec=self.auxiliaries_spec,
+                actions_spec=self.actions_spec, reward_spec=self.reward_spec
             )
         )
 
@@ -553,10 +553,10 @@ class TensorforceModel(Model):
 
         def true_fn():
             reset_values = self.estimator.reset(baseline=self.baseline)
-            new_overwritten_values = TensorsDict()
+            new_overwritten_values = TensorDict()
             for name, value1, value2 in util.zip_items(overwritten_values, reset_values):
                 if util.is_nested(name=name):
-                    new_overwritten_values[name] = TensorsDict()
+                    new_overwritten_values[name] = TensorDict()
                     for inner_name, value1, value2 in util.zip_items(value1, value2):
                         new_overwritten_values[name][inner_name] = tf.concat(
                             values=(value1, value2), axis=0

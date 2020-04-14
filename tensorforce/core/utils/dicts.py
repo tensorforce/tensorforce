@@ -40,13 +40,13 @@ class TensorDict(NestedDict):
     def to_list(self):
         return [
             value.to_list() if isinstance(value, TensorDict) else value
-            for value in super().values()
+            for value in super(NestedDict, self).values()
         ]
 
     def from_list(self, xs):
         return TensorDict((
             (name, value.from_list(xs=x) if isinstance(value, TensorDict) else x)
-            for (name, value), x in zip(super().items(), xs)
+            for (name, value), x in zip(super(NestedDict, self).items(), xs)
         ))
 
 

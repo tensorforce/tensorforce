@@ -611,24 +611,32 @@ class Model(Module):
             y=tf.math.greater(x=terminal[-1], y=zero),
             message="Agent.observe: terminal is not the last input timestep."
         ))
+        # Assertion: single parallel value
+        dependencies.append(tf.debugging.assert_equal(
+            x=tf_util.cast(x=tf.shape(input=parallel)[0], dtype='int'), y=one,
+            message="Agent.observe: parallel contains more than one value."
+        ))
 
         with tf.control_dependencies(control_inputs=dependencies):
             dependencies = list()
             reward = self.add_summary(label=('reward', 'rewards'), name='reward', tensor=reward)
             dependencies.append(self.episode_reward.scatter_nd_add(
-                indices=parallel, updates=tf.math.reduce_sum(input_tensor=reward, keepdims=True)
+                indices=tf.expand_dims(input=parallel, axis=1),
+                updates=tf.math.reduce_sum(input_tensor=reward, keepdims=True)
             ))
 
             # Reset episode reward
             # TODO: Check whether multiple writes overwrite the summary value
             def reset_episode_reward():
-                zero_float = tf_util.constant(value=0.0, dtype='float')
+                zero_float = tf_util.constant(value=0.0, dtype='float', shape=(1,))
                 zero_float = self.add_summary(
                     label=('episode-reward', 'rewards'), name='episode-reward',
                     tensor=tf.gather(params=self.episode_reward, indices=parallel),
                     pass_tensors=zero_float
                 )
-                assignment = self.episode_reward.scatter_nd_update(indices=parallel, updates=zero_float)
+                assignment = self.episode_reward.scatter_nd_update(
+                    indices=tf.expand_dims(input=parallel, axis=1), updates=zero_float
+                )
                 with tf.control_dependencies(control_inputs=(assignment,)):
                     return tf.no_op()
 

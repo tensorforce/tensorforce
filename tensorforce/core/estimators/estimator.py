@@ -86,13 +86,13 @@ class Estimator(Module):
     def input_signature(self, function):
         if function == 'advantage':
             return [
-                TensorSpec(type='long', shape=()).signature(batched=True),
+                TensorSpec(type='int', shape=()).signature(batched=True),
                 self.values_spec['reward'].signature(batched=True)
             ]
 
         elif function == 'complete_return':
             return [
-                TensorSpec(type='long', shape=()).signature(batched=True),
+                TensorSpec(type='int', shape=()).signature(batched=True),
                 self.values_spec['reward'].signature(batched=True)
             ]
 
@@ -180,7 +180,7 @@ class Estimator(Module):
             # Check whether exactly one terminal (, unless empty?)
             assertions.append(
                 tf.debugging.assert_equal(
-                    x=tf.math.count_nonzero(input=terminal, dtype=tf_util.get_dtype(type='long')),
+                    x=tf.math.count_nonzero(input=terminal, dtype=tf_util.get_dtype(type='int')),
                     y=one, message="Timesteps do not contain exactly one terminal."
                 )
             )
@@ -209,13 +209,13 @@ class Estimator(Module):
 
             # Baseline estimate
             horizon_start = num_values - tf.math.maximum(x=(num_values - horizon), y=one)
-            _states = TensorsDict()
+            _states = TensorDict()
             for name, state in states.items():
                 _states[name] = state[horizon_start:]
-            _internals = TensorsDict()
-            for name in baseline.__class__.internals_spec(policy=baseline):
+            _internals = TensorDict()
+            for name in baseline.internals_spec:
                 _internals[name] = internals[name][horizon_start:]
-            _auxiliaries = TensorsDict()
+            _auxiliaries = TensorDict()
             for name, auxiliary in auxiliaries.items():
                 _auxiliaries[name] = auxiliary[horizon_start:]
 
@@ -226,7 +226,7 @@ class Estimator(Module):
                 horizons = tf.stack(values=(starts, lengths), axis=1)
 
             if self.estimate_actions:
-                _actions = TensorsDict()
+                _actions = TensorDict()
                 for name, action in actions.items():
                     _actions[name] = action[horizon_start:]
                 horizon_estimate = baseline.actions_value(
@@ -313,7 +313,7 @@ class Estimator(Module):
         # Check whether at most one terminal
         assertions.append(
             tf.debugging.assert_less_equal(
-                x=tf.math.count_nonzero(input=terminal, dtype=tf_util.get_dtype(type='long')),
+                x=tf.math.count_nonzero(input=terminal, dtype=tf_util.get_dtype(type='int')),
                 y=one, message="Timesteps contain more than one terminal."
             )
         )
@@ -351,21 +351,21 @@ class Estimator(Module):
                 assert baseline is not None
                 # Baseline estimate
                 buffer_indices = buffer_indices[horizon + one:]
-                _states = TensorsDict()
+                _states = TensorDict()
                 for name, buffer in self.buffers['states'].items():
                     state = tf.gather(params=buffer, indices=buffer_indices)
                     _states[name] = tf.concat(
                         values=(state, states[name][:values_limit + one]), axis=0
                     )
-                _internals = TensorsDict()
-                for name in baseline.__class__.internals_spec(policy=baseline):
+                _internals = TensorDict()
+                for name in baseline.internals_spec:
                     internal = tf.gather(
                         params=self.buffers['internals'][name], indices=buffer_indices
                     )
                     _internals[name] = tf.concat(
                         values=(internal, internals[name][:values_limit + one]), axis=0
                     )
-                _auxiliaries = TensorsDict()
+                _auxiliaries = TensorDict()
                 for name, buffer in self.buffers['auxiliaries'].items():
                     auxiliary = tf.gather(params=buffer, indices=buffer_indices)
                     _auxiliaries[name] = tf.concat(
@@ -386,7 +386,7 @@ class Estimator(Module):
                     horizons = tf.stack(values=(starts, lengths), axis=1)
 
                 if self.estimate_actions:
-                    _actions = TensorsDict()
+                    _actions = TensorDict()
                     for name, buffer in self.buffers['actions'].items():
                         action = tf.gather(params=buffer, indices=buffer_indices)
                         _actions[name] = tf.concat(
@@ -450,7 +450,7 @@ class Estimator(Module):
                 return tf.no_op()
 
         any_overwritten = tf.math.greater(x=num_overwritten, y=zero)
-        updated_rewards = self.cond(
+        updated_rewards = tf.cond(
             pred=any_overwritten, true_fn=update_overwritten_rewards, false_fn=tf.no_op
         )
 
@@ -461,10 +461,10 @@ class Estimator(Module):
 
         # Get overwritten values
         with tf.control_dependencies(control_inputs=(indices,)):
-            overwritten_values = TensorsDict()
+            overwritten_values = TensorDict()
             for name, buffer in self.buffers.items():
                 if util.is_nested(name=name):
-                    overwritten_values[name] = TensorsDict()
+                    overwritten_values[name] = TensorDict()
                     for inner_name, buffer in buffer.items():
                         overwritten_values[name][inner_name] = tf.gather(
                             params=buffer, indices=indices
@@ -534,9 +534,8 @@ class Estimator(Module):
                     indices=indices, horizon=(horizon + one), sequence_values=None,
                     final_values=('states', 'internals', 'auxiliaries', 'terminal')
                 )
-                internals = TensorsDict((
-                    (name, internals[name])
-                    for name in baseline.__class__.internals_spec(policy=baseline)
+                internals = TensorDict((
+                    (name, internals[name]) for name in baseline.internals_spec
                 ))
                 # TODO: Double DQN would require main policy here
                 actions = baseline.act(
@@ -553,16 +552,15 @@ class Estimator(Module):
                     indices=indices, horizon=(horizon + one), sequence_values=None,
                     final_values=('states', 'internals', 'auxiliaries', 'terminal')
                 )
-                internals = TensorsDict((
-                    (name, internals[name])
-                    for name in baseline.__class__.internals_spec(policy=baseline)
+                internals = TensorDict((
+                    (name, internals[name]) for name in baseline.internals_spec
                 ))
                 horizon_estimate = baseline.states_value(
                     states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
                     reduced=True, return_per_action=False
                 )
 
-            exponent = tf_.cast(x=final_horizons, dtype='float')
+            exponent = tf_util.cast(x=final_horizons, dtype='float')
             discounts = tf.math.pow(x=discount, y=exponent)
             if not self.estimate_terminal:
                 with tf.control_dependencies(control_inputs=(assertion,)):
@@ -579,14 +577,14 @@ class Estimator(Module):
     def advantage(self, indices, reward, baseline, memory, is_baseline_optimized):
         if self.estimate_advantage:
             assert baseline is not None
-            # zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
+            # zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='int'))
 
             # with tf.control_dependencies(control_inputs=(assertion,)):
-            # if util.tf_dtype(dtype='long') in (tf.int32, tf.int64):
-            #     batch_size = tf.shape(input=reward, out_type=util.tf_dtype(dtype='long'))[0]
+            # if util.tf_dtype(dtype='int') in (tf.int32, tf.int64):
+            #     batch_size = tf.shape(input=reward, out_type=util.tf_dtype(dtype='int'))[0]
             # else:
             #     batch_size = tf.dtypes.cast(
-            #         x=tf.shape(input=reward)[0], dtype=util.tf_dtype(dtype='long')
+            #         x=tf.shape(input=reward)[0], dtype=util.tf_dtype(dtype='int')
             #     )
 
             # Baseline dependencies
@@ -595,9 +593,8 @@ class Estimator(Module):
                 indices=indices, horizon=past_horizon, sequence_values=('states',),
                 initial_values=('internals',)
             )
-            internals = TensorsDict((
-                (name, internals[name])
-                for name in baseline.__class__.internals_spec(policy=baseline)
+            internals = TensorDict((
+                (name, internals[name]) for name in baseline.internals_spec
             ))
 
             if self.estimate_actions:

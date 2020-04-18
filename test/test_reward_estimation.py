@@ -125,13 +125,17 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         reward_estimation = dict(
             horizon=2, estimate_horizon='early', estimate_actions=True, estimate_advantage=True
         )
-        # TODO: currently requires same internal RNN horizon
+        # TODO: currently incompatible with internal RNN
         # TODO: action value doesn't exist for Beta
         baseline_policy = dict(
-            network=dict(type='auto', size=7, depth=1, internal_rnn=2),
+            network=dict(type='auto', size=7, depth=1, internal_rnn=False),
             distributions=dict(float='gaussian')
         )
-        self.unittest(reward_estimation=reward_estimation, baseline_policy=baseline_policy)
+        baseline_optimizer = 'adam'
+        self.unittest(
+            reward_estimation=reward_estimation, baseline_policy=baseline_policy,
+            baseline_optimizer=baseline_optimizer
+        )
 
         reward_estimation = dict(
             horizon=2, estimate_horizon='late', estimate_terminal=True, estimate_advantage=True

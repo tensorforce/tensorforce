@@ -14,14 +14,10 @@
 # ==============================================================================
 
 import os
-import pytest
 import time
 import unittest
 
-import numpy as np
-import tensorflow as tf
-
-from tensorforce import Agent, Environment, util
+from tensorforce import Agent, Environment
 from test.unittest_base import UnittestBase
 
 

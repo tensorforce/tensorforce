@@ -56,7 +56,7 @@ class Clipping(Layer):
                 name='lower', module=lower, modules=parameter_modules, dtype='float'
             )
             self.upper = self.add_module(
-                name='upper', module=lower, modules=parameter_modules, dtype='float'
+                name='upper', module=upper, modules=parameter_modules, dtype='float'
             )
 
     def default_input_spec(self):

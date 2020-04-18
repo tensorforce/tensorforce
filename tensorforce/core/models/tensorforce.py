@@ -102,7 +102,7 @@ class TensorforceModel(Model):
         self.policy = self.add_module(
             name='policy', module=policy, modules=policy_modules, states_spec=self.states_spec,
             actions_spec=self.actions_spec
-        )        
+        )
 
         # Update mode
         if not all(key in ('batch_size', 'frequency', 'start', 'unit') for key in update):
@@ -257,7 +257,7 @@ class TensorforceModel(Model):
             if max_episode_timesteps is None:
                 min_capacity = 0
             else:
-                min_capacity = (self.update_batch_size.max_value() + 1) * max_episode_timesteps 
+                min_capacity = (self.update_batch_size.max_value() + 1) * max_episode_timesteps
         else:
             assert False
 

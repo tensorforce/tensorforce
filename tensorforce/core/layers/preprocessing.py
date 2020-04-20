@@ -15,7 +15,7 @@
 
 import tensorflow as tf
 
-from tensorforce.core import parameter_modules, TensorSpec, tf_function, tf_util
+from tensorforce.core import parameter_modules, SignatureDict, TensorSpec, tf_function, tf_util
 from tensorforce.core.layers import Layer
 
 
@@ -36,7 +36,7 @@ class PreprocessingLayer(Layer):
 
     def input_signature(self, function):
         if function == 'reset':
-            return ()
+            return SignatureDict()
 
         else:
             return super().input_signature(function=function)
@@ -75,7 +75,7 @@ class Clipping(Layer):
                 name='lower', module=lower, modules=parameter_modules, dtype='float'
             )
             self.upper = self.add_module(
-                name='upper', module=lower, modules=parameter_modules, dtype='float'
+                name='upper', module=upper, modules=parameter_modules, dtype='float'
             )
 
     def default_input_spec(self):

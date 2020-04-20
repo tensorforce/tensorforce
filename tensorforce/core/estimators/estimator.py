@@ -16,8 +16,8 @@
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core import Module, parameter_modules, TensorDict, TensorSpec, tf_function, \
-    tf_util, VariableDict
+from tensorforce.core import Module, parameter_modules, SignatureDict, TensorDict, TensorSpec, \
+    tf_function, tf_util, VariableDict
 
 
 class Estimator(Module):
@@ -51,7 +51,7 @@ class Estimator(Module):
     """
 
     def __init__(
-        self, horizon, discount, estimate_horizon, estimate_actions, estimate_terminal,
+        self, *, horizon, discount, estimate_horizon, estimate_actions, estimate_terminal,
         estimate_advantage, device=None, summary_labels=None, name=None, values_spec=None,
         min_capacity=None, max_past_horizon=None
     ):
@@ -79,46 +79,16 @@ class Estimator(Module):
 
         # Capacity
         if self.estimate_horizon == 'early':
+            # max_past_horizon: baseline on-policy horizon
             self.capacity = max(self.horizon.max_value() + 1, min_capacity, max_past_horizon)
         else:
             self.capacity = max(self.horizon.max_value() + 1, min_capacity)
-
-    def input_signature(self, function):
-        if function == 'advantage':
-            return [
-                TensorSpec(type='int', shape=()).signature(batched=True),
-                self.values_spec['reward'].signature(batched=True)
-            ]
-
-        elif function == 'complete_return':
-            return [
-                TensorSpec(type='int', shape=()).signature(batched=True),
-                self.values_spec['reward'].signature(batched=True)
-            ]
-
-        elif function == 'enqueue':
-            return self.values_spec.signature(batched=True)
-
-        elif function == 'future_horizon':
-            return list()
-
-        elif function == 'reset':
-            return list()
-
-        else:
-            return super().input_signature(function=function)
-
-    def min_future_horizon(self):
-        if self.estimate_horizon == 'late':
-            return self.horizon.min_value() + 1
-        else:
-            return self.horizon.min_value()
 
     def max_future_horizon(self):
         if self.estimate_horizon == 'late':
             return self.horizon.max_value() + 1
         else:
-            return self.horizon.max_value()
+            return 0
 
     def initialize(self):
         super().initialize()
@@ -137,15 +107,40 @@ class Estimator(Module):
             is_saved=False
         )
 
+    def input_signature(self, *, function):
+        if function == 'advantage':
+            return SignatureDict(
+                indices=TensorSpec(type='int', shape=()).signature(batched=True),
+                reward=self.values_spec['reward'].signature(batched=True)
+            )
+
+        elif function == 'complete_return':
+            return SignatureDict(
+                indices=TensorSpec(type='int', shape=()).signature(batched=True),
+                reward=self.values_spec['reward'].signature(batched=True)
+            )
+
+        elif function == 'enqueue':
+            return self.values_spec.signature(batched=True)
+
+        elif function == 'future_horizon':
+            return SignatureDict()
+
+        elif function == 'reset':
+            return SignatureDict()
+
+        else:
+            return super().input_signature(function=function)
+
     @tf_function(num_args=0)
     def future_horizon(self):
         if self.estimate_horizon == 'late':
             return self.horizon.value() + tf_util.constant(value=1, dtype='int')
         else:
-            return self.horizon.value()
+            return tf_util.constant(value=0, dtype='int')
 
     @tf_function(num_args=0)
-    def reset(self, baseline):
+    def reset(self, *, baseline):
         # Constants and parameters
         zero = tf_util.constant(value=0, dtype='int')
         one = tf_util.constant(value=1, dtype='int')
@@ -160,7 +155,7 @@ class Estimator(Module):
 
         # Get overwritten values
         values = self.buffers.fmap(
-            function=(lambda x: tf.gather(params=x, indices=indices)), cls=TensorDict
+            function=(lambda buffer: tf.gather(params=buffer, indices=indices)), cls=TensorDict
         )
 
         states = values['states']
@@ -209,15 +204,11 @@ class Estimator(Module):
 
             # Baseline estimate
             horizon_start = num_values - tf.math.maximum(x=(num_values - horizon), y=one)
+            function = (lambda value: value[horizon_start:])
             _states = TensorDict()
-            for name, state in states.items():
-                _states[name] = state[horizon_start:]
-            _internals = TensorDict()
-            for name in baseline.internals_spec:
-                _internals[name] = internals[name][horizon_start:]
-            _auxiliaries = TensorDict()
-            for name, auxiliary in auxiliaries.items():
-                _auxiliaries[name] = auxiliary[horizon_start:]
+            _states = states.fmap(function=function)
+            _internals = internals['baseline'].fmap(function=function)
+            _auxiliaries = auxiliaries.fmap(function=function)
 
             with tf.control_dependencies(control_inputs=(assertion,)):
                 batch_size = num_values - horizon_start
@@ -226,9 +217,7 @@ class Estimator(Module):
                 horizons = tf.stack(values=(starts, lengths), axis=1)
 
             if self.estimate_actions:
-                _actions = TensorDict()
-                for name, action in actions.items():
-                    _actions[name] = action[horizon_start:]
+                _actions = actions.fmap(function=function)
                 horizon_estimate = baseline.actions_value(
                     states=_states, horizons=horizons, internals=_internals,
                     auxiliaries=_auxiliaries, actions=_actions, reduced=True,
@@ -289,14 +278,14 @@ class Estimator(Module):
             discounted_sum = discounted_sum + rewards[horizon: horizon + num_values]
             return discounted_sum, horizon - one
 
-        values['reward'], _ = self.while_loop(
+        values['reward'], _ = tf.while_loop(
             cond=cond, body=body, loop_vars=(horizon_estimate, horizon), back_prop=False
         )
 
         return values
 
     @tf_function(num_args=6)
-    def enqueue(self, states, internals, auxiliaries, actions, terminal, reward, baseline):
+    def enqueue(self, *, states, internals, auxiliaries, actions, terminal, reward, baseline):
         # Constants and parameters
         zero = tf_util.constant(value=0, dtype='int')
         one = tf_util.constant(value=1, dtype='int')
@@ -351,26 +340,16 @@ class Estimator(Module):
                 assert baseline is not None
                 # Baseline estimate
                 buffer_indices = buffer_indices[horizon + one:]
-                _states = TensorDict()
-                for name, buffer in self.buffers['states'].items():
-                    state = tf.gather(params=buffer, indices=buffer_indices)
-                    _states[name] = tf.concat(
-                        values=(state, states[name][:values_limit + one]), axis=0
-                    )
-                _internals = TensorDict()
-                for name in baseline.internals_spec:
-                    internal = tf.gather(
-                        params=self.buffers['internals'][name], indices=buffer_indices
-                    )
-                    _internals[name] = tf.concat(
-                        values=(internal, internals[name][:values_limit + one]), axis=0
-                    )
-                _auxiliaries = TensorDict()
-                for name, buffer in self.buffers['auxiliaries'].items():
-                    auxiliary = tf.gather(params=buffer, indices=buffer_indices)
-                    _auxiliaries[name] = tf.concat(
-                        values=(auxiliary, auxiliaries[name][:values_limit + one]), axis=0
-                    )
+                function = (lambda value, buffer: tf.concat(values=(
+                    tf.gather(params=buffer, indices=buffer_indices), value[:values_limit + one]
+                ), axis=0))
+                _states = states.fmap(function=function, zip_values=self.buffers['states'])
+                _internals = internals['baseline'].fmap(
+                    function=function, zip_values=self.buffers['internals/baseline']
+                )
+                _auxiliaries = auxiliaries.fmap(
+                    function=function, zip_values=self.buffers['auxiliaries']
+                )
 
                 # Dependency horizon
                 # TODO: handle arbitrary non-optimization horizons!
@@ -380,18 +359,14 @@ class Estimator(Module):
                     message="Temporary: baseline cannot depend on previous states."
                 )
                 with tf.control_dependencies(control_inputs=(assertion,)):
-                    batch_size = tf_util.cast(x=tf.shape(input=_states.item())[0], dtype='int')
+                    batch_size = tf_util.cast(x=tf.shape(input=_states.value())[0], dtype='int')
                     starts = tf.range(start=batch_size)
                     lengths = tf_util.ones(shape=(batch_size,), dtype='int')
                     horizons = tf.stack(values=(starts, lengths), axis=1)
+                    # print('!!!', horizons, horizons.graph)
 
                 if self.estimate_actions:
-                    _actions = TensorDict()
-                    for name, buffer in self.buffers['actions'].items():
-                        action = tf.gather(params=buffer, indices=buffer_indices)
-                        _actions[name] = tf.concat(
-                            values=(action, actions[name][:values_limit]), axis=0
-                        )
+                    _actions = actions.fmap(function=function, zip_values=self.buffers['actions'])
                     horizon_estimate = baseline.actions_value(
                         states=_states, horizons=horizons, internals=_internals,
                         auxiliaries=_auxiliaries, actions=_actions, reduced=True,
@@ -419,7 +394,7 @@ class Estimator(Module):
                 discounted_sum = discounted_sum + rewards[horizon: horizon + num_overwritten]
                 return discounted_sum, horizon - one
 
-            discounted_sum, _ = self.while_loop(
+            discounted_sum, _ = tf.while_loop(
                 cond=cond, body=body, loop_vars=(horizon_estimate, horizon), back_prop=False
             )
 
@@ -461,16 +436,8 @@ class Estimator(Module):
 
         # Get overwritten values
         with tf.control_dependencies(control_inputs=(indices,)):
-            overwritten_values = TensorDict()
-            for name, buffer in self.buffers.items():
-                if util.is_nested(name=name):
-                    overwritten_values[name] = TensorDict()
-                    for inner_name, buffer in buffer.items():
-                        overwritten_values[name][inner_name] = tf.gather(
-                            params=buffer, indices=indices
-                        )
-                else:
-                    overwritten_values[name] = tf.gather(params=buffer, indices=indices)
+            function = (lambda buffer: tf.gather(params=buffer, indices=indices))
+            overwritten_values = self.buffers.fmap(function=function, cls=TensorDict)
 
         # Buffer indices to (over)write
         with tf.control_dependencies(control_inputs=util.flatten(xs=overwritten_values)):
@@ -480,21 +447,14 @@ class Estimator(Module):
 
         # Write new values
         with tf.control_dependencies(control_inputs=(indices,)):
-            values = dict(
+            values = TensorDict(
                 states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
                 terminal=terminal, reward=reward
             )
-            assignments = list()
-            for name, buffer in self.buffers.items():
-                if util.is_nested(name=name):
-                    for inner_name, buffer in buffer.items():
-                        assignment = buffer.scatter_nd_update(
-                            indices=indices, updates=values[name][inner_name]
-                        )
-                        assignments.append(assignment)
-                else:
-                    assignment = buffer.scatter_nd_update(indices=indices, updates=values[name])
-                    assignments.append(assignment)
+            function = (lambda value, buffer: buffer.scatter_nd_update(
+                indices=indices, updates=value
+            ))
+            assignments = values.fmap(function=function, cls=list, zip_values=self.buffers)
 
         # Increment buffer index
         with tf.control_dependencies(control_inputs=assignments):
@@ -503,17 +463,18 @@ class Estimator(Module):
         # Return overwritten values or no-op
         with tf.control_dependencies(control_inputs=(assignment,)):
             any_overwritten = tf.math.greater(x=num_overwritten, y=zero)
-            overwritten_values = util.fmap(function=tf_util.identity, xs=overwritten_values)
+            overwritten_values = overwritten_values.fmap(function=tf_util.identity)
             return any_overwritten, overwritten_values
 
     @tf_function(num_args=2)
-    def complete_return(self, indices, reward, baseline, memory):
+    def complete_return(self, *, indices, reward, baseline, memory):
         if self.estimate_horizon == 'late':
             assert baseline is not None
             zero = tf_util.constant(value=0, dtype='int')
             one = tf_util.constant(value=1, dtype='int')
 
             # Baseline dependencies
+            # TODO: handle arbitrary non-optimization horizons! or re-compute internals, hence off?
             past_horizon = baseline.past_horizon(on_policy=True)
             assertion = tf.debugging.assert_equal(
                 x=past_horizon, y=zero,
@@ -574,7 +535,7 @@ class Estimator(Module):
         return reward
 
     @tf_function(num_args=2)
-    def advantage(self, indices, reward, baseline, memory, is_baseline_optimized):
+    def advantage(self, *, indices, reward, baseline, memory, is_baseline_optimized):
         if self.estimate_advantage:
             assert baseline is not None
             # zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='int'))
@@ -588,6 +549,7 @@ class Estimator(Module):
             #     )
 
             # Baseline dependencies
+            # TODO: or re-compute internals, hence always off-policy?
             past_horizon = baseline.past_horizon(on_policy=(not is_baseline_optimized))
             horizons, (states,), (internals,) = memory.predecessors(
                 indices=indices, horizon=past_horizon, sequence_values=('states',),

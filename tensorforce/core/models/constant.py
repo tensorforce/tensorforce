@@ -13,7 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-import numpy as np
 import tensorflow as tf
 
 from tensorforce import TensorforceError
@@ -66,7 +65,7 @@ class ConstantModel(Model):
         actions = TensorDict()
         for name, spec in self.actions_spec.items():
             shape = tf.concat(values=(
-                tf_util.cast(x=tf.shape(input=states.item())[:1], dtype='int'),
+                tf_util.cast(x=tf.shape(input=states.value())[:1], dtype='int'),
                 tf_util.constant(value=spec.shape, dtype='int')
             ), axis=0)
 
@@ -78,7 +77,7 @@ class ConstantModel(Model):
             elif self.config.enable_int_action_masking and spec.type == 'int' and \
                     spec.num_values is not None:
                 # If masking, choose first unmasked action
-                mask = auxiliaries[name + '_mask']
+                mask = auxiliaries[name]['mask']
                 choices = tf_util.constant(
                     value=list(range(spec.num_values)), dtype='int',
                     shape=(tuple(1 for _ in spec.shape) + (1, spec.num_values))

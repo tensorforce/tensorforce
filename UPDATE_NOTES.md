@@ -22,6 +22,8 @@ This file records all major updates and new features, starting from version 0.5.
 - Combined long and int types
 - Removed execution arg, moved buffer_observe/seed to config
 - Default memory device CPU:0
+- Removed deterministic/evaluation/query from Agent interface
+- buffer_observe not accepts true/false
 
 
 

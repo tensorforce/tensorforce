@@ -16,7 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core import parameter_modules, TensorSpec, tf_function
+from tensorforce.core import parameter_modules, SignatureDict, TensorSpec, tf_function
 from tensorforce.core.optimizers.solvers import Iterative
 
 
@@ -72,18 +72,18 @@ class ConjugateGradient(Iterative):
 
     def input_signature(self, function):
         if function == 'end' or function == 'next_step' or function == 'step':
-            return [
-                self.fn_values_spec().signature(batched=False),
-                self.fn_values_spec().signature(batched=False),
-                self.fn_values_spec().signature(batched=False),
-                TensorSpec(type='float', shape=()).signature(batched=False)
-            ]
+            return SignatureDict(
+                x=self.fn_values_spec().signature(batched=False),
+                conjugate=self.fn_values_spec().signature(batched=False),
+                residual=self.fn_values_spec().signature(batched=False),
+                squared_residual=TensorSpec(type='float', shape=()).signature(batched=False)
+            )
 
         elif function == 'solve' or function == 'start':
-            return [
-                self.fn_values_spec().signature(batched=False),
-                self.fn_values_spec().signature(batched=False)
-            ]
+            return SignatureDict(
+                x_init=self.fn_values_spec().signature(batched=False),
+                b=self.fn_values_spec().signature(batched=False)
+            )
 
         else:
             return super().input_signature(function=function)

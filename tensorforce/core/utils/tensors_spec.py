@@ -16,7 +16,7 @@
 from collections import OrderedDict
 
 from tensorforce import TensorforceError, util
-from tensorforce.core.utils import NestedDict, TensorDict, TensorSpec
+from tensorforce.core.utils import NestedDict, SignatureDict, TensorDict, TensorSpec
 
 
 class TensorsSpec(NestedDict):
@@ -25,7 +25,10 @@ class TensorsSpec(NestedDict):
         super().__init__(*args, value_type=TensorSpec, overwrite=False, **kwargs)
 
     def signature(self, batched):
-        return [spec.signature(batched=batched) for spec in super(NestedDict, self).values()]
+        return SignatureDict((
+            (name, spec.signature(batched=batched))
+            for name, spec in super(NestedDict, self).items()
+        ))
 
     def tf_assert(self, x, batch_size=None, include_type_shape=False, message=None):
         if not isinstance(x, TensorDict):

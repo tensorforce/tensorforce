@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce.core import Module, TensorSpec, tf_function
+from tensorforce.core import Module, SignatureDict, TensorSpec, tf_function
 
 
 class Memory(Module):
@@ -33,8 +33,8 @@ class Memory(Module):
     """
 
     def __init__(
-        self, device=None, summary_labels=None, l2_regularization=None, name=None, values_spec=None,
-        min_capacity=None
+        self, *, device=None, summary_labels=None, l2_regularization=None, name=None,
+        values_spec=None, min_capacity=None
     ):
         super().__init__(
             name=name, device=device, summary_labels=summary_labels,
@@ -42,59 +42,60 @@ class Memory(Module):
         )
 
         self.values_spec = values_spec
+        self.min_capacity = min_capacity
 
-    def input_signature(self, function):
+    def input_signature(self, *, function):
         if function == 'enqueue':
             return self.values_spec.signature(batched=True)
 
         elif function == 'predecessors':
-            return [
-                TensorSpec(type='int', shape=()).signature(batched=True),
-                TensorSpec(type='int', shape=()).signature(batched=False)
-            ]
+            return SignatureDict(
+                indices=TensorSpec(type='int', shape=()).signature(batched=True),
+                horizon=TensorSpec(type='int', shape=()).signature(batched=False)
+            )
 
         elif function == 'retrieve':
-            return [TensorSpec(type='int', shape=()).signature(batched=True)]
+            return SignatureDict(indices=TensorSpec(type='int', shape=()).signature(batched=True))
 
         elif function == 'retrieve_episodes':
-            return [TensorSpec(type='int', shape=()).signature(batched=False)]
+            return SignatureDict(n=TensorSpec(type='int', shape=()).signature(batched=False))
 
         elif function == 'retrieve_timesteps':
-            return [
-                TensorSpec(type='int', shape=()).signature(batched=False),
-                TensorSpec(type='int', shape=()).signature(batched=False),
-                TensorSpec(type='int', shape=()).signature(batched=False)
-            ]
+            return SignatureDict(
+                n=TensorSpec(type='int', shape=()).signature(batched=False),
+                past_horizon=TensorSpec(type='int', shape=()).signature(batched=False),
+                future_horizon=TensorSpec(type='int', shape=()).signature(batched=False)
+            )
 
         elif function == 'successors':
-            return [
-                TensorSpec(type='int', shape=()).signature(batched=True),
-                TensorSpec(type='int', shape=()).signature(batched=False)
-            ]
+            return SignatureDict(
+                indices=TensorSpec(type='int', shape=()).signature(batched=True),
+                horizon=TensorSpec(type='int', shape=()).signature(batched=False)
+            )
 
         else:
-            assert False
+            return super().input_signature(function=function)
 
     @tf_function(num_args=6)
-    def enqueue(self, states, internals, auxiliaries, actions, terminal, reward):
+    def enqueue(self, *, states, internals, auxiliaries, actions, terminal, reward):
         raise NotImplementedError
 
     @tf_function(num_args=1)
-    def retrieve(self, indices, values):
+    def retrieve(self, *, indices, values):
         raise NotImplementedError
 
     @tf_function(num_args=2)
-    def successors(self, indices, horizon, sequence_values, final_values):
+    def successors(self, *, indices, horizon, sequence_values, final_values):
         raise NotImplementedError
 
     @tf_function(num_args=2)
-    def predecessors(self, indices, horizon, sequence_values, initial_values):
+    def predecessors(self, *, indices, horizon, sequence_values, initial_values):
         raise NotImplementedError
 
     @tf_function(num_args=3)
-    def retrieve_timesteps(self, n, past_padding, future_padding):
+    def retrieve_timesteps(self, *, n, past_horizon, future_horizon):
         raise NotImplementedError
 
     @tf_function(num_args=1)
-    def retrieve_episodes(self, n):
+    def retrieve_episodes(self, *, n):
         raise NotImplementedError

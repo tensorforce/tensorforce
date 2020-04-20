@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
+from collections import OrderedDict
+
 import numpy as np
 import tensorflow as tf
 
@@ -30,6 +32,44 @@ class ModuleDict(NestedDict):
     def __init__(self, *args, **kwargs):
         from tensorforce.core import Module
         super().__init__(*args, value_type=Module, overwrite=False, **kwargs)
+
+
+class SignatureDict(NestedDict):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, value_type=tf.TensorSpec, overwrite=False, **kwargs)
+
+    def num_args(self):
+        return super(NestedDict, self).__len__()
+
+    def to_list(self):
+        return [
+            spec.to_list() if isinstance(spec, self.__class__) else spec
+            for spec in super(NestedDict, self).values()
+        ]
+
+    def kwargs_to_args(self, kwargs):
+        args = list()
+        for name, spec in super(NestedDict, self).items():
+            arg = kwargs[name]
+            if isinstance(spec, self.__class__):
+                assert isinstance(arg, TensorDict)
+                args.append(spec.kwargs_to_args(kwargs=arg))
+            else:
+                assert isinstance(arg, tf.Tensor)
+                args.append(arg)
+        return args
+
+    def args_to_kwargs(self, args):
+        kwargs = OrderedDict()
+        for (name, spec), arg in zip(super(NestedDict, self).items(), args):
+            if isinstance(spec, self.__class__):
+                assert isinstance(arg, list)
+                kwargs[name] = TensorDict(spec.args_to_kwargs(args=arg))
+            else:
+                assert isinstance(arg, tf.Tensor)
+                kwargs[name] = arg
+        return kwargs
 
 
 class TensorDict(NestedDict):

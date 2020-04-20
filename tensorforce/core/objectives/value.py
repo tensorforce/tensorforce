@@ -15,7 +15,7 @@
 
 import tensorflow as tf
 
-from tensorforce.core import parameter_modules, tf_function
+from tensorforce.core import parameter_modules, tf_function, tf_util
 from tensorforce.core.objectives import Objective
 
 
@@ -96,7 +96,7 @@ class Value(Objective):
             linear = huber_loss * (tf.math.abs(x=difference) - half * huber_loss)
             return tf.where(condition=inside_huber_bounds, x=quadratic, y=linear)
 
-        loss = self.cond(pred=skip_huber_loss, true_fn=no_huber_loss, false_fn=apply_huber_loss)
+        loss = tf.cond(pred=skip_huber_loss, true_fn=no_huber_loss, false_fn=apply_huber_loss)
 
         if not self.early_reduce:
             loss = tf.math.reduce_mean(input_tensor=loss, axis=1)

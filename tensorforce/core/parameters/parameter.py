@@ -16,7 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import TensorforceError
-from tensorforce.core import Module, TensorSpec, tf_function, tf_util
+from tensorforce.core import Module, SignatureDict, TensorSpec, tf_function, tf_util
 
 
 class Parameter(Module):
@@ -85,7 +85,7 @@ class Parameter(Module):
 
     def input_signature(self, function):
         if function == 'value':
-            return ()
+            return SignatureDict()
 
         else:
             return super().input_signature(function=function)

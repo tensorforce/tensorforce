@@ -220,8 +220,8 @@ class ProximalPolicyOptimization(TensorforceAgent):
         # Regularization
         l2_regularization=0.0, entropy_regularization=0.0,
         # TensorFlow etc
-        name='agent', device=None, parallel_interactions=1, seed=None, execution=None, saver=None,
-        summarizer=None, recorder=None, config=None
+        name='agent', device=None, parallel_interactions=1, config=None, saver=None,
+        summarizer=None, recorder=None
     ):
         self.spec = OrderedDict(
             agent='ppo',
@@ -237,9 +237,8 @@ class ProximalPolicyOptimization(TensorforceAgent):
             preprocessing=preprocessing,
             exploration=exploration, variable_noise=variable_noise,
             l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
-            name=name, device=device, parallel_interactions=parallel_interactions, seed=seed,
-                execution=execution, saver=saver, summarizer=summarizer, recorder=recorder,
-                config=config
+            name=name, device=device, parallel_interactions=parallel_interactions, config=config,
+                saver=saver, summarizer=summarizer, recorder=recorder
         )
 
         policy = dict(network=network, temperature=1.0)
@@ -277,12 +276,11 @@ class ProximalPolicyOptimization(TensorforceAgent):
         super().__init__(
             # Agent
             states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
-            parallel_interactions=parallel_interactions, buffer_observe=True, seed=seed,
-            recorder=recorder, config=config,
+            parallel_interactions=parallel_interactions, config=config, recorder=recorder,
             # Model
-            name=name, device=device, execution=execution, saver=saver, summarizer=summarizer,
             preprocessing=preprocessing, exploration=exploration, variable_noise=variable_noise,
-            l2_regularization=l2_regularization,
+            l2_regularization=l2_regularization, name=name, device=device, saver=saver,
+            summarizer=summarizer,
             # TensorforceModel
             policy=policy, memory=memory, update=update, optimizer=optimizer, objective=objective,
             reward_estimation=reward_estimation, baseline_policy=baseline_policy,

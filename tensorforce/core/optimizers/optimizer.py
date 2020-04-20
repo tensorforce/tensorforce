@@ -15,8 +15,8 @@
 
 import tensorflow as tf
 
-from tensorforce import TensorforceError, util
-from tensorforce.core import Module, tf_function
+from tensorforce import TensorforceError
+from tensorforce.core import Module, SignatureDict, tf_function, tf_util
 
 
 class Optimizer(Module):
@@ -44,7 +44,7 @@ class Optimizer(Module):
 
     def input_signature(self, function):
         if function == 'step' or function == 'update':
-            return [self.arguments_spec.signature(batched=True)]
+            return SignatureDict(arguments=self.arguments_spec.signature(batched=True))
 
         else:
             return super().input_signature(function=function)
@@ -55,7 +55,7 @@ class Optimizer(Module):
 
     @tf_function(num_args=1)
     def update(self, arguments, variables, **kwargs):
-        if any(variable.dtype != util.get_dtype(type='float') for variable in variables):
+        if any(variable.dtype != tf_util.get_dtype(type='float') for variable in variables):
             raise TensorforceError.unexpected()
 
         deltas = self.step(arguments=arguments, variables=variables, **kwargs)
@@ -77,4 +77,4 @@ class Optimizer(Module):
             )
 
         with tf.control_dependencies(control_inputs=deltas):
-            return tf.no_op()
+            return tf_util.constant(value=False, dtype='bool')

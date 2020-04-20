@@ -13,7 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-import numpy as np
 import tensorflow as tf
 
 from tensorforce.core import TensorDict, tf_function, tf_util
@@ -45,7 +44,7 @@ class RandomModel(Model):
         actions = TensorDict()
         for name, spec in self.actions_spec.items():
             shape = tf.concat(values=(
-                tf_util.cast(x=tf.shape(input=states.item())[:1], dtype='int'),
+                tf_util.cast(x=tf.shape(input=states.value())[:1], dtype='int'),
                 tf_util.constant(value=spec.shape, dtype='int')
             ), axis=0)
 
@@ -59,7 +58,7 @@ class RandomModel(Model):
                     spec.num_values is not None:
                 # Random masked action: uniform[unmasked]
                 # (Similar code as for Model.apply_exploration)
-                mask = auxiliaries[name + '_mask']
+                mask = auxiliaries[name]['mask']
                 choices = tf_util.constant(
                     value=list(range(spec.num_values)), dtype=spec.type,
                     shape=(tuple(1 for _ in spec.shape) + (1, spec.num_values))

@@ -16,7 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core import parameter_modules, tf_function
+from tensorforce.core import parameter_modules, TensorSpec, tf_function, tf_util
 from tensorforce.core.objectives import Objective
 
 
@@ -26,8 +26,6 @@ class PolicyGradient(Objective):
     target reward value (specification key: `policy_gradient`).
 
     Args:
-        name (string): Module name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         ratio_based (bool): Whether to scale the likelihood-ratio instead of the log-likelihood
             (<span style="color:#00C000"><b>default</b></span>: false).
         clipping_value (parameter, float >= 0.0): Clipping threshold for the maximized value
@@ -128,7 +126,7 @@ class PolicyGradient(Objective):
             return tf.math.minimum(x=(scaling * reward), y=(clipped_scaling * reward))
 
         skip_clipping = tf.math.equal(x=clipping_value, y=zero)
-        scaled = self.cond(pred=skip_clipping, true_fn=no_clipping, false_fn=apply_clipping)
+        scaled = tf.cond(pred=skip_clipping, true_fn=no_clipping, false_fn=apply_clipping)
 
         loss = -scaled
 

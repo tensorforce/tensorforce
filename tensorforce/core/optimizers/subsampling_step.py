@@ -56,12 +56,13 @@ class SubsamplingStep(UpdateModifier):
     def step(self, arguments, **kwargs):
         arguments = arguments.copy()
         if 'states' in arguments and 'horizons' in arguments:
-            states = arguments.pop('states')
-            horizons = arguments.pop('horizons')
+            states = arguments['states']
+            horizons = arguments['horizons']
         else:
             states = None
 
-        batch_size = tf_util.cast(x=tf.shape(input=arguments.item())[0], dtype='int')
+        # TODO: item, but not states/horizons
+        batch_size = tf_util.cast(x=tf.shape(input=arguments['reward'])[0], dtype='int')
         fraction = self.fraction.value()
         num_samples = fraction * tf_util.cast(x=batch_size, dtype='float')
         num_samples = tf_util.cast(x=num_samples, dtype='int')
@@ -94,8 +95,9 @@ class SubsamplingStep(UpdateModifier):
                 values=(tf.math.cumsum(x=horizons[:, 1], exclusive=True), horizons[:, 1]), axis=1
             )
 
-        function = (lambda x: tf.gather(params=x, indices=indices))
-        subsampled_arguments.update(util.fmap(function=function, xs=arguments))
+        for name, argument in arguments.items():
+            if states is None or (name != 'states' and name != 'horizons'):
+                subsampled_arguments[name] = tf.gather(params=argument, indices=indices)
 
         deltas = self.optimizer.step(arguments=subsampled_arguments, **kwargs)
 

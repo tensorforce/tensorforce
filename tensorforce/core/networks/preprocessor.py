@@ -13,13 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 
-from collections import Counter
-
 import tensorflow as tf
 
 from tensorforce import TensorforceError
-from tensorforce.core import layer_modules, Module, tf_function
-from tensorforce.core.layers import PreprocessingLayer, TemporalLayer
+from tensorforce.core import SignatureDict, TensorDict, tf_function
+from tensorforce.core.layers import PreprocessingLayer, Register, Retrieve
 from tensorforce.core.networks import LayerbasedNetwork
 
 
@@ -43,7 +41,7 @@ class Preprocessor(LayerbasedNetwork):
     """
 
     def __init__(
-        self, layers, device=None, summary_labels=None, l2_regularization=None, name=None,
+        self, * layers, device=None, summary_labels=None, l2_regularization=None, name=None,
         inputs_spec=None
     ):
         if len(inputs_spec) > 1:
@@ -63,26 +61,18 @@ class Preprocessor(LayerbasedNetwork):
     def internals_init(self):
         raise NotImplementedError
 
-    def max_past_horizon(self, on_policy):
+    def max_past_horizon(self, * on_policy):
         raise NotImplementedError
 
-    def past_horizon(self, on_policy):
+    def past_horizon(self, * on_policy):
         raise NotImplementedError
 
-    def add_module(self, *args, **kwargs):
-        layer = super().add_module(*args, **kwargs)
-
-        if not isinstance(layer, (Layer, Parameter)):
-            raise TensorforceError.type(name='layer', argument='submodule', dtype=type(layer))
-
-        return layer
-
-    def input_signature(self, function):
+    def input_signature(self, * function):
         if function == 'apply':
-            return [self.inputs_spec.signature(batched=True)]
+            return SignatureDict(x=self.inputs_spec.signature(batched=True))
 
         elif function == 'reset':
-            return ()
+            return SignatureDict()
 
         else:
             return super().input_signature(function=function)
@@ -98,7 +88,7 @@ class Preprocessor(LayerbasedNetwork):
         return tf.group(*operations)
 
     @tf_function(num_args=1)
-    def apply(self, x):
+    def apply(self, *, x):
         registered_tensors = x.copy()
         x = x.pop()
 
@@ -110,7 +100,7 @@ class Preprocessor(LayerbasedNetwork):
                 registered_tensors[layer.tensor] = x
 
             elif isinstance(layer, Retrieve):
-                x = TensorsDict()
+                x = TensorDict()
                 for tensor in layer.tensors:
                     if tensor not in registered_tensors:
                         raise TensorforceError.exists_not(name='registered tensor', value=tensor)

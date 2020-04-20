@@ -34,19 +34,23 @@ class Gaussian(Distribution):
         input_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(self, summary_labels=None, name=None, action_spec=None, input_spec=None):
+    def __init__(self, *, summary_labels=None, name=None, action_spec=None, input_spec=None):
+        assert action_spec.type == 'float'
+
         parameters_spec = TensorsSpec(
             mean=TensorSpec(type='float', shape=action_spec.shape),
             stddev=TensorSpec(type='float', shape=action_spec.shape),
             log_stddev=TensorSpec(type='float', shape=action_spec.shape)
         )
+        conditions_spec = TensorsSpec()
 
         super().__init__(
             summary_labels=summary_labels, name=name, action_spec=action_spec,
-            input_spec=input_spec, parameters_spec=parameters_spec
+            input_spec=input_spec, parameters_spec=parameters_spec, conditions_spec=conditions_spec
         )
 
         if len(self.input_spec.shape) == 1:
+            # Single embedding
             action_size = util.product(xs=self.action_spec.shape, empty=0)
             self.mean = self.add_module(
                 name='mean', module='linear', modules=layer_modules, size=action_size,
@@ -58,12 +62,13 @@ class Gaussian(Distribution):
             )
 
         else:
+            # Embedding per action
             if len(self.input_spec.shape) < 1 or len(self.input_spec.shape) > 3:
                 raise TensorforceError.value(
                     name=name, argument='input_spec.shape', value=self.embedding_shape,
                     hint='invalid rank'
                 )
-            if self.input_spec.shape[:-1] == self.action_spec.shape[:-1]:
+            elif self.input_spec.shape[:-1] == self.action_spec.shape[:-1]:
                 size = self.action_spec.shape[-1]
             elif self.input_spec.shape[:-1] == self.action_spec.shape:
                 size = 0
@@ -81,8 +86,8 @@ class Gaussian(Distribution):
                 input_spec=self.input_spec
             )
 
-    @tf_function(num_args=1)
-    def parametrize(self, x):
+    @tf_function(num_args=2)
+    def parametrize(self, *, x, conditions):
         log_epsilon = tf_util.constant(value=np.log(util.epsilon), dtype='float')
         shape = (-1,) + self.action_spec.shape
 
@@ -107,7 +112,7 @@ class Gaussian(Distribution):
         return TensorDict(mean=mean, stddev=stddev, log_stddev=log_stddev)
 
     @tf_function(num_args=2)
-    def sample(self, parameters, temperature):
+    def sample(self, *, parameters, temperature):
         mean, stddev = parameters.get('mean', 'stddev')
 
         summary_mean = mean
@@ -139,7 +144,7 @@ class Gaussian(Distribution):
         return action
 
     @tf_function(num_args=2)
-    def log_probability(self, parameters, action):
+    def log_probability(self, *, parameters, action):
         mean, stddev, log_stddev = parameters.get('mean', 'stddev', 'log_stddev')
 
         half = tf_util.constant(value=0.5, dtype='float')
@@ -154,7 +159,7 @@ class Gaussian(Distribution):
             half * tf.math.log(x=(two * pi_const))
 
     @tf_function(num_args=1)
-    def entropy(self, parameters):
+    def entropy(self, *, parameters):
         log_stddev = parameters['log_stddev']
 
         half = tf_util.constant(value=0.5, dtype='float')
@@ -165,7 +170,7 @@ class Gaussian(Distribution):
         return log_stddev + half * tf.math.log(x=(two * pi_const * e_const))
 
     @tf_function(num_args=2)
-    def kl_divergence(self, parameters1, parameters2):
+    def kl_divergence(self, *, parameters1, parameters2):
         mean1, stddev1, log_stddev1 = parameters1.get('mean', 'stddev', 'log_stddev')
         mean2, stddev2, log_stddev2 = parameters2.get('mean', 'stddev', 'log_stddev')
 
@@ -180,7 +185,7 @@ class Gaussian(Distribution):
         return log_stddev_ratio + half * (sq_stddev1 + sq_mean_distance) / sq_stddev2 - half
 
     @tf_function(num_args=2)
-    def action_value(self, parameters, action):
+    def action_value(self, *, parameters, action):
         mean, stddev, log_stddev = parameters.get('mean', 'stddev', 'log_stddev')
 
         half = tf_util.constant(value=0.5, dtype='float')
@@ -195,7 +200,7 @@ class Gaussian(Distribution):
             tf.math.log(x=(two * pi_const))
 
     @tf_function(num_args=1)
-    def states_value(self, parameters):
+    def states_value(self, *, parameters):
         log_stddev = parameters['log_stddev']
 
         half = tf_util.constant(value=0.5, dtype='float')

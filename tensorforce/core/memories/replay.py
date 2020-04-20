@@ -36,7 +36,7 @@ class Replay(Queue):
     """
 
     @tf_function(num_args=3)
-    def retrieve_timesteps(self, n, past_horizon, future_horizon):
+    def retrieve_timesteps(self, *, n, past_horizon, future_horizon):
         one = tf.constant(value=1, dtype='int')
         capacity = tf.constant(value=self.capacity, dtype='int')
 
@@ -57,7 +57,7 @@ class Replay(Queue):
         return indices
 
     @tf_function(num_args=1)
-    def retrieve_episodes(self, n):
+    def retrieve_episodes(self, *, n):
         zero = tf_util.constant(value=0, dtype='int')
         one = tf_util.constant(value=1, dtype='int')
         capacity = tf_util.constant(value=self.capacity, dtype='int')

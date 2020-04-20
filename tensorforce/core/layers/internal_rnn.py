@@ -30,7 +30,7 @@ class InternalRnn(TemporalLayer, TransformationBase):
             (<span style="color:#C00000"><b>required</b></span>).
         size (int >= 0): Layer output size, 0 implies additionally removing the axis
             (<span style="color:#C00000"><b>required</b></span>).
-        horizon (parameter, long >= 0): Past horizon
+        horizon (parameter, long >= 0): Past horizon, for truncated backpropagation through time
             (<span style="color:#C00000"><b>required</b></span>).
         bias (bool): Whether to add a trainable bias variable
             (<span style="color:#00C000"><b>default</b></span>: true).
@@ -132,7 +132,7 @@ class InternalRnn(TemporalLayer, TransformationBase):
     def regularize(self):
         regularization_loss = super().regularize()
 
-        if len(self.rnn.losses) > 0:
+        if len(self.cell.losses) > 0:
             regularization_loss += tf.math.add_n(inputs=self.cell.losses)
 
         return regularization_loss
@@ -171,7 +171,7 @@ class InternalGru(InternalRnn):
             (<span style="color:#C00000"><b>required</b></span>).
         size (int >= 0): Layer output size, 0 implies additionally removing the axis
             (<span style="color:#C00000"><b>required</b></span>).
-        horizon (parameter, long >= 0): Past horizon
+        horizon (parameter, long >= 0): Past horizon, for truncated backpropagation through time
             (<span style="color:#C00000"><b>required</b></span>).
         bias (bool): Whether to add a trainable bias variable
             (<span style="color:#00C000"><b>default</b></span>: false).
@@ -213,7 +213,7 @@ class InternalLstm(InternalRnn):
             (<span style="color:#C00000"><b>required</b></span>).
         size (int >= 0): Layer output size, 0 implies additionally removing the axis
             (<span style="color:#C00000"><b>required</b></span>).
-        horizon (parameter, long >= 0): Past horizon
+        horizon (parameter, long >= 0): Past horizon, for truncated backpropagation through time
             (<span style="color:#C00000"><b>required</b></span>).
         bias (bool): Whether to add a trainable bias variable
             (<span style="color:#00C000"><b>default</b></span>: false).

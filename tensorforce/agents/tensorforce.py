@@ -279,43 +279,60 @@ class TensorforceAgent(Agent):
                 config=config, saver=saver, summarizer=summarizer, recorder=recorder
             )
 
+        if isinstance(update, int):
+            update = dict(unit='timesteps', batch_size=update)
+
         if config is None:
             config = dict()
-            buffer_observe = True
         else:
-            buffer_observe = config.get('buffer_observe', True)
+            config = dict(config)
 
-        if isinstance(update, int) or update['unit'] == 'timesteps':
-            if parallel_interactions > 1:
+        if parallel_interactions > 1:
+            if 'buffer_observe' not in config:
+                if max_episode_timesteps is None:
+                    raise TensorforceError.required(
+                        name='Agent', argument='max_episode_timesteps',
+                        condition='parallel_interactions > 1'
+                    )
+                config['buffer_observe'] = max_episode_timesteps
+            elif config['buffer_observe'] < max_episode_timesteps:
                 raise TensorforceError.value(
-                    name='agent', argument='update', value=update,
-                    condition='parallel_interactions > 1'
+                    name='Agent', argument='config[buffer_observe]',
+                    hint='< max_episode_timesteps', condition='parallel_interactions > 1'
                 )
-            if buffer_observe is not True:
-                raise TensorforceError.invalid(
-                    name='agent', argument='buffer_observe', condition='update[unit] = timesteps'
-                )
-            buffer_observe = False
 
-        if buffer_observe is True and parallel_interactions == 1 and summarizer is not None:
-            buffer_observe = False
+        elif update['unit'] == 'timesteps':
+            if 'buffer_observe' not in config:
+                if isinstance(update['batch_size'], int):
+                    config['buffer_observe'] = update['batch_size']
+                else:
+                    config['buffer_observe'] = 1
+            elif config['buffer_observe'] > update['batch_size']:
+                raise TensorforceError.value(
+                    name='Agent', argument='config[buffer_observe]',
+                    hint='> update[batch_size]', condition='update[unit] = "timesteps"'
+                )
+
+        elif update['unit'] == 'episodes':
+            if 'buffer_observe' not in config:
+                if max_episode_timesteps is None:
+                    config['buffer_observe'] = 1000
+                else:
+                    config['buffer_observe'] = max_episode_timesteps
+
+        reward_estimation = dict(reward_estimation)
+        if reward_estimation['horizon'] == 'episode':
+            if max_episode_timesteps is None:
+                raise TensorforceError.required(
+                    name='Agent', argument='max_episode_timesteps',
+                    condition='reward_estimation[horizon] = "episode"'
+                )
+            reward_estimation['horizon'] = max_episode_timesteps
 
         super().__init__(
             states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
             parallel_interactions=parallel_interactions, config=config, recorder=recorder
         )
-
-        if isinstance(update, int):
-            update = dict(unit='timesteps', batch_size=update)
-
-        reward_estimation = dict(reward_estimation)
-        if reward_estimation['horizon'] == 'episode':
-            if max_episode_timesteps is None:
-                raise TensorforceError.value(
-                    name='agent', argument='reward_estimation[horizon]', value='episode',
-                    condition='max_episode_timesteps is None'
-                )
-            reward_estimation['horizon'] = max_episode_timesteps
 
         self.model = TensorforceModel(
             # Model
@@ -362,13 +379,14 @@ class TensorforceAgent(Agent):
         assert util.reduce_all(predicate=util.not_nan_inf, xs=reward)
 
         # Auxiliaries
-        auxiliaries = OrderedDict()
-        if isinstance(states, dict):
-            states = OrderedDict(states)
-            for name, spec in self.actions_spec.items():
-                if spec['type'] == 'int' and name + '_mask' in states:
-                    auxiliaries[name + '_mask'] = np.asarray(states.pop(name + '_mask'))
-        auxiliaries = util.fmap(function=np.asarray, xs=auxiliaries, depth=1)
+        def function(name, spec):
+            auxiliary = ArrayDict()
+            if self.config.enable_int_action_masking and spec.type == 'int' and \
+                    spec.num_values is not None:
+                auxiliary['mask'] = np.asarray(states.pop(name + '_mask'))
+            return auxiliary
+
+        auxiliaries = self.actions_spec.fmap(function=function, cls=ArrayDict, with_names=True)
 
         # Normalize states/actions dictionaries
         states = util.normalize_values(

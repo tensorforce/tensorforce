@@ -19,8 +19,8 @@ import tensorflow as tf
 
 from tensorforce import TensorforceError, util
 import tensorforce.core
-from tensorforce.core import ArrayDict, Module, parameter_modules, TensorSpec, TensorsSpec, \
-    tf_function, tf_util
+from tensorforce.core import ArrayDict, Module, parameter_modules, SignatureDict, TensorSpec, \
+    TensorsSpec, tf_function, tf_util
 from tensorforce.core.parameters import Parameter
 
 
@@ -73,7 +73,7 @@ class Layer(Module):
 
     def input_signature(self, function):
         if function == 'apply':
-            return [self.input_spec.signature(batched=True)]
+            return SignatureDict(x=self.input_spec.signature(batched=True))
 
         else:
             return super().input_signature(function=function)
@@ -445,28 +445,28 @@ class TemporalLayer(Layer):
 
     def input_signature(self, function):
         if function == 'apply':
-            return [
-                self.input_spec.signature(batched=True),
-                TensorSpec(type='int', shape=(2,)).signature(batched=True),
-                self.internals_spec.signature(batched=True)
-            ]
+            return SignatureDict(
+                x=self.input_spec.signature(batched=True),
+                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                internals=self.internals_spec.signature(batched=True)
+            )
 
         elif function == 'cumulative_apply':
             cumulative_input_spec = self.input_spec.copy()
             cumulative_input_spec.shape = (None,) + cumulative_input_spec.shape
-            return [
-                cumulative_input_spec.signature(batched=True),
-                TensorSpec(type='int', shape=()).signature(batched=True)
-            ]
+            return SignatureDict(
+                xs=cumulative_input_spec.signature(batched=True),
+                lengths=TensorSpec(type='int', shape=()).signature(batched=True)
+            )
 
         elif function == 'iterative_step':
-            return [
-                self.input_spec.signature(batched=True),
-                self.internals_spec.signature(batched=True)
-            ]
+            return SignatureDict(
+                x=self.input_spec.signature(batched=True),
+                internals=self.internals_spec.signature(batched=True)
+            )
 
         elif function == 'past_horizon':
-            return ()
+            return SignatureDict()
 
         else:
             return super().input_signature(function=function)

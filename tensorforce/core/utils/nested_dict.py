@@ -24,15 +24,14 @@ def _is_keyword(x):
 
 class NestedDict(OrderedDict):
 
-    def __init__(self, *args, value_type=object, overwrite=False, **kwargs):
+    def __init__(self, arg=None, *, value_type, overwrite, **kwargs):
         super().__init__()
         super().__setattr__('value_type', value_type)
         super().__setattr__('overwrite', overwrite)
-        if len(args) > 1:
-            raise TensorforceError.invalid(
-                name='NestedDict', argument='*args', condition='more than one'
-            )
-        self.update(*args, **kwargs)
+        if arg is None:
+            self.update(**kwargs)
+        else:
+            self.update(arg, **kwargs)
 
     def copy(self):
         x = self.__class__((
@@ -43,19 +42,66 @@ class NestedDict(OrderedDict):
         super(NestedDict, x).__setattr__('overwrite', self.overwrite)
         return x
 
-    def fmap(self, function, cls=None, with_names=False):
+    def fmap(self, function, cls=None, with_names=False, zip_values=None):
         if cls is None:
-            x = self.__class__()
-            super(NestedDict, x).__setattr__('value_type', self.value_type)
-            super(NestedDict, x).__setattr__('overwrite', self.overwrite)
+            # Use same class and settings for mapped dict
+            values = self.__class__()
+            super(NestedDict, values).__setattr__('value_type', self.value_type)
+            super(NestedDict, values).__setattr__('overwrite', self.overwrite)
+            setitem = values.__setitem__
+
+        elif cls is list:
+            # Special target class list implies flatten
+            values = list()
+            setitem = (lambda n, v: (values.extend(v) if isinstance(v, list) else values.append(v)))
+
         else:
-            x = cls()
-        for name, value in self.items():
-            if with_names:
-                x[name] = function(name, value)
+            # Custom target class
+            assert issubclass(cls, NestedDict)
+            values = cls()
+            setitem = values.__setitem__
+
+        for name, value in super().items():
+            # with_names
+            if isinstance(with_names, str):
+                full_name = '{}/{}'.format(with_names, name)
+            elif with_names is True:
+                full_name = name
             else:
-                x[name] = function(value)
-        return x
+                full_name = False
+
+            # zip_values
+            if zip_values is None:
+                zip_value = None
+            elif isinstance(zip_values, NestedDict):
+                zip_value = (zip_values[name],)
+            elif isinstance(zip_values, tuple):
+                zip_value = tuple(xs[name] for xs in zip_values)
+            else:
+                raise TensorforceError.type(
+                    name='NestedDict.fmap', argument='zip_values', dtype=type(zip_values)
+                )
+
+            # Recursive fmap call
+            if isinstance(value, self.__class__):
+                setitem(name, value.fmap(
+                    function=function, cls=cls, with_names=full_name, zip_values=zip_value
+                ))
+
+            # Actual value mapping
+            else:
+                if full_name is False:
+                    if zip_value is None:
+                        setitem(name, function(value))
+                    else:
+                        setitem(name, function(value, *zip_value))
+                else:
+                    if zip_value is None:
+                        setitem(name, function(full_name, value))
+                    else:
+                        setitem(name, function(full_name, value, *zip_value))
+
+        return values
 
     def __len__(self):
         return sum(
@@ -117,7 +163,7 @@ class NestedDict(OrderedDict):
 
     def __getitem__(self, key):
         if isinstance(key, tuple):
-            return self.__class__(((name, value) for name, value in super().items() if name in key))
+            return self.__class__(((name, self[name]) for name in key))
 
         elif not isinstance(key, str):
             raise TensorforceError.type(name='NestedDict', argument='key', dtype=type(key))
@@ -130,8 +176,17 @@ class NestedDict(OrderedDict):
             else:
                 raise TensorforceError.unexpected()
 
-        else:
+        # else:
+        #     return super().__getitem__(key)
+
+        elif super().__contains__(key):
             return super().__getitem__(key)
+
+        else:
+            value = self.__class__()
+            super(NestedDict, value).__setattr__('value_type', self.value_type)
+            super(NestedDict, value).__setattr__('overwrite', self.overwrite)
+            return value
 
     def __setitem__(self, key, value):
         if not isinstance(key, str):
@@ -180,8 +235,14 @@ class NestedDict(OrderedDict):
             '{key}={value}'.format(key=key, value=value) for key, value in super().items()
         ))
 
-    def item(self):
+    def key(self):
+        return next(iter(self))
+
+    def value(self):
         return next(iter(self.values()))
+
+    def item(self):
+        return next(iter(self.items()))
 
     def get(self, key, *args, default=None):
         if len(args) > 0:
@@ -204,6 +265,27 @@ class NestedDict(OrderedDict):
                 self[key] = value
         for key, value in kwargs.items():
             self[key] = value
+
+    def pop(self, key, default=None):
+        if not isinstance(key, str):
+            raise TensorforceError.type(name='NestedDict', argument='key', dtype=type(key))
+
+        elif '/' in key:
+            key, subkey = key.split('/', 1)
+            value = super().__getitem__(key)
+            if isinstance(value, self.__class__):
+                return value.pop(subkey, default)
+            else:
+                raise TensorforceError.unexpected()
+
+        else:
+            # TODO: can't use pop since __delitem__ not implemented
+            if super().__contains__(key):
+                value = super().__getitem__(key)
+                super().__delitem__(key)
+            else:
+                value = default
+            return value
 
     __str__ = __repr__
 
@@ -233,9 +315,6 @@ class NestedDict(OrderedDict):
 
     @classmethod
     def fromkeys(cls, iterable, value=None):
-        raise NotImplementedError
-
-    def pop(self, key, default=None):
         raise NotImplementedError
 
     def popitem(self):

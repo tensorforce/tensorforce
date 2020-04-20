@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce import TensorforceError, util
+from tensorforce import TensorforceError
 from tensorforce.core import distribution_modules, layer_modules, ModuleDict, network_modules, \
     TensorDict, tf_function
 from tensorforce.core.policies import Stochastic, ActionValue
@@ -55,7 +55,7 @@ class ParametrizedDistributions(Stochastic, ActionValue):
     """
 
     def __init__(
-        self, network='auto', distributions=None, temperature=0.0, infer_states_value=False,
+        self, *, network='auto', distributions=None, temperature=0.0, infer_states_value=False,
         device=None, summary_labels=None, l2_regularization=None, name=None, states_spec=None,
         auxiliaries_spec=None, internals_spec=None, actions_spec=None
     ):
@@ -122,15 +122,15 @@ class ParametrizedDistributions(Stochastic, ActionValue):
     def internals_init(self):
         return self.network.internals_init()
 
-    def max_past_horizon(self, on_policy):
+    def max_past_horizon(self, *, on_policy):
         return self.network.max_past_horizon(on_policy=on_policy)
 
     @tf_function(num_args=0)
-    def past_horizon(self, on_policy):
+    def past_horizon(self, *, on_policy):
         return self.network.past_horizon(on_policy=on_policy)
 
     @tf_function(num_args=4)
-    def act(self, states, horizons, internals, auxiliaries, deterministic, return_internals):
+    def act(self, *, states, horizons, internals, auxiliaries, deterministic, return_internals):
         return Stochastic.act(
             self=self, states=states, horizons=horizons, internals=internals,
             auxiliaries=auxiliaries, deterministic=deterministic, return_internals=return_internals
@@ -138,7 +138,7 @@ class ParametrizedDistributions(Stochastic, ActionValue):
 
     @tf_function(num_args=5)
     def sample_actions(
-        self, states, horizons, internals, auxiliaries, temperatures, return_internals
+        self, *, states, horizons, internals, auxiliaries, temperatures, return_internals
     ):
         if return_internals:
             embedding, internals = self.network.apply(
@@ -149,16 +149,13 @@ class ParametrizedDistributions(Stochastic, ActionValue):
                 x=states, horizons=horizons, internals=internals, return_internals=False
             )
 
-        actions = TensorDict()
-        for name, spec, distribution, temperature in util.zip_items(
-            self.actions_spec, self.distributions, temperatures
-        ):
-            if spec.type == 'int':
-                mask = auxiliaries[name + '_mask']
-                parameters = distribution.parametrize(x=embedding, mask=mask)
-            else:
-                parameters = distribution.parametrize(x=embedding)
-            actions[name] = distribution.sample(parameters=parameters, temperature=temperature)
+        def function(distribution, conditions, temperature):
+            parameters = distribution.parametrize(x=embedding, conditions=conditions)
+            return distribution.sample(parameters=parameters, temperature=temperature)
+
+        actions = self.distributions.fmap(
+            function=function, cls=TensorDict, zip_values=(auxiliaries, temperatures)
+        )
 
         if return_internals:
             return actions, internals
@@ -166,92 +163,69 @@ class ParametrizedDistributions(Stochastic, ActionValue):
             return actions
 
     @tf_function(num_args=5)
-    def log_probabilities(self, states, horizons, internals, auxiliaries, actions):
+    def log_probabilities(self, *, states, horizons, internals, auxiliaries, actions):
         embedding = self.network.apply(
             x=states, horizons=horizons, internals=internals, return_internals=False
         )
 
-        log_probabilities = TensorDict()
-        for name, spec, distribution in util.zip_items(self.actions_spec, self.distributions):
-            if spec.type == 'int':
-                mask = auxiliaries[name + '_mask']
-                parameters = distribution.parametrize(x=embedding, mask=mask)
-            else:
-                parameters = distribution.parametrize(x=embedding)
-            log_probabilities[name] = distribution.log_probability(
-                parameters=parameters, action=actions[name]
-            )
+        def function(distribution, conditions, action):
+            parameters = distribution.parametrize(x=embedding, conditions=conditions)
+            return distribution.log_probability(parameters=parameters, action=action)
 
-        return log_probabilities
+        return self.distributions.fmap(
+            function=function, cls=TensorDict, zip_values=(auxiliaries, actions)
+        )
 
     @tf_function(num_args=4)
-    def entropies(self, states, horizons, internals, auxiliaries):
+    def entropies(self, *, states, horizons, internals, auxiliaries):
         embedding = self.network.apply(
             x=states, horizons=horizons, internals=internals, return_internals=False
         )
 
-        entropies = TensorDict()
-        for name, spec, distribution in util.zip_items(self.actions_spec, self.distributions):
-            if spec.type == 'int':
-                mask = auxiliaries[name + '_mask']
-                parameters = distribution.parametrize(x=embedding, mask=mask)
-            else:
-                parameters = distribution.parametrize(x=embedding)
-            entropies[name] = distribution.entropy(parameters=parameters)
+        def function(distribution, conditions):
+            parameters = distribution.parametrize(x=embedding, conditions=conditions)
+            return distribution.entropy(parameters=parameters)
 
-        return entropies
+        return self.distributions.fmap(function=function, cls=TensorDict, zip_values=auxiliaries)
 
     @tf_function(num_args=5)
-    def kl_divergences(self, states, horizons, internals, auxiliaries, other):
+    def kl_divergences(self, *, states, horizons, internals, auxiliaries, other):
         parameters = self.kldiv_reference(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries
         )
 
-        kl_divergences = TensorDict()
-        for name, distribution in self.distributions.items():
-            kl_divergences[name] = distribution.kl_divergence(
-                parameters1=parameters[name], parameters2=other[name]
-            )
+        def function(distribution, parameters1, parameters2):
+            return distribution.kl_divergence(parameters1=parameters1, parameters2=parameters2)
 
-        return kl_divergences
+        return self.distributions.fmap(
+            function=function, cls=TensorDict, zip_values=(parameters, other)
+        )
 
     @tf_function(num_args=4)
-    def kldiv_reference(self, states, horizons, internals, auxiliaries):
+    def kldiv_reference(self, *, states, horizons, internals, auxiliaries):
         embedding = self.network.apply(
             x=states, horizons=horizons, internals=internals, return_internals=False
         )
 
-        kldiv_reference = TensorDict()
-        for name, spec, distribution in util.zip_items(self.actions_spec, self.distributions):
-            if spec.type == 'int':
-                mask = auxiliaries[name + '_mask']
-                kldiv_reference[name] = distribution.parametrize(x=embedding, mask=mask)
-            else:
-                kldiv_reference[name] = distribution.parametrize(x=embedding)
+        def function(distribution, conditions):
+            return distribution.parametrize(x=embedding, conditions=conditions)
 
-        return kldiv_reference
+        return self.distributions.fmap(function=function, cls=TensorDict, zip_values=auxiliaries)
 
     @tf_function(num_args=4)
-    def states_values(self, states, horizons, internals, auxiliaries):
+    def states_values(self, *, states, horizons, internals, auxiliaries):
         embedding = self.network.apply(
             x=states, horizons=horizons, internals=internals, return_internals=False
         )
 
-        states_values = TensorDict()
-        for name, spec, distribution in util.zip_items(self.actions_spec, self.distributions):
-            if spec.type == 'int':
-                mask = auxiliaries[name + '_mask']
-                parameters = distribution.parametrize(x=embedding, mask=mask)
-            else:
-                parameters = distribution.parametrize(x=embedding)
-            states_values[name] = distribution.states_value(parameters=parameters)
+        def function(distribution, conditions):
+            parameters = distribution.parametrize(x=embedding, conditions=conditions)
+            return distribution.states_value(parameters=parameters)
 
-        return states_values
+        return self.distributions.fmap(function=function, cls=TensorDict, zip_values=auxiliaries)
 
     @tf_function(num_args=4)
-    def states_value(
-        self, states, horizons, internals, auxiliaries, reduced=True, return_per_action=False
-    ):
+    def states_value(self, *, states, horizons, internals, auxiliaries, reduced, return_per_action):
         if self.value is None:
             return ActionValue.states_value(
                 self=self, states=states, horizons=horizons, internals=internals,
@@ -266,25 +240,18 @@ class ParametrizedDistributions(Stochastic, ActionValue):
                 x=states, horizons=horizons, internals=internals, return_internals=False
             )
 
-            states_value = self.value.apply(x=embedding)
-
-            return states_value
+            return self.value.apply(x=embedding)
 
     @tf_function(num_args=5)
-    def actions_values(self, states, horizons, internals, auxiliaries, actions):
+    def actions_values(self, *, states, horizons, internals, auxiliaries, actions):
         embedding = self.network.apply(
             x=states, horizons=horizons, internals=internals, return_internals=False
         )
 
-        actions_values = TensorDict()
-        for name, spec, distribution, action in util.zip_items(
-            self.actions_spec, self.distributions, actions
-        ):
-            if spec.type == 'int':
-                mask = auxiliaries[name + '_mask']
-                parameters = distribution.parametrize(x=embedding, mask=mask)
-            else:
-                parameters = distribution.parametrize(x=embedding)
-            actions_values[name] = distribution.action_value(parameters=parameters, action=action)
+        def function(distribution, conditions, action):
+            parameters = distribution.parametrize(x=embedding, conditions=conditions)
+            return distribution.action_value(parameters=parameters, action=action)
 
-        return actions_values
+        return self.distributions.fmap(
+            function=function, cls=TensorDict, zip_values=(auxiliaries, actions)
+        )

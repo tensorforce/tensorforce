@@ -16,7 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core import Module, TensorSpec, TensorsSpec, tf_function
+from tensorforce.core import Module, SignatureDict, TensorDict, TensorSpec, TensorsSpec, tf_function
 
 
 class Policy(Module):
@@ -37,8 +37,8 @@ class Policy(Module):
     """
 
     def __init__(
-        self, device=None, summary_labels=None, l2_regularization=None, name=None, states_spec=None,
-        auxiliaries_spec=None, actions_spec=None
+        self, *, device=None, summary_labels=None, l2_regularization=None, name=None,
+        states_spec=None, auxiliaries_spec=None, actions_spec=None
     ):
         super().__init__(
             device=device, summary_labels=summary_labels, l2_regularization=l2_regularization,
@@ -54,42 +54,43 @@ class Policy(Module):
         return TensorsSpec()
 
     def internals_init(self):
-        return TensorsDict()
+        return TensorDict()
 
-    def max_past_horizon(self, on_policy):
+    def max_past_horizon(self, *, on_policy):
         raise NotImplementedError
 
-    def input_signature(self, function):
+    def input_signature(self, *, function):
         if function == 'act':
-            return [
-                self.states_spec.signature(batched=True),
-                TensorSpec(type='int', shape=(2,)).signature(batched=True),
-                self.internals_spec.signature(batched=True),
-                self.auxiliaries_spec.signature(batched=True)
-            ]
+            return SignatureDict(
+                states=self.states_spec.signature(batched=True),
+                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                internals=self.internals_spec.signature(batched=True),
+                auxiliaries=self.auxiliaries_spec.signature(batched=True)
+            )
 
         elif function == 'join_value_per_action':
-            return [
-                self.actions_spec.fmap(function=(lambda x: TensorSpec(type='float', shape=x.shape)))
-                    .signature(batched=True)
-            ]
+            return SignatureDict(
+                values=self.actions_spec.fmap(
+                    function=(lambda x: TensorSpec(type='float', shape=x.shape))
+                ).signature(batched=True)
+            )
 
         elif function == 'past_horizon':
-            return ()
+            return SignatureDict()
 
         else:
             return super().input_signature(function=function)
 
     @tf_function(num_args=0)
-    def past_horizon(self, on_policy):
+    def past_horizon(self, *, on_policy):
         raise NotImplementedError
 
     @tf_function(num_args=4)
-    def act(self, states, horizons, internals, auxiliaries, deterministic, return_internals):
+    def act(self, *, states, horizons, internals, auxiliaries, deterministic, return_internals):
         raise NotImplementedError
 
     @tf_function(num_args=1)
-    def join_value_per_action(self, values, reduced, return_per_action):
+    def join_value_per_action(self, *, values, reduced, return_per_action):
         assert not return_per_action or reduced
 
         for name, spec, value in util.zip_items(self.actions_spec, values):

@@ -146,7 +146,7 @@ def reduce_all(predicate, xs):
     elif isinstance(xs, set):
         return all(reduce_all(predicate=predicate, xs=x) for x in xs)
     elif isinstance(xs, dict):
-        return all(reduce_all(predicate=predicate, xs=x) for x in xs.values())  
+        return all(reduce_all(predicate=predicate, xs=x) for x in xs.values())
     else:
         return predicate(xs)
 
@@ -250,77 +250,3 @@ def np_dtype(dtype):
         return np_dtype_mapping[dtype]
     else:
         raise TensorforceError.value(name='util.np_dtype', argument='dtype', value=dtype)
-
-
-
-reverse_dtype_mapping = {
-    bool: 'bool', np.bool_: 'bool', tf.bool: 'bool',
-    int: 'int', np.int32: 'int', tf.int32: 'int',
-    np.int64: 'int', tf.int64: 'int',
-    float: 'float', np.float32: 'float', tf.float32: 'float'
-}
-
-
-# def tf_dtype(dtype):
-#     """Translates dtype specifications in configurations to tensorflow data types.
-
-#        Args:
-#            dtype: String describing a numerical type (e.g. 'float'), numpy data type,
-#                or numerical type primitive.
-
-#        Returns: TensorFlow data type
-
-#     """
-#     if dtype in tf_dtype_mapping:
-#         return tf_dtype_mapping[dtype]
-#     else:
-#         raise TensorforceError.value(name='util.tf_dtype', argument='dtype', value=dtype)
-
-
-def get_tensor_dependencies(tensor):
-    """
-    Utility method to get all dependencies (including placeholders) of a tensor (backwards through the graph).
-
-    Args:
-        tensor (tf.Tensor): The input tensor.
-
-    Returns: Set of all dependencies (including needed placeholders) for the input tensor.
-    """
-    dependencies = set()
-    dependencies.update(tensor.op.inputs)
-    for sub_op in tensor.op.inputs:
-        dependencies.update(get_tensor_dependencies(sub_op))
-    return dependencies
-
-
-reserved_names = {
-    'states', 'actions', 'terminal', 'reward', 'deterministic', 'optimization',
-    # Types
-    'bool', 'int', 'long', 'float',
-    # Value specification attributes
-    'shape', 'type', 'num_values', 'min_value', 'max_value'
-    # Special values?
-    'equal', 'loss', 'same', 'x'
-}
-
-
-def join_scopes(*args):
-    return '/'.join(args)
-
-
-def is_valid_name(name):
-    if not isinstance(name, str):
-        return False
-    if name == '':
-        return False
-    if '/' in name:
-        return False
-    if '.' in name:
-        return False
-    if name in reserved_names:
-        return False
-    return True
-
-
-def is_nested(name):
-    return name in ('states', 'internals', 'auxiliaries', 'actions')

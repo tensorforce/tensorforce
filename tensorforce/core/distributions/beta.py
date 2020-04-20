@@ -34,20 +34,25 @@ class Beta(Distribution):
         input_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(self, summary_labels=None, name=None, action_spec=None, input_spec=None):
+    def __init__(self, *, summary_labels=None, name=None, action_spec=None, input_spec=None):
+        assert action_spec.type == 'float' and action_spec.min_value is not None and \
+            action_spec.max_value is not None
+
         parameters_spec = TensorsSpec(
             alpha=TensorSpec(type='float', shape=action_spec.shape),
             beta=TensorSpec(type='float', shape=action_spec.shape),
             alpha_beta=TensorSpec(type='float', shape=action_spec.shape),
             log_norm=TensorSpec(type='float', shape=action_spec.shape)
         )
+        conditions_spec = TensorsSpec()
 
         super().__init__(
             summary_labels=summary_labels, name=name, action_spec=action_spec,
-            input_spec=input_spec, parameters_spec=parameters_spec
+            input_spec=input_spec, parameters_spec=parameters_spec, conditions_spec=conditions_spec
         )
 
         if len(self.input_spec.shape) == 1:
+            # Single embedding
             action_size = util.product(xs=self.action_spec.shape, empty=0)
             self.alpha = self.add_module(
                 name='alpha', module='linear', modules=layer_modules, size=action_size,
@@ -59,6 +64,7 @@ class Beta(Distribution):
             )
 
         else:
+            # Embedding per action
             if len(self.input_spec.shape) < 1 or len(self.input_spec.shape) > 3:
                 raise TensorforceError.value(
                     name=name, argument='input_spec.shape', value=self.input_spec.shape,
@@ -82,8 +88,8 @@ class Beta(Distribution):
                 input_spec=self.input_spec
             )
 
-    @tf_function(num_args=1)
-    def parametrize(self, x):
+    @tf_function(num_args=2)
+    def parametrize(self, *, x, conditions):
         # Softplus to ensure alpha and beta >= 1
         one = tf_util.constant(value=1.0, dtype='float')
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')
@@ -115,7 +121,7 @@ class Beta(Distribution):
         return TensorDict(alpha=alpha, beta=beta, alpha_beta=alpha_beta, log_norm=log_norm)
 
     @tf_function(num_args=2)
-    def sample(self, parameters, temperature):
+    def sample(self, *, parameters, temperature):
         alpha, beta, alpha_beta = parameters.get('alpha', 'beta', 'alpha_beta')
 
         summary_alpha = alpha
@@ -152,7 +158,7 @@ class Beta(Distribution):
         return min_value + (max_value - min_value) * sampled
 
     @tf_function(num_args=2)
-    def log_probability(self, parameters, action):
+    def log_probability(self, *, parameters, action):
         alpha, beta, log_norm = parameters.get('alpha', 'beta', 'log_norm')
 
         min_value = tf_util.constant(value=self.action_spec.min_value, dtype='float')
@@ -169,7 +175,7 @@ class Beta(Distribution):
             (alpha - one) * tf.math.log1p(x=(-action)) - log_norm
 
     @tf_function(num_args=1)
-    def entropy(self, parameters):
+    def entropy(self, *, parameters):
         alpha, beta, alpha_beta, log_norm = parameters.get(
             'alpha', 'beta', 'alpha_beta', 'log_norm'
         )
@@ -186,7 +192,7 @@ class Beta(Distribution):
             (alpha_beta - one - one) * digamma_alpha_beta
 
     @tf_function(num_args=2)
-    def kl_divergence(self, parameters1, parameters2):
+    def kl_divergence(self, *, parameters1, parameters2):
         alpha1, beta1, alpha_beta1, log_norm1 = parameters1.get(
             'alpha', 'beta', 'alpha_beta', 'log_norm'
         )

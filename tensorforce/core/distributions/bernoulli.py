@@ -33,20 +33,24 @@ class Bernoulli(Distribution):
         input_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(self, summary_labels=None, name=None, action_spec=None, input_spec=None):
+    def __init__(self, *, summary_labels=None, name=None, action_spec=None, input_spec=None):
+        assert action_spec.type == 'bool'
+
         parameters_spec = TensorsSpec(
             true_logit=TensorSpec(type='float', shape=action_spec.shape),
             false_logit=TensorSpec(type='float', shape=action_spec.shape),
             probability=TensorSpec(type='float', shape=action_spec.shape),
             states_value=TensorSpec(type='float', shape=action_spec.shape)
         )
+        conditions_spec = TensorsSpec()
 
         super().__init__(
             summary_labels=summary_labels, name=name, action_spec=action_spec,
-            input_spec=input_spec, parameters_spec=parameters_spec
+            input_spec=input_spec, parameters_spec=parameters_spec, conditions_spec=conditions_spec
         )
 
         if len(self.input_spec.shape) == 1:
+            # Single embedding
             action_size = util.product(xs=self.action_spec.shape, empty=0)
             self.logit = self.add_module(
                 name='logit', module='linear', modules=layer_modules, size=action_size,
@@ -54,6 +58,7 @@ class Bernoulli(Distribution):
             )
 
         else:
+            # Embedding per action
             if len(self.input_spec.shape) < 1 or len(self.input_spec.shape) > 3:
                 raise TensorforceError.value(
                     name=name, argument='input_spec.shape', value=self.input_spec.shape,
@@ -73,8 +78,8 @@ class Bernoulli(Distribution):
                 input_spec=self.input_spec
             )
 
-    @tf_function(num_args=1)
-    def parametrize(self, x):
+    @tf_function(num_args=2)
+    def parametrize(self, *, x, conditions):
         one = tf_util.constant(value=1.0, dtype='float')
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')
         shape = (-1,) + self.action_spec.shape
@@ -105,7 +110,7 @@ class Bernoulli(Distribution):
         )
 
     @tf_function(num_args=2)
-    def sample(self, parameters, temperature):
+    def sample(self, *, parameters, temperature):
         true_logit, false_logit, probability = parameters.get(
             'true_logit', 'false_logit', 'probability'
         )
@@ -137,13 +142,13 @@ class Bernoulli(Distribution):
         return tf.where(condition=(temperature < epsilon), x=definite, y=sampled)
 
     @tf_function(num_args=2)
-    def log_probability(self, parameters, action):
+    def log_probability(self, *, parameters, action):
         true_logit, false_logit = parameters.get('true_logit', 'false_logit')
 
         return tf.where(condition=action, x=true_logit, y=false_logit)
 
     @tf_function(num_args=1)
-    def entropy(self, parameters):
+    def entropy(self, *, parameters):
         true_logit, false_logit, probability = parameters.get(
             'true_logit', 'false_logit', 'probability'
         )
@@ -153,7 +158,7 @@ class Bernoulli(Distribution):
         return -probability * true_logit - (one - probability) * false_logit
 
     @tf_function(num_args=2)
-    def kl_divergence(self, parameters1, parameters2):
+    def kl_divergence(self, *, parameters1, parameters2):
         true_logit1, false_logit1, probability1, _ = parameters1.get(
             'true_logit', 'false_logit', 'probability'
         )
@@ -167,7 +172,7 @@ class Bernoulli(Distribution):
         return probability1 * true_log_prob_ratio + (one - probability1) * false_log_prob_ratio
 
     @tf_function(num_args=2)
-    def action_value(self, parameters, action):
+    def action_value(self, *, parameters, action):
         true_logit, false_logit, states_value = parameters.get(
             'true_logit', 'false_logit', 'states_value'
         )
@@ -177,7 +182,7 @@ class Bernoulli(Distribution):
         return states_value + logits
 
     @tf_function(num_args=1)
-    def states_value(self, parameters):
+    def states_value(self, *, parameters):
         states_value = parameters['states_value']
 
         return states_value

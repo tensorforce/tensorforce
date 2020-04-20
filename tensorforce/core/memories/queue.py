@@ -17,7 +17,7 @@ import numpy as np
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core import Module, tf_function, tf_util, VariableDict
+from tensorforce.core import TensorDict, tf_function, tf_util, VariableDict
 from tensorforce.core.memories import Memory
 
 
@@ -39,7 +39,7 @@ class Queue(Memory):
 
     # (requires capacity as first argument)
     def __init__(
-        self, capacity=None, device='CPU:0', summary_labels=None, name=None, values_spec=None,
+        self, *, capacity=None, device='CPU:0', summary_labels=None, name=None, values_spec=None,
         min_capacity=None
     ):
         super().__init__(
@@ -48,16 +48,16 @@ class Queue(Memory):
         )
 
         if capacity is None:
-            if min_capacity == 0:
+            if self.min_capacity is None:
                 raise TensorforceError.required(
                     name='memory', argument='capacity', condition='unknown minimum capacity'
                 )
             else:
-                self.capacity = min_capacity
-        elif capacity < min_capacity:
+                self.capacity = self.min_capacity
+        elif capacity < self.min_capacity:
             raise TensorforceError.value(
                 name='memory', argument='capacity', value=capacity,
-                hint=('< minimum capacity ' + str(min_capacity))
+                hint=('< minimum capacity ' + str(self.min_capacity))
             )
         else:
             self.capacity = capacity
@@ -66,33 +66,21 @@ class Queue(Memory):
         super().initialize()
 
         # Value buffers
-        self.buffers = VariableDict()
-        for name, spec in self.values_spec.items():
-            if util.is_nested(name=name):
-                self.buffers[name] = VariableDict()
-                for inner_name, spec in spec.items():
-                    shape = (self.capacity,) + spec.shape
-                    self.buffers[name][inner_name] = self.variable(
-                        name=(inner_name.replace('/', '_') + '-buffer'), dtype=spec.type,
-                        shape=shape, initializer='zero', is_trainable=False, is_saved=True
-                    )
+        def function(name, spec):
+            if name == 'terminal':
+                initializer = np.zeros(
+                    shape=(self.capacity,), dtype=util.np_dtype(dtype='int')
+                )
+                initializer[-1] = 1
             else:
-                shape = (self.capacity,) + spec.shape
-                if name == 'terminal':
-                    # Terminal initialization has to agree with terminal_indices
-                    initializer = np.zeros(
-                        shape=(self.capacity,), dtype=util.np_dtype(dtype='int')
-                    )
-                    initializer[-1] = 1
-                    self.buffers[name] = self.variable(
-                        name=(name.replace('/', '_') + '-buffer'), dtype=spec.type, shape=shape,
-                        initializer=initializer, is_trainable=False, is_saved=True
-                    )
-                else:
-                    self.buffers[name] = self.variable(
-                        name=(name.replace('/', '_') + '-buffer'), dtype=spec.type, shape=shape,
-                        initializer='zeros', is_trainable=False, is_saved=True
-                    )
+                initializer = 'zeros'
+            return self.variable(
+                name=(name.replace('/', '_') + '-buffer'), dtype=spec.type,
+                shape=((self.capacity,) + spec.shape), initializer=initializer, is_trainable=False,
+                is_saved=True
+            )
+
+        self.buffers = self.values_spec.fmap(function=function, cls=VariableDict, with_names=True)
 
         # Buffer index (modulo capacity, next index to write to)
         self.buffer_index = self.variable(
@@ -116,7 +104,7 @@ class Queue(Memory):
         )
 
     @tf_function(num_args=6)
-    def enqueue(self, states, internals, auxiliaries, actions, terminal, reward):
+    def enqueue(self, *, states, internals, auxiliaries, actions, terminal, reward):
         zero = tf_util.constant(value=0, dtype='int')
         one = tf_util.constant(value=1, dtype='int')
         three = tf_util.constant(value=3, dtype='int')
@@ -147,7 +135,7 @@ class Queue(Memory):
                 ),
                 # at most one terminal
                 tf.debugging.assert_less_equal(
-                    x=tf.math.count_nonzero(input=terminal, dtype=util.tf_dtype(dtype='int')),
+                    x=tf.math.count_nonzero(input=terminal, dtype=tf_util.get_dtype(type='int')),
                     y=one, message="Timesteps contain more than one terminal."
                 ),
                 # if terminal, last timestep in batch
@@ -207,34 +195,23 @@ class Queue(Memory):
 
         # Write new observations
         with tf.control_dependencies(control_inputs=(assignment,)):
-            indices = tf.range(start=self.buffer_index, limit=(self.buffer_index + num_timesteps))
-            indices = tf.math.mod(x=indices, y=capacity)
-            indices = tf.expand_dims(input=indices, axis=1)
-            values = dict(
+            # Add last observation terminal marker
+            corrected_terminal = tf.where(
+                condition=tf.math.equal(x=terminal[-1], y=zero), x=three, y=terminal[-1]
+            )
+            terminal = tf.concat(values=(terminal[:-1], (corrected_terminal,)), axis=0)
+            values = TensorDict(
                 states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
                 terminal=terminal, reward=reward
             )
-            assignments = list()
-            for name, buffer in self.buffers.items():
-                if util.is_nested(name=name):
-                    for inner_name, buffer in buffer.items():
-                        assignment = buffer.scatter_nd_update(
-                            indices=indices, updates=values[name][inner_name]
-                        )
-                        assignments.append(assignment)
-                else:
-                    if name == 'terminal':
-                        # Add last observation terminal marker
-                        corrected_terminal = tf.where(
-                            condition=tf.math.equal(x=terminal[-1], y=zero), x=three, y=terminal[-1]
-                        )
-                        assignment = buffer.scatter_nd_update(
-                            indices=indices,
-                            updates=tf.concat(values=(terminal[:-1], (corrected_terminal,)), axis=0)
-                        )
-                    else:
-                        assignment = buffer.scatter_nd_update(indices=indices, updates=values[name])
-                    assignments.append(assignment)
+            indices = tf.range(start=self.buffer_index, limit=(self.buffer_index + num_timesteps))
+            indices = tf.math.mod(x=indices, y=capacity)
+            indices = tf.expand_dims(input=indices, axis=1)
+
+            def function(buffer, value):
+                return buffer.scatter_nd_update(indices=indices, updates=value)
+
+            assignments = self.buffers.fmap(function=function, cls=list, zip_values=values)
 
         # Increment buffer index
         with tf.control_dependencies(control_inputs=assignments):
@@ -260,38 +237,24 @@ class Queue(Memory):
             assignment = self.episode_count.assign_add(delta=num_new_episodes, read_value=False)
 
         with tf.control_dependencies(control_inputs=(assignment,)):
-            return tf.no_op()
+            return tf_util.constant(value=False, dtype='bool')
 
     @tf_function(num_args=1)
-    def retrieve(self, indices, values):
+    def retrieve(self, *, indices, values):
         values = list(values)
-
-        # Retrieve values
+        function = (lambda x: tf.gather(params=x, indices=indices))
         for n, name in enumerate(values):
-            if util.is_nested(name=name):
-                value = TensorDict()
-                for inner_name in self.values_spec[name]:
-                    value[inner_name] = tf.gather(
-                        params=self.buffers[name][inner_name], indices=indices
-                    )
+            if isinstance(self.buffers[name], VariableDict):
+                values[n] = self.buffers[name].fmap(function=function, cls=TensorDict)
             else:
-                value = tf.gather(params=self.buffers[name], indices=indices)
-            values[n] = value
-
-        # Return values
+                values[n] = function(x=self.buffers[name])
         return values
 
     @tf_function(num_args=2)
-    def predecessors(self, indices, horizon, sequence_values, initial_values):
-        if sequence_values is None:
-            sequence_values = ()
-        if initial_values is None:
-            initial_values = ()
-        if sequence_values == () and initial_values == ():
-            raise TensorforceError.unexpected()
-
-        sequence_values = list(sequence_values)
-        initial_values = list(initial_values)
+    def predecessors(self, *, indices, horizon, sequence_values, initial_values):
+        assert isinstance(sequence_values, tuple)
+        assert isinstance(initial_values, tuple)
+        assert sequence_values != () or initial_values != ()
 
         zero = tf_util.constant(value=0, dtype='int')
         one = tf_util.constant(value=1, dtype='int')
@@ -321,7 +284,7 @@ class Queue(Memory):
             cond=tf_util.always_true, body=body,
             loop_vars=(lengths, predecessor_indices, mask),
             shape_invariants=(lengths.get_shape(), shape, shape), back_prop=False,
-            maximum_iterations=horizon
+            maximum_iterations=tf_util.int32(x=horizon)
         )
 
         predecessor_indices = tf.reshape(tensor=predecessor_indices, shape=(-1,))
@@ -334,34 +297,15 @@ class Queue(Memory):
         )
 
         with tf.control_dependencies(control_inputs=(assertion,)):
+            function = (lambda buffer: tf.gather(params=buffer, indices=predecessor_indices))
+            values = self.buffers[sequence_values].fmap(function=function, cls=TensorDict)
+            sequence_values = tuple(values[name] for name in sequence_values)
+
             starts = tf.math.cumsum(x=lengths, exclusive=True)
             initial_indices = tf.gather(params=predecessor_indices, indices=starts)
-
-            for n, name in enumerate(sequence_values):
-                if util.is_nested(name=name):
-                    sequence_value = TensorDict()
-                    for inner_name, spec in self.values_spec[name].items():
-                        sequence_value[inner_name] = tf.gather(
-                            params=self.buffers[name][inner_name], indices=predecessor_indices
-                        )
-                else:
-                    sequence_value = tf.gather(
-                        params=self.buffers[name], indices=predecessor_indices
-                    )
-                sequence_values[n] = sequence_value
-
-            for n, name in enumerate(initial_values):
-                if util.is_nested(name=name):
-                    initial_value = TensorDict()
-                    for inner_name, spec in self.values_spec[name].items():
-                        initial_value[inner_name] = tf.gather(
-                            params=self.buffers[name][inner_name], indices=initial_indices
-                        )
-                else:
-                    initial_value = tf.gather(
-                        params=self.buffers[name], indices=initial_indices
-                    )
-                initial_values[n] = initial_value
+            function = (lambda buffer: tf.gather(params=buffer, indices=initial_indices))
+            values = self.buffers[initial_values].fmap(function=function, cls=TensorDict)
+            initial_values = tuple(values[name] for name in initial_values)
 
         if len(sequence_values) == 0:
             return lengths, initial_values
@@ -373,13 +317,10 @@ class Queue(Memory):
             return tf.stack(values=(starts, lengths), axis=1), sequence_values, initial_values
 
     @tf_function(num_args=2)
-    def successors(self, indices, horizon, sequence_values, final_values):
-        if sequence_values is None:
-            sequence_values = ()
-        if final_values is None:
-            final_values = ()
-        if sequence_values == () and final_values == ():
-            raise TensorforceError.unexpected()
+    def successors(self, *, indices, horizon, sequence_values, final_values):
+        assert isinstance(sequence_values, tuple)
+        assert isinstance(final_values, tuple)
+        assert sequence_values != () or final_values != ()
 
         sequence_values = list(sequence_values)
         final_values = list(final_values)
@@ -412,7 +353,7 @@ class Queue(Memory):
         lengths, successor_indices, mask = tf.while_loop(
             cond=tf_util.always_true, body=body, loop_vars=(lengths, successor_indices, mask),
             shape_invariants=(lengths.get_shape(), shape, shape), back_prop=False,
-            maximum_iterations=horizon
+            maximum_iterations=tf_util.int32(x=horizon)
         )
 
         successor_indices = tf.reshape(tensor=successor_indices, shape=(-1,))
@@ -425,35 +366,16 @@ class Queue(Memory):
         )
 
         with tf.control_dependencies(control_inputs=(assertion,)):
+            function = (lambda buffer: tf.gather(params=buffer, indices=successor_indices))
+            values = self.buffers[sequence_values].fmap(function=function, cls=TensorDict)
+            sequence_values = tuple(values[name] for name in sequence_values)
+
             starts = tf.math.cumsum(x=lengths, exclusive=True)
             ends = tf.math.cumsum(x=lengths) - one
             final_indices = tf.gather(params=successor_indices, indices=ends)
-
-            for n, name in enumerate(sequence_values):
-                if util.is_nested(name=name):
-                    sequence_value = TensorDict()
-                    for inner_name, spec in self.values_spec[name].items():
-                        sequence_value[inner_name] = tf.gather(
-                            params=self.buffers[name][inner_name], indices=successor_indices
-                        )
-                else:
-                    sequence_value = tf.gather(
-                        params=self.buffers[name], indices=successor_indices
-                    )
-                sequence_values[n] = sequence_value
-
-            for n, name in enumerate(final_values):
-                if util.is_nested(name=name):
-                    final_value = TensorDict()
-                    for inner_name, spec in self.values_spec[name].items():
-                        final_value[inner_name] = tf.gather(
-                            params=self.buffers[name][inner_name], indices=final_indices
-                        )
-                else:
-                    final_value = tf.gather(
-                        params=self.buffers[name], indices=final_indices
-                    )
-                final_values[n] = final_value
+            function = (lambda buffer: tf.gather(params=buffer, indices=final_indices))
+            values = self.buffers[final_values].fmap(function=function, cls=TensorDict)
+            final_values = tuple(values[name] for name in final_values)
 
         if len(sequence_values) == 0:
             return lengths, final_values

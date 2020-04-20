@@ -14,8 +14,8 @@
 # ==============================================================================
 
 # utils
-from tensorforce.core.utils import ArrayDict, ModuleDict, NestedDict, TensorDict, TensorSpec, \
-    TensorsSpec, tf_util, VariableDict
+from tensorforce.core.utils import ArrayDict, ModuleDict, NestedDict, SignatureDict, TensorDict, \
+    TensorSpec, TensorsSpec, tf_util, VariableDict
 
 # Basics
 from tensorforce.core.config import TensorforceConfig

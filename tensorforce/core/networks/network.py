@@ -18,7 +18,7 @@ from collections import Counter
 import tensorflow as tf
 
 from tensorforce import TensorforceError
-from tensorforce.core import Module, TensorSpec, TensorsSpec, tf_function, tf_util
+from tensorforce.core import Module, SignatureDict, TensorSpec, TensorsSpec, tf_function, tf_util
 from tensorforce.core.layers import Layer, layer_modules, Register, Retrieve, TemporalLayer
 from tensorforce.core.parameters import Parameter
 from tensorforce.core.utils import ArrayDict
@@ -40,7 +40,8 @@ class Network(Module):
     """
 
     def __init__(
-        self, device=None, summary_labels=None, l2_regularization=None, name=None, inputs_spec=None
+        self, *, device=None, summary_labels=None, l2_regularization=None, name=None,
+        inputs_spec=None
     ):
         super().__init__(
             name=name, device=device, summary_labels=summary_labels,
@@ -59,29 +60,29 @@ class Network(Module):
     def internals_init(self):
         return ArrayDict()
 
-    def max_past_horizon(self, on_policy):
+    def max_past_horizon(self, *, on_policy):
         return 0
 
-    def input_signature(self, function):
+    def input_signature(self, *, function):
         if function == 'apply':
-            return [
-                self.inputs_spec.signature(batched=True),
-                TensorSpec(type='int', shape=(2,)).signature(batched=True),
-                self.internals_spec.signature(batched=True)
-            ]
+            return SignatureDict(
+                x=self.inputs_spec.signature(batched=True),
+                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                internals=self.internals_spec.signature(batched=True)
+            )
 
         elif function == 'past_horizon':
-            return ()
+            return SignatureDict()
 
         else:
             return super().input_signature(function=function)
 
     @tf_function(num_args=0)
-    def past_horizon(self, on_policy):
+    def past_horizon(self, *, on_policy):
         return tf_util.constant(value=0, dtype='int')
 
     @tf_function(num_args=3)
-    def apply(self, x, horizons, internals, return_internals):
+    def apply(self, *, x, horizons, internals, return_internals):
         raise NotImplementedError
 
 
@@ -90,7 +91,9 @@ class LayerbasedNetwork(Network):
     Base class for networks using Tensorforce layers.
     """
 
-    def __init__(self, name, inputs_spec, device=None, summary_labels=None, l2_regularization=None):
+    def __init__(
+        self, *, name, inputs_spec, device=None, summary_labels=None, l2_regularization=None
+    ):
         super().__init__(
             name=name, inputs_spec=inputs_spec, device=device, summary_labels=summary_labels,
             l2_regularization=l2_regularization
@@ -98,7 +101,7 @@ class LayerbasedNetwork(Network):
 
         self.registered_tensors_spec = self.inputs_spec.copy()
 
-        self._output_spec = self.inputs_spec.item()
+        self._output_spec = self.inputs_spec.value()
 
     def output_spec(self):
         return self._output_spec
@@ -122,7 +125,7 @@ class LayerbasedNetwork(Network):
 
         return internals_init
 
-    def max_past_horizon(self, on_policy):
+    def max_past_horizon(self, *, on_policy):
         past_horizons = [super().max_past_horizon(on_policy=on_policy)]
 
         for layer in self.this_submodules:
@@ -132,7 +135,7 @@ class LayerbasedNetwork(Network):
         return max(past_horizons)
 
     @tf_function(num_args=0)
-    def past_horizon(self, on_policy):
+    def past_horizon(self, *, on_policy):
         past_horizons = [super().past_horizon(on_policy=on_policy)]
 
         for layer in self.this_submodules:
@@ -142,7 +145,7 @@ class LayerbasedNetwork(Network):
         return tf.math.reduce_max(input_tensor=tf.stack(values=past_horizons, axis=0), axis=0)
 
     def add_module(
-        self, name, module=None, modules=None, default_module=None, is_trainable=True,
+        self, *, name, module=None, modules=None, default_module=None, is_trainable=True,
         is_saved=True, **kwargs
     ):
         # Module class and args
@@ -225,7 +228,7 @@ class LayeredNetwork(LayerbasedNetwork):
 
     # (requires layers as first argument)
     def __init__(
-        self, layers, device=None, summary_labels=None, l2_regularization=None, name=None,
+        self, *, layers, device=None, summary_labels=None, l2_regularization=None, name=None,
         inputs_spec=None
     ):
         super().__init__(
@@ -235,7 +238,7 @@ class LayeredNetwork(LayerbasedNetwork):
 
         self.layers = list(self._parse_layers_spec(spec=layers, counter=Counter()))
 
-    def _parse_layers_spec(self, spec, counter):
+    def _parse_layers_spec(self, *, spec, counter):
         if isinstance(spec, list):
             for s in spec:
                 yield from self._parse_layers_spec(spec=s, counter=counter)
@@ -255,9 +258,9 @@ class LayeredNetwork(LayerbasedNetwork):
             yield self.add_module(name=name, module=spec)
 
     @tf_function(num_args=3)
-    def apply(self, x, horizons, internals, return_internals):
+    def apply(self, *, x, horizons, internals, return_internals):
         registered_tensors = x.copy()
-        x = x.item()
+        x = x.value()
 
         for layer in self.layers:
             if isinstance(layer, Register):

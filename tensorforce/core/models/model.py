@@ -20,8 +20,8 @@ import numpy as np
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core import ArrayDict, Module, ModuleDict, parameter_modules, TensorDict, \
-    TensorSpec, TensorsSpec, tf_function, tf_util, VariableDict
+from tensorforce.core import ArrayDict, Module, ModuleDict, parameter_modules, SignatureDict, \
+    TensorDict, TensorSpec, TensorsSpec, tf_function, tf_util, VariableDict
 from tensorforce.core.networks import Preprocessor
 
 
@@ -31,7 +31,7 @@ class Model(Module):
         self,
         # Model
         states, actions, preprocessing, exploration, variable_noise, l2_regularization, name,
-        device, parallel_interactions, saver, summarizer, config
+        device, parallel_interactions, config, saver, summarizer
     ):
         # TODO: summarizer/saver/etc should be part of module init?
         if summarizer is None or summarizer.get('directory') is None:
@@ -39,14 +39,13 @@ class Model(Module):
         else:
             summary_labels = summarizer.get('labels', ('graph',))
 
+        # Tensorforce config (TODO: should be part of Module init?)
+        self.config = config
+
         super().__init__(
             name=name, is_root=True, device=device, summary_labels=summary_labels,
             l2_regularization=l2_regularization
         )
-
-        # Tensorforce config
-        # TODO: should be part of Module init?
-        self.config = config
 
         # Keep track of tensor names to check for collisions
         self.value_names = set()
@@ -87,19 +86,16 @@ class Model(Module):
         self.internals_init = ArrayDict()
 
         # Auxiliary value space specification
-        self.auxiliaries_spec = TensorsSpec()
-        if self.config.enable_int_action_masking:
-            for name, spec in self.actions_spec.items():
-                if spec.type == 'int':
-                    self.auxiliaries_spec[name + '_mask'] = TensorSpec(
-                        type='bool', shape=(spec.shape + (spec.num_values,))
-                    )
+        def function(spec):
+            auxiliary_spec = TensorsSpec()
+            if self.config.enable_int_action_masking and spec.type == 'int' and \
+                    spec.num_values is not None:
+                auxiliary_spec['mask'] = TensorSpec(
+                    type='bool', shape=(spec.shape + (spec.num_values,))
+                )
+            return auxiliary_spec
 
-            # Check for name collisions
-            for name in self.auxiliaries_spec:
-                if name in self.value_names:
-                    raise TensorforceError.exists(name='value name', value=name)
-                self.value_names.add(name)
+        self.auxiliaries_spec = self.actions_spec.fmap(function=function)
 
         # States preprocessing
         self.preprocessing = ModuleDict()
@@ -213,53 +209,54 @@ class Model(Module):
 
     def input_signature(self, function):
         if function == 'act':
-            return [
-                self.unprocessed_states_spec.signature(batched=True),
-                self.auxiliaries_spec.signature(batched=True),
-                self.parallel_spec.signature(batched=True)
-            ]
+            return SignatureDict(
+                states=self.unprocessed_states_spec.signature(batched=True),
+                auxiliaries=self.auxiliaries_spec.signature(batched=True),
+                parallel=self.parallel_spec.signature(batched=True)
+            )
 
         elif function == 'apply_exploration':
-            return [
-                self.auxiliaries_spec.signature(batched=True),
-                self.actions_spec.signature(batched=True),
-                self.actions_spec.fmap(function=(lambda x: TensorSpec(type='float', shape=())))
-                    .signature(batched=False)
-            ]
+            return SignatureDict(
+                auxiliaries=self.auxiliaries_spec.signature(batched=True),
+                actions=self.actions_spec.signature(batched=True),
+                exploration=self.actions_spec.fmap(
+                    function=(lambda x: TensorSpec(type='float', shape=()))
+                ).signature(batched=False)
+            )
 
         elif function == 'core_act':
-            return [
-                self.states_spec.signature(batched=True),
-                self.internals_spec.signature(batched=True),
-                self.auxiliaries_spec.signature(batched=True)
-            ]
+            return SignatureDict(
+                states=self.states_spec.signature(batched=True),
+                internals=self.internals_spec.signature(batched=True),
+                auxiliaries=self.auxiliaries_spec.signature(batched=True)
+            )
 
         elif function == 'core_observe':
-            return [
-                self.states_spec.signature(batched=True),
-                self.internals_spec.signature(batched=True),
-                self.auxiliaries_spec.signature(batched=True),
-                self.actions_spec.signature(batched=True),
-                self.terminal_spec.signature(batched=True),
-                self.reward_spec.signature(batched=True)
-            ]
+            return SignatureDict(
+                states=self.states_spec.signature(batched=True),
+                internals=self.internals_spec.signature(batched=True),
+                auxiliaries=self.auxiliaries_spec.signature(batched=True),
+                actions=self.actions_spec.signature(batched=True),
+                terminal=self.terminal_spec.signature(batched=True),
+                reward=self.reward_spec.signature(batched=True)
+            )
 
         elif function == 'independent_act':
-            return [
-                self.states_spec.signature(batched=True),
-                self.internals_spec.signature(batched=True),
-                self.auxiliaries_spec.signature(batched=True)
-            ]
+            return SignatureDict(
+                states=self.states_spec.signature(batched=True),
+                internals=self.internals_spec.signature(batched=True),
+                auxiliaries=self.auxiliaries_spec.signature(batched=True)
+            )
 
         elif function == 'observe':
-            return [
-                self.terminal_spec.signature(batched=True),
-                self.reward_spec.signature(batched=True),
-                self.parallel_spec.signature(batched=False)
-            ]
+            return SignatureDict(
+                terminal=self.terminal_spec.signature(batched=True),
+                reward=self.reward_spec.signature(batched=True),
+                parallel=self.parallel_spec.signature(batched=False)
+            )
 
         elif function == 'reset':
-            return ()
+            return SignatureDict()
 
         else:
             return super().input_signature(function=function)
@@ -305,15 +302,18 @@ class Model(Module):
         )
 
         # Internals buffers
-        self.internals_buffer = VariableDict()
-        for name, spec, initial in util.zip_items(self.internals_spec, self.internals_init):
+        def function(name, spec, initial):
             shape = ((self.parallel_interactions, self.config.buffer_observe + 1) + spec.shape)
             initializer = np.zeros(shape=shape, dtype=util.np_dtype(dtype=spec.type))
             initializer[:, 0] = initial
-            self.internals_buffer[name] = self.variable(
+            return self.variable(
                 name=(name.replace('/', '_') + '-buffer'), dtype=spec.type, shape=shape,
                 initializer=initializer, is_trainable=False, is_saved=False
             )
+
+        self.internals_buffer = self.internals_spec.fmap(
+            function=function, cls=VariableDict, with_names=True, zip_values=self.internals_init
+        )
 
     @tf_function(num_args=0)
     def reset(self):
@@ -332,7 +332,7 @@ class Model(Module):
     @tf_function(num_args=3)
     def independent_act(self, states, internals, auxiliaries):
         true = tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
-        batch_size = tf.shape(input=states.item())[0]
+        batch_size = tf.shape(input=states.value())[0]
 
         # Input assertions
         dependencies = self.states_spec.tf_assert(
@@ -353,7 +353,7 @@ class Model(Module):
                 if spec.type == 'int':
                     dependencies.append(tf.debugging.assert_equal(
                         x=tf.reduce_all(input_tensor=tf.math.reduce_any(
-                            input_tensor=auxiliaries[name + '_mask'], axis=(spec.rank + 1)
+                            input_tensor=auxiliaries[name]['mask'], axis=(spec.rank + 1)
                         )), y=true,
                         message="Agent.independent_act: at least one action has to be valid."
                     ))
@@ -450,7 +450,7 @@ class Model(Module):
                 if spec.type == 'int':
                     dependencies.append(tf.debugging.assert_equal(
                         x=tf.reduce_all(input_tensor=tf.math.reduce_any(
-                            input_tensor=auxiliaries[name + '_mask'], axis=(spec.rank + 1)
+                            input_tensor=auxiliaries[name]['mask'], axis=(spec.rank + 1)
                         )), y=true,
                         message="Agent.independent_act: at least one action has to be valid."
                     ))
@@ -498,7 +498,7 @@ class Model(Module):
                 for name, spec in self.actions_spec.items():
                     if spec.type == 'int':
                         is_valid = tf.reduce_all(input_tensor=tf.gather(
-                            params=auxiliaries[name + '_mask'],
+                            params=auxiliaries[name]['mask'],
                             indices=tf.expand_dims(input=actions[name], axis=(spec.rank + 1)),
                             batch_dims=(spec.rank + 1)
                         ))
@@ -535,7 +535,7 @@ class Model(Module):
             for name, spec in self.actions_spec.items():
                 if spec.type == 'int':
                     is_valid = tf.reduce_all(input_tensor=tf.gather(
-                        params=auxiliaries[name + '_mask'],
+                        params=auxiliaries[name]['mask'],
                         indices=tf.expand_dims(input=actions[name], axis=(spec.rank + 1)),
                         batch_dims=(spec.rank + 1)
                     ))
@@ -611,17 +611,12 @@ class Model(Module):
             y=tf.math.greater(x=terminal[-1], y=zero),
             message="Agent.observe: terminal is not the last input timestep."
         ))
-        # Assertion: single parallel value
-        dependencies.append(tf.debugging.assert_equal(
-            x=tf_util.cast(x=tf.shape(input=parallel)[0], dtype='int'), y=one,
-            message="Agent.observe: parallel contains more than one value."
-        ))
 
         with tf.control_dependencies(control_inputs=dependencies):
             dependencies = list()
             reward = self.add_summary(label=('reward', 'rewards'), name='reward', tensor=reward)
             dependencies.append(self.episode_reward.scatter_nd_add(
-                indices=tf.expand_dims(input=parallel, axis=1),
+                indices=tf.expand_dims(input=tf.expand_dims(input=parallel, axis=0), axis=1),
                 updates=tf.math.reduce_sum(input_tensor=reward, keepdims=True)
             ))
 
@@ -634,8 +629,10 @@ class Model(Module):
                     tensor=tf.gather(params=self.episode_reward, indices=parallel),
                     pass_tensors=zero_float
                 )
+
                 assignment = self.episode_reward.scatter_nd_update(
-                    indices=tf.expand_dims(input=parallel, axis=1), updates=zero_float
+                    indices=tf.expand_dims(input=tf.expand_dims(input=parallel, axis=0), axis=1),
+                    updates=zero_float
                 )
                 with tf.control_dependencies(control_inputs=(assignment,)):
                     return tf.no_op()
@@ -667,16 +664,16 @@ class Model(Module):
         with tf.control_dependencies(control_inputs=dependencies):
             # Values from buffers
             states = self.states_buffer.fmap(
-                function=(lambda x: x[parallel[0], :buffer_index[0]]), cls=TensorDict
+                function=(lambda x: x[parallel, :buffer_index]), cls=TensorDict
             )
             internals = self.internals_buffer.fmap(
-                function=(lambda x: x[parallel[0], :buffer_index[0]]), cls=TensorDict
+                function=(lambda x: x[parallel, :buffer_index]), cls=TensorDict
             )
             auxiliaries = self.auxiliaries_buffer.fmap(
-                function=(lambda x: x[parallel[0], :buffer_index[0]]), cls=TensorDict
+                function=(lambda x: x[parallel, :buffer_index]), cls=TensorDict
             )
             actions = self.actions_buffer.fmap(
-                function=(lambda x: x[parallel[0], :buffer_index[0]]), cls=TensorDict
+                function=(lambda x: x[parallel, :buffer_index]), cls=TensorDict
             )
 
             # Core observe
@@ -691,7 +688,8 @@ class Model(Module):
 
             # Reset buffer index
             dependencies.append(self.buffer_index.scatter_nd_update(
-                indices=parallel, updates=tf.expand_dims(input=zero, axis=0)
+                indices=tf.expand_dims(input=tf.expand_dims(input=parallel, axis=0), axis=1),
+                updates=tf.expand_dims(input=zero, axis=0)
             ))
 
             # Reset preprocessors
@@ -707,11 +705,11 @@ class Model(Module):
 
         # Return
         with tf.control_dependencies(control_inputs=dependencies):
-            updated = tf_util.identity(input=is_updated)
+            is_updated = tf_util.identity(input=is_updated)
             episode = tf_util.identity(input=self.episodes)
             update = tf_util.identity(input=self.updates)
 
-        return updated, episode, update
+        return is_updated, episode, update
 
     @tf_function(num_args=3)
     def core_act(self, states, internals, auxiliaries, deterministic):
@@ -740,7 +738,7 @@ class Model(Module):
                 if self.config.enable_int_action_masking:
                     # Masked action: if uniform[0, 1] < exploration, then uniform[unmasked]
                     # (Similar code as for RandomModel.core_act)
-                    mask = auxiliaries[name + '_mask']
+                    mask = auxiliaries[name]['mask']
                     choices = tf_util.constant(
                         value=list(range(spec.num_values)), dtype=spec.type,
                         shape=(tuple(1 for _ in spec.shape) + (1, spec.num_values))

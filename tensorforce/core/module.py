@@ -14,6 +14,7 @@
 # ==============================================================================
 
 from collections import OrderedDict
+import importlib
 import json
 import os
 import time
@@ -23,7 +24,7 @@ import tensorflow as tf
 
 from tensorforce import TensorforceError, util
 import tensorforce.core
-from tensorforce.core import TensorDict, tf_util
+from tensorforce.core import SignatureDict, TensorDict, tf_util
 
 
 MODULE_STACK = list()
@@ -60,50 +61,41 @@ def tf_function(num_args):
     def decorator(function):
 
         def decorated(self, *args, **kwargs):
-            # Either only kwargs, or only args and no signature
-            if len(args) == 0:
-                assert len(kwargs) >= num_args
-                all_args = list(kwargs.values())
-                is_args = False
-            else:
-                assert len(kwargs) == 0 and len(args) == num_args
-                all_args = list(args)
-                is_args = True
+            assert len(kwargs) >= num_args
+            args = list(kwargs.values())
 
             # Function name and qualname
             name = function.__name__
-            assert function.__qualname__.endswith('.' + name)
+            qualname = function.__qualname__
+            assert qualname.endswith('.' + name)
 
-            # Spec-to-graph mapping
+            # Parameters-to-graph mapping
             if not hasattr(self, name + '_graphs'):
                 setattr(self, name + '_graphs', OrderedDict())
             function_graphs = getattr(self, name + '_graphs')
 
-            # Graph spec
-            graph_spec = tuple(make_key(x=arg) for arg in all_args[num_args:])
+            # Graph parameters
+            graph_params = tuple(make_key(x=arg) for arg in args[num_args:])
 
             # Apply raw function if qualname mismatch, which indicates super() call
             # Call early to avoid check for number of arguments in case it has changed
-            if graph_spec in function_graphs and \
-                    function.__qualname__ != function_graphs[graph_spec][0]:
-                return function(self, *args, **kwargs)
+            if graph_params in function_graphs and qualname != function_graphs[graph_params][0]:
+                return function(self, **kwargs)
 
             # Graph signature
             graph_signature = self.input_signature(function=name)
-            assert len(graph_signature) == num_args
+            assert graph_signature.num_args() == num_args
 
-            # Graph args
-            graph_args = [
-                arg.to_list() if isinstance(arg, TensorDict) else arg for arg in all_args[:num_args]
-            ]
+            # Graph arguments
+            graph_args = graph_signature.kwargs_to_args(kwargs=kwargs)
 
-            if graph_spec not in function_graphs:
+            if graph_params not in function_graphs:
                 # Check that length of graph specs are consistent
                 assert len(function_graphs) == 0 or \
-                    len(next(iter(function_graphs))) == len(graph_spec)
+                    len(next(iter(function_graphs))) == len(graph_params)
 
-                # Graph spec kwargs
-                spec_kwargs = dict(list(kwargs.items())[num_args:])
+                # Params kwargs
+                params_kwargs = dict(list(kwargs.items())[num_args:])
 
                 # Function graph
                 def function_graph(*args):
@@ -114,17 +106,9 @@ def tf_function(num_args):
                         pop_module_stack = False
                     if self.device is not None:
                         self.device.__enter__()
-                    # with self.name_scope:
-                    if is_args:
-                        print('!!!', name)
-                        results = Module.with_name_scope(method=function)(
-                            self, *args, **spec_kwargs
-                        )
-                    else:
-                        graph_kwargs = {name: value.from_list(xs=arg) if isinstance(value, TensorDict) else value for (name, value), arg in zip(list(kwargs.items())[:num_args], args)}
-                        results = Module.with_name_scope(method=function)(
-                            self, **graph_kwargs, **spec_kwargs
-                        )
+                    results = Module.with_name_scope(method=function)(
+                        self, **graph_signature.args_to_kwargs(args=args), **params_kwargs
+                    )
                     if self.device is not None:
                         self.device.__exit__(None, None, None)
                     if pop_module_stack:
@@ -132,17 +116,14 @@ def tf_function(num_args):
                         assert popped is self
                     return results
 
-                # function_graph = partial(function, self, **graph_kwargs)
-                function_graphs[graph_spec] = (function.__qualname__, tf.function(
-                    func=function_graph, input_signature=graph_signature, autograph=False
+                function_graphs[graph_params] = (qualname, tf.function(
+                    func=function_graph, input_signature=graph_signature.to_list(), autograph=False
                     # experimental_implements=None, experimental_autograph_options=None,
                     # experimental_relax_shapes=False, experimental_compile=None
                 ))
 
-            # Get function graph
-            _, function_graph = function_graphs[graph_spec]
-
-            return function_graph(*graph_args)
+            # Apply function graph
+            return function_graphs[graph_params][1](*graph_args)
 
         # TensorFlow make_decorator
         return tf.compat.v1.flags.tf_decorator.make_decorator(
@@ -157,14 +138,13 @@ class Module(tf.Module):
     Base class for modules.
 
     Args:
-        name (string): Module name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         device (string): Device name
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     _TF_MODULE_IGNORED_PROPERTIES = frozenset((
@@ -176,11 +156,8 @@ class Module(tf.Module):
     global_summary_step = None
 
     def __init__(
-        self, name, is_root=False, device=None, summary_labels=None, l2_regularization=None
+        self, is_root=False, device=None, summary_labels=None, l2_regularization=None, name=None
     ):
-        if not util.is_valid_name(name=name):
-            raise TensorforceError.value(name='module', argument='name', value=name)
-
         super().__init__(name=name)
 
         self.is_root = is_root
@@ -622,10 +599,10 @@ class Module(tf.Module):
 
     def input_signature(self, function):
         if function == 'regularize':
-            return ()
+            return SignatureDict()
 
         else:
-            return None
+            raise NotImplementedError
 
     @tf_function(num_args=0)
     def regularize(self):
@@ -790,8 +767,8 @@ class Module(tf.Module):
     def variable(self, name, dtype, shape, initializer, is_trainable, is_saved):
         assert not self.root.is_initialized
         # name
-        if not util.is_valid_name(name=name):
-            raise TensorforceError.value(name='variable', argument='name', value=name)
+        if not isinstance(name, str):
+            raise TensorforceError.type(name='variable', argument='name', dtype=type(name))
         # dtype
         if dtype not in ('bool', 'int', 'float'):
             raise TensorforceError.value(name='variable', argument='dtype', value=dtype)
@@ -1106,9 +1083,8 @@ class Module(tf.Module):
         name, module=None, modules=None, default_module=None, disable_first_arg=False, **kwargs
     ):
         # name
-        if not util.is_valid_name(name=name):
-            raise TensorforceError.value(name='Module.add_module', argument='name', value=name)
-
+        if not isinstance(name, str):
+            raise TensorforceError.type(name='Module.add_module', argument='name', dtype=type(name))
         # modules
         if modules is not None and not isinstance(modules, dict):
             raise TensorforceError.type(

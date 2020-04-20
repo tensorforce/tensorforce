@@ -15,7 +15,7 @@
 
 import tensorflow as tf
 
-from tensorforce.core import Module, TensorSpec, tf_function
+from tensorforce.core import Module, SignatureDict, TensorSpec, tf_function
 
 
 class Objective(Module):
@@ -53,35 +53,35 @@ class Objective(Module):
 
     def input_signature(self, function):
         if function == 'loss':
-            return [
-                self.states_spec.signature(batched=True),
-                TensorSpec(type='int', shape=(2,)).signature(batched=True),
-                self.internals_spec.signature(batched=True),
-                self.auxiliaries_spec.signature(batched=True),
-                self.actions_spec.signature(batched=True),
-                self.reward_spec.signature(batched=True)
-            ]
+            return SignatureDict(
+                states=self.states_spec.signature(batched=True),
+                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                internals=self.internals_spec.signature(batched=True),
+                auxiliaries=self.auxiliaries_spec.signature(batched=True),
+                actions=self.actions_spec.signature(batched=True),
+                reward=self.reward_spec.signature(batched=True)
+            )
 
         elif function == 'reference':
-            return [
-                self.states_spec.signature(batched=True),
-                TensorSpec(type='int', shape=(2,)).signature(batched=True),
-                self.internals_spec.signature(batched=True),
-                self.auxiliaries_spec.signature(batched=True),
-                self.actions_spec.signature(batched=True),
-                self.reward_spec.signature(batched=True)
-            ]
+            return SignatureDict(
+                states=self.states_spec.signature(batched=True),
+                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                internals=self.internals_spec.signature(batched=True),
+                auxiliaries=self.auxiliaries_spec.signature(batched=True),
+                actions=self.actions_spec.signature(batched=True),
+                reward=self.reward_spec.signature(batched=True)
+            )
 
         elif function == 'comparative_loss':
-            return [
-                self.states_spec.signature(batched=True),
-                TensorSpec(type='int', shape=(2,)).signature(batched=True),
-                self.internals_spec.signature(batched=True),
-                self.auxiliaries_spec.signature(batched=True),
-                self.actions_spec.signature(batched=True),
-                self.reward_spec.signature(batched=True),
-                self.reference_spec().signature(batched=True)
-            ]
+            return SignatureDict(
+                states=self.states_spec.signature(batched=True),
+                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                internals=self.internals_spec.signature(batched=True),
+                auxiliaries=self.auxiliaries_spec.signature(batched=True),
+                actions=self.actions_spec.signature(batched=True),
+                reward=self.reward_spec.signature(batched=True),
+                reference=self.reference_spec().signature(batched=True)
+            )
 
         else:
             return super().input_signature(function=function)

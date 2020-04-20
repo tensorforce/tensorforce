@@ -68,7 +68,7 @@ class DeterministicPolicyGradient(Objective):
                 states=states, horizons=horizons, internals=baseline_internals,
                 auxiliaries=auxiliaries, actions=actions, reduced=True, return_per_action=False
             )
-            action = actions.item()
+            action = actions.value()
             assert len(actions) == 1 and len(tf_util.shape(x=action)) == 1
             return -tf.gradients(ys=actions_value, xs=action)[0]
 

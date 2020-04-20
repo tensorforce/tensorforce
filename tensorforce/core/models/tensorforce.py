@@ -16,8 +16,8 @@
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core import memory_modules, optimizer_modules, parameter_modules, TensorSpec, \
-    TensorsSpec, tf_function, tf_util
+from tensorforce.core import memory_modules, optimizer_modules, parameter_modules, SignatureDict, \
+    TensorDict, TensorSpec, TensorsSpec, tf_function, tf_util
 from tensorforce.core.estimators import Estimator
 from tensorforce.core.models import Model
 from tensorforce.core.networks import Preprocessor
@@ -171,46 +171,50 @@ class TensorforceModel(Model):
 
         # Optimizers
         if baseline_optimizer is None:
-            internals_spec = self.internals_spec
             self.baseline_loss_weight = None
+            internals_spec = self.internals_spec
             self.baseline_optimizer = None
         elif isinstance(baseline_optimizer, float):
-            internals_spec = self.internals_spec
             self.baseline_loss_weight = 1.0
+            internals_spec = self.internals_spec
             self.baseline_optimizer = None
         else:
-            internals_spec = self.policy.internals_spec
             self.baseline_loss_weight = None
+            internals_spec = self.internals_spec['policy']
             self.baseline_optimizer = self.add_module(
                 name='baseline_optimizer', module=baseline_optimizer, modules=optimizer_modules,
                 is_trainable=False, optimized_module=self.baseline, arguments_spec=TensorsSpec(
                     states=self.states_spec, horizons=TensorSpec(type='int', shape=(2,)),
-                    internals=self.baseline.internals_spec, auxiliaries_spec=self.auxiliaries_spec,
-                    actions_spec=self.actions_spec, reward_spec=self.reward_spec
+                    internals=self.internals_spec['baseline'], auxiliaries=self.auxiliaries_spec,
+                    actions=self.actions_spec, reward=self.reward_spec
                 )
             )
         self.optimizer = self.add_module(
             name='optimizer', module=optimizer, modules=optimizer_modules, optimized_module=self,
             arguments_spec=TensorsSpec(
                 states=self.states_spec, horizons=TensorSpec(type='int', shape=(2,)),
-                internals=internals_spec, auxiliaries_spec=self.auxiliaries_spec,
-                actions_spec=self.actions_spec, reward_spec=self.reward_spec
+                internals=internals_spec, auxiliaries=self.auxiliaries_spec,
+                actions=self.actions_spec, reward=self.reward_spec
             )
         )
 
         # Objectives
         self.objective = self.add_module(
             name='objective', module=objective, modules=objective_modules,
-            states_spec=self.states_spec, internals_spec=self.policy.internals_spec,
+            states_spec=self.states_spec, internals_spec=self.internals_spec['policy'],
             auxiliaries_spec=self.auxiliaries_spec, actions_spec=self.actions_spec,
             reward_spec=self.reward_spec
         )
         if baseline_objective is None:
             baseline_objective = objective
+        if self.separate_baseline_policy:
+            internals_spec = self.internals_spec['baseline']
+        else:
+            internals_spec = self.internals_spec['policy']
         self.baseline_objective = self.add_module(
             name='baseline_objective', module=baseline_objective, modules=objective_modules,
             is_trainable=baseline_is_trainable, states_spec=self.states_spec,
-            internals_spec=self.baseline.internals_spec, auxiliaries_spec=self.auxiliaries_spec,
+            internals_spec=internals_spec, auxiliaries_spec=self.auxiliaries_spec,
             actions_spec=self.actions_spec, reward_spec=self.reward_spec
         )
 
@@ -224,7 +228,7 @@ class TensorforceModel(Model):
                 hint='not from {discount,estimate_actions,estimate_advantage,estimate_horizon,'
                      'estimate_terminal,horizon}'
             )
-        max_past_horizon = self.baseline.max_past_horizon(on_policy=False)
+        max_past_horizon = self.baseline.max_past_horizon(on_policy=True)
         values_spec = TensorsSpec(
             states=self.states_spec, internals=self.internals_spec,
             auxiliaries=self.auxiliaries_spec, actions=self.actions_spec,
@@ -245,17 +249,16 @@ class TensorforceModel(Model):
         # Memory
         if self.update_unit == 'timesteps':
             max_past_horizon = max(
-                self.policy.max_past_horizon(on_policy=True),
-                self.baseline.max_past_horizon(on_policy=True) - \
-                self.estimator.min_future_horizon()
+                self.policy.max_past_horizon(on_policy=False),
+                self.baseline.max_past_horizon(on_policy=False)
             )
             min_capacity = self.update_batch_size.max_value() + 1 + max_past_horizon + \
                 self.estimator.max_future_horizon()
         elif self.update_unit == 'episodes':
             if max_episode_timesteps is None:
-                min_capacity = 0
+                min_capacity = None
             else:
-                min_capacity = (self.update_batch_size.max_value() + 1) * max_episode_timesteps 
+                min_capacity = (self.update_batch_size.max_value() + 1) * max_episode_timesteps
         else:
             assert False
 
@@ -273,86 +276,92 @@ class TensorforceModel(Model):
 
     def input_signature(self, function):
         if function == 'baseline_loss':
-            return [
-                self.states_spec.signature(batched=True),
-                TensorSpec(type='int', shape=(2,)).signature(batched=True),
-                self.baseline.internals_spec.signature(batched=True),
-                self.auxiliaries_spec.signature(batched=True),
-                self.actions_spec.signature(batched=True),
-                self.reward_spec.signature(batched=True)
-            ]
+            return SignatureDict(
+                states=self.states_spec.signature(batched=True),
+                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                internals=self.internals_spec['baseline'].signature(batched=True),
+                auxiliaries=self.auxiliaries_spec.signature(batched=True),
+                actions=self.actions_spec.signature(batched=True),
+                reward=self.reward_spec.signature(batched=True)
+            )
 
         elif function == 'baseline_comparative_loss':
-            return [
-                self.states_spec.signature(batched=True),
-                TensorSpec(type='int', shape=(2,)).signature(batched=True),
-                self.baseline.internals_spec.signature(batched=True),
-                self.auxiliaries_spec.signature(batched=True),
-                self.actions_spec.signature(batched=True),
-                self.reward_spec.signature(batched=True),
-                self.baseline_objective.reference_spec().signature(batched=True)
-            ]
+            return SignatureDict(
+                states=self.states_spec.signature(batched=True),
+                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                internals=self.internals_spec['baseline'].signature(batched=True),
+                auxiliaries=self.auxiliaries_spec.signature(batched=True),
+                actions=self.actions_spec.signature(batched=True),
+                reward=self.reward_spec.signature(batched=True),
+                reference=self.baseline_objective.reference_spec().signature(batched=True)
+            )
 
         elif function == 'comparative_loss':
-            return [
-                self.states_spec.signature(batched=True),
-                TensorSpec(type='int', shape=(2,)).signature(batched=True),
-                self.optimizer.internals_spec.signature(batched=True),
-                self.auxiliaries_spec.signature(batched=True),
-                self.actions_spec.signature(batched=True),
-                self.reward_spec.signature(batched=True),
-                self.objective.reference_spec().signature(batched=True)
-            ]
+            return SignatureDict(
+                states=self.states_spec.signature(batched=True),
+                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                internals=(
+                    self.internals_spec.signature(batched=True) if self.baseline_optimizer is None
+                    else self.internals_spec['policy'].signature(batched=True)
+                ),
+                auxiliaries=self.auxiliaries_spec.signature(batched=True),
+                actions=self.actions_spec.signature(batched=True),
+                reward=self.reward_spec.signature(batched=True),
+                reference=self.objective.reference_spec().signature(batched=True)
+            )
 
         elif function == 'core_experience':
-            return [
-                self.states_spec.signature(batched=True),
-                self.internals_spec.signature(batched=True),
-                self.auxiliaries_spec.signature(batched=True),
-                self.actions_spec.signature(batched=True),
-                self.terminal_spec.signature(batched=True),
-                self.reward_spec.signature(batched=True)
-            ]
+            return SignatureDict(
+                states=self.states_spec.signature(batched=True),
+                internals=self.internals_spec.signature(batched=True),
+                auxiliaries=self.auxiliaries_spec.signature(batched=True),
+                actions=self.actions_spec.signature(batched=True),
+                terminal=self.terminal_spec.signature(batched=True),
+                reward=self.reward_spec.signature(batched=True)
+            )
 
         elif function == 'core_update':
-            return ()
+            return SignatureDict()
 
         elif function == 'experience':
-            return [
-                self.unprocessed_states_spec.signature(batched=True),
-                self.internals_spec.signature(batched=True),
-                self.auxiliaries_spec.signature(batched=True),
-                self.actions_spec.signature(batched=True),
-                self.terminal_spec.signature(batched=True),
-                self.reward_spec.signature(batched=True)
-            ]
+            return SignatureDict(
+                states=self.unprocessed_states_spec.signature(batched=True),
+                internals=self.internals_spec.signature(batched=True),
+                auxiliaries=self.auxiliaries_spec.signature(batched=True),
+                actions=self.actions_spec.signature(batched=True),
+                terminal=self.terminal_spec.signature(batched=True),
+                reward=self.reward_spec.signature(batched=True)
+            )
 
         elif function == 'loss':
-            return [
-                self.states_spec.signature(batched=True),
-                TensorSpec(type='int', shape=(2,)).signature(batched=True),
-                self.optimizer.internals_spec.signature(batched=True),
-                self.auxiliaries_spec.signature(batched=True),
-                self.actions_spec.signature(batched=True),
-                self.reward_spec.signature(batched=True)
-            ]
+            return SignatureDict(
+                states=self.states_spec.signature(batched=True),
+                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                internals=(
+                    self.internals_spec.signature(batched=True) if self.baseline_optimizer is None
+                    else self.internals_spec['policy'].signature(batched=True)
+                ),
+                auxiliaries=self.auxiliaries_spec.signature(batched=True),
+                actions=self.actions_spec.signature(batched=True),
+                reward=self.reward_spec.signature(batched=True)
+            )
 
         elif function == 'optimize':
-            return [TensorSpec(type='int', shape=()).signature(batched=True)]
+            return SignatureDict(indices=TensorSpec(type='int', shape=()).signature(batched=True))
 
         elif function == 'optimize_baseline':
-            return [TensorSpec(type='int', shape=()).signature(batched=True)]
+            return SignatureDict(indices=TensorSpec(type='int', shape=()).signature(batched=True))
 
         elif function == 'regularize':
-            return [
-                self.states_spec.signature(batched=True),
-                TensorSpec(type='int', shape=(2,)).signature(batched=True),
-                self.policy.internals_spec.signature(batched=True),
-                self.auxiliaries_spec.signature(batched=True)
-            ]
+            return SignatureDict(
+                states=self.states_spec.signature(batched=True),
+                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                internals=self.internals_spec['policy'].signature(batched=True),
+                auxiliaries=self.auxiliaries_spec.signature(batched=True)
+            )
 
         elif function == 'update':
-            return ()
+            return SignatureDict()
 
         else:
             return super().input_signature(function=function)
@@ -400,9 +409,9 @@ class TensorforceModel(Model):
         # Mask assertions
         if self.config.enable_int_action_masking:
             for name, spec in self.actions_spec.items():
-                if spec.type == 'int':
+                if spec.type == 'int' and spec.num_values is not None:
                     is_valid = tf.reduce_all(input_tensor=tf.gather(
-                        params=auxiliaries[name + '_mask'],
+                        params=auxiliaries[name]['mask'],
                         indices=tf.expand_dims(input=actions[name], axis=(spec.rank + 1)),
                         batch_dims=(spec.rank + 1)
                     ))
@@ -450,10 +459,10 @@ class TensorforceModel(Model):
     @tf_function(num_args=0)
     def update(self):
         # Core update
-        updated = self.core_update()
+        is_updated = self.core_update()
 
         # Return
-        with tf.control_dependencies(control_inputs=(updated,)):
+        with tf.control_dependencies(control_inputs=(is_updated,)):
             timestep = tf_util.identity(input=self.timesteps)
             episode = tf_util.identity(input=self.episodes)
             update = tf_util.identity(input=self.updates)
@@ -469,7 +478,7 @@ class TensorforceModel(Model):
         assertion = tf.debugging.assert_equal(x=past_horizon, y=zero)
 
         with tf.control_dependencies(control_inputs=(assertion,)):
-            batch_size = tf_util.cast(x=tf.shape(input=states.item())[0], dtype='int')
+            batch_size = tf_util.cast(x=tf.shape(input=states.value())[0], dtype='int')
             starts = tf.range(start=batch_size, dtype=tf_util.get_dtype(type='int'))
             lengths = tf_util.ones(shape=(batch_size,), dtype='int')
             horizons = tf.stack(values=(starts, lengths), axis=1)
@@ -480,12 +489,15 @@ class TensorforceModel(Model):
                 auxiliaries=auxiliaries, deterministic=deterministic, return_internals=True
             )
 
-        if self.separate_baseline_policy and len(self.baseline.internals_spec) > 0:
-            # Baseline policy act to retrieve next internals
-            _, internals['baseline'] = self.baseline.act(
-                states=states, horizons=horizons, internals=internals['baseline'],
-                auxiliaries=auxiliaries, deterministic=deterministic, return_internals=True
-            )
+        if self.separate_baseline_policy:
+            if len(self.internals_spec['baseline']) > 0:
+                # Baseline policy act to retrieve next internals
+                _, internals['baseline'] = self.baseline.act(
+                    states=states, horizons=horizons, internals=internals['baseline'],
+                    auxiliaries=auxiliaries, deterministic=deterministic, return_internals=True
+                )
+            else:
+                internals['baseline'] = TensorDict()
 
         return actions, internals
 
@@ -515,10 +527,11 @@ class TensorforceModel(Model):
                     x=self.policy.past_horizon(on_policy=True),
                     y=(self.baseline.past_horizon(on_policy=True) - self.estimator.future_horizon())
                 )
-                future_horizon = self.estimator.future_horizon()
+                future_horizon = self.estimator.max_future_horizon()  # tf_util.constant
                 start = tf.math.maximum(
                     x=start, y=(frequency + past_horizon + future_horizon + one)
                 )
+                start = tf.math.maximum(x=start, y=self.config.buffer_observe)  # TODO: constant, better handling !!!!!
                 unit = self.timesteps
 
             elif self.update_unit == 'episodes':
@@ -535,7 +548,10 @@ class TensorforceModel(Model):
                 with tf.control_dependencies(control_inputs=(assignment,)):
                     return self.core_update()
 
-            is_updated = tf.cond(pred=is_frequency, true_fn=perform_update, false_fn=tf.no_op)
+            def no_update():
+                return tf_util.constant(value=False, dtype='bool')
+
+            is_updated = tf.cond(pred=is_frequency, true_fn=perform_update, false_fn=no_update)
 
         return is_updated
 
@@ -553,16 +569,10 @@ class TensorforceModel(Model):
 
         def true_fn():
             reset_values = self.estimator.reset(baseline=self.baseline)
-            new_overwritten_values = TensorDict()
-            for name, value1, value2 in util.zip_items(overwritten_values, reset_values):
-                if util.is_nested(name=name):
-                    new_overwritten_values[name] = TensorDict()
-                    for inner_name, value1, value2 in util.zip_items(value1, value2):
-                        new_overwritten_values[name][inner_name] = tf.concat(
-                            values=(value1, value2), axis=0
-                        )
-                else:
-                    new_overwritten_values[name] = tf.concat(values=(value1, value2), axis=0)
+            function = (lambda x, y: tf.concat(values=(x, y), axis=0))
+            new_overwritten_values = overwritten_values.fmap(
+                function=function, zip_values=reset_values
+            )
             return new_overwritten_values
 
         def false_fn():
@@ -573,14 +583,19 @@ class TensorforceModel(Model):
 
         # If any, store overwritten values
         def store():
-            return self.memory.enqueue(**values)
+            return self.memory.enqueue(
+                states=values['states'], internals=values['internals'],
+                auxiliaries=values['auxiliaries'], actions=values['actions'],
+                terminal=values['terminal'], reward=values['reward']
+            )
 
         terminal = values['terminal']
         num_values = tf_util.cast(x=tf.shape(input=terminal)[0], dtype='int')
 
         stored = tf.cond(pred=(num_values > zero), true_fn=store, false_fn=tf.no_op)
 
-        return stored
+        with tf.control_dependencies(control_inputs=(stored,)):
+            return tf_util.constant(value=False, dtype='bool')
 
     @tf_function(num_args=0)
     def core_update(self):
@@ -593,8 +608,8 @@ class TensorforceModel(Model):
             # Timestep-based batch
             # Dependency horizon
             past_horizon = tf.math.maximum(
-                x=self.policy.past_horizon(on_policy=True),
-                y=self.baseline.past_horizon(on_policy=True)
+                x=self.policy.past_horizon(on_policy=False),
+                y=self.baseline.past_horizon(on_policy=False)
             )
             future_horizon = self.estimator.future_horizon()
             indices = self.memory.retrieve_timesteps(
@@ -666,16 +681,15 @@ class TensorforceModel(Model):
                 indices=indices, horizon=past_horizon, sequence_values=('states',),
                 initial_values=('internals',)
             )
-            internals = TensorsDict(
-                ((name, internals[name]) for name in self.optimizer.internals_spec)
-            )
+            if self.baseline_optimizer is not None:
+                internals = internals['policy']
             auxiliaries, actions = self.memory.retrieve(
                 indices=indices, values=('auxiliaries', 'actions')
             )
 
         variables = tuple(self.trainable_variables)
 
-        arguments = dict(
+        arguments = TensorDict(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
             actions=actions, reward=reward
         )
@@ -747,9 +761,9 @@ class TensorforceModel(Model):
         if self.separate_baseline_policy:
             assert 'source_variables' not in kwargs
             kwargs['source_variables'] = tuple(self.baseline.trainable_variables)
-        if self.global_model is not None:
-            assert 'global_variables' not in kwargs
-            kwargs['global_variables'] = tuple(self.global_model.trainable_variables)
+        # if self.global_model is not None:
+        #     assert 'global_variables' not in kwargs
+        #     kwargs['global_variables'] = tuple(self.global_model.trainable_variables)
 
         dependencies = util.flatten(xs=arguments)
 
@@ -989,7 +1003,7 @@ class TensorforceModel(Model):
 
         variables = tuple(self.baseline.trainable_variables)
 
-        arguments = dict(
+        arguments = TensorDict(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
             actions=actions, reward=reward
         )
@@ -1017,9 +1031,9 @@ class TensorforceModel(Model):
         kwargs = self.baseline_objective.optimizer_arguments(policy=self.baseline)
         assert 'source_variables' not in kwargs
         kwargs['source_variables'] = tuple(self.policy.trainable_variables)
-        if self.global_model is not None:
-            assert 'global_variables' not in kwargs
-            kwargs['global_variables'] = tuple(self.global_model.baseline_policy.trainable_variables)
+        # if self.global_model is not None:
+        #     assert 'global_variables' not in kwargs
+        #     kwargs['global_variables'] = tuple(self.global_model.baseline_policy.trainable_variables)
 
         # Optimization
         optimized = self.baseline_optimizer.update(

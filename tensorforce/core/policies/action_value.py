@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce.core import TensorSpec, tf_function
+from tensorforce.core import SignatureDict, TensorSpec, tf_function
 from tensorforce.core.policies import Policy
 
 
@@ -34,47 +34,47 @@ class ActionValue(Policy):
         actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def input_signature(self, function):
+    def input_signature(self, *, function):
         if function == 'actions_value':
-            return [
-                self.states_spec.signature(batched=True),
-                TensorSpec(type='int', shape=(2,)).signature(batched=True),
-                self.internals_spec.signature(batched=True),
-                self.auxiliaries_spec.signature(batched=True),
-                self.actions_spec.signature(batched=True)
-            ]
+            return SignatureDict(
+                states=self.states_spec.signature(batched=True),
+                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                internals=self.internals_spec.signature(batched=True),
+                auxiliaries=self.auxiliaries_spec.signature(batched=True),
+                actions=self.actions_spec.signature(batched=True)
+            )
 
         elif function == 'actions_values':
-            return [
-                self.states_spec.signature(batched=True),
-                TensorSpec(type='int', shape=(2,)).signature(batched=True),
-                self.internals_spec.signature(batched=True),
-                self.auxiliaries_spec.signature(batched=True),
-                self.actions_spec.signature(batched=True)
-            ]
+            return SignatureDict(
+                states=self.states_spec.signature(batched=True),
+                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                internals=self.internals_spec.signature(batched=True),
+                auxiliaries=self.auxiliaries_spec.signature(batched=True),
+                actions=self.actions_spec.signature(batched=True)
+            )
 
         elif function == 'states_value':
-            return [
-                self.states_spec.signature(batched=True),
-                TensorSpec(type='int', shape=(2,)).signature(batched=True),
-                self.internals_spec.signature(batched=True),
-                self.auxiliaries_spec.signature(batched=True)
-            ]
+            return SignatureDict(
+                states=self.states_spec.signature(batched=True),
+                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                internals=self.internals_spec.signature(batched=True),
+                auxiliaries=self.auxiliaries_spec.signature(batched=True)
+            )
 
         elif function == 'states_values':
-            return [
-                self.states_spec.signature(batched=True),
-                TensorSpec(type='int', shape=(2,)).signature(batched=True),
-                self.internals_spec.signature(batched=True),
-                self.auxiliaries_spec.signature(batched=True)
-            ]
+            return SignatureDict(
+                states=self.states_spec.signature(batched=True),
+                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                internals=self.internals_spec.signature(batched=True),
+                auxiliaries=self.auxiliaries_spec.signature(batched=True)
+            )
 
         else:
             return super().input_signature(function=function)
 
     @tf_function(num_args=5)
     def actions_value(
-        self, states, horizons, internals, auxiliaries, actions, reduced, return_per_action
+        self, *, states, horizons, internals, auxiliaries, actions, reduced, return_per_action
     ):
         actions_values = self.actions_values(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
@@ -86,7 +86,7 @@ class ActionValue(Policy):
         )
 
     @tf_function(num_args=4)
-    def states_value(self, states, horizons, internals, auxiliaries, reduced, return_per_action):
+    def states_value(self, *, states, horizons, internals, auxiliaries, reduced, return_per_action):
         states_values = self.states_values(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries
         )
@@ -96,9 +96,9 @@ class ActionValue(Policy):
         )
 
     @tf_function(num_args=5)
-    def actions_values(self, states, horizons, internals, auxiliaries, actions):
+    def actions_values(self, *, states, horizons, internals, auxiliaries, actions):
         raise NotImplementedError
 
     @tf_function(num_args=4)
-    def states_values(self, states, horizons, internals, auxiliaries):
+    def states_values(self, *, states, horizons, internals, auxiliaries):
         raise NotImplementedError

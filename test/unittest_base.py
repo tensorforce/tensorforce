@@ -73,7 +73,7 @@ class UnittestBase(object):
         #     action='ignore',
         #     message='Converting sparse IndexedSlices to a dense Tensor of unknown shape'
         # )
-        # tf.config.experimental_run_functions_eagerly(run_eagerly=True)
+        tf.config.experimental_run_functions_eagerly(run_eagerly=True)
         pass
 
     def start_tests(self, name=None):

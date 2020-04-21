@@ -42,7 +42,7 @@ class NestedDict(OrderedDict):
         super(NestedDict, x).__setattr__('overwrite', self.overwrite)
         return x
 
-    def fmap(self, function, cls=None, with_names=False, zip_values=None):
+    def fmap(self, *, function, cls=None, with_names=False, zip_values=None):
         if cls is None:
             # Use same class and settings for mapped dict
             values = self.__class__()

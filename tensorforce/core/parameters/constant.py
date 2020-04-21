@@ -35,7 +35,7 @@ class Constant(Parameter):
 
     # Argument 'value' first for default specification
     def __init__(
-        self, value, summary_labels=None, name=None, dtype=None, min_value=None, max_value=None
+        self, *, value, summary_labels=None, name=None, dtype=None, min_value=None, max_value=None
     ):
         if isinstance(value, bool):
             if dtype != 'bool':
@@ -65,7 +65,7 @@ class Constant(Parameter):
     def final_value(self):
         return self.constant_value
 
-    def parameter_value(self, step):
+    def parameter_value(self, *, step):
         parameter = tf_util.constant(value=self.constant_value, dtype=self.spec.type)
 
         return parameter

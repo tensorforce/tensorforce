@@ -322,9 +322,6 @@ class Queue(Memory):
         assert isinstance(final_values, tuple)
         assert sequence_values != () or final_values != ()
 
-        sequence_values = list(sequence_values)
-        final_values = list(final_values)
-
         zero = tf_util.constant(value=0, dtype='int')
         one = tf_util.constant(value=1, dtype='int')
         capacity = tf_util.constant(value=self.capacity, dtype='int')

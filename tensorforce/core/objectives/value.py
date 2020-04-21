@@ -42,7 +42,7 @@ class Value(Objective):
     """
 
     def __init__(
-        self, value='state', huber_loss=0.0, early_reduce=True, summary_labels=None, name=None,
+        self, *, value='state', huber_loss=0.0, early_reduce=True, summary_labels=None, name=None,
         states_spec=None, internals_spec=None, auxiliaries_spec=None, actions_spec=None,
         reward_spec=None
     ):
@@ -64,7 +64,7 @@ class Value(Objective):
         self.early_reduce = early_reduce
 
     @tf_function(num_args=6)
-    def loss(self, states, horizons, internals, auxiliaries, actions, reward, policy):
+    def loss(self, *, states, horizons, internals, auxiliaries, actions, reward, policy):
         if not self.early_reduce:
             reward = tf.expand_dims(input=reward, axis=1)
 

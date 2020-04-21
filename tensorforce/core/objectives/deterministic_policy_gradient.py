@@ -35,7 +35,7 @@ class DeterministicPolicyGradient(Objective):
     """
 
     @tf_function(num_args=6)
-    def loss(self, states, horizons, internals, auxiliaries, actions, reward, policy):
+    def loss(self, *, states, horizons, internals, auxiliaries, actions, reward, policy):
         policy_actions = policy.act(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
             deterministic=True, return_internals=False
@@ -54,23 +54,25 @@ class DeterministicPolicyGradient(Objective):
 
         return summed_actions
 
-    def optimizer_arguments(self, policy, baseline, **kwargs):
+    def optimizer_arguments(self, *, policy, baseline, **kwargs):
         arguments = super().optimizer_arguments()
 
-        def fn_initial_gradients(states, horizons, internals, auxiliaries, actions, reward):
-            policy_internals = internals['policy']
+        def fn_initial_gradients(*, states, horizons, internals, auxiliaries, actions, reward):
             actions = policy.act(
-                states=states, horizons=horizons, internals=policy_internals,
+                states=states, horizons=horizons, internals=internals['policy'],
                 auxiliaries=auxiliaries, deterministic=True, return_internals=False
-            )
-            baseline_internals = internals['baseline']
-            actions_value = baseline.actions_value(
-                states=states, horizons=horizons, internals=baseline_internals,
-                auxiliaries=auxiliaries, actions=actions, reduced=True, return_per_action=False
             )
             action = actions.value()
             assert len(actions) == 1 and len(tf_util.shape(x=action)) == 1
-            return -tf.gradients(ys=actions_value, xs=action)[0]
+
+            with tf.GradientTape(persistent=False, watch_accessed_variables=False) as tape:
+                tape.watch(tensor=action)
+                actions_value = baseline.actions_value(
+                    states=states, horizons=horizons, internals=internals['baseline'],
+                    auxiliaries=auxiliaries, actions=actions, reduced=True, return_per_action=False
+                )
+
+            return -tape.gradient(target=actions_value, sources=action)[0]
 
         arguments['fn_initial_gradients'] = fn_initial_gradients
 

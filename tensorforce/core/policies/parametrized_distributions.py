@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
+import tensorflow as tf
+
 from tensorforce import TensorforceError
 from tensorforce.core import distribution_modules, layer_modules, ModuleDict, network_modules, \
     TensorDict, tf_function
@@ -193,6 +195,7 @@ class ParametrizedDistributions(Stochastic, ActionValue):
         parameters = self.kldiv_reference(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries
         )
+        other = other.fmap(function=tf.stop_gradient)
 
         def function(distribution, parameters1, parameters2):
             return distribution.kl_divergence(parameters1=parameters1, parameters2=parameters2)

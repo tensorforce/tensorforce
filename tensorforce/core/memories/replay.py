@@ -37,8 +37,8 @@ class Replay(Queue):
 
     @tf_function(num_args=3)
     def retrieve_timesteps(self, *, n, past_horizon, future_horizon):
-        one = tf.constant(value=1, dtype='int')
-        capacity = tf.constant(value=self.capacity, dtype='int')
+        one = tf_util.constant(value=1, dtype='int')
+        capacity = tf_util.constant(value=self.capacity, dtype='int')
 
         # Check whether memory contains at least one valid timestep
         num_timesteps = tf.math.minimum(x=self.buffer_index, y=capacity)

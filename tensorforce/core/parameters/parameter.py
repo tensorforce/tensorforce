@@ -36,7 +36,7 @@ class Parameter(Module):
     """
 
     def __init__(
-        self, unit='timesteps', summary_labels=None, name=None, dtype=None, shape=(),
+        self, *, unit='timesteps', summary_labels=None, name=None, dtype=None, shape=(),
         min_value=None, max_value=None
     ):
         super().__init__(name=name, summary_labels=summary_labels)
@@ -80,10 +80,10 @@ class Parameter(Module):
     def final_value(self):
         raise NotImplementedError
 
-    def parameter_value(self, step):
+    def parameter_value(self, *, step):
         raise NotImplementedError
 
-    def input_signature(self, function):
+    def input_signature(self, *, function):
         if function == 'value':
             return SignatureDict()
 

@@ -492,12 +492,9 @@ class Estimator(Module):
             if self.estimate_actions:
                 # horizon change: see timestep-based batch sampling
                 final_horizons, (states, internals, auxiliaries, terminal) = memory.successors(
-                    indices=indices, horizon=(horizon + one), sequence_values=None,
-                    final_values=('states', 'internals', 'auxiliaries', 'terminal')
+                    indices=indices, horizon=(horizon + one), sequence_values=(),
+                    final_values=('states', 'internals/baseline', 'auxiliaries', 'terminal')
                 )
-                internals = TensorDict((
-                    (name, internals[name]) for name in baseline.internals_spec
-                ))
                 # TODO: Double DQN would require main policy here
                 actions = baseline.act(
                     states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
@@ -510,12 +507,9 @@ class Estimator(Module):
             else:
                 # horizon change: see timestep-based batch sampling
                 final_horizons, (states, internals, auxiliaries, terminal) = memory.successors(
-                    indices=indices, horizon=(horizon + one), sequence_values=None,
-                    final_values=('states', 'internals', 'auxiliaries', 'terminal')
+                    indices=indices, horizon=(horizon + one), sequence_values=(),
+                    final_values=('states', 'baseline/internals', 'auxiliaries', 'terminal')
                 )
-                internals = TensorDict((
-                    (name, internals[name]) for name in baseline.internals_spec
-                ))
                 horizon_estimate = baseline.states_value(
                     states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
                     reduced=True, return_per_action=False
@@ -553,11 +547,8 @@ class Estimator(Module):
             past_horizon = baseline.past_horizon(on_policy=(not is_baseline_optimized))
             horizons, (states,), (internals,) = memory.predecessors(
                 indices=indices, horizon=past_horizon, sequence_values=('states',),
-                initial_values=('internals',)
+                initial_values=('internals/baseline',)
             )
-            internals = TensorDict((
-                (name, internals[name]) for name in baseline.internals_spec
-            ))
 
             if self.estimate_actions:
                 auxiliaries, actions = memory.retrieve(

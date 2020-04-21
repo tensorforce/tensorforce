@@ -145,16 +145,15 @@ class TFOptimizer(Optimizer):
                 initial_gradients = None
             else:
                 initial_gradients = fn_initial_gradients(**arguments)
-                # initial_gradients = tf.stop_gradient(input=initial_gradients)   ???
 
-            # gradients = tf.gradients(ys=loss, xs=variables, grad_ys=initial_gradients)
             with tf.GradientTape(persistent=False, watch_accessed_variables=False) as tape:
                 for variable in variables:
                     tape.watch(tensor=variable)
-
                 loss = fn_loss(**arguments)
 
-            gradients = tape.gradient(target=loss, sources=variables, output_gradients=None)
+            gradients = tape.gradient(
+                target=loss, sources=variables, output_gradients=initial_gradients
+            )
 
             actual_variables = list()
             actual_gradients = list()

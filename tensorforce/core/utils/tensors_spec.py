@@ -24,13 +24,13 @@ class TensorsSpec(NestedDict):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, value_type=TensorSpec, overwrite=False, **kwargs)
 
-    def signature(self, batched):
+    def signature(self, *, batched):
         return SignatureDict((
             (name, spec.signature(batched=batched))
             for name, spec in super(NestedDict, self).items()
         ))
 
-    def tf_assert(self, x, batch_size=None, include_type_shape=False, message=None):
+    def tf_assert(self, *, x, batch_size=None, include_type_shape=False, message=None):
         if not isinstance(x, TensorDict):
             raise TensorforceError.type(name='TensorsSpec.tf_assert', argument='x', dtype=type(x))
 
@@ -43,7 +43,7 @@ class TensorsSpec(NestedDict):
 
         return assertions
 
-    def to_tensor(self, value, batched):
+    def to_tensor(self, *, value, batched):
         if not isinstance(value, dict):
             raise TensorforceError.type(
                 name='TensorsSpec.to_tensor', argument='value', dtype=type(value)
@@ -61,7 +61,7 @@ class TensorsSpec(NestedDict):
 
         return tensor
 
-    def from_tensor(self, tensor, batched):
+    def from_tensor(self, *, tensor, batched):
         if not isinstance(tensor, TensorDict):
             raise TensorforceError.type(
                 name='TensorsSpec.from_tensor', argument='tensor', dtype=type(tensor)

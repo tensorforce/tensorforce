@@ -125,8 +125,9 @@ class Decaying(Parameter):
     """
 
     def __init__(
-        self, unit, decay, initial_value, decay_steps, increasing=False, inverse=False, scale=1.0,
-        summary_labels=None, name=None, dtype=None, min_value=None, max_value=None, **kwargs
+        self, *, unit, decay, initial_value, decay_steps, increasing=False, inverse=False,
+        scale=1.0, summary_labels=None, name=None, dtype=None, min_value=None, max_value=None,
+        **kwargs
     ):
         assert unit in ('timesteps', 'episodes', 'updates')
         assert decay in (
@@ -313,7 +314,7 @@ class Decaying(Parameter):
 
         return self.spec.py_type()(value)
 
-    def parameter_value(self, step):
+    def parameter_value(self, *, step):
         initial_value = tf_util.constant(value=self.initial_value, dtype='float')
 
         if self.decay == 'cosine':

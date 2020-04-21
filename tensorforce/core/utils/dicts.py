@@ -48,7 +48,7 @@ class SignatureDict(NestedDict):
             for spec in super(NestedDict, self).values()
         ]
 
-    def kwargs_to_args(self, kwargs):
+    def kwargs_to_args(self, *, kwargs):
         args = list()
         for name, spec in super(NestedDict, self).items():
             arg = kwargs[name]
@@ -60,7 +60,7 @@ class SignatureDict(NestedDict):
                 args.append(arg)
         return args
 
-    def args_to_kwargs(self, args):
+    def args_to_kwargs(self, *, args):
         kwargs = OrderedDict()
         for (name, spec), arg in zip(super(NestedDict, self).items(), args):
             if isinstance(spec, self.__class__):
@@ -83,7 +83,7 @@ class TensorDict(NestedDict):
             for value in super(NestedDict, self).values()
         ]
 
-    def from_list(self, xs):
+    def from_list(self, *, xs):
         return TensorDict((
             (name, value.from_list(xs=x) if isinstance(value, TensorDict) else x)
             for (name, value), x in zip(super(NestedDict, self).items(), xs)

@@ -116,11 +116,15 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
             for instance, to enable multiple parallel episodes, environments or (centrally
             controlled) agents within an environment
             (<span style="color:#00C000"><b>default</b></span>: 1).
-        seed (int): Random seed to set for Python, NumPy (both set globally!) and TensorFlow,
-            environment seed has to be set separately for a fully deterministic execution
-            (<span style="color:#00C000"><b>default</b></span>: none).
-        execution (specification): TensorFlow execution configuration with the following attributes
-            (<span style="color:#00C000"><b>default</b></span>: standard): ...
+        config (specification): Various additional configuration options:
+            buffer_observe (int > 0): Maximum number of timesteps within an episode to buffer before
+                executing internal observe operations, to reduce calls to TensorFlow for improved
+                performance
+                (<span style="color:#00C000"><b>default</b></span>: simple rules to infer maximum
+                number which can be buffered without affecting performance).
+            seed (int): Random seed to set for Python, NumPy (both set globally!) and TensorFlow,
+                environment seed may have to be set separately for fully deterministic execution
+                (<span style="color:#00C000"><b>default</b></span>: none).
         saver (specification): TensorFlow saver configuration for periodic implicit saving, as
             alternative to explicit saving via agent.save(...), with the following attributes
             (<span style="color:#00C000"><b>default</b></span>: no saver):
@@ -214,8 +218,8 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
         # Regularization
         l2_regularization=0.0, entropy_regularization=0.0,
         # TensorFlow etc
-        name='agent', device=None, parallel_interactions=1, seed=None, execution=None, saver=None,
-        summarizer=None, recorder=None, config=None
+        name='agent', device=None, parallel_interactions=1, config=None, saver=None,
+        summarizer=None, recorder=None
     ):
         self.spec = OrderedDict(
             agent='trpo',
@@ -229,9 +233,8 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
             preprocessing=preprocessing,
             exploration=exploration, variable_noise=variable_noise,
             l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
-            name=name, device=device, parallel_interactions=parallel_interactions, seed=seed,
-                execution=execution, saver=saver, summarizer=summarizer, recorder=recorder,
-                config=config
+            name=name, device=device, parallel_interactions=parallel_interactions, config=config,
+                saver=saver, summarizer=summarizer, recorder=recorder
         )
 
         policy = dict(network=network, temperature=1.0)
@@ -270,12 +273,11 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
         super().__init__(
             # Agent
             states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
-            parallel_interactions=parallel_interactions, buffer_observe=True, seed=seed,
-            recorder=recorder, config=config,
+            parallel_interactions=parallel_interactions, config=config, recorder=recorder,
             # Model
-            name=name, device=device, execution=execution, saver=saver, summarizer=summarizer,
             preprocessing=preprocessing, exploration=exploration, variable_noise=variable_noise,
-            l2_regularization=l2_regularization,
+            l2_regularization=l2_regularization, name=name, device=device, saver=saver,
+            summarizer=summarizer,
             # TensorforceModel
             policy=policy, memory=memory, update=update, optimizer=optimizer, objective=objective,
             reward_estimation=reward_estimation, baseline_policy=baseline_policy,

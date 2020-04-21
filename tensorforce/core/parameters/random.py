@@ -51,7 +51,7 @@ class Random(Parameter):
         """
 
     def __init__(
-        self, distribution, summary_labels=None, name=None, dtype=None, shape=(), min_value=None,
+        self, *, distribution, summary_labels=None, name=None, dtype=None, shape=(), min_value=None,
         max_value=None, **kwargs
     ):
         assert dtype in ('int', 'float')
@@ -91,7 +91,7 @@ class Random(Parameter):
         else:
             return super().final_value()
 
-    def parameter_value(self, step):
+    def parameter_value(self, *, step):
         if self.distribution == 'normal':
             parameter = tf.random.normal(
                 shape=self.spec.shape, dtype=self.spec.tf_type(), mean=self.kwargs.get('mean', 0.0),

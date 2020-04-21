@@ -43,7 +43,7 @@ class PolicyGradient(Objective):
     """
 
     def __init__(
-        self, ratio_based=False, clipping_value=0.0, early_reduce=False, summary_labels=None,
+        self, *, ratio_based=False, clipping_value=0.0, early_reduce=False, summary_labels=None,
         name=None, states_spec=None, internals_spec=None, auxiliaries_spec=None, actions_spec=None,
         reward_spec=None
     ):
@@ -77,7 +77,7 @@ class PolicyGradient(Objective):
             return TensorSpec(type='float', shape=(num_actions,))
 
     @tf_function(num_args=6)
-    def reference(self, states, horizons, internals, auxiliaries, actions, reward, policy):
+    def reference(self, *, states, horizons, internals, auxiliaries, actions, reward, policy):
         if self.ratio_based:
             return policy.log_probability(
                 states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
@@ -92,7 +92,7 @@ class PolicyGradient(Objective):
 
     @tf_function(num_args=7)
     def comparative_loss(
-        self, states, horizons, internals, auxiliaries, actions, reward, reference, policy
+        self, *, states, horizons, internals, auxiliaries, actions, reward, reference, policy
     ):
         log_probability = policy.log_probability(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,

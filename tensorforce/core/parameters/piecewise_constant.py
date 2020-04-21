@@ -16,6 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import TensorforceError
+from tensorforce.core import tf_util
 from tensorforce.core.parameters import Parameter
 
 
@@ -39,8 +40,8 @@ class PiecewiseConstant(Parameter):
     """
 
     def __init__(
-        self, unit, boundaries, values, summary_labels=None, name=None, dtype=None, min_value=None,
-        max_value=None
+        self, *, unit, boundaries, values, summary_labels=None, name=None, dtype=None,
+        min_value=None, max_value=None
     ):
         if isinstance(values[0], bool):
             if dtype != 'bool':
@@ -75,7 +76,7 @@ class PiecewiseConstant(Parameter):
     def final_value(self):
         return self.values[-1]
 
-    def parameter_value(self, step):
+    def parameter_value(self, *, step):
         parameter = tf.keras.optimizers.schedules.PiecewiseConstantDecay(
             boundaries=self.boundaries, values=self.values
         )(step=step)

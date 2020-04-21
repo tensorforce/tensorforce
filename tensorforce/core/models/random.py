@@ -25,7 +25,7 @@ class RandomModel(Model):
     """
 
     def __init__(
-        self,
+        self, *,
         # Model
         states, actions, name, device, parallel_interactions, summarizer, config
     ):
@@ -38,7 +38,7 @@ class RandomModel(Model):
         )
 
     @tf_function(num_args=3)
-    def core_act(self, states, internals, auxiliaries, deterministic):
+    def core_act(self, *, states, internals, auxiliaries, deterministic):
         assert len(internals) == 0
 
         actions = TensorDict()
@@ -98,5 +98,5 @@ class RandomModel(Model):
         return actions, TensorDict()
 
     @tf_function(num_args=6)
-    def core_observe(self, states, internals, auxiliaries, actions, terminal, reward):
+    def core_observe(self, *, states, internals, auxiliaries, actions, terminal, reward):
         return tf_util.constant(value=False, dtype='bool')

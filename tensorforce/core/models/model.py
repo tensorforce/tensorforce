@@ -28,7 +28,7 @@ from tensorforce.core.networks import Preprocessor
 class Model(Module):
 
     def __init__(
-        self,
+        self, *,
         # Model
         states, actions, preprocessing, exploration, variable_noise, l2_regularization, name,
         device, parallel_interactions, config, saver, summarizer
@@ -207,7 +207,7 @@ class Model(Module):
         else:
             self.summarizer_spec = dict(summarizer)
 
-    def input_signature(self, function):
+    def input_signature(self, *, function):
         if function == 'act':
             return SignatureDict(
                 states=self.unprocessed_states_spec.signature(batched=True),
@@ -330,7 +330,7 @@ class Model(Module):
         return timestep, episode, update
 
     @tf_function(num_args=3)
-    def independent_act(self, states, internals, auxiliaries):
+    def independent_act(self, *, states, internals, auxiliaries):
         true = tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
         batch_size = tf.shape(input=states.value())[0]
 
@@ -426,7 +426,7 @@ class Model(Module):
         return actions, internals
 
     @tf_function(num_args=3)
-    def act(self, states, auxiliaries, parallel):
+    def act(self, *, states, auxiliaries, parallel):
         true = tf_util.constant(value=True, dtype='bool')
         one = tf_util.constant(value=1, dtype='int')
         batch_size = tf_util.cast(x=tf.shape(input=parallel)[0], dtype='int')
@@ -576,7 +576,7 @@ class Model(Module):
         return actions, timestep
 
     @tf_function(num_args=3)
-    def observe(self, terminal, reward, parallel):
+    def observe(self, *, terminal, reward, parallel):
         zero = tf_util.constant(value=0, dtype='int')
         one = tf_util.constant(value=1, dtype='int')
         buffer_index = tf.gather(params=self.buffer_index, indices=parallel)
@@ -712,15 +712,15 @@ class Model(Module):
         return is_updated, episode, update
 
     @tf_function(num_args=3)
-    def core_act(self, states, internals, auxiliaries, deterministic):
+    def core_act(self, *, states, internals, auxiliaries, deterministic):
         raise NotImplementedError
 
     @tf_function(num_args=6)
-    def core_observe(self, states, internals, auxiliaries, actions, terminal, reward):
+    def core_observe(self, *, states, internals, auxiliaries, actions, terminal, reward):
         raise NotImplementedError
 
     @tf_function(num_args=3)
-    def apply_exploration(self, auxiliaries, actions, exploration):
+    def apply_exploration(self, *, auxiliaries, actions, exploration):
         for name, spec in self.actions_spec.items():
             if name not in exploration:
                 continue
@@ -777,13 +777,13 @@ class Model(Module):
 
         return actions
 
-    def get_variable(self, variable):
+    def get_variable(self, *, variable):
         if not variable.startswith(self.name):
             variable = util.join_scopes(self.name, variable)
         fetches = variable + '-output:0'
         return self.monitored_session.run(fetches=fetches)
 
-    def assign_variable(self, variable, value):
+    def assign_variable(self, *, variable, value):
         if variable.startswith(self.name + '/'):
             variable = variable[len(self.name) + 1:]
         module = self
@@ -795,14 +795,14 @@ class Model(Module):
         feed_dict = {util.join_scopes(self.name, 'assignment-') + dtype + '-input:0': value}
         self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
 
-    def summarize(self, summary, value, step=None):
+    def summarize(self, *, summary, value, step=None):
         fetches = util.join_scopes(self.name, summary, 'write_summary', 'Const:0')
         feed_dict = {util.join_scopes(self.name, 'summarize-input:0'): value}
         if step is not None:
             feed_dict[util.join_scopes(self.name, 'summarize-step-input:0')] = step
         self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
 
-    def save(self, directory, filename, format, append=None, no_act_pb=False):
+    def save(self, *, directory, filename, format, append=None, no_act_pb=False):
         path = os.path.join(directory, filename)
 
         if append is not None:
@@ -868,7 +868,7 @@ class Model(Module):
 
         return path
 
-    def restore(self, directory, filename, format):
+    def restore(self, *, directory, filename, format):
         path = os.path.join(directory, filename)
 
         if format == 'tensorflow':

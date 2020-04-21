@@ -16,7 +16,8 @@
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core import parameter_modules, SignatureDict, TensorSpec, tf_function, tf_util
+from tensorforce.core import parameter_modules, SignatureDict, TensorDict, TensorSpec, \
+    tf_function, tf_util
 from tensorforce.core.optimizers.solvers import Iterative
 
 
@@ -75,10 +76,10 @@ class LineSearch(Iterative):
                     improvement=TensorSpec(type='float', shape=()).signature(batched=False),
                     last_improvement=TensorSpec(type='float', shape=()).signature(batched=False),
                     estimated=TensorSpec(type='float', shape=()).signature(batched=False),
-                    additional=[
-                        TensorSpec(type='float', shape=()).signature(batched=False),
-                        TensorSpec(type='float', shape=()).signature(batched=False)
-                    ]
+                    additional=SignatureDict(
+                        base_value=TensorSpec(type='float', shape=()).signature(batched=False),
+                        estimated_incr=TensorSpec(type='float', shape=()).signature(batched=False)
+                    )
                 )
             else:
                 return SignatureDict(
@@ -145,7 +146,7 @@ class LineSearch(Iterative):
         if self.mode == 'linear':
             deltas = [-t * parameter for t in x_init]
             estimated_incr = -estimated_improvement * parameter
-            additional = (base_value, estimated_incr)
+            additional = TensorDict(base_value=base_value, estimated_incr=estimated_incr)
 
         elif self.mode == 'exponential':
             deltas = [-t * parameter for t in x_init]
@@ -164,7 +165,7 @@ class LineSearch(Iterative):
             improvement: Current improvement $(f(x_t) - f(x')) / v'$.
             last_improvement: Last improvement $(f(x_{t-1}) - f(x')) / v'$.
             estimated: Current estimated value $v'$.
-            additional: ...
+            additional: Mode-dependent.
 
         Returns:
             Updated arguments for next iteration.
@@ -173,9 +174,9 @@ class LineSearch(Iterative):
         parameter = self.parameter.value()
 
         if self.mode == 'linear':
-            base_value, estimated_incr = additional
+            base_value = additional['base_value']
             next_deltas = deltas
-            next_estimated = estimated + estimated_incr
+            next_estimated = estimated + additional['estimated_incr']
 
         elif self.mode == 'exponential':
             base_value = additional
@@ -202,7 +203,7 @@ class LineSearch(Iterative):
             improvement: Current improvement $(f(x_t) - f(x')) / v'$.
             last_improvement: Last improvement $(f(x_{t-1}) - f(x')) / v'$.
             estimated: Current estimated value $v'$.
-            additional: ...
+            additional: Mode-dependent.
 
         Returns:
             True if another iteration should be performed.
@@ -224,7 +225,7 @@ class LineSearch(Iterative):
             improvement: Current improvement $(f(x_n) - f(x')) / v'$.
             last_improvement: Last improvement $(f(x_{n-1}) - f(x')) / v'$.
             estimated: Current estimated value $v'$.
-            additional: ...
+            additional: Mode-dependent.
 
         Returns:
             Final solution.

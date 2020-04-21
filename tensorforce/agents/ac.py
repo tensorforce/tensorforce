@@ -121,6 +121,15 @@ class ActorCritic(TensorforceAgent):
             for instance, to enable multiple parallel episodes, environments or (centrally
             controlled) agents within an environment
             (<span style="color:#00C000"><b>default</b></span>: 1).
+        config (specification): Various additional configuration options:
+            buffer_observe (int > 0): Maximum number of timesteps within an episode to buffer before
+                executing internal observe operations, to reduce calls to TensorFlow for improved
+                performance
+                (<span style="color:#00C000"><b>default</b></span>: simple rules to infer maximum
+                number which can be buffered without affecting performance).
+            seed (int): Random seed to set for Python, NumPy (both set globally!) and TensorFlow,
+                environment seed may have to be set separately for fully deterministic execution
+                (<span style="color:#00C000"><b>default</b></span>: none).
         saver (specification): TensorFlow saver configuration for periodic implicit saving, as
             alternative to explicit saving via agent.save(...), with the following attributes
             (<span style="color:#00C000"><b>default</b></span>: no saver):

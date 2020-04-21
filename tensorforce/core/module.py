@@ -40,7 +40,7 @@ def get_global_scope():
         #     raise TensorforceError.unexpected()
 
 
-def make_key(x):
+def make_key(*, x):
     try:
         hash(x)
         x < x
@@ -53,10 +53,11 @@ def make_key(x):
         elif hasattr(x, '__name__'):
             return x.__name__
         else:
+            print(x, type(x))
             raise exc
 
 
-def tf_function(num_args):
+def tf_function(*, num_args):
 
     def decorator(function):
 
@@ -156,7 +157,7 @@ class Module(tf.Module):
     global_summary_step = None
 
     def __init__(
-        self, is_root=False, device=None, summary_labels=None, l2_regularization=None, name=None
+        self, *, is_root=False, device=None, summary_labels=None, l2_regularization=None, name=None
     ):
         super().__init__(name=name)
 
@@ -597,7 +598,7 @@ class Module(tf.Module):
             if self.summarizer_spec is not None:
                 default_summarizer.__exit__(None, None, None)
 
-    def input_signature(self, function):
+    def input_signature(self, *, function):
         if function == 'regularize':
             return SignatureDict()
 
@@ -640,7 +641,7 @@ class Module(tf.Module):
 
         return regularization_loss
 
-    def create_api_function(self, name, api_function):
+    def create_api_function(self, *, name, api_function):
         # Call API TensorFlow function
         MODULE_STACK.append(self)
         MODULE_STACK.append(tf.name_scope(name=name[name.index('.') + 1:]))
@@ -726,7 +727,7 @@ class Module(tf.Module):
 
         return fn
 
-    def set_global_tensor(self, name, tensor):
+    def set_global_tensor(self, *, name, tensor):
         assert self.root.is_initialized
 
         if not isinstance(tensor, tf.Tensor):
@@ -747,7 +748,7 @@ class Module(tf.Module):
         else:
             self.root.graph.add_to_collection(name=scoped_name, value=tensor)
 
-    def global_tensor(self, name):
+    def global_tensor(self, *, name):
         assert self.root.is_initialized
 
         global_scope = list(get_global_scope())
@@ -764,7 +765,7 @@ class Module(tf.Module):
 
         return collection[0]
 
-    def variable(self, name, dtype, shape, initializer, is_trainable, is_saved):
+    def variable(self, *, name, dtype, shape, initializer, is_trainable, is_saved):
         assert not self.root.is_initialized
         # name
         if not isinstance(name, str):
@@ -898,7 +899,7 @@ class Module(tf.Module):
 
         return variable
 
-    def is_summary_logged(self, label):
+    def is_summary_logged(self, *, label):
         # Check whether any summaries are logged
         module = self
         while module.summary_labels is None:
@@ -928,8 +929,8 @@ class Module(tf.Module):
         return True
 
     def add_summary(
-        self, label, name, tensor, pass_tensors=None, return_summaries=False, mean_variance=False,
-        enumerate_last_rank=False
+        self, *, label, name, tensor, pass_tensors=None, return_summaries=False,
+        mean_variance=False, enumerate_last_rank=False
     ):
         # should be "labels" !!!
         # label
@@ -1080,7 +1081,7 @@ class Module(tf.Module):
 
     @staticmethod
     def get_module_class_and_args(
-        name, module=None, modules=None, default_module=None, disable_first_arg=False, **kwargs
+        *, name, module=None, modules=None, default_module=None, disable_first_arg=False, **kwargs
     ):
         # name
         if not isinstance(name, str):
@@ -1187,7 +1188,7 @@ class Module(tf.Module):
             raise TensorforceError.value(name='Module.add_module', argument='module', value=module)
 
     def add_module(
-        self, name, module=None, modules=None, default_module=None, is_trainable=True,
+        self, *, name, module=None, modules=None, default_module=None, is_trainable=True,
         is_saved=True, **kwargs
     ):
         assert self.root.is_initialized is None

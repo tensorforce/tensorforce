@@ -76,37 +76,45 @@ class NaturalGradient(Optimizer):
         # Calculates the product x * F of a given vector x with the fisher matrix F.
         # Incorporating the product prevents having to calculate the entire matrix explicitly.
         def fisher_matrix_product(deltas):
-            # Gradient is not propagated through solver.
-            deltas = [tf.stop_gradient(input=delta) for delta in deltas]
+            # Second-order gradients
+            with tf.GradientTape(persistent=False, watch_accessed_variables=False) as tape1:
+                for variable in variables:
+                    tape1.watch(tensor=variable)
+                with tf.GradientTape(persistent=False, watch_accessed_variables=False) as tape2:
+                    for variable in variables:
+                        tape2.watch(tensor=variable)
 
-            # kldiv
-            kldiv = fn_kl_divergence(**arguments)
+                    # kldiv
+                    kldiv = fn_kl_divergence(**arguments)
 
-            # grad(kldiv)
-            kldiv_grads = tf.gradients(ys=kldiv, xs=variables)
-            kldiv_grads = [
-                tf.zeros_like(input=var) if grad is None else grad
-                for grad, var in zip(kldiv_grads, variables)
-            ]
+                # grad(kldiv)
+                kldiv_grads = tape2.gradient(target=kldiv, sources=variables)
+                kldiv_grads = [
+                    tf.zeros_like(input=var) if grad is None else grad
+                    for grad, var in zip(kldiv_grads, variables)
+                ]
 
-            # delta' * grad(kldiv)
-            delta_kldiv_grads = tf.math.add_n(inputs=[
-                tf.math.reduce_sum(input_tensor=(delta * grad))
-                for delta, grad in zip(deltas, kldiv_grads)
-            ])
+                # delta' * grad(kldiv)
+                delta_kldiv_grads = tf.math.add_n(inputs=[
+                    tf.math.reduce_sum(input_tensor=(delta * grad))
+                    for delta, grad in zip(deltas, kldiv_grads)
+                ])
 
             # [delta' * F] = grad(delta' * grad(kldiv))
-            delta_kldiv_grads2 = tf.gradients(ys=delta_kldiv_grads, xs=variables)
+            delta_kldiv_grads2 = tape1.gradient(target=delta_kldiv_grads, sources=variables)
             return [
                 tf.zeros_like(input=var) if grad is None else grad
                 for grad, var in zip(delta_kldiv_grads2, variables)
             ]
 
         # loss
-        loss = fn_loss(**arguments)
+        with tf.GradientTape(persistent=False, watch_accessed_variables=False) as tape:
+            for variable in variables:
+                tape.watch(tensor=variable)
+            loss = fn_loss(**arguments)
 
         # grad(loss)
-        loss_gradients = tf.gradients(ys=loss, xs=variables)
+        loss_gradients = tape.gradient(target=loss, sources=variables)
         loss_gradients = [
             tf.zeros_like(input=var) if grad is None else grad
             for var, grad in zip(variables, loss_gradients)

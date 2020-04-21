@@ -17,7 +17,8 @@
 class TensorforceConfig(object):
 
     def __init__(
-        self, enable_int_action_masking=True, buffer_observe=1000, function_asserts=True, seed=None
+        self, *, enable_int_action_masking=True, buffer_observe=1000, function_asserts=True,
+        seed=None
     ):
         super().__setattr__('enable_int_action_masking', enable_int_action_masking)
         assert isinstance(buffer_observe, int) and buffer_observe >= 1

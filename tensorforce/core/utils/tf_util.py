@@ -21,7 +21,7 @@ from tensorforce import TensorforceError
 DTYPE_MAPPING = dict(bool=tf.bool, int=tf.int64, float=tf.float32)
 
 
-def get_dtype(type):
+def get_dtype(*, type):
     if type not in DTYPE_MAPPING:
         raise TensorforceError.value(
             name='tf_util.cast', argument='type', value=type,
@@ -30,7 +30,7 @@ def get_dtype(type):
     return DTYPE_MAPPING[type]
 
 
-def dtype(x=None, dtype=None):
+def dtype(*, x=None, dtype=None):
     for dtype, tf_dtype in DTYPE_MAPPING.items():
         if x.dtype == tf_dtype:
             return dtype
@@ -38,11 +38,11 @@ def dtype(x=None, dtype=None):
         raise TensorforceError.value(name='tf_util.dtype', argument='x.dtype', value=x.dtype)
 
 
-def rank(x):
+def rank(*, x):
     return x.get_shape().ndims
 
 
-def shape(x, unknown=-1):
+def shape(*, x, unknown=-1):
     return tuple(unknown if dims is None else dims for dims in x.get_shape().as_list())
 
 
@@ -61,13 +61,13 @@ def shape(x, unknown=-1):
 # Conversion to generally supported TensorFlow type
 
 
-def int32(x):
+def int32(*, x):
     if dtype(x=x) != 'int' or get_dtype(type='int') != tf.int32:
         x = tf.cast(x=x, dtype=tf.int32)
     return x
 
 
-def float32(x):
+def float32(*, x):
     if dtype(x=x) != 'float' or get_dtype(type='float') != tf.float32:
         x = tf.cast(x=x, dtype=tf.float32)
     return x
@@ -76,19 +76,19 @@ def float32(x):
 # TensorFlow functions
 
 
-def constant(value, dtype, shape=None):
+def constant(*, value, dtype, shape=None):
     return tf.constant(value=value, dtype=get_dtype(type=dtype), shape=shape)
 
 
-def zeros(shape, dtype):
+def zeros(*, shape, dtype):
     return tf.zeros(shape=shape, dtype=get_dtype(type=dtype))
 
 
-def ones(shape, dtype):
+def ones(*, shape, dtype):
     return tf.ones(shape=shape, dtype=get_dtype(type=dtype))
 
 
-def identity(input):
+def identity(*, input):
     zero = tf.zeros_like(input=input)
     if dtype(x=zero) == 'bool':
         return tf.math.logical_or(x=input, y=zero)
@@ -100,7 +100,7 @@ def identity(input):
 #     return identity(input=constant(value=False, dtype='bool'))
 
 
-def cast(x, dtype):
+def cast(*, x, dtype):
     for str_dtype, tf_dtype in DTYPE_MAPPING.items():
         if x.dtype == tf_dtype and dtype == str_dtype:
             return x

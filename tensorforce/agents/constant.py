@@ -60,13 +60,12 @@ class ConstantAgent(Agent):
         action_values (dict[value]): Constant value per action
             (<span style="color:#00C000"><b>default</b></span>: false for binary boolean actions,
             0 for discrete integer actions, 0.0 for continuous actions).
-        seed (int): Random seed to set for Python, NumPy (both set globally!) and TensorFlow,
-            environment seed has to be set separately for a fully deterministic execution
-            (<span style="color:#00C000"><b>default</b></span>: none).
+
         name (string): Agent name, used e.g. for TensorFlow scopes
             (<span style="color:#00C000"><b>default</b></span>: "agent").
         device (string): Device name
             (<span style="color:#00C000"><b>default</b></span>: TensorFlow default).
+        config (specification): ...
         summarizer (specification): TensorBoard summarizer configuration with the following
             attributes (<span style="color:#00C000"><b>default</b></span>: no summarizer):
             <ul>
@@ -101,7 +100,6 @@ class ConstantAgent(Agent):
             record traces (<span style="color:#00C000"><b>default</b></span>: 0).</li>
             <li><b>max-traces</b> (<i>int > 0</i>) &ndash; maximum number of traces to keep
             (<span style="color:#00C000"><b>default</b></span>: all).</li>
-        config (specification): ...
     """
 
     def __init__(
@@ -120,7 +118,7 @@ class ConstantAgent(Agent):
                 # Agent
                 action_values=action_values,
                 # TensorFlow etc
-                name=name, device=device, summarizer=summarizer, config=config, recorder=recorder
+                name=name, device=device, config=config, summarizer=summarizer, recorder=recorder
             )
 
         super().__init__(

@@ -22,7 +22,7 @@ from tensorforce import TensorforceError, util
 from tensorforce.core.utils import tf_util
 
 
-def _normalize_type(dtype):
+def _normalize_type(*, dtype):
     dtypes = {
         'bool': 'bool', bool: 'bool', np.bool_: 'bool', tf.bool: 'bool',
         'int': 'int', int: 'int', np.int16: 'int', np.int32: 'int', np.int64: 'int',
@@ -37,7 +37,7 @@ def _normalize_type(dtype):
 class TensorSpec(object):
 
     def __init__(
-        self, type='float', shape=(), min_value=None, max_value=None, num_values=None,
+        self, *, type='float', shape=(), min_value=None, max_value=None, num_values=None,
         overwrite=False
     ):
         if num_values is not None and (min_value is not None or max_value is not None):
@@ -61,7 +61,7 @@ class TensorSpec(object):
     def rank(self):
         return len(self.shape)
 
-    def copy(self, overwrite=None):
+    def copy(self, *, overwrite=None):
         if overwrite is None:
             overwrite = self.overwrite
 
@@ -104,7 +104,7 @@ class TensorSpec(object):
         else:
             return False
 
-    def signature(self, batched):
+    def signature(self, *, batched):
         # Check whether underspecified
         if self.is_underspecified():
             raise TensorforceError.unexpected()
@@ -118,7 +118,7 @@ class TensorSpec(object):
         # TensorFlow TensorSpec
         return tf.TensorSpec(shape=tf.TensorShape(dims=shape), dtype=self.tf_type())
 
-    def to_tensor(self, value, batched):
+    def to_tensor(self, *, value, batched):
         # Check whether underspecified
         if self.is_underspecified():
             raise TensorforceError.unexpected()
@@ -161,7 +161,7 @@ class TensorSpec(object):
         # Convert Numpy array to TensorFlow tensor
         return tf.convert_to_tensor(value=value, dtype=self.tf_type())
 
-    def from_tensor(self, tensor, batched):
+    def from_tensor(self, *, tensor, batched):
         # Check whether underspecified
         if self.is_underspecified():
             raise TensorforceError.unexpected()
@@ -217,7 +217,7 @@ class TensorSpec(object):
 
         return value
 
-    def tf_assert(self, x, batch_size=None, include_type_shape=False, message=None):
+    def tf_assert(self, *, x, batch_size=None, include_type_shape=False, message=None):
         if not isinstance(x, tf.Tensor):
             raise TensorforceError.type(name='TensorSpec.tf_assert', argument='x', dtype=type(x))
 
@@ -415,7 +415,7 @@ class TensorSpec(object):
         else:
             raise TensorforceError.invalid(name='TensorSpec', argument=name)
 
-    def unify(self, other):
+    def unify(self, *, other):
         # Unify type
         if self.type is None:
             dtype = other.type

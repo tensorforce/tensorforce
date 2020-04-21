@@ -41,7 +41,7 @@ class OrnsteinUhlenbeck(Parameter):
     """
 
     def __init__(
-        self, theta=0.15, sigma=0.3, mu=0.0, absolute=False, summary_labels=None, name=None,
+        self, *, theta=0.15, sigma=0.3, mu=0.0, absolute=False, summary_labels=None, name=None,
         dtype=None, min_value=None, max_value=None
     ):
         self.theta = theta
@@ -63,7 +63,7 @@ class OrnsteinUhlenbeck(Parameter):
     def final_value(self):
         return self.spec.py_type()(self.mu)
 
-    def parameter_value(self, step):
+    def parameter_value(self, *, step):
         self.process = self.add_variable(
             name='process', dtype='float', shape=(), is_trainable=False, initializer=self.mu
         )

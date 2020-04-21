@@ -34,7 +34,7 @@ class Objective(Module):
     """
 
     def __init__(
-        self, summary_labels=None, name=None, states_spec=None, internals_spec=None,
+        self, *, summary_labels=None, name=None, states_spec=None, internals_spec=None,
         auxiliaries_spec=None, actions_spec=None, reward_spec=None
     ):
         super().__init__(name=name, summary_labels=summary_labels)
@@ -51,7 +51,7 @@ class Objective(Module):
     def optimizer_arguments(self, **kwargs):
         return dict()
 
-    def input_signature(self, function):
+    def input_signature(self, *, function):
         if function == 'loss':
             return SignatureDict(
                 states=self.states_spec.signature(batched=True),
@@ -87,7 +87,7 @@ class Objective(Module):
             return super().input_signature(function=function)
 
     @tf_function(num_args=6)
-    def loss(self, states, horizons, internals, auxiliaries, actions, reward, policy):
+    def loss(self, *, states, horizons, internals, auxiliaries, actions, reward, policy):
         reference = self.reference(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
             actions=actions, reward=reward, policy=policy
@@ -98,12 +98,12 @@ class Objective(Module):
         )
 
     @tf_function(num_args=6)
-    def reference(self, states, horizons, internals, auxiliaries, actions, reward, policy):
+    def reference(self, *, states, horizons, internals, auxiliaries, actions, reward, policy):
         return tf.zeros_like(input=reward)
 
     @tf_function(num_args=7)
     def comparative_loss(
-        self, states, horizons, internals, auxiliaries, actions, reward, reference, policy
+        self, *, states, horizons, internals, auxiliaries, actions, reward, reference, policy
     ):
         return self.loss(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,

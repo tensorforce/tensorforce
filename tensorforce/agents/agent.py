@@ -150,14 +150,20 @@ class Agent(object):
             filename = 'agent'
 
         agent = os.path.join(directory, os.path.splitext(filename)[0] + '.json')
-        if not os.path.isfile(agent):
-            assert agent[agent.rfind('-') + 1: -5].isdigit()
+        if not os.path.isfile(agent) and agent[agent.rfind('-') + 1: -5].isdigit():
             agent = agent[:agent.rindex('-')] + '.json'
         if os.path.isfile(agent):
             with open(agent, 'r') as fp:
                 agent = json.load(fp=fp)
+            if 'agent' in kwargs:
+                if 'agent' in agent and agent['agent'] != kwargs['agent']:
+                    raise TensorforceError.value(
+                        name='Agent.load', argument='agent', value=kwargs['agent']
+                    )
+                agent['agent'] = kwargs.pop('agent')
         else:
-            agent = dict()
+            agent = kwargs
+            kwargs = dict()
 
         # Overwrite values
         if environment is not None and environment.max_episode_timesteps() is not None:

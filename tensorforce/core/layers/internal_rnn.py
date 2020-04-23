@@ -34,7 +34,8 @@ class InternalRnn(StatefulLayer, TransformationBase):
             (<span style="color:#C00000"><b>required</b></span>).
         size (int >= 0): Layer output size, 0 implies additionally removing the axis
             (<span style="color:#C00000"><b>required</b></span>).
-        length (parameter, long > 0): ???+1 (<span style="color:#C00000"><b>required</b></span>).
+        length (parameter, long > 0): For truncated backpropagation through time
+            (<span style="color:#C00000"><b>required</b></span>).
         bias (bool): Whether to add a trainable bias variable
             (<span style="color:#00C000"><b>default</b></span>: true).
         activation ('crelu' | 'elu' | 'leaky-relu' | 'none' | 'relu' | 'selu' | 'sigmoid' |
@@ -180,7 +181,8 @@ class InternalGru(InternalRnn):
             (<span style="color:#C00000"><b>required</b></span>).
         size (int >= 0): Layer output size, 0 implies additionally removing the axis
             (<span style="color:#C00000"><b>required</b></span>).
-        length (parameter, long > 0): ???+1 (<span style="color:#C00000"><b>required</b></span>).
+        length (parameter, long > 0): For truncated backpropagation through time
+            (<span style="color:#C00000"><b>required</b></span>).
         bias (bool): Whether to add a trainable bias variable
             (<span style="color:#00C000"><b>default</b></span>: false).
         activation ('crelu' | 'elu' | 'leaky-relu' | 'none' | 'relu' | 'selu' | 'sigmoid' |
@@ -229,7 +231,8 @@ class InternalLstm(InternalRnn):
             (<span style="color:#C00000"><b>required</b></span>).
         size (int >= 0): Layer output size, 0 implies additionally removing the axis
             (<span style="color:#C00000"><b>required</b></span>).
-        length (parameter, long > 0): ???+1 (<span style="color:#C00000"><b>required</b></span>).
+        length (parameter, long > 0): For truncated backpropagation through time
+            (<span style="color:#C00000"><b>required</b></span>).
         bias (bool): Whether to add a trainable bias variable
             (<span style="color:#00C000"><b>default</b></span>: false).
         activation ('crelu' | 'elu' | 'leaky-relu' | 'none' | 'relu' | 'selu' | 'sigmoid' |

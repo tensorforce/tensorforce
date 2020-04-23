@@ -39,7 +39,7 @@ class AutoNetwork(LayerbasedNetwork):
         final_depth (int > 0): Number of layers after concatenation if multiple states
             (<span style="color:#00C000"><b>default</b></span>: 1).
         internal_rnn (false | parameter, long >= 0): Whether to add an internal state LSTM cell
-            as last layer, and if so, horizon of the LSTM
+            as last layer, and if so, horizon of the LSTM for truncated backpropagation through time
             (<span style="color:#00C000"><b>default</b></span>: false).
         device (string): Device name
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).

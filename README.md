@@ -140,6 +140,7 @@ For more information check out the [documentation](http://tensorforce.readthedoc
 - **Preprocessing**: Clipping, deltafier, sequence, image processing.
 - **Regularization**: L2 and entropy regularization.
 - **Execution modes**: Parallelized execution of multiple environments based on Python's `multiprocessing` and `socket`.
+- **Optimized act-only TF model extraction**.
 - **TensorBoard support**.
 
 By combining these modular components in different ways, a variety of popular deep reinforcement learning models/features can be replicated:

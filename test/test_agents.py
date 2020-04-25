@@ -58,6 +58,7 @@ class TestAgents(UnittestBase, unittest.TestCase):
     def test_dueling_dqn(self):
         self.start_tests(name='DuelingDQN')
         self.unittest(
+            actions=dict(type='int', shape=(2,), num_values=4),
             agent='dueling_dqn', memory=100, batch_size=4,
             network=dict(type='auto', size=8, depth=1, internal_rnn=2)
         )

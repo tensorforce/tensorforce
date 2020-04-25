@@ -15,7 +15,7 @@ try:
     from tensorforce.environments.carla.sensors import Sensor, SensorSpecs
     from tensorforce.environments.carla.synchronous_mode import CARLASyncContext
 except ImportError:
-    print('error')
+    pass
 
 
 class CARLAEnvironment(Environment):

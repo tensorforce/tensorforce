@@ -113,7 +113,7 @@ setup(
         gym=['gym[all]'],
         retro=['gym-retro'],
         vizdoom=['vizdoom'],
-        carla=['pygame', 'opencv']
+        carla=['pygame', 'opencv-python']
     ),
     zip_safe=False
 )

@@ -112,7 +112,8 @@ setup(
         mazeexp=['mazeexp'],
         gym=['gym[all]'],
         retro=['gym-retro'],
-        vizdoom=['vizdoom']
+        vizdoom=['vizdoom'],
+        carla=['pygame', 'opencv']
     ),
     zip_safe=False
 )

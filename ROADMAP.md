@@ -27,4 +27,10 @@
     - Sequence states/actions
     - State-dependent actions
     - Conditional/hierarchical actions
-8. To be determined...
+8. CARLA environment
+    - Docs and assertions 
+    - World's map loading (e.g. random, specific, etc.)
+    - Weather support
+    - Pretraining and Free play (e.g. for data collection)
+    - ...
+9. To be determined...

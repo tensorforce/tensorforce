@@ -10,6 +10,7 @@ import pygame
 import threading
 import datetime
 
+from typing import Union
 from tensorforce.agents import Agent
 
 
@@ -211,6 +212,18 @@ def get_blueprint(world: carla.World, actor_id: str) -> carla.ActorBlueprint:
     return world.get_blueprint_library().find(actor_id)
 
 
+def global_to_local(point: carla.Location, reference: Union[carla.Transform, carla.Location, carla.Rotation]):
+    """Translates a 3D point from global to local coordinates using the current transformation as reference"""
+    if isinstance(reference, carla.Transform):
+        reference.transform(point)
+    elif isinstance(reference, carla.Location):
+        carla.Transform(reference, carla.Rotation()).transform(point)
+    elif isinstance(reference, carla.Rotation):
+        carla.Transform(carla.Location(), reference).transform(point)
+    else:
+        raise ValueError('Argument "reference" is none of carla.Transform or carla.Location or carla.Rotation!')
+
+
 # -------------------------------------------------------------------------------------------------
 # -- Other
 # -------------------------------------------------------------------------------------------------
@@ -260,6 +273,15 @@ def get_record_path(base_dir: str, prefix='ep', pattern='-'):
     return record_path
 
 
+def replace_nans(data: dict, nan=0.0, pos_inf=0.0, neg_inf=0.0):
+    """In-place replacement of non-numerical values, i.e. NaNs and +/- infinity"""
+    for key, value in data.items():
+        if np.isnan(value).any() or np.isinf(value).any():
+            data[key] = np.nan_to_num(value, nan=nan, posinf=pos_inf, neginf=neg_inf)
+
+    return data
+
+
 # -------------------------------------------------------------------------------------------------
 # -- Debug
 # -------------------------------------------------------------------------------------------------
@@ -285,6 +307,28 @@ def draw_transform(debug, trans, col=Colors.red, lt=-1):
                         z=trans.location.z + math.sin(pitch_in_rad))
 
     debug.draw_arrow(trans.location, p1, thickness=0.05, arrow_size=0.1, color=col, life_time=lt)
+
+
+def draw_radar_measurement(debug_helper: carla.DebugHelper, data: carla.RadarMeasurement, velocity_range=7.5,
+                           size=0.075, life_time=0.06):
+    """Code adapted from carla/PythonAPI/examples/manual_control.py:
+        - White: means static points.
+        - Red: indicates points moving towards the object.
+        - Blue: denoted points moving away.
+    """
+    radar_rotation = data.transform.rotation
+    for detection in data:
+        azimuth = math.degrees(detection.azimuth) + radar_rotation.yaw
+        altitude = math.degrees(detection.altitude) + radar_rotation.pitch
+
+        # move to local coordinates:
+        forward_vec = carla.Vector3D(x=detection.depth - 0.25)
+        global_to_local(forward_vec,
+                        reference=carla.Rotation(pitch=altitude, yaw=azimuth, roll=radar_rotation.roll))
+
+        # draw:
+        debug_helper.draw_point(data.transform.location + forward_vec, size=size, life_time=life_time,
+                                persistent_lines=False, color=carla.Color(255, 255, 255))
 
 
 # -------------------------------------------------------------------------------------------------

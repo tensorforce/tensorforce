@@ -6,7 +6,7 @@ import carla
 
 
 class Sensor(object):
-    """Base class for sensor wrappers."""
+    """Base class for wrapping sensors."""
     def __init__(self, parent_actor: carla.Actor, transform=carla.Transform(), attachment_type=None,
                  attributes: dict = None):
         self.parent = parent_actor
@@ -33,7 +33,7 @@ class Sensor(object):
         self.parent = actor
 
     def add_callback(self, callback):
-        assert callback is not None
+        assert callable(callback)
         self.event_callbacks.append(callback)
 
     def clear_callbacks(self):
@@ -129,15 +129,21 @@ class CameraSensor(Sensor):
     def name(self):
         raise NotImplementedError
 
-    def convert_image(self, image: carla.Image, dtype=np.dtype("uint8")):
-        if self.color_converter is not carla.ColorConverter.Raw:
-            image.convert(self.color_converter)
+    def convert_image(self, image: carla.Image, dtype=np.dtype("uint8"), color_converter=None):
+        color_converter = color_converter or self.color_converter or carla.ColorConverter.Raw
+        image.convert(color_converter)
 
         array = np.frombuffer(image.raw_data, dtype=dtype)
         array = np.reshape(array, (image.height, image.width, 4))
         array = array[:, :, :3]
         array = array[:, :, ::-1]
         return array
+
+    def save_to_disk(self, image: carla.Image, path: str):
+        """Saves the carla.Image to disk using its color_converter."""
+        assert isinstance(image, carla.Image)
+        assert isinstance(path, str)
+        image.save_to_disk(path, color_converter=self.color_converter)
 
 
 class RGBCameraSensor(CameraSensor):
@@ -150,6 +156,29 @@ class DepthCameraSensor(CameraSensor):
     @property
     def name(self):
         return 'sensor.camera.depth'
+
+    @staticmethod
+    def convert(image: carla.Image, log=False):
+        """Converts the given carla.Image into grayscale in which each pixel contains the depth distance."""
+        image.convert(carla.ColorConverter.Raw)
+
+        # to rgb image
+        array = np.frombuffer(image.raw_data, dtype=np.uint8)
+        array = np.reshape(array, (image.height, image.width, 4))
+        array = array[:, :, :3]
+        array = array[:, :, ::-1]
+
+        # to depth
+        B = array[:, :, 0]
+        G = array[:, :, 1]
+        R = array[:, :, 2]
+        normalized = (R + G * 256 + B * 256 * 256) / (256 * 256 * 256 - 1)
+        in_meters = 1000 * normalized
+
+        if log:
+            return np.log(in_meters)
+
+        return in_meters
 
 
 class SemanticCameraSensor(CameraSensor):
@@ -300,6 +329,8 @@ class SensorSpecs(object):
             return carla.Transform(carla.Location(x=-0.9, y=0.0, z=2.2))
         elif position == 'on-top2':
             return carla.Transform(carla.Location(x=0.0, y=0.0, z=2.2))
+        elif position == 'radar':
+            return carla.Transform(carla.Location(x=2.8, z=1.0), carla.Rotation(pitch=5))
         else:
             return carla.Transform()
 
@@ -312,6 +343,23 @@ class SensorSpecs(object):
                 sensor_spec[key] = SensorSpecs.ATTACHMENT_TYPE[value]
             elif key == 'color_converter':
                 sensor_spec[key] = SensorSpecs.COLOR_CONVERTER[value]
+
+    @staticmethod
+    def add_callback(sensor_spec: dict, callback):
+        assert callable(callback)
+        assert isinstance(sensor_spec, dict)
+
+        attributes = sensor_spec.get('attributes', dict())
+
+        if 'callback' in attributes:
+            attributes['callbacks'] = [callback, attributes.pop('callback')]
+
+        elif 'callbacks' in attributes:
+            attributes['callbacks'].append(callback)
+        else:
+            attributes['callback'] = callback
+
+        sensor_spec['attributes'] = attributes
 
     @staticmethod
     def set_color_converter(camera_spec: dict, color_converter: str = None):

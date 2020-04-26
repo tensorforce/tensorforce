@@ -39,7 +39,7 @@ class ExponentialNormalization(Layer):
         input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(self, decay=0.999, axes=None, summary_labels=None, name=None, input_spec=None):
+    def __init__(self, *, decay=0.999, axes=None, summary_labels=None, name=None, input_spec=None):
         super().__init__(summary_labels=summary_labels, name=name, input_spec=input_spec)
 
         self.decay = self.add_module(
@@ -82,7 +82,7 @@ class ExponentialNormalization(Layer):
         )
 
     @tf_function(num_args=1)
-    def apply(self, x):
+    def apply(self, *, x):
 
         def no_update():
             return self.moving_mean, self.moving_variance
@@ -146,7 +146,7 @@ class InstanceNormalization(Layer):
         input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(self, axes=None, summary_labels=None, name=None, input_spec=None):
+    def __init__(self, *, axes=None, summary_labels=None, name=None, input_spec=None):
         super().__init__(summary_labels=summary_labels, name=name, input_spec=input_spec)
 
         self.axes = axes if axes is None else tuple(axes)
@@ -155,7 +155,7 @@ class InstanceNormalization(Layer):
         return TensorSpec(type='float', shape=None)
 
     @tf_function(num_args=1)
-    def apply(self, x):
+    def apply(self, *, x):
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')
 
         if self.axes is None:

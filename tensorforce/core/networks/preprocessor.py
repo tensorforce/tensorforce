@@ -16,12 +16,12 @@
 import tensorflow as tf
 
 from tensorforce import TensorforceError
-from tensorforce.core import SignatureDict, TensorDict, tf_function
+from tensorforce.core import SignatureDict, TensorDict, TensorSpec, TensorsSpec, tf_function
 from tensorforce.core.layers import PreprocessingLayer, Register, Retrieve
-from tensorforce.core.networks import LayerbasedNetwork
+from tensorforce.core.networks import LayeredNetwork
 
 
-class Preprocessor(LayerbasedNetwork):
+class Preprocessor(LayeredNetwork):
     """
     Special preprocessor network following a sequential layer-stack architecture, which can be
     specified as either a single or a list of layer specifications.
@@ -37,21 +37,21 @@ class Preprocessor(LayerbasedNetwork):
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
-        inputs_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        input_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
-        self, * layers, device=None, summary_labels=None, l2_regularization=None, name=None,
-        inputs_spec=None
+        self, *, layers, device=None, summary_labels=None, l2_regularization=None, name=None,
+        input_spec=None
     ):
-        if len(inputs_spec) > 1:
-            raise TensorforceError.value(
-                name='preprocessor', argument='inputs_spec', value=inputs_spec
+        if not isinstance(input_spec, TensorSpec):
+            raise TensorforceError.type(
+                name='preprocessor', argument='inputs_spec', dtype=type(input_spec)
             )
 
         super().__init__(
             layers=[layers], device=device, summary_labels=summary_labels,
-            l2_regularization=l2_regularization, name=name, inputs_spec=inputs_spec
+            l2_regularization=l2_regularization, name=name, inputs_spec=TensorsSpec(x=input_spec)
         )
 
     @property
@@ -61,15 +61,15 @@ class Preprocessor(LayerbasedNetwork):
     def internals_init(self):
         raise NotImplementedError
 
-    def max_past_horizon(self, * on_policy):
+    def max_past_horizon(self, *, on_policy):
         raise NotImplementedError
 
-    def past_horizon(self, * on_policy):
+    def past_horizon(self, *, on_policy):
         raise NotImplementedError
 
-    def input_signature(self, * function):
+    def input_signature(self, *, function):
         if function == 'apply':
-            return SignatureDict(x=self.inputs_spec.signature(batched=True))
+            return self.inputs_spec.signature(batched=True)
 
         elif function == 'reset':
             return SignatureDict()
@@ -89,8 +89,7 @@ class Preprocessor(LayerbasedNetwork):
 
     @tf_function(num_args=1)
     def apply(self, *, x):
-        registered_tensors = x.copy()
-        x = x.pop()
+        registered_tensors = TensorDict(x=x)
 
         for layer in self.layers:
             if isinstance(layer, Register):

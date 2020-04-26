@@ -15,7 +15,6 @@
 
 import tensorflow as tf
 
-from tensorforce import util
 from tensorforce.core import parameter_modules, tf_function, tf_util
 from tensorforce.core.optimizers import UpdateModifier
 
@@ -40,7 +39,7 @@ class ClippingStep(UpdateModifier):
     """
 
     def __init__(
-        self, optimizer, threshold, mode='global_norm', summary_labels=None, name=None,
+        self, *, optimizer, threshold, mode='global_norm', summary_labels=None, name=None,
         arguments_spec=None, optimized_module=None
     ):
         super().__init__(
@@ -57,7 +56,7 @@ class ClippingStep(UpdateModifier):
         self.mode = mode
 
     @tf_function(num_args=1)
-    def step(self, arguments, variables, **kwargs):
+    def step(self, *, arguments, variables, **kwargs):
         deltas = self.optimizer.step(arguments=arguments, variables=variables, **kwargs)
 
         with tf.control_dependencies(control_inputs=deltas):
@@ -90,4 +89,4 @@ class ClippingStep(UpdateModifier):
                 )
 
         with tf.control_dependencies(control_inputs=assignments):
-            return util.fmap(function=tf_util.identity, xs=clipped_deltas)
+            return [tf_util.identity(input=delta) for delta in clipped_deltas]

@@ -42,7 +42,7 @@ class Layer(Module):
 
     registered_layers = OrderedDict()
 
-    def __init__(self, summary_labels=None, l2_regularization=None, name=None, input_spec=None):
+    def __init__(self, *, summary_labels=None, l2_regularization=None, name=None, input_spec=None):
         super().__init__(
             summary_labels=summary_labels, l2_regularization=l2_regularization, name=name
         )
@@ -71,7 +71,7 @@ class Layer(Module):
 
         return layer
 
-    def input_signature(self, function):
+    def input_signature(self, *, function):
         if function == 'apply':
             return SignatureDict(x=self.input_spec.signature(batched=True))
 
@@ -79,7 +79,7 @@ class Layer(Module):
             return super().input_signature(function=function)
 
     @tf_function(num_args=1)
-    def apply(self, x):
+    def apply(self, *, x):
         return x
 
 
@@ -99,7 +99,7 @@ class Register(Layer):
         input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(self, tensor, summary_labels=None, name=None, input_spec=None):
+    def __init__(self, *, tensor, summary_labels=None, name=None, input_spec=None):
         super().__init__(summary_labels=summary_labels, name=name, input_spec=input_spec)
 
         if not isinstance(tensor, str):
@@ -131,7 +131,8 @@ class Retrieve(Layer):
     """
 
     def __init__(
-        self, tensors, aggregation='concat', axis=0, summary_labels=None, name=None, input_spec=None
+        self, *, tensors, aggregation='concat', axis=0, summary_labels=None, name=None,
+        input_spec=None
     ):
         super().__init__(summary_labels=summary_labels, name=name, input_spec=input_spec)
 
@@ -225,7 +226,7 @@ class Retrieve(Layer):
         return TensorSpec(type=dtype, shape=shape)
 
     @tf_function(num_args=1)
-    def apply(self, x):
+    def apply(self, *, x):
         if len(self.tensors) == 1:
             return x[self.tensors[0]]
 
@@ -268,7 +269,7 @@ class Reuse(Layer):
 
     # _TF_MODULE_IGNORED_PROPERTIES = Module._TF_MODULE_IGNORED_PROPERTIES | {'reused_layer'}
 
-    def __init__(self, layer, name=None, input_spec=None):
+    def __init__(self, *, layer, name=None, input_spec=None):
         if layer not in Layer.registered_layers:
             raise TensorforceError.value(name='reuse', argument='layer', value=layer)
 
@@ -289,7 +290,7 @@ class Reuse(Layer):
         return self.reused_layer.output_spec()
 
     @tf_function(num_args=1)
-    def apply(self, x):
+    def apply(self, *, x):
         return self.reused_layer.apply(x=x)
 
     # TODO: other Module functions???
@@ -326,7 +327,7 @@ class TransformationBase(Layer):
     """
 
     def __init__(
-        self, size, bias=False, activation=None, dropout=0.0, vars_trainable=True,
+        self, *, size, bias=False, activation=None, dropout=0.0, vars_trainable=True,
         summary_labels=None, l2_regularization=None, name=None, input_spec=None, **kwargs
     ):
         super().__init__(
@@ -368,7 +369,7 @@ class TransformationBase(Layer):
             self.bias = None
 
     @tf_function(num_args=1)
-    def apply(self, x):
+    def apply(self, *, x):
         if self.bias is not None:
             x = tf.nn.bias_add(value=x, bias=self.bias)
 
@@ -404,8 +405,8 @@ class TemporalLayer(Layer):
     """
 
     def __init__(
-        self, temporal_processing, horizon, summary_labels=None, l2_regularization=None, name=None,
-        input_spec=None, **kwargs
+        self, *, temporal_processing, horizon, summary_labels=None, l2_regularization=None,
+        name=None, input_spec=None, **kwargs
     ):
         if temporal_processing not in ('cumulative', 'iterative'):
             raise TensorforceError.value(
@@ -437,13 +438,13 @@ class TemporalLayer(Layer):
     def internals_init(self):
         return ArrayDict()
 
-    def max_past_horizon(self, on_policy):
+    def max_past_horizon(self, *, on_policy):
         if self.temporal_processing == 'iterative' and on_policy:
             return 0
         else:
             return self.horizon.max_value()
 
-    def input_signature(self, function):
+    def input_signature(self, *, function):
         if function == 'apply':
             return SignatureDict(
                 x=self.input_spec.signature(batched=True),
@@ -472,14 +473,14 @@ class TemporalLayer(Layer):
             return super().input_signature(function=function)
 
     @tf_function(num_args=0)
-    def past_horizon(self, on_policy):
+    def past_horizon(self, *, on_policy):
         if self.temporal_processing == 'iterative' and on_policy:
             return tf_util.constant(value=0, dtype='int')
         else:
             return self.horizon.value()
 
     @tf_function(num_args=3)
-    def apply(self, x, horizons, internals):
+    def apply(self, *, x, horizons, internals):
         zero = tf_util.constant(value=0, dtype='int')
         one = tf_util.constant(value=1, dtype='int')
 
@@ -520,9 +521,10 @@ class TemporalLayer(Layer):
             x = self.cumulative_apply(xs=xs, lengths=lengths)
 
         elif self.temporal_processing == 'iterative':
+            internals_signature = self.internals_spec.signature(batched=True)
 
             def body(indices, remaining, current_x, current_internals):
-                current_internals = internals.from_list(xs=current_internals)
+                current_internals = internals_signature.args_to_kwargs(args=current_internals)
                 current_x = tf.gather(params=x, indices=indices)
                 next_x, next_internals = self.iterative_step(
                     x=current_x, internals=current_internals
@@ -554,18 +556,20 @@ class TemporalLayer(Layer):
                         condition=tf.math.equal(x=remaining, y=zeros), x=zeros, y=ones
                     )
 
-                return indices, remaining, next_x, next_internals.to_list()
+                next_internals = internals_signature.kwargs_to_args(kwargs=next_internals)
+                return indices, remaining, next_x, next_internals
 
             initial_x = tf_util.zeros(
                 shape=((batch_size,) + output_spec.shape), dtype=output_spec.type
             )
 
+            internals = internals_signature.kwargs_to_args(kwargs=internals)
             final_indices, final_remaining, x, final_internals = tf.while_loop(
                 cond=tf_util.always_true, body=body,
-                loop_vars=(starts, lengths, initial_x, internals.to_list()), back_prop=True,
+                loop_vars=(starts, lengths, initial_x, internals), back_prop=True,
                 maximum_iterations=tf_util.int32(x=horizon)
             )
-            internals = internals.from_list(xs=final_internals)
+            internals = internals_signature.args_to_kwargs(args=final_internals)
 
         assertions = [
             tf.debugging.assert_equal(x=final_indices, y=(tf.math.cumsum(x=lengths) - ones)),
@@ -579,9 +583,9 @@ class TemporalLayer(Layer):
                 return tf_util.identity(input=super().apply(x=x)), internals
 
     @tf_function(num_args=1)
-    def cumulative_apply(self, xs, lengths):
+    def cumulative_apply(self, *, xs, lengths):
         raise NotImplementedError
 
     @tf_function(num_args=2)
-    def iterative_step(self, x, internals):
+    def iterative_step(self, *, x, internals):
         raise NotImplementedError

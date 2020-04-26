@@ -39,7 +39,7 @@ class MultiStep(UpdateModifier):
     """
 
     def __init__(
-        self, optimizer, num_steps, unroll_loop=False, summary_labels=None, name=None,
+        self, *, optimizer, num_steps, unroll_loop=False, summary_labels=None, name=None,
         arguments_spec=None, optimized_module=None
     ):
         super().__init__(
@@ -59,7 +59,7 @@ class MultiStep(UpdateModifier):
             )
 
     @tf_function(num_args=1)
-    def step(self, arguments, variables, **kwargs):
+    def step(self, *, arguments, variables, **kwargs):
         deltas = [tf.zeros_like(input=variable) for variable in variables]
 
         if self.unroll_loop:

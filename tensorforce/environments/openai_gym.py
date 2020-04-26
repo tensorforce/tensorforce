@@ -70,8 +70,12 @@ class OpenAIGym(Environment):
             env_specs = list(gym.envs.registry.env_specs)
             if level + '-v0' in gym.envs.registry.env_specs:
                 env_specs.insert(0, level + '-v0')
+            search = level
+            level = None
             for name in env_specs:
-                if level == name[:name.rindex('-v')]:
+                if search == name[:name.rindex('-v')]:
+                    if level is None:
+                        level = name
                     if max_episode_steps is False and \
                             gym.envs.registry.env_specs[name].max_episode_steps is not None:
                         continue
@@ -80,8 +84,8 @@ class OpenAIGym(Environment):
                     level = name
                     break
             else:
-                level = env_specs[0]
-                requires_register = True
+                if level is None:
+                    raise TensorforceError.value(name='OpenAIGym', argument='level', value=level)
         assert level in cls.levels()
 
         # Check/update attributes
@@ -98,13 +102,6 @@ class OpenAIGym(Environment):
         if reward_threshold is None:
             reward_threshold = gym.envs.registry.env_specs[level].reward_threshold
         elif reward_threshold != gym.envs.registry.env_specs[level].reward_threshold:
-            requires_register = True
-        # if tags is None:
-        #     tags = dict(gym.envs.registry.env_specs[level].tags)
-        #     if 'wrapper_config.TimeLimit.max_episode_steps' in tags and \
-        #             max_episode_steps is not None:
-        #         tags.pop('wrapper_config.TimeLimit.max_episode_steps')
-        elif tags != gym.envs.registry.env_specs[level].tags:
             requires_register = True
 
         # Modified specification

@@ -166,9 +166,10 @@ class TestLayers(UnittestBase, unittest.TestCase):
             ], reward=dict(type='deltafier')
         )
         network = [dict(type='reshape', shape=32)]
+        # TODO: buffer_observe incompatible with Deltafier/Sequence expecting single-step inputs
         agent, environment = self.prepare(
             min_timesteps=4, states=states, policy=dict(network=network),
-            preprocessing=preprocessing
+            preprocessing=preprocessing, config=dict(buffer_observe=1)
         )
 
         states = environment.reset()

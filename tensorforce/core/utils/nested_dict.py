@@ -176,17 +176,8 @@ class NestedDict(OrderedDict):
             else:
                 raise TensorforceError.unexpected()
 
-        # else:
-        #     return super().__getitem__(key)
-
-        elif super().__contains__(key):
-            return super().__getitem__(key)
-
         else:
-            value = self.__class__()
-            super(NestedDict, value).__setattr__('value_type', self.value_type)
-            super(NestedDict, value).__setattr__('overwrite', self.overwrite)
-            return value
+            return super().__getitem__(key)
 
     def __setitem__(self, key, value):
         if not isinstance(key, str):

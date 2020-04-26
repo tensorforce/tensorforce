@@ -45,7 +45,7 @@ class Dense(TransformationBase):
     """
 
     def __init__(
-        self, size, bias=True, activation='tanh', dropout=0.0, vars_trainable=True,
+        self, *, size, bias=True, activation='tanh', dropout=0.0, vars_trainable=True,
         summary_labels=None, l2_regularization=None, name=None, input_spec=None
     ):
         super().__init__(
@@ -85,7 +85,7 @@ class Dense(TransformationBase):
         )
 
     @tf_function(num_args=1)
-    def apply(self, x):
+    def apply(self, *, x):
         x = tf.matmul(a=x, b=self.weights)
 
         return super().apply(x=x)

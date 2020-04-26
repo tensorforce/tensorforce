@@ -33,7 +33,8 @@ class UpdateModifier(Optimizer):
     """
 
     def __init__(
-        self, optimizer, summary_labels=None, name=None, arguments_spec=None, optimized_module=None
+        self, *, optimizer, summary_labels=None, name=None, arguments_spec=None,
+        optimized_module=None
     ):
         super().__init__(
             summary_labels=summary_labels, name=name, arguments_spec=arguments_spec,

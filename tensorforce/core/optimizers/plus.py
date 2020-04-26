@@ -37,7 +37,7 @@ class Plus(Optimizer):
     """
 
     def __init__(
-        self, optimizer1, optimizer2, summary_labels=None, name=None, arguments_spec=None,
+        self, *, optimizer1, optimizer2, summary_labels=None, name=None, arguments_spec=None,
         optimized_module=None
     ):
         super().__init__(
@@ -55,7 +55,7 @@ class Plus(Optimizer):
         )
 
     @tf_function(num_args=1)
-    def step(self, arguments, **kwargs):
+    def step(self, *, arguments, **kwargs):
         deltas1 = self.optimizer1.step(arguments=arguments, **kwargs)
 
         with tf.control_dependencies(control_inputs=deltas1):

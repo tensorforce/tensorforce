@@ -48,26 +48,29 @@ class SignatureDict(NestedDict):
             for spec in super(NestedDict, self).values()
         ]
 
-    def kwargs_to_args(self, *, kwargs):
+    def kwargs_to_args(self, *, kwargs, is_outer_args=False):
         args = list()
-        for name, spec in super(NestedDict, self).items():
-            arg = kwargs[name]
+        for n, (name, spec) in enumerate(super(NestedDict, self).items()):
+            if is_outer_args and isinstance(kwargs, (list, tuple)):
+                arg = kwargs[n]
+            else:
+                arg = kwargs[name]
             if isinstance(spec, self.__class__):
                 assert isinstance(arg, TensorDict)
                 args.append(spec.kwargs_to_args(kwargs=arg))
             else:
-                assert isinstance(arg, tf.Tensor)
+                assert isinstance(arg, (tf.IndexedSlices, tf.Tensor, tf.Variable))
                 args.append(arg)
         return args
 
     def args_to_kwargs(self, *, args):
-        kwargs = OrderedDict()
+        kwargs = TensorDict()
         for (name, spec), arg in zip(super(NestedDict, self).items(), args):
             if isinstance(spec, self.__class__):
-                assert isinstance(arg, list)
-                kwargs[name] = TensorDict(spec.args_to_kwargs(args=arg))
+                assert isinstance(arg, (list, tuple))
+                kwargs[name] = spec.args_to_kwargs(args=arg)
             else:
-                assert isinstance(arg, tf.Tensor)
+                assert isinstance(arg, (tf.IndexedSlices, tf.Tensor, tf.Variable))
                 kwargs[name] = arg
         return kwargs
 
@@ -75,19 +78,13 @@ class SignatureDict(NestedDict):
 class TensorDict(NestedDict):
 
     def __init__(self, *args, overwrite=True, **kwargs):
-        super().__init__(*args, value_type=tf.Tensor, overwrite=overwrite, **kwargs)
+        super().__init__(
+            *args, value_type=(tf.IndexedSlices, tf.Tensor, tf.Variable), overwrite=overwrite,
+            **kwargs
+        )
 
-    def to_list(self):
-        return [
-            value.to_list() if isinstance(value, TensorDict) else value
-            for value in super(NestedDict, self).values()
-        ]
-
-    def from_list(self, *, xs):
-        return TensorDict((
-            (name, value.from_list(xs=x) if isinstance(value, TensorDict) else x)
-            for (name, value), x in zip(super(NestedDict, self).items(), xs)
-        ))
+    def to_kwargs(self):
+        return OrderedDict(((name, arg) for name, arg in super(NestedDict, self).items()))
 
 
 class VariableDict(NestedDict):

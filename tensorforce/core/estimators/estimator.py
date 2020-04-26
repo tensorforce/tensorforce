@@ -207,7 +207,11 @@ class Estimator(Module):
             function = (lambda value: value[horizon_start:])
             _states = TensorDict()
             _states = states.fmap(function=function)
-            _internals = internals['baseline'].fmap(function=function)
+            # TODO: only retrieve baseline internals (but may be internals/policy)
+            if 'baseline' in internals:
+                _internals = internals['baseline'].fmap(function=function)
+            else:
+                _internals = internals['policy'].fmap(function=function)
             _auxiliaries = auxiliaries.fmap(function=function)
 
             with tf.control_dependencies(control_inputs=(assertion,)):
@@ -344,9 +348,15 @@ class Estimator(Module):
                     tf.gather(params=buffer, indices=buffer_indices), value[:values_limit + one]
                 ), axis=0))
                 _states = states.fmap(function=function, zip_values=self.buffers['states'])
-                _internals = internals['baseline'].fmap(
-                    function=function, zip_values=self.buffers['internals/baseline']
-                )
+                # TODO: only retrieve baseline internals (but may be internals/policy)
+                if 'baseline' in self.buffers['internals']:
+                    _internals = internals['baseline'].fmap(
+                        function=function, zip_values=self.buffers['internals/baseline']
+                    )
+                else:
+                    _internals = internals['baseline'].fmap(
+                        function=function, zip_values=self.buffers['internals/policy']
+                    )
                 _auxiliaries = auxiliaries.fmap(
                     function=function, zip_values=self.buffers['auxiliaries']
                 )
@@ -493,8 +503,10 @@ class Estimator(Module):
                 # horizon change: see timestep-based batch sampling
                 final_horizons, (states, internals, auxiliaries, terminal) = memory.successors(
                     indices=indices, horizon=(horizon + one), sequence_values=(),
-                    final_values=('states', 'internals/baseline', 'auxiliaries', 'terminal')
+                    final_values=('states', 'internals', 'auxiliaries', 'terminal')
                 )
+                # TODO: only retrieve baseline internals (but may be internals/policy)
+                internals = internals.get('baseline', default=internals['policy'])
                 # TODO: Double DQN would require main policy here
                 actions = baseline.act(
                     states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
@@ -508,8 +520,10 @@ class Estimator(Module):
                 # horizon change: see timestep-based batch sampling
                 final_horizons, (states, internals, auxiliaries, terminal) = memory.successors(
                     indices=indices, horizon=(horizon + one), sequence_values=(),
-                    final_values=('states', 'baseline/internals', 'auxiliaries', 'terminal')
+                    final_values=('states', 'internals', 'auxiliaries', 'terminal')
                 )
+                # TODO: only retrieve baseline internals (but may be internals/policy)
+                internals = internals.get('baseline', default=internals['policy'])
                 horizon_estimate = baseline.states_value(
                     states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
                     reduced=True, return_per_action=False
@@ -547,8 +561,10 @@ class Estimator(Module):
             past_horizon = baseline.past_horizon(on_policy=(not is_baseline_optimized))
             horizons, (states,), (internals,) = memory.predecessors(
                 indices=indices, horizon=past_horizon, sequence_values=('states',),
-                initial_values=('internals/baseline',)
+                initial_values=('internals',)
             )
+            # TODO: only retrieve baseline internals (but may be internals/policy)
+            internals = internals.get('baseline', default=internals['policy'])
 
             if self.estimate_actions:
                 auxiliaries, actions = memory.retrieve(

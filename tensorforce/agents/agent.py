@@ -214,13 +214,13 @@ class Agent(object):
         # Parallel interactions
         if isinstance(parallel_interactions, int):
             if parallel_interactions <= 0:
-                raise TensorforceError.argument_value(
+                raise TensorforceError.value(
                     name='Agent', argument='parallel_interactions', value=parallel_interactions,
                     hint='<= 0'
                 )
             self.parallel_interactions = parallel_interactions
         else:
-            raise TensorforceError.argument_type(
+            raise TensorforceError.type(
                 name='Agent', argument='parallel_interactions', dtype=type(parallel_interactions)
             )
 
@@ -248,12 +248,12 @@ class Agent(object):
                 buffer_observe = self.max_episode_timesteps
         elif isinstance(buffer_observe, int):
             if buffer_observe <= 0:
-                raise TensorforceError.argument_value(
+                raise TensorforceError.value(
                     name='Agent', argument='config.buffer_observe', value=buffer_observe,
                     hint='<= 0'
                 )
             if self.parallel_interactions > 1:
-                raise TensorforceError.argument_value(
+                raise TensorforceError.value(
                     name='Agent', argument='config.buffer_observe', value=buffer_observe,
                     condition='parallel_interactions > 1'
                 )
@@ -262,7 +262,7 @@ class Agent(object):
             else:
                 buffer_observe = min(buffer_observe, self.max_episode_timesteps)
         else:
-            raise TensorforceError.argument_type(
+            raise TensorforceError.type(
                 name='Agent', argument='config.buffer_observe', dtype=type(buffer_observe)
             )
 
@@ -280,7 +280,7 @@ class Agent(object):
         if recorder is None:
             pass
         elif not all(key in ('directory', 'frequency', 'max-traces', 'start') for key in recorder):
-            raise TensorforceError.argument_value(
+            raise TensorforceError.value(
                 name='Agent', argument='recorder values', value=list(recorder),
                 hint='not from {directory,frequency,max-traces,start}'
             )
@@ -318,7 +318,7 @@ class Agent(object):
         self.buffer_indices = np.zeros(
             shape=(self.parallel_interactions,), dtype=util.np_dtype(dtype='int')
         )
-        self.timestep_completed = np.ndarray(
+        self.timestep_completed = np.ones(
             shape=(self.parallel_interactions,), dtype=util.np_dtype(dtype='bool')
         )
 
@@ -335,7 +335,7 @@ class Agent(object):
         # Recorder buffers if required
         if self.recorder_spec is not None:
             self.num_episodes = 0
-            self.recorded = NestedDict(type=list, overwrite=False)
+            self.recorded = NestedDict(value_type=list, overwrite=False)
             for name, spec in self.states_spec.items():
                 self.buffers[name] = np.ndarray(shape=(shape + spec.shape), dtype=spec.np_type())
                 self.recorded[name] = list()
@@ -467,7 +467,7 @@ class Agent(object):
                             hint='is batched'
                         )
                     elif len(internals) != num_parallel:
-                        raise TensorforceError.argument_value(
+                        raise TensorforceError.value(
                             name='Agent.act', argument='len(internals)', value=len(internals),
                             hint='!= len(states)'
                         )
@@ -516,7 +516,7 @@ class Agent(object):
                         hint='is not iterable'
                     )
                 elif len(parallel) != num_parallel:
-                    raise TensorforceError.argument_value(
+                    raise TensorforceError.value(
                         name='Agent.act', argument='len(parallel)', value=len(parallel),
                         hint='!= len(states)'
                     )
@@ -555,7 +555,7 @@ class Agent(object):
                             hint='is not iterable'
                         )
                     elif len(internals) != num_parallel:
-                        raise TensorforceError.argument_value(
+                        raise TensorforceError.value(
                             name='Agent.act', argument='len(internals)', value=len(internals),
                             hint='!= len(states)'
                         )
@@ -586,7 +586,7 @@ class Agent(object):
                             hint='is not iterable'
                         )
                     elif len(parallel) != num_parallel:
-                        raise TensorforceError.argument_value(
+                        raise TensorforceError.value(
                             name='Agent.act', argument='len(parallel)', value=len(parallel),
                             hint='!= len(states)'
                         )
@@ -650,7 +650,7 @@ class Agent(object):
                             hint='is not iterable'
                         )
                     elif len(parallel) != num_parallel:
-                        raise TensorforceError.argument_value(
+                        raise TensorforceError.value(
                             name='Agent.act', argument='len(parallel)', value=len(parallel),
                             hint='!= len(states)'
                         )
@@ -807,16 +807,16 @@ class Agent(object):
 
         # Check whether shapes/lengths are consistent
         if parallel.shape[0] == 0:
-            raise TensorforceError.argument_value(
+            raise TensorforceError.value(
                 name='Agent.observe', argument='len(parallel)', value=parallel.shape[0], hint='= 0'
             )
         if reward.shape != parallel.shape:
-            raise TensorforceError.argument_value(
+            raise TensorforceError.value(
                 name='Agent.observe', argument='len(reward)', value=reward.shape,
                 hint='!= parallel length'
             )
         if terminal.shape != parallel.shape:
-            raise TensorforceError.argument_value(
+            raise TensorforceError.value(
                 name='Agent.observe', argument='len(terminal)', value=terminal.shape,
                 hint='!= parallel length'
             )

@@ -228,7 +228,7 @@ class LayeredNetwork(LayerbasedNetwork):
 
     # (requires layers as first argument)
     def __init__(
-        self, *, layers, device=None, summary_labels=None, l2_regularization=None, name=None,
+        self, layers, *, device=None, summary_labels=None, l2_regularization=None, name=None,
         inputs_spec=None
     ):
         super().__init__(

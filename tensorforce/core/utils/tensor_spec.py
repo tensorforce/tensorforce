@@ -310,10 +310,10 @@ class TensorSpec(object):
                 pass
             elif util.is_iterable(x=value):
                 if len(value) > 0 and value[0] is None:
-                    # Shape: tuple(None, *ints >= 0)
+                    # Shape: tuple(None, *ints >= -1)
                     try:
                         value = (None,) + tuple(int(x) for x in value[1:])
-                        if any(x < 0 for x in value[1:]):
+                        if any(x < -1 for x in value[1:]):
                             raise TensorforceError.value(
                                 name='TensorSpec', argument=name, value=value
                             )
@@ -322,22 +322,20 @@ class TensorSpec(object):
                             name='TensorSpec', argument=name, value=type(value)
                         )
                 else:
-                    # Shape: tuple(*ints >= 0)
+                    # Shape: tuple(*ints >= -1)
                     try:
                         value = tuple(int(x) for x in value)
-                        if any(x < 0 for x in value):
+                        if any(x < -1 for x in value):
                             raise TensorforceError.value(
                                 name='TensorSpec', argument=name, value=value
                             )
                     except BaseException:
-                        raise TensorforceError.type(
-                            name='TensorSpec', argument=name, value=type(value)
-                        )
+                        raise TensorforceError.value(name='TensorSpec', argument=name, value=value)
             else:
-                # Shape: (int >= 0,)
+                # Shape: (int >= -1,)
                 try:
                     value = (int(value),)
-                    if value[0] < 0:
+                    if value[0] < -1:
                         raise TensorforceError.value(name='TensorSpec', argument=name, value=value)
                 except BaseException:
                     raise TensorforceError.type(name='TensorSpec', argument=name, value=type(value))
@@ -468,7 +466,11 @@ class TensorSpec(object):
                         reverse_shape.append(self.shape[-n])
                 elif self.shape[-n] is None or self.shape[-n] == 0:
                     reverse_shape.append(other.shape[-n])
-                elif other.shape[-n] is None or other.shape2[-n] == 0:
+                elif other.shape[-n] is None or other.shape[-n] == 0:
+                    reverse_shape.append(self.shape[-n])
+                elif self.shape[-n] == -1 and other.shape[-n] > 0:
+                    reverse_shape.append(other.shape[-n])
+                elif other.shape[-n] == -1 and self.shape[-n] > 0:
                     reverse_shape.append(self.shape[-n])
                 elif self.shape[-n] == other.shape[-n]:
                     reverse_shape.append(self.shape[-n])
@@ -573,7 +575,10 @@ class TensorSpec(object):
     __str__ = __repr__
 
     def tuple(self):
-        return (self.type, self.shape, self.min_value, self.max_value, self.num_values)
+        return (
+            self.type, self.shape, getattr(self, 'min_value', None),
+            getattr(self, 'max_value', None), getattr(self, 'num_values', None)
+        )
 
     def __hash__(self):
         return hash(self.tuple())

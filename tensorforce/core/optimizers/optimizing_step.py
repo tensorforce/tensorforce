@@ -16,7 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import TensorforceError
-from tensorforce.core import TensorSpec, tf_function, tf_util
+from tensorforce.core import TensorDict, TensorSpec, TensorsSpec, tf_function, tf_util
 from tensorforce.core.optimizers import UpdateModifier
 from tensorforce.core.optimizers.solvers import solver_modules
 
@@ -47,7 +47,7 @@ class OptimizingStep(UpdateModifier):
     """
 
     def __init__(
-        self, optimizer, ls_max_iterations=10, ls_accept_ratio=0.9, ls_mode='exponential',
+        self, *, optimizer, ls_max_iterations=10, ls_accept_ratio=0.9, ls_mode='exponential',
         ls_parameter=0.5, ls_unroll_loop=False, summary_labels=None, name=None, arguments_spec=None,
         optimized_module=None
     ):
@@ -59,14 +59,15 @@ class OptimizingStep(UpdateModifier):
         self.line_search = self.add_module(
             name='line_search', module='line_search', modules=solver_modules,
             max_iterations=ls_max_iterations, accept_ratio=ls_accept_ratio, mode=ls_mode,
-            parameter=ls_parameter, unroll_loop=ls_unroll_loop, fn_values_spec=(lambda: [
-                TensorSpec(type=tf_util.dtype(x=x), shape=tf_util.shape(x=x))
+            parameter=ls_parameter, unroll_loop=ls_unroll_loop,
+            fn_values_spec=(lambda: TensorsSpec((
+                (x.name, TensorSpec(type=tf_util.dtype(x=x), shape=tf_util.shape(x=x)))
                 for x in self.optimized_module.trainable_variables
-            ])
+            )))
         )
 
     @tf_function(num_args=1)
-    def step(self, arguments, variables, **kwargs):
+    def step(self, *, arguments, variables, **kwargs):
         fn_reference = kwargs['fn_reference']
         fn_comparative_loss = kwargs['fn_comparative_loss']
 
@@ -98,14 +99,15 @@ class OptimizingStep(UpdateModifier):
         with tf.control_dependencies(control_inputs=(loss_step,)):
 
             def evaluate_step(deltas):
-                with tf.control_dependencies(control_inputs=deltas):
+                with tf.control_dependencies(control_inputs=list(deltas.values())):
                     assignments = list()
-                    for variable, delta in zip(variables, deltas):
+                    for variable, delta in zip(variables, deltas.values()):
                         assignments.append(variable.assign_add(delta=delta, read_value=False))
                 with tf.control_dependencies(control_inputs=assignments):
                     # Negative value since line search maximizes.
                     return -fn_comparative_loss(**arguments, reference=reference)
 
+            deltas = TensorDict(((var.name, delta) for var, delta in zip(variables, deltas)))
             return self.line_search.solve(
                 x_init=deltas, base_value=loss_before, target_value=loss_step,
                 estimated_improvement=estimated_improvement, fn_x=evaluate_step

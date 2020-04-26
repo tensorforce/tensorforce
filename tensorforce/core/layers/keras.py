@@ -39,7 +39,7 @@ class Keras(Layer):
     """
 
     def __init__(
-        self, layer, summary_labels=None, l2_regularization=None, name=None, input_spec=None,
+        self, *, layer, summary_labels=None, l2_regularization=None, name=None, input_spec=None,
         **kwargs
     ):
         super().__init__(
@@ -80,7 +80,7 @@ class Keras(Layer):
         return regularization_loss
 
     @tf_function(num_args=1)
-    def apply(self, x):
+    def apply(self, *, x):
         x = self.keras_layer.call(inputs=x)
 
         return x

@@ -15,8 +15,8 @@
 
 import tensorflow as tf
 
-from tensorforce import util
-from tensorforce.core import parameter_modules, TensorSpec, tf_function, tf_util
+from tensorforce.core import parameter_modules, TensorDict, TensorSpec, TensorsSpec, tf_function, \
+    tf_util
 from tensorforce.core.optimizers import Optimizer
 from tensorforce.core.optimizers.solvers import solver_modules
 
@@ -42,7 +42,7 @@ class NaturalGradient(Optimizer):
     """
 
     def __init__(
-        self, learning_rate, cg_max_iterations=10, cg_damping=1e-3, cg_unroll_loop=False,
+        self, *, learning_rate, cg_max_iterations=10, cg_damping=1e-3, cg_unroll_loop=False,
         summary_labels=None, name=None, arguments_spec=None, optimized_module=None
     ):
         super().__init__(
@@ -58,14 +58,13 @@ class NaturalGradient(Optimizer):
         self.conjugate_gradient = self.add_module(
             name='conjugate_gradient', module='conjugate_gradient', modules=solver_modules,
             max_iterations=cg_max_iterations, damping=cg_damping, unroll_loop=cg_unroll_loop,
-            fn_values_spec=(lambda: [
-                TensorSpec(type=tf_util.dtype(x=x), shape=tf_util.shape(x=x))
-                for x in self.optimized_module.trainable_variables
-            ])
+            fn_values_spec=(lambda: TensorsSpec(((
+                x.name, TensorSpec(type=tf_util.dtype(x=x), shape=tf_util.shape(x=x))
+            ) for x in self.optimized_module.trainable_variables)))
         )
 
     @tf_function(num_args=1)
-    def step(self, arguments, variables, fn_loss, **kwargs):
+    def step(self, *, arguments, variables, fn_loss, **kwargs):
         # Optimize: argmin(w) loss(w + delta) such that kldiv(P(w) || P(w + delta)) = learning_rate
         # For more details, see our blogpost:
         # https://reinforce.io/blog/end-to-end-computation-graphs-for-reinforcement-learning/
@@ -85,27 +84,27 @@ class NaturalGradient(Optimizer):
                         tape2.watch(tensor=variable)
 
                     # kldiv
-                    kldiv = fn_kl_divergence(**arguments)
+                    kldiv = fn_kl_divergence(**arguments.to_kwargs())
 
                 # grad(kldiv)
                 kldiv_grads = tape2.gradient(target=kldiv, sources=variables)
                 kldiv_grads = [
                     tf.zeros_like(input=var) if grad is None else grad
-                    for grad, var in zip(kldiv_grads, variables)
+                    for var, grad in zip(variables, kldiv_grads)
                 ]
 
                 # delta' * grad(kldiv)
                 delta_kldiv_grads = tf.math.add_n(inputs=[
                     tf.math.reduce_sum(input_tensor=(delta * grad))
-                    for delta, grad in zip(deltas, kldiv_grads)
+                    for delta, grad in zip(deltas.values(), kldiv_grads)
                 ])
 
             # [delta' * F] = grad(delta' * grad(kldiv))
             delta_kldiv_grads2 = tape1.gradient(target=delta_kldiv_grads, sources=variables)
-            return [
-                tf.zeros_like(input=var) if grad is None else grad
-                for grad, var in zip(delta_kldiv_grads2, variables)
-            ]
+            return TensorDict((
+                (var.name, tf.zeros_like(input=var) if grad is None else grad)
+                for var, grad in zip(variables, delta_kldiv_grads2)
+            ))
 
         # loss
         with tf.GradientTape(persistent=False, watch_accessed_variables=False) as tape:
@@ -124,7 +123,8 @@ class NaturalGradient(Optimizer):
         # [delta' * F] * delta' = -grad(loss)
         # --> delta'  (= lambda * delta)
         deltas = self.conjugate_gradient.solve(
-            x_init=[tf.zeros_like(input=x) for x in variables], b=[-x for x in loss_gradients],
+            x_init=TensorDict(((var.name, tf.zeros_like(input=var)) for var in variables)),
+            b=TensorDict(((var.name, -x) for var, x in zip(variables, loss_gradients))),
             fn_x=fisher_matrix_product
         )
 
@@ -133,17 +133,19 @@ class NaturalGradient(Optimizer):
 
         # c' = 0.5 * delta' * F * delta'  (= lambda * c)
         # TODO: Why constant and hence KL-divergence sometimes negative?
+        delta_F_delta = delta_fisher_matrix_product.fmap(
+            function=(lambda delta_F, delta: delta_F * delta), zip_values=deltas
+        )
         half = tf_util.constant(value=0.5, dtype='float')
         constant = half * tf.math.add_n(inputs=[
-            tf.math.reduce_sum(input_tensor=(delta_F * delta))
-            for delta_F, delta in zip(delta_fisher_matrix_product, deltas)
+            tf.math.reduce_sum(input_tensor=x) for x in delta_F_delta.values()
         ])
 
         learning_rate = self.learning_rate.value()
 
         # Zero step if constant <= 0
         def no_step():
-            zero_deltas = [tf.zeros_like(input=delta) for delta in deltas]
+            zero_deltas = [tf.zeros_like(input=delta) for delta in deltas.values()]
             if return_estimated_improvement:
                 return zero_deltas, tf_util.constant(value=0.0, dtype='float')
             else:
@@ -155,26 +157,28 @@ class NaturalGradient(Optimizer):
             lagrange_multiplier = tf.math.sqrt(x=(constant / learning_rate))
 
             # delta = delta' / lambda
-            estimated_deltas = [delta / lagrange_multiplier for delta in deltas]
+            estimated_deltas = deltas.fmap(function=(lambda delta: delta / lagrange_multiplier))
 
             # improvement = grad(loss) * delta  (= loss_new - loss_old)
             estimated_improvement = tf.math.add_n(inputs=[
-                tf.math.reduce_sum(input_tensor=(grad * delta))
-                for grad, delta in zip(loss_gradients, estimated_deltas)
+                tf.math.reduce_sum(input_tensor=(loss_grad * delta))
+                for loss_grad, delta in zip(loss_gradients, estimated_deltas.values())
             ])
 
             # Apply natural gradient improvement.
             assignments = list()
-            for variable, delta in zip(variables, estimated_deltas):
+            for variable, delta in zip(variables, estimated_deltas.values()):
                 assignments.append(variable.assign_add(delta=delta, read_value=False))
 
             with tf.control_dependencies(control_inputs=assignments):
                 # Trivial operation to enforce control dependency
-                estimated_delta = util.fmap(function=tf_util.identity, xs=estimated_deltas)
+                estimated_deltas = [
+                    tf_util.identity(input=delta) for delta in estimated_deltas.values()
+                ]
                 if return_estimated_improvement:
-                    return estimated_delta, estimated_improvement
+                    return estimated_deltas, estimated_improvement
                 else:
-                    return estimated_delta
+                    return estimated_deltas
 
         # Natural gradient step only works if constant > 0
         skip_step = constant > tf_util.constant(value=0.0, dtype='float')

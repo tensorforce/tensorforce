@@ -15,7 +15,6 @@
 
 import tensorflow as tf
 
-from tensorforce import util
 from tensorforce.core import parameter_modules, tf_function, tf_util
 from tensorforce.core.optimizers import UpdateModifier
 from tensorforce.core.utils import TensorDict
@@ -39,7 +38,7 @@ class SubsamplingStep(UpdateModifier):
     """
 
     def __init__(
-        self, optimizer, fraction, summary_labels=None, name=None, arguments_spec=None,
+        self, *, optimizer, fraction, summary_labels=None, name=None, arguments_spec=None,
         optimized_module=None
     ):
         super().__init__(
@@ -53,7 +52,7 @@ class SubsamplingStep(UpdateModifier):
         )
 
     @tf_function(num_args=1)
-    def step(self, arguments, **kwargs):
+    def step(self, *, arguments, **kwargs):
         arguments = arguments.copy()
         if 'states' in arguments and 'horizons' in arguments:
             states = arguments['states']
@@ -90,13 +89,13 @@ class SubsamplingStep(UpdateModifier):
                 pred=is_one_horizons, true_fn=(lambda: indices), false_fn=subsampled_states_indices
             )
             function = (lambda x: tf.gather(params=x, indices=states_indices))
-            subsampled_arguments['states'] = util.fmap(function=function, xs=states)
+            subsampled_arguments['states'] = states.fmap(function=function)
             subsampled_arguments['horizons'] = tf.stack(
                 values=(tf.math.cumsum(x=horizons[:, 1], exclusive=True), horizons[:, 1]), axis=1
             )
 
         for name, argument in arguments.items():
-            if states is None or (name != 'states' and name != 'horizons'):
+            if states is None or (not name.startswith('states') and name != 'horizons'):
                 subsampled_arguments[name] = tf.gather(params=argument, indices=indices)
 
         deltas = self.optimizer.step(arguments=subsampled_arguments, **kwargs)

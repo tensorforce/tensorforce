@@ -195,10 +195,15 @@ class Environment(object):
 
             else:
                 # Default: OpenAI Gym
-                return Environment.create(
-                    environment='gym', level=environment,
-                    max_episode_timesteps=max_episode_timesteps, **kwargs
-                )
+                try:
+                    return Environment.create(
+                        environment='gym', level=environment,
+                        max_episode_timesteps=max_episode_timesteps, **kwargs
+                    )
+                except TensorforceError:
+                    raise TensorforceError.value(
+                        name='Environment.create', argument='environment', value=environment
+                    )
 
         else:
             # Default: OpenAI Gym

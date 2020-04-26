@@ -56,7 +56,7 @@ class Conv1d(TransformationBase):
     """
 
     def __init__(
-        self, size, window=3, stride=1, padding='same', dilation=1, bias=True, activation='relu',
+        self, *, size, window=3, stride=1, padding='same', dilation=1, bias=True, activation='relu',
         dropout=0.0, vars_trainable=True, summary_labels=None, l2_regularization=None, name=None,
         input_spec=None
     ):
@@ -107,7 +107,7 @@ class Conv1d(TransformationBase):
         )
 
     @tf_function(num_args=1)
-    def apply(self, x):
+    def apply(self, *, x):
         x = tf.nn.conv1d(
             input=x, filters=self.weights, stride=self.stride, padding=self.padding.upper(),
             dilations=self.dilation
@@ -151,7 +151,7 @@ class Conv2d(TransformationBase):
     """
 
     def __init__(
-        self, size, window=3, stride=1, padding='same', dilation=1, bias=True, activation='relu',
+        self, *, size, window=3, stride=1, padding='same', dilation=1, bias=True, activation='relu',
         dropout=0.0, vars_trainable=True, summary_labels=None, l2_regularization=None, name=None,
         input_spec=None
     ):
@@ -224,7 +224,7 @@ class Conv2d(TransformationBase):
         )
 
     @tf_function(num_args=1)
-    def apply(self, x):
+    def apply(self, *, x):
         x = tf.nn.conv2d(
             input=x, filters=self.weights, strides=self.stride, padding=self.padding.upper(),
             dilations=self.dilation
@@ -271,7 +271,7 @@ class Conv1dTranspose(TransformationBase):
     """
 
     def __init__(
-        self, size, window=3, output_width=None, stride=1, padding='same', dilation=1, bias=True,
+        self, *, size, window=3, output_width=None, stride=1, padding='same', dilation=1, bias=True,
         activation='relu', dropout=0.0, vars_trainable=True, summary_labels=None,
         l2_regularization=None, name=None, input_spec=None
     ):
@@ -326,7 +326,7 @@ class Conv1dTranspose(TransformationBase):
         )
 
     @tf_function(num_args=1)
-    def apply(self, x):
+    def apply(self, *, x):
         x = tf.nn.conv1d_transpose(
             input=x, filters=self.weights, output_shape=(1, self.output_width, self.size),
             strides=self.stride, padding=self.padding.upper(), dilations=self.dilation
@@ -373,7 +373,7 @@ class Conv2dTranspose(TransformationBase):
     """
 
     def __init__(
-        self, size, window=3, output_shape=None, stride=1, padding='same', dilation=1, bias=True,
+        self, *, size, window=3, output_shape=None, stride=1, padding='same', dilation=1, bias=True,
         activation='relu', dropout=0.0, vars_trainable=True, summary_labels=None,
         l2_regularization=None, name=None, input_spec=None
     ):
@@ -466,7 +466,7 @@ class Conv2dTranspose(TransformationBase):
         )
 
     @tf_function(num_args=1)
-    def apply(self, x):
+    def apply(self, *, x):
         x = tf.nn.conv2d_transpose(
             input=x, filters=self.weights, output_shape=self.output_shape, strides=self.stride,
             padding=self.padding.upper(), dilations=self.dilation

@@ -181,11 +181,15 @@ class TensorforceModel(Model):
         else:
             self.baseline_loss_weight = None
             internals_spec = self.internals_spec['policy']
+            if self.separate_baseline_policy:
+                baseline_internals = self.internals_spec['baseline']
+            else:
+                baseline_internals = self.internals_spec['policy']
             self.baseline_optimizer = self.add_module(
                 name='baseline_optimizer', module=baseline_optimizer, modules=optimizer_modules,
                 is_trainable=False, optimized_module=self.baseline, arguments_spec=TensorsSpec(
                     states=self.states_spec, horizons=TensorSpec(type='int', shape=(2,)),
-                    internals=self.internals_spec['baseline'], auxiliaries=self.auxiliaries_spec,
+                    internals=baseline_internals, auxiliaries=self.auxiliaries_spec,
                     actions=self.actions_spec, reward=self.reward_spec
                 )
             )
@@ -279,7 +283,11 @@ class TensorforceModel(Model):
             return SignatureDict(
                 states=self.states_spec.signature(batched=True),
                 horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
-                internals=self.internals_spec['baseline'].signature(batched=True),
+                internals=(
+                    self.internals_spec['baseline'].signature(batched=True)
+                    if self.separate_baseline_policy else
+                    self.internals_spec['policy'].signature(batched=True)
+                ),
                 auxiliaries=self.auxiliaries_spec.signature(batched=True),
                 actions=self.actions_spec.signature(batched=True),
                 reward=self.reward_spec.signature(batched=True)
@@ -289,7 +297,11 @@ class TensorforceModel(Model):
             return SignatureDict(
                 states=self.states_spec.signature(batched=True),
                 horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
-                internals=self.internals_spec['baseline'].signature(batched=True),
+                internals=(
+                    self.internals_spec['baseline'].signature(batched=True)
+                    if self.separate_baseline_policy else
+                    self.internals_spec['policy'].signature(batched=True)
+                ),
                 auxiliaries=self.auxiliaries_spec.signature(batched=True),
                 actions=self.actions_spec.signature(batched=True),
                 reward=self.reward_spec.signature(batched=True),
@@ -382,7 +394,7 @@ class TensorforceModel(Model):
         batch_size = tf.shape(input=terminal)[0]
 
         # Input assertions
-        dependencies = self.states_spec.tf_assert(
+        dependencies = self.unprocessed_states_spec.tf_assert(
             x=states, batch_size=batch_size,
             message='Agent.experience: invalid {issue} for {name} state input.'
         )
@@ -583,11 +595,7 @@ class TensorforceModel(Model):
 
         # If any, store overwritten values
         def store():
-            return self.memory.enqueue(
-                states=values['states'], internals=values['internals'],
-                auxiliaries=values['auxiliaries'], actions=values['actions'],
-                terminal=values['terminal'], reward=values['reward']
-            )
+            return self.memory.enqueue(**values.to_kwargs())
 
         terminal = values['terminal']
         num_values = tf_util.cast(x=tf.shape(input=terminal)[0], dtype='int')
@@ -730,22 +738,23 @@ class TensorforceModel(Model):
                 return policy_reference, baseline_reference
 
         def fn_kl_divergence(*, states, horizons, internals, auxiliaries, actions, reward):
-            other = self.policy.kldiv_reference(
+            reference = self.policy.kldiv_reference(
                 states=states, horizons=horizons, internals=internals['policy'],
                 auxiliaries=auxiliaries
             )
             kl_divergence = self.policy.kl_divergence(
                 states=states, horizons=horizons, internals=internals['policy'],
-                auxiliaries=auxiliaries, other=other, reduced=True, return_per_action=False
+                auxiliaries=auxiliaries, reference=reference, reduced=True, return_per_action=False
             )
             if self.baseline_loss_weight is not None:
-                other = self.policy.kldiv_reference(
+                reference = self.policy.kldiv_reference(
                     states=states, horizons=horizons, internals=internals['baseline'],
                     auxiliaries=auxiliaries
                 )
                 kl_divergence += self.baseline_loss_weight * self.baseline.kl_divergence(
                     states=states, horizons=horizons, internals=internals['baseline'],
-                    auxiliaries=auxiliaries, other=other, reduced=True, return_per_action=False
+                    auxiliaries=auxiliaries, reference=reference, reduced=True,
+                    return_per_action=False
                 )
             return kl_divergence
 
@@ -878,7 +887,7 @@ class TensorforceModel(Model):
             ):
                 kl_divergence, kl_divergences = self.policy.kl_divergence(
                     states=states, horizons=horizons, internals=internals['policy'],
-                    auxiliaries=auxiliaries, other=kldiv_reference, reduced=True,
+                    auxiliaries=auxiliaries, reference=kldiv_reference, reduced=True,
                     return_per_action=True
                 )
             if self.is_summary_logged(label=('kl-divergence', 'kl-divergences')):
@@ -899,10 +908,15 @@ class TensorforceModel(Model):
 
     @tf_function(num_args=6)
     def loss(self, *, states, horizons, internals, auxiliaries, actions, reward):
+        if self.baseline_optimizer is None:
+            policy_internals = internals['policy']
+        else:
+            policy_internals = internals
+
         # Loss per instance
         loss = self.objective.loss(
-            states=states, horizons=horizons, internals=internals['policy'],
-            auxiliaries=auxiliaries, actions=actions, reward=reward, policy=self.policy
+            states=states, horizons=horizons, internals=policy_internals, auxiliaries=auxiliaries,
+            actions=actions, reward=reward, policy=self.policy
         )
 
         # Objective loss
@@ -910,13 +924,17 @@ class TensorforceModel(Model):
 
         # Regularization losses
         loss += self.regularize(
-            states=states, horizons=horizons, internals=internals['policy'], auxiliaries=auxiliaries
+            states=states, horizons=horizons, internals=policy_internals, auxiliaries=auxiliaries
         )
 
         # Baseline loss
         if self.baseline_loss_weight is not None:
+            if self.separate_baseline_policy:
+                baseline_internals = internals['baseline']
+            else:
+                baseline_internals = policy_internals
             loss += self.baseline_loss_weight * self.baseline_loss(
-                states=states, horizons=horizons, internals=internals['baseline'],
+                states=states, horizons=horizons, internals=baseline_internals,
                 auxiliaries=auxiliaries, actions=actions, reward=reward
             )
 
@@ -926,6 +944,10 @@ class TensorforceModel(Model):
     def comparative_loss(
         self, *, states, horizons, internals, auxiliaries, actions, reward, reference
     ):
+        if self.baseline_optimizer is None:
+            policy_internals = internals['policy']
+        else:
+            policy_internals = internals
         if self.baseline_loss_weight is None:
             policy_reference = reference
         else:
@@ -933,7 +955,7 @@ class TensorforceModel(Model):
 
         # Loss per instance
         loss = self.objective.comparative_loss(
-            states=states, horizons=horizons, internals=internals['policy'], auxiliaries=auxiliaries,
+            states=states, horizons=horizons, internals=policy_internals, auxiliaries=auxiliaries,
             actions=actions, reward=reward, reference=policy_reference, policy=self.policy
         )
 
@@ -942,13 +964,17 @@ class TensorforceModel(Model):
 
         # Regularization losses
         loss += self.regularize(
-            states=states, horizons=horizons, internals=internals['policy'], auxiliaries=auxiliaries
+            states=states, horizons=horizons, internals=policy_internals, auxiliaries=auxiliaries
         )
 
         # Baseline loss
         if self.baseline_loss_weight is not None:
+            if self.separate_baseline_policy:
+                baseline_internals = internals['baseline']
+            else:
+                baseline_internals = policy_internals
             loss += self.baseline_loss_weight * self.comparative_baseline_loss(
-                states=states, horizons=horizons, internals=internals['baseline'],
+                states=states, horizons=horizons, internals=baseline_internals,
                 auxiliaries=auxiliaries, actions=actions, reward=reward,
                 reference=baseline_reference
             )
@@ -989,8 +1015,10 @@ class TensorforceModel(Model):
         # horizon change: see timestep-based batch sampling
         horizons, (states,), (internals,) = self.memory.predecessors(
             indices=indices, horizon=past_horizon, sequence_values=('states',),
-            initial_values=('internals/baseline',)
+            initial_values=('internals',)
         )
+        # TODO: only retrieve baseline internals (but may be internals/policy)
+        internals = internals.get('baseline', default=internals['policy'])
         auxiliaries, actions, reward = self.memory.retrieve(
             indices=indices, values=('auxiliaries', 'actions', 'reward')
         )
@@ -1018,12 +1046,12 @@ class TensorforceModel(Model):
             )
 
         def fn_kl_divergence(*, states, horizons, internals, auxiliaries, actions, reward):
-            other = self.baseline.kldiv_reference(
+            reference = self.baseline.kldiv_reference(
                 states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries
             )
             return self.baseline.kl_divergence(
                 states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-                other=other, reduced=True, return_per_action=False
+                reference=reference, reduced=True, return_per_action=False
             )
 
         kwargs = self.baseline_objective.optimizer_arguments(policy=self.baseline)

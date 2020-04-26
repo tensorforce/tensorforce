@@ -61,13 +61,13 @@ def shape(*, x, unknown=-1):
 # Conversion to generally supported TensorFlow type
 
 
-def int32(*, x):
+def int32(x):
     if dtype(x=x) != 'int' or get_dtype(type='int') != tf.int32:
         x = tf.cast(x=x, dtype=tf.int32)
     return x
 
 
-def float32(*, x):
+def float32(x):
     if dtype(x=x) != 'float' or get_dtype(type='float') != tf.float32:
         x = tf.cast(x=x, dtype=tf.float32)
     return x
@@ -88,7 +88,7 @@ def ones(*, shape, dtype):
     return tf.ones(shape=shape, dtype=get_dtype(type=dtype))
 
 
-def identity(*, input):
+def identity(input):
     zero = tf.zeros_like(input=input)
     if dtype(x=zero) == 'bool':
         return tf.math.logical_or(x=input, y=zero)

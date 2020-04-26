@@ -35,7 +35,7 @@ class Pooling(Layer):
         input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(self, reduction, summary_labels=None, name=None, input_spec=None):
+    def __init__(self, *, reduction, summary_labels=None, name=None, input_spec=None):
         if reduction not in ('concat', 'max', 'mean', 'product', 'sum'):
             raise TensorforceError.value(name='pooling', argument='reduction', value=reduction)
         self.reduction = reduction
@@ -59,7 +59,7 @@ class Pooling(Layer):
         return output_spec
 
     @tf_function(num_args=1)
-    def apply(self, x):
+    def apply(self, *, x):
         if self.reduction == 'concat':
             return tf.reshape(tensor=x, shape=(-1, util.product(xs=tf_util.shape(x=x)[1:])))
 
@@ -96,13 +96,13 @@ class Flatten(Pooling):
         input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(self, summary_labels=None, name=None, input_spec=None):
+    def __init__(self, *, summary_labels=None, name=None, input_spec=None):
         super().__init__(
             reduction='concat', summary_labels=summary_labels, name=name, input_spec=input_spec
         )
 
     @tf_function(num_args=1)
-    def apply(self, x):
+    def apply(self, *, x):
         if self.input_spec.shape == ():
             return tf.expand_dims(input=x, axis=1)
 
@@ -132,7 +132,7 @@ class Pool1d(Layer):
     """
 
     def __init__(
-        self, reduction, window=2, stride=2, padding='same', summary_labels=None, name=None,
+        self, *, reduction, window=2, stride=2, padding='same', summary_labels=None, name=None,
         input_spec=None
     ):
         self.reduction = reduction
@@ -168,7 +168,7 @@ class Pool1d(Layer):
         return output_spec
 
     @tf_function(num_args=1)
-    def apply(self, x):
+    def apply(self, *, x):
         x = tf.expand_dims(input=x, axis=1)
 
         if self.reduction == 'average':
@@ -208,7 +208,7 @@ class Pool2d(Layer):
     """
 
     def __init__(
-        self, reduction, window=2, stride=2, padding='same', summary_labels=None, name=None,
+        self, *, reduction, window=2, stride=2, padding='same', summary_labels=None, name=None,
         input_spec=None
     ):
         self.reduction = reduction
@@ -253,7 +253,7 @@ class Pool2d(Layer):
         return output_spec
 
     @tf_function(num_args=1)
-    def apply(self, x):
+    def apply(self, *, x):
         if self.reduction == 'average':
             x = tf.nn.avg_pool(
                 input=x, ksize=self.window, strides=self.stride, padding=self.padding.upper()

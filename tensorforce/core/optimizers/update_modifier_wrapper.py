@@ -17,7 +17,7 @@ import tensorforce.core
 
 
 def UpdateModifierWrapper(
-    optimizer, multi_step=1, subsampling_fraction=1.0, clipping_threshold=None,
+    optimizer, *, multi_step=1, subsampling_fraction=1.0, clipping_threshold=None,
     optimizing_iterations=0, summary_labels=None, name=None, arguments_spec=None,
     optimized_module=None, **kwargs
 ):

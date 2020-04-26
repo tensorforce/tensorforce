@@ -41,7 +41,7 @@ class Linear(Layer):
     """
 
     def __init__(
-        self, size, bias=True, vars_trainable=True, summary_labels=None, l2_regularization=None,
+        self, *, size, bias=True, vars_trainable=True, summary_labels=None, l2_regularization=None,
         name=None, input_spec=None
     ):
         super().__init__(
@@ -76,7 +76,7 @@ class Linear(Layer):
         return self.linear.output_spec()
 
     @tf_function(num_args=1)
-    def apply(self, x):
+    def apply(self, *, x):
         if len(self.input_spec.shape) == 0:
             x = tf.expand_dims(input=x, axis=1)
 

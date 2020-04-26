@@ -38,7 +38,7 @@ class Activation(Layer):
         input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(self, nonlinearity, summary_labels=None, name=None, input_spec=None):
+    def __init__(self, *, nonlinearity, summary_labels=None, name=None, input_spec=None):
         super().__init__(summary_labels=summary_labels, name=name, input_spec=input_spec)
 
         # Nonlinearity
@@ -55,7 +55,7 @@ class Activation(Layer):
         return TensorSpec(type='float', shape=None)
 
     @tf_function(num_args=1)
-    def apply(self, x):
+    def apply(self, *, x):
         if self.nonlinearity == 'crelu':
             x = tf.nn.crelu(features=x)
 
@@ -111,7 +111,7 @@ class Block(Layer):
         input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(self, layers, name=None, input_spec=None):
+    def __init__(self, *, layers, name=None, input_spec=None):
         # TODO: handle internal states and combine with layered network
         if len(layers) == 0:
             raise TensorforceError.value(
@@ -150,7 +150,7 @@ class Block(Layer):
         return self.layers[-1].output_spec()
 
     @tf_function(num_args=1)
-    def apply(self, x):
+    def apply(self, *, x):
         for layer in self.layers:
             x = layer.apply(x=x)
 
@@ -171,7 +171,7 @@ class Dropout(Layer):
         input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(self, rate, summary_labels=None, name=None, input_spec=None):
+    def __init__(self, *, rate, summary_labels=None, name=None, input_spec=None):
         super().__init__(summary_labels=summary_labels, name=name, input_spec=input_spec)
 
         # Rate
@@ -184,7 +184,7 @@ class Dropout(Layer):
         return TensorSpec(type='float', shape=None)
 
     @tf_function(num_args=1)
-    def apply(self, x):
+    def apply(self, *, x):
         rate = self.rate.value()
 
         def no_dropout():
@@ -232,13 +232,19 @@ class Function(Layer):
         )
 
         self.function = function
-        self._output_spec = TensorSpec(**output_spec)
+        if output_spec is None:
+            self._output_spec = None
+        else:
+            self._output_spec = TensorSpec(**output_spec)
 
     def output_spec(self):
-        return self._output_spec
+        if self._output_spec is None:
+            return super().output_spec()
+        else:
+            return self._output_spec
 
     @tf_function(num_args=1)
-    def apply(self, x):
+    def apply(self, *, x):
         x = self.function(x)
 
         return x
@@ -258,7 +264,7 @@ class Reshape(Layer):
         input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(self, shape, summary_labels=None, name=None, input_spec=None):
+    def __init__(self, *, shape, summary_labels=None, name=None, input_spec=None):
         super().__init__(summary_labels=summary_labels, name=name, input_spec=input_spec)
 
         if isinstance(shape, int):
@@ -276,7 +282,7 @@ class Reshape(Layer):
         return output_spec
 
     @tf_function(num_args=1)
-    def apply(self, x):
+    def apply(self, *, x):
         x = tf.reshape(tensor=x, shape=((-1,) + self.shape))
 
         return x

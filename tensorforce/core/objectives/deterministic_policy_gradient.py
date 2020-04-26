@@ -15,6 +15,7 @@
 
 import tensorflow as tf
 
+from tensorforce import util
 from tensorforce.core import tf_function, tf_util
 from tensorforce.core.objectives import Objective
 
@@ -42,8 +43,8 @@ class DeterministicPolicyGradient(Objective):
         )
 
         summed_actions = list()
-        for name, action in policy_actions.items():
-            rank = len(policy.actions_spec[name]['shape'])
+        for name, spec, action in util.zip_items(policy.actions_spec, policy_actions):
+            rank = len(spec.shape)
             for n in range(rank):
                 action = tf.math.reduce_sum(input_tensor=action, axis=(rank - n))
             summed_actions.append(action)

@@ -33,16 +33,15 @@ class Optimizer(Module):
 
     _TF_MODULE_IGNORED_PROPERTIES = Module._TF_MODULE_IGNORED_PROPERTIES | {'optimized_module'}
 
-    def __init__(self, summary_labels=None, name=None, arguments_spec=None, optimized_module=None):
+    def __init__(
+        self, *, summary_labels=None, name=None, arguments_spec=None, optimized_module=None
+    ):
         super().__init__(name=name, summary_labels=summary_labels)
 
         self.arguments_spec = arguments_spec
         self.optimized_module = optimized_module
 
-    def additional_arguments(self):
-        return ()
-
-    def input_signature(self, function):
+    def input_signature(self, *, function):
         if function == 'step' or function == 'update':
             return SignatureDict(arguments=self.arguments_spec.signature(batched=True))
 
@@ -50,11 +49,11 @@ class Optimizer(Module):
             return super().input_signature(function=function)
 
     @tf_function(num_args=1)
-    def step(self, arguments, variables, **kwargs):
+    def step(self, *, arguments, variables, **kwargs):
         raise NotImplementedError
 
     @tf_function(num_args=1)
-    def update(self, arguments, variables, **kwargs):
+    def update(self, *, arguments, variables, **kwargs):
         if any(variable.dtype != tf_util.get_dtype(type='float') for variable in variables):
             raise TensorforceError.unexpected()
 

@@ -151,12 +151,13 @@ class ParametrizedDistributions(Stochastic, ActionValue):
                 x=states, horizons=horizons, internals=internals, return_internals=False
             )
 
-        def function(distribution, conditions, temperature):
+        def function(name, distribution, temperature):
+            conditions = auxiliaries.get(name, default=TensorDict())
             parameters = distribution.parametrize(x=embedding, conditions=conditions)
             return distribution.sample(parameters=parameters, temperature=temperature)
 
         actions = self.distributions.fmap(
-            function=function, cls=TensorDict, zip_values=(auxiliaries, temperatures)
+            function=function, cls=TensorDict, with_names=True, zip_values=temperatures
         )
 
         if return_internals:
@@ -170,12 +171,13 @@ class ParametrizedDistributions(Stochastic, ActionValue):
             x=states, horizons=horizons, internals=internals, return_internals=False
         )
 
-        def function(distribution, conditions, action):
+        def function(name, distribution, action):
+            conditions = auxiliaries.get(name, default=TensorDict())
             parameters = distribution.parametrize(x=embedding, conditions=conditions)
             return distribution.log_probability(parameters=parameters, action=action)
 
         return self.distributions.fmap(
-            function=function, cls=TensorDict, zip_values=(auxiliaries, actions)
+            function=function, cls=TensorDict, with_names=True, zip_values=actions
         )
 
     @tf_function(num_args=4)
@@ -184,24 +186,25 @@ class ParametrizedDistributions(Stochastic, ActionValue):
             x=states, horizons=horizons, internals=internals, return_internals=False
         )
 
-        def function(distribution, conditions):
+        def function(name, distribution):
+            conditions = auxiliaries.get(name, default=TensorDict())
             parameters = distribution.parametrize(x=embedding, conditions=conditions)
             return distribution.entropy(parameters=parameters)
 
-        return self.distributions.fmap(function=function, cls=TensorDict, zip_values=auxiliaries)
+        return self.distributions.fmap(function=function, cls=TensorDict, with_names=True)
 
     @tf_function(num_args=5)
-    def kl_divergences(self, *, states, horizons, internals, auxiliaries, other):
+    def kl_divergences(self, *, states, horizons, internals, auxiliaries, reference):
         parameters = self.kldiv_reference(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries
         )
-        other = other.fmap(function=tf.stop_gradient)
+        reference = reference.fmap(function=tf.stop_gradient)
 
         def function(distribution, parameters1, parameters2):
             return distribution.kl_divergence(parameters1=parameters1, parameters2=parameters2)
 
         return self.distributions.fmap(
-            function=function, cls=TensorDict, zip_values=(parameters, other)
+            function=function, cls=TensorDict, zip_values=(parameters, reference)
         )
 
     @tf_function(num_args=4)
@@ -210,10 +213,11 @@ class ParametrizedDistributions(Stochastic, ActionValue):
             x=states, horizons=horizons, internals=internals, return_internals=False
         )
 
-        def function(distribution, conditions):
+        def function(name, distribution):
+            conditions = auxiliaries.get(name, default=TensorDict())
             return distribution.parametrize(x=embedding, conditions=conditions)
 
-        return self.distributions.fmap(function=function, cls=TensorDict, zip_values=auxiliaries)
+        return self.distributions.fmap(function=function, cls=TensorDict, with_names=True)
 
     @tf_function(num_args=4)
     def states_values(self, *, states, horizons, internals, auxiliaries):
@@ -221,11 +225,12 @@ class ParametrizedDistributions(Stochastic, ActionValue):
             x=states, horizons=horizons, internals=internals, return_internals=False
         )
 
-        def function(distribution, conditions):
+        def function(name, distribution):
+            conditions = auxiliaries.get(name, default=TensorDict())
             parameters = distribution.parametrize(x=embedding, conditions=conditions)
             return distribution.states_value(parameters=parameters)
 
-        return self.distributions.fmap(function=function, cls=TensorDict, zip_values=auxiliaries)
+        return self.distributions.fmap(function=function, cls=TensorDict, with_names=True)
 
     @tf_function(num_args=4)
     def states_value(self, *, states, horizons, internals, auxiliaries, reduced, return_per_action):
@@ -251,10 +256,11 @@ class ParametrizedDistributions(Stochastic, ActionValue):
             x=states, horizons=horizons, internals=internals, return_internals=False
         )
 
-        def function(distribution, conditions, action):
+        def function(name, distribution, action):
+            conditions = auxiliaries.get(name, default=TensorDict())
             parameters = distribution.parametrize(x=embedding, conditions=conditions)
             return distribution.action_value(parameters=parameters, action=action)
 
         return self.distributions.fmap(
-            function=function, cls=TensorDict, zip_values=(auxiliaries, actions)
+            function=function, cls=TensorDict, with_names=True, zip_values=actions
         )

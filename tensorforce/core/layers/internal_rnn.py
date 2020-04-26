@@ -16,7 +16,7 @@
 import numpy as np
 import tensorflow as tf
 
-from tensorforce import TensorforceError, util
+from tensorforce import TensorforceError
 from tensorforce.core import TensorSpec, tf_function, tf_util
 from tensorforce.core.layers import TemporalLayer, TransformationBase
 
@@ -53,8 +53,9 @@ class InternalRnn(TemporalLayer, TransformationBase):
     """
 
     def __init__(
-        self, cell, size, horizon, bias=True, activation='tanh', dropout=0.0, vars_trainable=True,
-        summary_labels=None, l2_regularization=None, name=None, input_spec=None, **kwargs
+        self, *, cell, size, horizon, bias=True, activation='tanh', dropout=0.0,
+        vars_trainable=True,  summary_labels=None, l2_regularization=None, name=None,
+        input_spec=None, **kwargs
     ):
         super().__init__(
             temporal_processing='iterative', horizon=horizon, size=size, bias=bias,
@@ -138,26 +139,24 @@ class InternalRnn(TemporalLayer, TransformationBase):
         return regularization_loss
 
     @tf_function(num_args=2)
-    def iterative_step(self, x, internals):
-        state = internals['state']
+    def iterative_step(self, *, x, internals):
+        x = tf_util.float32(x=x)
+        state = tf_util.float32(x=internals['state'])
 
         if self.cell_type == 'gru':
             state = (state,)
         elif self.cell_type == 'lstm':
             state = (state[:, 0, :], state[:, 1, :])
 
-        x = tf_util.float32(x=x)
-        state = util.fmap(function=tf_util.float32, xs=state)
-
         x, state = self.cell(inputs=x, states=state)
 
-        x = tf_util.cast(x=x, dtype='float')
-        state = util.fmap(function=(lambda x: tf_util.cast(x=x, dtype='float')), xs=state)
-
         if self.cell_type == 'gru':
-            internals['state'] = state[0]
+            state = state[0]
         elif self.cell_type == 'lstm':
-            internals['state'] = tf.stack(values=state, axis=1)
+            state = tf.stack(values=state, axis=1)
+
+        x = tf_util.cast(x=x, dtype='float')
+        internals['state'] = tf_util.cast(x=state, dtype='float')
 
         return x, internals
 
@@ -194,7 +193,7 @@ class InternalGru(InternalRnn):
     """
 
     def __init__(
-        self, size, horizon, bias=False, activation=None, dropout=0.0, vars_trainable=True,
+        self, *, size, horizon, bias=False, activation=None, dropout=0.0, vars_trainable=True,
         summary_labels=None, l2_regularization=None, name=None, input_spec=None, **kwargs
     ):
         super().__init__(
@@ -236,7 +235,7 @@ class InternalLstm(InternalRnn):
     """
 
     def __init__(
-        self, size, horizon, bias=False, activation=None, dropout=0.0, vars_trainable=True,
+        self, *, size, horizon, bias=False, activation=None, dropout=0.0, vars_trainable=True,
         summary_labels=None, l2_regularization=None, name=None, input_spec=None, **kwargs
     ):
         super().__init__(

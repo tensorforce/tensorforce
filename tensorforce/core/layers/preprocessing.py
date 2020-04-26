@@ -31,10 +31,10 @@ class PreprocessingLayer(Layer):
         input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(self, summary_labels=None, name=None, input_spec=None):
-        super().__init__(name=name, input_spec=input_spec, summary_labels=summary_labels)
+    def __init__(self, *, summary_labels=None, name=None, input_spec=None):
+        super().__init__(summary_labels=summary_labels, name=name, input_spec=input_spec)
 
-    def input_signature(self, function):
+    def input_signature(self, *, function):
         if function == 'reset':
             return SignatureDict()
 
@@ -62,7 +62,7 @@ class Clipping(Layer):
         input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(self, upper, lower=None, summary_labels=None, name=None, input_spec=None):
+    def __init__(self, *, upper, lower=None, summary_labels=None, name=None, input_spec=None):
         super().__init__(summary_labels=summary_labels, name=name, input_spec=input_spec)
 
         if lower is None:
@@ -82,7 +82,7 @@ class Clipping(Layer):
         return TensorSpec(type='float', shape=None)
 
     @tf_function(num_args=1)
-    def apply(self, x):
+    def apply(self, *, x):
         upper = self.upper.value()
         if self.lower is None:
             lower = -upper
@@ -113,7 +113,7 @@ class Deltafier(PreprocessingLayer):
         input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(self, concatenate=False, summary_labels=None, name=None, input_spec=None):
+    def __init__(self, *, concatenate=False, summary_labels=None, name=None, input_spec=None):
         self.concatenate = concatenate
 
         super().__init__(summary_labels=summary_labels, name=name, input_spec=input_spec)
@@ -141,7 +141,7 @@ class Deltafier(PreprocessingLayer):
         )
 
         self.previous = self.variable(
-            name='previous', dtype='float', shape=((1,) + self.input_spec['shape']),
+            name='previous', dtype='float', shape=((1,) + self.input_spec.shape),
             initializer='zeros', is_trainable=False, is_saved=False
         )
 
@@ -154,7 +154,7 @@ class Deltafier(PreprocessingLayer):
         return assignment
 
     @tf_function(num_args=1)
-    def apply(self, x):
+    def apply(self, *, x):
         assertion = tf.debugging.assert_equal(
             x=tf.shape(input=x)[0], y=1,
             message="Deltafier preprocessor currently not compatible with batched Agent.act."
@@ -171,7 +171,7 @@ class Deltafier(PreprocessingLayer):
             return x - tf.concat(values=(self.previous, x[:-1]), axis=0)
 
         with tf.control_dependencies(control_inputs=(assertion,)):
-            delta = self.cond(pred=self.has_previous, true_fn=later_delta, false_fn=first_delta)
+            delta = tf.cond(pred=self.has_previous, true_fn=later_delta, false_fn=first_delta)
 
             assignment = self.previous.assign(value=x[-1:], read_value=False)
 
@@ -201,7 +201,7 @@ class Image(Layer):
     """
 
     def __init__(
-        self, height=None, width=None, grayscale=False, summary_labels=None, name=None,
+        self, *, height=None, width=None, grayscale=False, summary_labels=None, name=None,
         input_spec=None
     ):
         self.height = height
@@ -218,10 +218,10 @@ class Image(Layer):
 
         if self.height is not None:
             if self.width is None:
-                self.width = round(self.height * input_spec.shape[1] / output_spec.shape[0])
+                self.width = round(self.height * output_spec.shape[1] / output_spec.shape[0])
             output_spec.shape = (self.height, self.width, output_spec.shape[2])
         elif self.width is not None:
-            self.height = round(self.width * input_spec.shape[0] / input_spec.shape[1])
+            self.height = round(self.width * output_spec.shape[0] / output_spec.shape[1])
             output_spec.shape = (self.height, self.width, output_spec.shape[2])
 
         if not isinstance(self.grayscale, bool) or self.grayscale:
@@ -230,7 +230,7 @@ class Image(Layer):
         return output_spec
 
     @tf_function(num_args=1)
-    def apply(self, x):
+    def apply(self, *, x):
         if self.height is not None:
             x = tf.image.resize(images=x, size=(self.height, self.width))
 
@@ -266,7 +266,7 @@ class Sequence(PreprocessingLayer):
     """
 
     def __init__(
-        self, length, axis=-1, concatenate=True, summary_labels=None, name=None, input_spec=None
+        self, *, length, axis=-1, concatenate=True, summary_labels=None, name=None, input_spec=None
     ):
         assert length > 1
         self.length = length
@@ -275,7 +275,7 @@ class Sequence(PreprocessingLayer):
 
         super().__init__(summary_labels=summary_labels, name=name, input_spec=input_spec)
 
-    def output_spec(self, input_spec):
+    def output_spec(self):
         output_spec = super().output_spec()
 
         if self.concatenate:
@@ -302,7 +302,7 @@ class Sequence(PreprocessingLayer):
             is_saved=False
         )
 
-        shape = self.input_spec['shape']
+        shape = self.input_spec.shape
         if self.concatenate:
             shape = (1,) + shape[:self.axis] + (shape[self.axis] * (self.length - 1),) + \
                 shape[self.axis + 1:]
@@ -321,7 +321,7 @@ class Sequence(PreprocessingLayer):
         return assignment
 
     @tf_function(num_args=1)
-    def apply(self, x):
+    def apply(self, *, x):
         assertion = tf.debugging.assert_equal(
             x=tf.shape(input=x)[0], y=1,
             message="Sequence preprocessor currently not compatible with batched Agent.act."
@@ -350,21 +350,21 @@ class Sequence(PreprocessingLayer):
             return tf.concat(values=(self.previous, current), axis=(self.axis + 1))
 
         with tf.control_dependencies(control_inputs=(assertion,)):
-            xs = self.cond(
-                pred=self.has_previous, true_fn=other_timesteps, false_fn=first_timestep
-            )
+            xs = tf.cond(pred=self.has_previous, true_fn=other_timesteps, false_fn=first_timestep)
 
             if self.concatenate:
                 begin = tuple(
-                    self.input_spec['shape'][dims - 1] if dims == self.axis + 1 else 0
-                    for dims in range(util.rank(x=xs))
+                    self.input_spec.shape[dims - 1] if dims == self.axis + 1 else 0
+                    for dims in range(tf_util.rank(x=xs))
                 )
             else:
-                begin = tuple(1 if dims == self.axis + 1 else 0 for dims in range(util.rank(x=xs)))
+                begin = tuple(
+                    1 if dims == self.axis + 1 else 0 for dims in range(tf_util.rank(x=xs))
+                )
 
             assignment = self.previous.assign(
                 value=tf.slice(input_=xs, begin=begin, size=self.previous.shape), read_value=False
             )
 
         with tf.control_dependencies(control_inputs=(assignment,)):
-            return tf_util.identity(input=sequence)
+            return tf_util.identity(input=xs)

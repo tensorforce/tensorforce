@@ -14,7 +14,7 @@
 # ==============================================================================
 
 from tensorforce.core import ModuleDict, parameter_modules, SignatureDict, TensorDict, TensorSpec, \
-    tf_function, tf_util
+    TensorsSpec, tf_function, tf_util
 from tensorforce.core.policies import Policy
 
 
@@ -89,13 +89,22 @@ class Stochastic(Policy):
             )
 
         elif function == 'kl_divergence':
+            print(SignatureDict(
+                states=self.states_spec.signature(batched=True),
+                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                internals=self.internals_spec.signature(batched=True),
+                auxiliaries=self.auxiliaries_spec.signature(batched=True),
+                reference=self.distributions.fmap(
+                    function=(lambda x: x.parameters_spec), cls=TensorsSpec
+                ).signature(batched=True)
+            ))
             return SignatureDict(
                 states=self.states_spec.signature(batched=True),
                 horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
                 internals=self.internals_spec.signature(batched=True),
                 auxiliaries=self.auxiliaries_spec.signature(batched=True),
-                other=self.distributions.fmap(
-                    function=(lambda x: x.parameters_spec)
+                reference=self.distributions.fmap(
+                    function=(lambda x: x.parameters_spec), cls=TensorsSpec
                 ).signature(batched=True)
             )
 
@@ -105,8 +114,8 @@ class Stochastic(Policy):
                 horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
                 internals=self.internals_spec.signature(batched=True),
                 auxiliaries=self.auxiliaries_spec.signature(batched=True),
-                other=self.distributions.fmap(
-                    function=(lambda x: x.parameters_spec)
+                reference=self.distributions.fmap(
+                    function=(lambda x: x.parameters_spec), cls=TensorsSpec
                 ).signature(batched=True)
             )
 
@@ -194,11 +203,11 @@ class Stochastic(Policy):
 
     @tf_function(num_args=5)
     def kl_divergence(
-        self, *, states, horizons, internals, auxiliaries, other, reduced, return_per_action
+        self, *, states, horizons, internals, auxiliaries, reference, reduced, return_per_action
     ):
         kl_divergences = self.kl_divergences(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-            other=other
+            reference=reference
         )
 
         return self.join_value_per_action(
@@ -220,7 +229,7 @@ class Stochastic(Policy):
         raise NotImplementedError
 
     @tf_function(num_args=5)
-    def kl_divergences(self, *, states, horizons, internals, auxiliaries, other):
+    def kl_divergences(self, *, states, horizons, internals, auxiliaries, reference):
         raise NotImplementedError
 
     @tf_function(num_args=4)

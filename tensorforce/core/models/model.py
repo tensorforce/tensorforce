@@ -86,16 +86,13 @@ class Model(Module):
         self.internals_init = ArrayDict()
 
         # Auxiliary value space specification
-        def function(spec):
-            auxiliary_spec = TensorsSpec()
+        self.auxiliaries_spec = TensorsSpec()
+        for name, spec in self.actions_spec.items():
             if self.config.enable_int_action_masking and spec.type == 'int' and \
                     spec.num_values is not None:
-                auxiliary_spec['mask'] = TensorSpec(
+                self.auxiliaries_spec[name] = TensorsSpec(mask=TensorSpec(
                     type='bool', shape=(spec.shape + (spec.num_values,))
-                )
-            return auxiliary_spec
-
-        self.auxiliaries_spec = self.actions_spec.fmap(function=function)
+                ))
 
         # States preprocessing
         self.preprocessing = ModuleDict()
@@ -116,7 +113,7 @@ class Model(Module):
                     name=(name + '_preprocessing'), module=Preprocessor, is_trainable=False,
                     input_spec=spec, layers=layers
                 )
-                self.states_spec[name] = self.preprocessing[name].get_output_spec()
+                self.states_spec[name] = self.preprocessing[name].output_spec()
 
         # Reward preprocessing
         if preprocessing is not None:
@@ -125,10 +122,10 @@ class Model(Module):
                     name=('reward_preprocessing'), module=Preprocessor, is_trainable=False,
                     input_spec=self.reward_spec, layers=preprocessing['reward']
                 )
-                if self.preprocessing['reward'].get_output_spec() != self.reward_spec:
+                if self.preprocessing['reward'].output_spec() != self.reward_spec:
                     raise TensorforceError.mismatch(
                         name='preprocessing', argument='reward output spec',
-                        value1=self.preprocessing['reward'].get_output_spec(),
+                        value1=self.preprocessing['reward'].output_spec(),
                         value2=self.reward_spec
                     )
 
@@ -331,11 +328,11 @@ class Model(Module):
 
     @tf_function(num_args=3)
     def independent_act(self, *, states, internals, auxiliaries):
-        true = tf.constant(value=True, dtype=util.tf_dtype(dtype='bool'))
-        batch_size = tf.shape(input=states.value())[0]
+        true = tf_util.constant(value=True, dtype='bool')
+        batch_size = tf_util.cast(x=tf.shape(input=states.value())[0], dtype='int')
 
         # Input assertions
-        dependencies = self.states_spec.tf_assert(
+        dependencies = self.unprocessed_states_spec.tf_assert(
             x=states, batch_size=batch_size,
             message='Agent.independent_act: invalid {issue} for {name} state input.'
         )
@@ -432,7 +429,7 @@ class Model(Module):
         batch_size = tf_util.cast(x=tf.shape(input=parallel)[0], dtype='int')
 
         # Input assertions
-        dependencies = self.states_spec.tf_assert(
+        dependencies = self.unprocessed_states_spec.tf_assert(
             x=states, batch_size=batch_size,
             message='Agent.act: invalid {issue} for {name} state input.'
         )

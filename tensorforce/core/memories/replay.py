@@ -96,7 +96,7 @@ class Replay(Queue):
                 return indices, i
 
             indices = tf_util.zeros(shape=(0,), dtype='int')
-            indices, _ = self.while_loop(
+            indices, _ = tf.while_loop(
                 cond=cond, body=reduce_range_concat, loop_vars=(indices, zero),
                 shape_invariants=(tf.TensorShape(dims=(None,)), zero.get_shape()), back_prop=False
             )

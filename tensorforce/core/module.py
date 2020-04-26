@@ -53,7 +53,6 @@ def make_key(*, x):
         elif hasattr(x, '__name__'):
             return x.__name__
         else:
-            print(x, type(x))
             raise exc
 
 
@@ -62,8 +61,8 @@ def tf_function(*, num_args):
     def decorator(function):
 
         def decorated(self, *args, **kwargs):
-            assert len(kwargs) >= num_args
-            args = list(kwargs.values())
+            assert len(args) == 0 or len(kwargs) == 0
+            assert len(kwargs) >= num_args or len(args) == num_args
 
             # Function name and qualname
             name = function.__name__
@@ -76,19 +75,22 @@ def tf_function(*, num_args):
             function_graphs = getattr(self, name + '_graphs')
 
             # Graph parameters
-            graph_params = tuple(make_key(x=arg) for arg in args[num_args:])
+            graph_params = tuple(make_key(x=arg) for arg in list(kwargs.values())[num_args:])
 
             # Apply raw function if qualname mismatch, which indicates super() call
             # Call early to avoid check for number of arguments in case it has changed
             if graph_params in function_graphs and qualname != function_graphs[graph_params][0]:
-                return function(self, **kwargs)
+                return function(self, *args, **kwargs)
 
             # Graph signature
             graph_signature = self.input_signature(function=name)
             assert graph_signature.num_args() == num_args
 
             # Graph arguments
-            graph_args = graph_signature.kwargs_to_args(kwargs=kwargs)
+            if len(kwargs) > 0:
+                graph_args = graph_signature.kwargs_to_args(kwargs=kwargs)
+            else:
+                graph_args = args
 
             if graph_params not in function_graphs:
                 # Check that length of graph specs are consistent
@@ -108,7 +110,8 @@ def tf_function(*, num_args):
                     if self.device is not None:
                         self.device.__enter__()
                     results = Module.with_name_scope(method=function)(
-                        self, **graph_signature.args_to_kwargs(args=args), **params_kwargs
+                        self, **graph_signature.args_to_kwargs(args=args).to_kwargs(),
+                        **params_kwargs
                     )
                     if self.device is not None:
                         self.device.__exit__(None, None, None)

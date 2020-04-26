@@ -77,7 +77,7 @@ class TFOptimizer(Optimizer):
     """
 
     def __init__(
-        self, optimizer, learning_rate=3e-4, gradient_norm_clipping=1.0, summary_labels=None,
+        self, *, optimizer, learning_rate=3e-4, gradient_norm_clipping=1.0, summary_labels=None,
         name=None, arguments_spec=None, optimized_module=None, **kwargs
     ):
         super().__init__(
@@ -135,7 +135,7 @@ class TFOptimizer(Optimizer):
         )
 
     @tf_function(num_args=1)
-    def step(self, arguments, variables, fn_loss, fn_initial_gradients=None, **kwargs):
+    def step(self, *, arguments, variables, fn_loss, fn_initial_gradients=None, **kwargs):
         # Trivial operation to enforce control dependency
         previous_variables = util.fmap(function=tf_util.identity, xs=variables)
 

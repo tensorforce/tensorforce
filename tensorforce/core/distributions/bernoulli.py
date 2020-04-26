@@ -159,10 +159,10 @@ class Bernoulli(Distribution):
 
     @tf_function(num_args=2)
     def kl_divergence(self, *, parameters1, parameters2):
-        true_logit1, false_logit1, probability1, _ = parameters1.get(
+        true_logit1, false_logit1, probability1 = parameters1.get(
             'true_logit', 'false_logit', 'probability'
         )
-        true_logit2, false_logit2, _, _ = parameters2.get('true_logit', 'false_logit')
+        true_logit2, false_logit2 = parameters2.get('true_logit', 'false_logit')
 
         true_log_prob_ratio = true_logit1 - true_logit2
         false_log_prob_ratio = false_logit1 - false_logit2

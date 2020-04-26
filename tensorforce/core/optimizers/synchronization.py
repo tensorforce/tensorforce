@@ -15,7 +15,6 @@
 
 import tensorflow as tf
 
-from tensorforce import util
 from tensorforce.core import parameter_modules, tf_function, tf_util
 from tensorforce.core.optimizers import Optimizer
 
@@ -40,7 +39,7 @@ class Synchronization(Optimizer):
     """
 
     def __init__(
-        self, sync_frequency=1, update_weight=1.0, summary_labels=None, name=None,
+        self, *, sync_frequency=1, update_weight=1.0, summary_labels=None, name=None,
         arguments_spec=None, optimized_module=None
     ):
         super().__init__(
@@ -67,7 +66,7 @@ class Synchronization(Optimizer):
         )
 
     @tf_function(num_args=1)
-    def step(self, arguments, variables, **kwargs):
+    def step(self, *, arguments, variables, **kwargs):
         source_variables = kwargs['source_variables']
 
         assert all(
@@ -93,7 +92,7 @@ class Synchronization(Optimizer):
 
             with tf.control_dependencies(control_inputs=assignments):
                 # Trivial operation to enforce control dependency
-                return util.fmap(function=tf_util.identity, xs=deltas)
+                return [tf_util.identity(input=delta) for delta in deltas]
 
         def no_sync():
             next_sync_updated = self.next_sync.assign_sub(delta=one, read_value=False)

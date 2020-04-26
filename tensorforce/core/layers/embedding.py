@@ -50,8 +50,9 @@ class Embedding(TransformationBase):
     """
 
     def __init__(
-        self, size, num_embeddings=None, max_norm=None, bias=True, activation='tanh', dropout=0.0,
-        vars_trainable=True, summary_labels=None, l2_regularization=None, name=None, input_spec=None
+        self, *, size, num_embeddings=None, max_norm=None, bias=True, activation='tanh',
+        dropout=0.0, vars_trainable=True, summary_labels=None, l2_regularization=None, name=None,
+        input_spec=None
     ):
         super().__init__(
             size=size, bias=bias, activation=activation, dropout=dropout,
@@ -111,7 +112,7 @@ class Embedding(TransformationBase):
         )
 
     @tf_function(num_args=1)
-    def apply(self, x):
+    def apply(self, *, x):
         x = tf_util.int32(x=x)
         x = tf.nn.embedding_lookup(params=self.weights, ids=x, max_norm=self.max_norm)
 

@@ -16,7 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import TensorforceError
-from tensorforce.core import TensorSpec, tf_function
+from tensorforce.core import TensorSpec, tf_function, tf_util
 from tensorforce.core.layers import TransformationBase
 
 
@@ -52,24 +52,24 @@ class Rnn(TransformationBase):
     """
 
     def __init__(
-        self, cell, size, return_final_state=True, bias=True, activation='tanh', dropout=0.0,
+        self, *, cell, size, return_final_state=True, bias=True, activation='tanh', dropout=0.0,
         vars_trainable=True, summary_labels=None, l2_regularization=None, name=None,
         input_spec=None, **kwargs
     ):
+        self.cell_type = cell
+        self.return_final_state = return_final_state
+
         super().__init__(
             size=size, bias=bias, activation=activation, dropout=dropout,
             vars_trainable=vars_trainable, summary_labels=summary_labels,
             l2_regularization=l2_regularization, name=name, input_spec=input_spec
         )
 
-        if self.squeeze and return_final_state:
+        if self.squeeze and self.return_final_state:
             raise TensorforceError.value(
                 name='rnn', argument='return_final_state', value=return_final_state,
                 condition='size = 0'
             )
-
-        self.cell_type = cell
-        self.return_final_state = return_final_state
 
         if self.return_final_state and self.cell_type == 'lstm':
             assert size % 2 == 0
@@ -80,12 +80,12 @@ class Rnn(TransformationBase):
         if self.cell_type == 'gru':
             self.rnn = tf.keras.layers.GRU(
                 units=self.size, return_sequences=True, return_state=True, name='rnn',
-                input_shape=input_spec['shape'], **kwargs  # , dtype=tf_util.get_dtype(type='float')
+                input_shape=input_spec.shape, **kwargs  # , dtype=tf_util.get_dtype(type='float')
             )
         elif self.cell_type == 'lstm':
             self.rnn = tf.keras.layers.LSTM(
                 units=self.size, return_sequences=True, return_state=True, name='rnn',
-                input_shape=input_spec['shape'], **kwargs  # , dtype=tf_util.get_dtype(type='float')
+                input_shape=input_spec.shape, **kwargs  # , dtype=tf_util.get_dtype(type='float')
             )
         else:
             raise TensorforceError.value(
@@ -131,8 +131,10 @@ class Rnn(TransformationBase):
         return regularization_loss
 
     @tf_function(num_args=1)
-    def apply(self, x):
+    def apply(self, *, x):
+        x = tf_util.float32(x=x)
         x = self.rnn(inputs=x, initial_state=None)
+        x = tf_util.cast(x=x, dtype='float')
 
         if not self.return_final_state:
             x = x[0]
@@ -176,7 +178,7 @@ class Gru(Rnn):
     """
 
     def __init__(
-        self, size, return_final_state=True, bias=False, activation=None, dropout=0.0,
+        self, *, size, return_final_state=True, bias=False, activation=None, dropout=0.0,
         vars_trainable=True, summary_labels=None, l2_regularization=None, name=None,
         input_spec=None, **kwargs
     ):
@@ -220,7 +222,7 @@ class Lstm(Rnn):
     """
 
     def __init__(
-        self, size, return_final_state=True, bias=False, activation=None, dropout=0.0,
+        self, *, size, return_final_state=True, bias=False, activation=None, dropout=0.0,
         vars_trainable=True, summary_labels=None, l2_regularization=None, name=None,
         input_spec=None, **kwargs
     ):

@@ -35,7 +35,7 @@ class Constant(Parameter):
 
     # Argument 'value' first for default specification
     def __init__(
-        self, *, value, summary_labels=None, name=None, dtype=None, min_value=None, max_value=None
+        self, value, *, summary_labels=None, name=None, dtype=None, min_value=None, max_value=None
     ):
         if isinstance(value, bool):
             if dtype != 'bool':

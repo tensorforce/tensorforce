@@ -37,7 +37,7 @@ class GlobalOptimizer(UpdateModifier):
     """
 
     @tf_function(num_args=1)
-    def step(self, arguments, variables, **kwargs):
+    def step(self, *, arguments, variables, **kwargs):
         global_variables = kwargs['global_variables']
 
         assert all(

@@ -344,6 +344,8 @@ class EnvironmentWrapper(Environment):
         self.environment = environment
         self.environment._max_episode_timesteps = max_episode_timesteps
         self._max_episode_timesteps = max_episode_timesteps
+        self._timestep = None
+
 
     def __str__(self):
         return str(self.environment)
@@ -358,17 +360,32 @@ class EnvironmentWrapper(Environment):
         return self.environment.close()
 
     def reset(self):
-        self.timestep = 0
+        self._timestep = 0
         return self.environment.reset()
 
     def execute(self, actions):
-        assert self.timestep < self._max_episode_timesteps
+        if self._timestep is None:
+            raise TensorforceError(
+                message="An environment episode has to be initialized by calling reset() first."
+            )
+        assert self._timestep < self._max_episode_timesteps
         states, terminal, reward = self.environment.execute(actions=actions)
         terminal = int(terminal)
-        self.timestep += 1
-        if terminal == 0 and self.timestep >= self._max_episode_timesteps:
+        self._timestep += 1
+        if terminal == 0 and self._timestep >= self._max_episode_timesteps:
             terminal = 2
+        if terminal > 0:
+            self._timestep = None
         return states, terminal, reward
+
+    def __getattr__(self, name):
+        try:
+            return super().__getattr__(name)
+        except BaseException:
+            return getattr(self.environment, name)
+
+    # def __delattr__(self, name):
+    # def __setattr__(self, name, value):
 
 
 class RemoteEnvironment(Environment):

@@ -80,8 +80,7 @@ class OpenAIGym(Environment):
                     level = name
                     break
             else:
-                level = env_specs[0]
-                requires_register = True
+                raise TensorforceError.value(name='OpenAIGym', argument='level', value=level)
         assert level in cls.levels()
 
         # Check/update attributes

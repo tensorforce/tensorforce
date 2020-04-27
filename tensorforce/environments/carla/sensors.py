@@ -129,11 +129,11 @@ class CameraSensor(Sensor):
     def name(self):
         raise NotImplementedError
 
-    def convert_image(self, image: carla.Image, dtype=np.dtype("uint8"), color_converter=None):
+    def convert_image(self, image: carla.Image, color_converter=None):
         color_converter = color_converter or self.color_converter or carla.ColorConverter.Raw
         image.convert(color_converter)
 
-        array = np.frombuffer(image.raw_data, dtype=dtype)
+        array = np.frombuffer(image.raw_data, dtype=np.uint8)
         array = np.reshape(array, (image.height, image.width, 4))
         array = array[:, :, :3]
         array = array[:, :, ::-1]
@@ -156,29 +156,6 @@ class DepthCameraSensor(CameraSensor):
     @property
     def name(self):
         return 'sensor.camera.depth'
-
-    @staticmethod
-    def convert(image: carla.Image, log=False):
-        """Converts the given carla.Image into grayscale in which each pixel contains the depth distance."""
-        image.convert(carla.ColorConverter.Raw)
-
-        # to rgb image
-        array = np.frombuffer(image.raw_data, dtype=np.uint8)
-        array = np.reshape(array, (image.height, image.width, 4))
-        array = array[:, :, :3]
-        array = array[:, :, ::-1]
-
-        # to depth
-        B = array[:, :, 0]
-        G = array[:, :, 1]
-        R = array[:, :, 2]
-        normalized = (R + G * 256 + B * 256 * 256) / (256 * 256 * 256 - 1)
-        in_meters = 1000 * normalized
-
-        if log:
-            return np.log(in_meters)
-
-        return in_meters
 
 
 class SemanticCameraSensor(CameraSensor):

@@ -1,6 +1,4 @@
 import math
-import carla
-import pygame
 import numpy as np
 
 from typing import Optional
@@ -10,6 +8,9 @@ from tensorforce.agents import Agent
 from tensorforce.environments import Environment
 
 try:
+    import carla
+    import pygame
+
     from tensorforce.environments.carla import env_utils
     from tensorforce.environments.carla.env_utils import WAYPOINT_DICT
     from tensorforce.environments.carla.sensors import Sensor, SensorSpecs
@@ -26,27 +27,29 @@ class CARLAEnvironment(Environment):
 
        Requires, you to:
         - Install `pygame`, `opencv`
-        - Install the CARLA simulator (version 0.9.8): https://carla.readthedocs.io/en/latest/start_quickstart
+        - Install the CARLA simulator (version >= 0.9.8): https://carla.readthedocs.io/en/latest/start_quickstart
         - Install CARLA's Python bindings:
-        --> `cd your-path-to/CARLA_0.9.8/PythonAPI/carla/dist/`
-        --> Extract `carla-0.9.8-py3.5-YOUR_OS-x86_64.egg` where `YOUR_OS` depends on your OS, i.e. `linux` or `windows`
+        --> Follow this [guide](https://carla.readthedocs.io/en/latest/build_system/#pythonapi), if you have trouble
+            with that then follow the above steps.
+        --> `cd your-path-to/CARLA_0.9.x/PythonAPI/carla/dist/`
+        --> Extract `carla-0.9.x-py3.5-YOUR_OS-x86_64.egg` where `YOUR_OS` depends on your OS, i.e. `linux` or `windows`
         --> Create a `setup.py` file within the extracted folder and write the following:
           ```python
           from distutils.core import setup
 
           setup(name='carla',
-                version='0.9.8',
+                version='0.9.x',
                 py_modules=['carla'])
           ```
-        --> Install via pip: `pip install -e ~/CARLA_0.9.8/PythonAPI/carla/dist/carla-0.9.8-py3.5-YOUR_OS-x86_64`
-        - Run the CARLA simulator from command line: `your-path-to/CARLA_0.9.8/./CarlaUE4.sh` or (CarlaUE4.exe)
+        --> Install via pip: `pip install -e ~/CARLA_0.9.x/PythonAPI/carla/dist/carla-0.9.x-py3.5-YOUR_OS-x86_64`
+        - Run the CARLA simulator from command line: `your-path-to/CARLA_0.9.x/./CarlaUE4.sh` or (CarlaUE4.exe)
         --> To use less resources add these flags: `-windowed -ResX=8 -ResY=8 --quality-level=Low`
 
         Hardware requirements (recommended):
         - GPU: dedicated, with at least 2/4 GB.
         - RAM: 16 GB suggested.
         - CPU: multicore, at least 4.
-        - Note: on my modest hardware (i7 4700HQ 4C/8T, GT 750M 4GB, 16GB RAM) I achieve about 20 FPS.
+        - Note: on my hardware (i7 4700HQ 4C/8T, GT 750M 4GB, 16GB RAM) I achieve about 20 FPS in low quality mode.
 
         Example usage:
         - See [tensorforce/examples](https://github.com/tensorforce/tensorforce/tree/master/examples)
@@ -116,6 +119,7 @@ class CARLAEnvironment(Environment):
         # visualization and debugging stuff
         self.image_shape = image_shape
         self.image_size = (image_shape[1], image_shape[0])
+        self.DEFAULT_IMAGE = np.zeros(shape=self.image_shape, dtype=np.float32)
         self.fps = fps
         self.tick_time = 1.0 / self.fps
         self.should_render = render
@@ -248,7 +252,7 @@ class CARLAEnvironment(Environment):
         return dict(imu=SensorSpecs.imu(),
                     collision=SensorSpecs.collision_detector(callback=self.on_collision),
                     camera=SensorSpecs.rgb_camera(position='top',
-                                                  image_size_x=self.image_size[0], image_size_y=self.image_size[1],
+                                                  image_size_x=self.window_size[0], image_size_y=self.window_size[1],
                                                   sensor_tick=self.tick_time))
 
     def default_agent(self, **kwargs) -> Agent:
@@ -379,10 +383,7 @@ class CARLAEnvironment(Environment):
         self.control.reverse = bool(actions[2] > 0)
 
     def _get_observation(self, sensors_data: dict):
-        image = sensors_data.get('camera', None)
-
-        if image is None:
-            image = np.zeros(shape=self.image_shape, dtype=np.uint8)
+        image = sensors_data.get('camera', self.DEFAULT_IMAGE)
 
         if image.shape != self.image_shape:
             image = env_utils.resize(image, size=self.image_size)

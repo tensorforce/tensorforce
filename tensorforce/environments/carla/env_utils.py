@@ -249,6 +249,25 @@ def scale(num, from_interval=(-1.0, +1.0), to_interval=(0.0, 7.0)) -> float:
     return float(round(x))
 
 
+def cv2_grayscale(image, is_bgr=True, depth=1):
+    """Convert a RGB or BGR image to grayscale using OpenCV (cv2).
+        :param image: input image, a numpy.ndarray.
+        :param is_bgr: tells whether the image is in BGR format. If False, RGB format is assumed.
+        :param depth: replicates the gray depth channel multiple times. E.g. useful to display grayscale images as rgb.
+    """
+    assert depth >= 1
+
+    if is_bgr:
+        grayscale = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    else:
+        grayscale = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+
+    if depth > 1:
+        return np.stack((grayscale,) * depth, axis=-1)
+
+    return grayscale
+
+
 def save_agent(agent: Agent, agent_name: str, directory: str, separate_dir=True) -> str:
     if separate_dir:
         save_path = os.path.join(directory, agent_name)

@@ -259,7 +259,7 @@ class CARLAEnvironment(Environment):
         """Returns a predefined agent for this environment"""
         raise NotImplementedError('Implement this to define your own default agent!')
 
-    def on_collision(self, event: carla.CollisionEvent, penalty=1000.0):
+    def on_collision(self, event, penalty=1000.0):
         impulse = math.sqrt(utils.vector_norm(event.normal_impulse))
         actor_type = event.other_actor.type_id
 

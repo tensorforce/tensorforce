@@ -26,6 +26,7 @@ from tensorforce.environments.openai_retro import OpenAIRetro
 from tensorforce.environments.open_sim import OpenSim
 from tensorforce.environments.pygame_learning_environment import PyGameLearningEnvironment
 from tensorforce.environments.vizdoom import ViZDoom
+from tensorforce.environments.carla_environment import CARLAEnvironment
 
 
 environments = dict(
@@ -36,12 +37,14 @@ environments = dict(
     retro=OpenAIRetro, openai_retro=OpenAIRetro,
     osim=OpenSim, open_sim=OpenSim,
     ple=PyGameLearningEnvironment, pygame_learning_environment=PyGameLearningEnvironment,
-    vizdoom=ViZDoom
+    vizdoom=ViZDoom,
+    carla=CARLAEnvironment, carla_environment=CARLAEnvironment
 )
 
 
 __all__ = [
     'ArcadeLearningEnvironment', 'Environment', 'MazeExplorer', 'MultiplayerEnvironment',
     'MultiprocessingEnvironment', 'OpenAIGym', 'OpenAIRetro', 'OpenSim',
-    'PyGameLearningEnvironment', 'RemoteEnvironment', 'SocketEnvironment', 'ViZDoom'
+    'PyGameLearningEnvironment', 'RemoteEnvironment', 'SocketEnvironment', 'ViZDoom',
+    'CARLAEnvironment'
 ]

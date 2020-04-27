@@ -50,7 +50,7 @@ class Keras(Layer):
     def get_output_spec(self, input_spec):
         shape = self.keras_layer.compute_output_shape(input_shape=((None,) + input_spec['shape']))
 
-        return dict(type='float', shape=tuple(shape.as_list()[1:]))
+        return dict(type='float', shape=shape[1:])
 
     def tf_initialize(self):
         super().tf_initialize()

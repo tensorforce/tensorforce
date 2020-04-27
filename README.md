@@ -162,7 +162,7 @@ Note that in general the replication is not 100% faithful, since the models as d
 - [OpenSim](http://osim-rl.stanford.edu/), reinforcement learning with musculoskeletal models.
 - [PyGame Learning Environment](https://github.com/ntasfi/PyGame-Learning-Environment/), learning environment which allows a quick start to Reinforcement Learning in Python.
 - [ViZDoom](https://github.com/mwydmuch/ViZDoom), allows developing AI bots that play Doom using only the visual information.
-
+- [CARLA](https://github.com/carla-simulator/carla), is an open-source simulator for autonomous driving research.
 
 
 ## Support, feedback and donating
@@ -180,6 +180,8 @@ Tensorforce is currently developed and maintained by [Alexander Kuhnle](https://
 Earlier versions of Tensorforce (<= 0.4.2) were developed by [Michael Schaarschmidt](https://github.com/michaelschaarschmidt), [Alexander Kuhnle](https://github.com/AlexKuhnle) and [Kai Fricke](https://github.com/krfricke).
 
 The advanced parallel execution functionality was originally contributed by Jean Rabault (@jerabaul29) and Vincent Belus (@vbelus). Moreover, the pretraining feature was largely developed in collaboration with Hongwei Tang (@thw1021) and Jean Rabault (@jerabaul29).
+
+The CARLA environment wrapper is currently developed by Luca Anzalone (@luca96).
 
 We are very grateful for our open-source contributors (listed according to Github, updated periodically):
 

@@ -120,7 +120,8 @@ environment.close()
 Tensorforce comes with a range of [example configurations](https://github.com/tensorforce/tensorforce/tree/master/benchmarks/configs) for different popular reinforcement learning environments. For instance, to run Tensorforce's implementation of the popular [Proximal Policy Optimization (PPO) algorithm](https://arxiv.org/abs/1707.06347) on the [OpenAI Gym CartPole environment](https://gym.openai.com/envs/CartPole-v1/), execute the following line:
 
 ```bash
-python3 run.py benchmarks/configs/ppo1.json gym --level CartPole-v1 -e 300
+python3 run.py --agent benchmarks/configs/ppo1.json --environment gym \
+--level CartPole-v1 --episodes 300
 ```
 
 For more information check out the [documentation](http://tensorforce.readthedocs.io).

@@ -49,8 +49,9 @@ class ParametrizedDistributions(Stochastic, ActionValue):
             bounded continuous actions).
         temperature (parameter | dict[parameter], float >= 0.0): Sampling temperature, global or
             per action (<span style="color:#00C000"><b>default</b></span>: 0.0).
-        infer_states_value (bool): Experimental, whether to infer state value from distribution
-            parameters (<span style="color:#00C000"><b>default</b></span>: false).
+        infer_state_value (False | "action-values" | "distribution"): Whether to infer the state
+            value from either the action values or (experimental) the distribution parameters
+            (<span style="color:#00C000"><b>default</b></span>: false).
         device (string): Device name
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         summary_labels ('all' | iter[string]): Labels of summaries to record
@@ -61,7 +62,7 @@ class ParametrizedDistributions(Stochastic, ActionValue):
 
     def __init__(
         self, name, states_spec, actions_spec, network='auto', distributions=None, temperature=0.0,
-        infer_states_value=False, device=None, summary_labels=None, l2_regularization=None
+        infer_state_value=False, device=None, summary_labels=None, l2_regularization=None
     ):
         if isinstance(network, Network):
             assert device is None
@@ -116,10 +117,10 @@ class ParametrizedDistributions(Stochastic, ActionValue):
                 default_module=default_module, action_spec=spec, embedding_shape=embedding_shape
             )
 
-        # States value
-        if infer_states_value:
-            self.value = None
-        else:
+        # State value
+        assert infer_state_value in (False, 'action-values', 'distribution')
+        self.infer_state_value = infer_state_value
+        if self.infer_state_value is False:
             self.value = self.add_module(
                 name='states-value', module='linear', modules=layer_modules, size=0,
                 input_spec=output_spec
@@ -263,33 +264,41 @@ class ParametrizedDistributions(Stochastic, ActionValue):
         return kldiv_reference
 
     def tf_states_values(self, states, internals, auxiliaries):
-        embedding = self.network.apply(x=states, internals=internals)
-        Module.update_tensor(name=self.name, tensor=embedding)
+        if self.infer_state_value == 'action-values':
+            return ActionValue.tf_states_values(
+                self=self, states=states, internals=internals, auxiliaries=auxiliaries
+            )
 
-        states_values = OrderedDict()
-        for name, spec, distribution in util.zip_items(self.actions_spec, self.distributions):
-            if spec['type'] == 'int':
-                mask = auxiliaries[name + '_mask']
-                parameters = distribution.parametrize(x=embedding, mask=mask)
-            else:
-                parameters = distribution.parametrize(x=embedding)
-            states_values[name] = distribution.states_value(parameters=parameters)
+        else:
+            embedding = self.network.apply(x=states, internals=internals)
+            Module.update_tensor(name=self.name, tensor=embedding)
 
-        return states_values
+            states_values = OrderedDict()
+            for name, spec, distribution in util.zip_items(self.actions_spec, self.distributions):
+                if spec['type'] == 'int':
+                    mask = auxiliaries[name + '_mask']
+                    parameters = distribution.parametrize(x=embedding, mask=mask)
+                else:
+                    parameters = distribution.parametrize(x=embedding)
+                states_values[name] = distribution.states_value(parameters=parameters)
+
+            return states_values
 
     def tf_actions_values(self, states, internals, auxiliaries, actions=None):
         embedding = self.network.apply(x=states, internals=internals)
         Module.update_tensor(name=self.name, tensor=embedding)
 
         actions_values = OrderedDict()
-        for name, spec, distribution, action in util.zip_items(
-            self.actions_spec, self.distributions, actions
-        ):
+        for name, spec, distribution in util.zip_items(self.actions_spec, self.distributions):
             if spec['type'] == 'int':
                 mask = auxiliaries[name + '_mask']
                 parameters = distribution.parametrize(x=embedding, mask=mask)
             else:
                 parameters = distribution.parametrize(x=embedding)
+            if actions is None:
+                action = None
+            else:
+                action = actions[name]
             actions_values[name] = distribution.action_value(parameters=parameters, action=action)
 
         return actions_values
@@ -297,13 +306,7 @@ class ParametrizedDistributions(Stochastic, ActionValue):
     def tf_states_value(
         self, states, internals, auxiliaries, reduced=True, include_per_action=False
     ):
-        if self.value is None:
-            return ActionValue.tf_states_value(
-                self=self, states=states, internals=internals, auxiliaries=auxiliaries,
-                reduced=reduced, include_per_action=include_per_action
-            )
-
-        else:
+        if self.infer_state_value is False:
             if not reduced or include_per_action:
                 raise TensorforceError.invalid(name='policy.states_value', argument='reduced')
 
@@ -312,3 +315,9 @@ class ParametrizedDistributions(Stochastic, ActionValue):
 
             states_value = self.value.apply(x=embedding)
             return states_value
+
+        else:
+            return ActionValue.tf_states_value(
+                self=self, states=states, internals=internals, auxiliaries=auxiliaries,
+                reduced=reduced, include_per_action=include_per_action
+            )

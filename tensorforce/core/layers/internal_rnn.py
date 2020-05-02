@@ -203,13 +203,13 @@ class InternalGru(InternalRnn):
     """
 
     def __init__(
-        self, name, size, bias=False, activation=None, dropout=0.0, is_trainable=True,
+        self, name, size, length, bias=False, activation=None, dropout=0.0, is_trainable=True,
         input_spec=None, summary_labels=None, l2_regularization=None, **kwargs
     ):
         super().__init__(
-            name=name, cell='gru', size=size, bias=bias, activation=activation, dropout=dropout,
-            is_trainable=is_trainable, input_spec=input_spec, summary_labels=summary_labels,
-            l2_regularization=l2_regularization, **kwargs
+            name=name, cell='gru', size=size, length=length, bias=bias, activation=activation,
+            dropout=dropout, is_trainable=is_trainable, input_spec=input_spec,
+            summary_labels=summary_labels, l2_regularization=l2_regularization, **kwargs
         )
 
     @classmethod
@@ -253,13 +253,13 @@ class InternalLstm(InternalRnn):
     """
 
     def __init__(
-        self, name, size, bias=False, activation=None, dropout=0.0, is_trainable=True,
+        self, name, size, length, bias=False, activation=None, dropout=0.0, is_trainable=True,
         input_spec=None, summary_labels=None, l2_regularization=None, **kwargs
     ):
         super().__init__(
-            name=name, cell='lstm', size=size, bias=bias, activation=activation, dropout=dropout,
-            is_trainable=is_trainable, input_spec=input_spec, summary_labels=summary_labels,
-            l2_regularization=l2_regularization, **kwargs
+            name=name, cell='lstm', size=size, length=length, bias=bias, activation=activation,
+            dropout=dropout, is_trainable=is_trainable, input_spec=input_spec,
+            summary_labels=summary_labels, l2_regularization=l2_regularization, **kwargs
         )
 
     @classmethod

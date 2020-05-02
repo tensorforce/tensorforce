@@ -240,7 +240,10 @@ class DeepQNetwork(TensorforceAgent):
         )
 
         # Action value doesn't exist for Beta
-        policy = dict(network=network, distributions=dict(float='gaussian'), temperature=0.0)
+        policy = dict(
+            network=network, distributions=dict(float='gaussian'), temperature=0.0,
+            infer_state_value='action-values'
+        )
         memory = dict(type='replay', capacity=memory)
         update = dict(unit='timesteps', batch_size=batch_size)
         if update_frequency is not None:
@@ -251,7 +254,7 @@ class DeepQNetwork(TensorforceAgent):
         objective = dict(type='value', value='action', huber_loss=huber_loss)
         reward_estimation = dict(
             horizon=horizon, discount=discount, estimate_horizon='late',
-            estimate_terminal=estimate_terminal, estimate_actions=True
+            estimate_terminal=estimate_terminal
         )
         baseline_policy = policy
         baseline_optimizer = dict(

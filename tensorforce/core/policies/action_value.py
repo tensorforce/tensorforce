@@ -40,9 +40,6 @@ class ActionValue(Policy):
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
     """
 
-    # if any(spec['type'] not in ('bool', 'int') for spec in actions_spec.values()):
-    #     raise TensorforceError.unexpected()
-
     def tf_act(self, states, internals, auxiliaries, return_internals):
         assert return_internals
 
@@ -113,7 +110,7 @@ class ActionValue(Policy):
             return actions_value
 
     def tf_states_values(self, states, internals, auxiliaries):
-        if not all(spec['type'] in ('bool', 'int') for spec in self.states_spec.values()):
+        if not all(spec['type'] == 'int' for spec in self.actions_spec.values()):
             raise NotImplementedError
 
         actions_values = self.actions_values(

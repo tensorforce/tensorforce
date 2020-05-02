@@ -156,15 +156,14 @@ class Bernoulli(Distribution):
 
         return probability1 * true_log_prob_ratio + (one - probability1) * false_log_prob_ratio
 
-    def tf_action_value(self, parameters, action=None):
+    def tf_action_value(self, parameters, action):
         true_logit, false_logit, _, states_value = parameters
 
-        if action is None:
-            states_value = tf.expand_dims(input=states_value, axis=-1)
-            logits = tf.stack(values=(false_logit, true_logit), axis=-1)
+        # if action is None:
+        # states_value = tf.expand_dims(input=states_value, axis=-1)
+        # logits = tf.stack(values=(false_logit, true_logit), axis=-1)
 
-        else:
-            logits = tf.where(condition=action, x=true_logit, y=false_logit)
+        logits = tf.where(condition=action, x=true_logit, y=false_logit)
 
         return states_value + logits
 

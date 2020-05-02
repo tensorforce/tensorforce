@@ -121,7 +121,7 @@ Tensorforce comes with a range of [example configurations](https://github.com/te
 
 ```bash
 python3 run.py --agent benchmarks/configs/ppo1.json --environment gym \
---level CartPole-v1 --episodes 300
+    --level CartPole-v1 --episodes 300
 ```
 
 For more information check out the [documentation](http://tensorforce.readthedocs.io).

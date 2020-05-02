@@ -15,6 +15,7 @@
 
 from collections import OrderedDict
 
+from tensorforce import TensorforceError
 from tensorforce.agents import TensorforceAgent
 
 
@@ -223,7 +224,7 @@ class DuelingDQN(TensorforceAgent):
         summarizer=None, recorder=None
     ):
         self.spec = OrderedDict(
-            agent='dqn',
+            agent='dueling_dqn',
             states=states, actions=actions, memory=memory, batch_size=batch_size,
             max_episode_timesteps=max_episode_timesteps,
             network=network,
@@ -239,7 +240,11 @@ class DuelingDQN(TensorforceAgent):
         )
 
         # Action value doesn't exist for Beta
-        policy = dict(network=network, distributions=dict(float='gaussian'), temperature=0.0)
+        distributions = dict(int=dict(type='categorical', advantage_based=True))
+        policy = dict(
+            network=network, distributions=distributions, temperature=0.0,
+            infer_state_value='action-values'
+        )
         memory = dict(type='replay', capacity=memory)
         update = dict(unit='timesteps', batch_size=batch_size)
         if update_frequency is not None:
@@ -250,7 +255,7 @@ class DuelingDQN(TensorforceAgent):
         objective = dict(type='value', value='action', huber_loss=huber_loss)
         reward_estimation = dict(
             horizon=horizon, discount=discount, estimate_horizon='late',
-            estimate_terminal=estimate_terminal, estimate_actions=True
+            estimate_terminal=estimate_terminal
         )
         baseline_policy = policy
         baseline_optimizer = dict(
@@ -273,3 +278,8 @@ class DuelingDQN(TensorforceAgent):
             baseline_optimizer=baseline_optimizer, baseline_objective=baseline_objective,
             entropy_regularization=entropy_regularization
         )
+
+        if any(spec['type'] != 'int' for spec in self.actions_spec.values()):
+            raise TensorforceError.value(
+                name='DuelingDQN', argument='actions', value=actions, hint='contains non-int action'
+            )

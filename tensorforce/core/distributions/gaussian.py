@@ -184,6 +184,16 @@ class Gaussian(Distribution):
 
         return log_stddev_ratio + half * (sq_stddev1 + sq_mean_distance) / sq_stddev2 - half
 
+    @tf_function(num_args=1)
+    def states_value(self, *, parameters):
+        log_stddev = parameters['log_stddev']
+
+        half = tf_util.constant(value=0.5, dtype='float')
+        two = tf_util.constant(value=2.0, dtype='float')
+        pi_const = tf_util.constant(value=np.pi, dtype='float')
+
+        return -log_stddev - half * tf.math.log(x=(two * pi_const))
+
     @tf_function(num_args=2)
     def action_value(self, *, parameters, action):
         mean, stddev, log_stddev = parameters.get('mean', 'stddev', 'log_stddev')
@@ -198,13 +208,3 @@ class Gaussian(Distribution):
 
         return -half * sq_mean_distance / sq_stddev - two * log_stddev - \
             tf.math.log(x=(two * pi_const))
-
-    @tf_function(num_args=1)
-    def states_value(self, *, parameters):
-        log_stddev = parameters['log_stddev']
-
-        half = tf_util.constant(value=0.5, dtype='float')
-        two = tf_util.constant(value=2.0, dtype='float')
-        pi_const = tf_util.constant(value=np.pi, dtype='float')
-
-        return -log_stddev - half * tf.math.log(x=(two * pi_const))

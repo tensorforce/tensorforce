@@ -120,7 +120,8 @@ environment.close()
 Tensorforce comes with a range of [example configurations](https://github.com/tensorforce/tensorforce/tree/master/benchmarks/configs) for different popular reinforcement learning environments. For instance, to run Tensorforce's implementation of the popular [Proximal Policy Optimization (PPO) algorithm](https://arxiv.org/abs/1707.06347) on the [OpenAI Gym CartPole environment](https://gym.openai.com/envs/CartPole-v1/), execute the following line:
 
 ```bash
-python3 run.py benchmarks/configs/ppo1.json gym --level CartPole-v1 -e 300
+python3 run.py --agent benchmarks/configs/ppo1.json --environment gym \
+    --level CartPole-v1 --episodes 300
 ```
 
 For more information check out the [documentation](http://tensorforce.readthedocs.io).
@@ -140,6 +141,7 @@ For more information check out the [documentation](http://tensorforce.readthedoc
 - **Preprocessing**: Clipping, deltafier, sequence, image processing.
 - **Regularization**: L2 and entropy regularization.
 - **Execution modes**: Parallelized execution of multiple environments based on Python's `multiprocessing` and `socket`.
+- **Optimized act-only TF model extraction**.
 - **TensorBoard support**.
 
 By combining these modular components in different ways, a variety of popular deep reinforcement learning models/features can be replicated:
@@ -161,7 +163,7 @@ Note that in general the replication is not 100% faithful, since the models as d
 - [OpenSim](http://osim-rl.stanford.edu/), reinforcement learning with musculoskeletal models.
 - [PyGame Learning Environment](https://github.com/ntasfi/PyGame-Learning-Environment/), learning environment which allows a quick start to Reinforcement Learning in Python.
 - [ViZDoom](https://github.com/mwydmuch/ViZDoom), allows developing AI bots that play Doom using only the visual information.
-
+- [CARLA](https://github.com/carla-simulator/carla), is an open-source simulator for autonomous driving research.
 
 
 ## Support, feedback and donating
@@ -179,6 +181,8 @@ Tensorforce is currently developed and maintained by [Alexander Kuhnle](https://
 Earlier versions of Tensorforce (<= 0.4.2) were developed by [Michael Schaarschmidt](https://github.com/michaelschaarschmidt), [Alexander Kuhnle](https://github.com/AlexKuhnle) and [Kai Fricke](https://github.com/krfricke).
 
 The advanced parallel execution functionality was originally contributed by Jean Rabault (@jerabaul29) and Vincent Belus (@vbelus). Moreover, the pretraining feature was largely developed in collaboration with Hongwei Tang (@thw1021) and Jean Rabault (@jerabaul29).
+
+The CARLA environment wrapper is currently developed by Luca Anzalone (@luca96).
 
 We are very grateful for our open-source contributors (listed according to Github, updated periodically):
 

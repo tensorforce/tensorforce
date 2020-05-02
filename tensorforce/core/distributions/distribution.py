@@ -49,6 +49,9 @@ class Distribution(Module):
                 action=self.action_spec.signature(batched=True)
             )
 
+        elif function == 'all_action_values':
+            return SignatureDict(parameters=self.parameters_spec.signature(batched=True))
+
         elif function == 'entropy':
             return SignatureDict(parameters=self.parameters_spec.signature(batched=True))
 
@@ -108,4 +111,8 @@ class Distribution(Module):
 
     @tf_function(num_args=2)
     def action_value(self, *, parameters, action):
+        raise NotImplementedError
+
+    @tf_function(num_args=1)
+    def all_action_values(self, *, parameters):
         raise NotImplementedError

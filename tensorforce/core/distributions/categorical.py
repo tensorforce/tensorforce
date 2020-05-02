@@ -26,6 +26,8 @@ class Categorical(Distribution):
     Categorical distribution, for discrete integer actions (specification key: `categorical`).
 
     Args:
+        advantage_based (bool): Whether to compute action values as state value plus advantage
+            (<span style="color:#00C000"><b>default</b></span>: false).
         summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
@@ -33,7 +35,10 @@ class Categorical(Distribution):
         input_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(self, *, summary_labels=None, name=None, action_spec=None, input_spec=None):
+    def __init__(
+        self, *, advantage_based=False, summary_labels=None, name=None, action_spec=None,
+        input_spec=None
+    ):
         assert action_spec.type == 'int' and action_spec.num_values is not None
 
         parameters_spec = TensorsSpec(
@@ -59,16 +64,26 @@ class Categorical(Distribution):
             )
 
         num_values = self.action_spec.num_values
-        if len(self.input_spec.shape) == 1:
+        self.state_value = None
+        if len(self.embedding_shape) == 1:
             # Single embedding
-            action_size = util.product(xs=self.action_spec.shape)
-            self.deviations = self.add_module(
-                name='deviations', module='linear', modules=layer_modules,
-                size=(action_size * num_values), input_spec=self.input_spec
+            action_size = util.product(xs=self.action_spec['shape'])
+            self.action_values = self.add_module(
+                name='action_values', module='linear', modules=layer_modules,
+                size=(action_size * num_values), input_spec=input_spec
             )
+            if advantage_based:
+                self.state_value = self.add_module(
+                    name='states_value', module='linear', modules=layer_modules, size=action_size,
+                    input_spec=input_spec
+                )
 
         else:
             # Embedding per action
+            if advantage_based:
+                raise TensorforceError.invalid(
+                    name=name, argument='advantage_based', condition='embedding shape'
+                )
             if len(self.input_spec.shape) < 1 or len(self.input_spec.shape) > 3:
                 raise TensorforceError.value(
                     name=name, argument='input_spec.shape', value=self.input_spec.shape,
@@ -83,9 +98,9 @@ class Categorical(Distribution):
                     name=name, argument='input_spec.shape', value=self.input_spec.shape,
                     hint='not flattened and incompatible with action shape'
                 )
-            self.deviations = self.add_module(
-                name='deviations', module='linear', modules=layer_modules,
-                size=(size * num_values), input_spec=self.input_spec
+            self.action_values = self.add_module(
+                name='action_values', module='linear', modules=layer_modules,
+                size=(size * num_values), input_spec=input_spec
             )
 
     @tf_function(num_args=2)
@@ -93,19 +108,28 @@ class Categorical(Distribution):
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')
         shape = (-1,) + self.action_spec.shape + (self.action_spec.num_values,)
 
-        # Deviations
-        action_values = self.deviations.apply(x=x)
+        # Action values
+        action_values = self.action_values.apply(x=x)
         action_values = tf.reshape(tensor=action_values, shape=shape)
 
-        # Masking
+        # States value
+        if self.state_value is None:
+            # Implicit states value (TODO: experimental)
+            states_value = tf.reduce_logsumexp(input_tensor=action_values, axis=-1)
+
+        else:
+            # Explicit states value and advantage-based action values
+            states_value = self.state_value.apply(x=x)
+            states_value = tf.reshape(tensor=states_value, shape=shape[:-1])
+            action_values = tf.expand_dims(input=states_value, axis=-1) + action_values
+            action_values -= tf.math.reduce_mean(input_tensor=action_values, axis=-1, keepdims=True)
+
+        # Masking (TODO: before or after above?)
         if self.root.config.enable_int_action_masking:
             min_float = tf.fill(
                 dims=tf.shape(input=action_values), value=tf_util.get_dtype(type='float').min
             )
             action_values = tf.where(condition=conditions['mask'], x=action_values, y=min_float)
-
-        # States value
-        states_value = tf.reduce_logsumexp(input_tensor=action_values, axis=-1)
 
         # Softmax for corresponding probabilities
         probabilities = tf.nn.softmax(logits=action_values, axis=-1)
@@ -120,7 +144,9 @@ class Categorical(Distribution):
 
     @tf_function(num_args=2)
     def sample(self, *, parameters, temperature):
-        logits, probabilities = parameters.get('logits', 'probabilities')
+        logits, probabilities, action_values = parameters.get(
+            'logits', 'probabilities', 'action_values'
+        )
 
         summary_probs = probabilities
         for _ in range(len(self.action_spec.shape)):
@@ -135,8 +161,8 @@ class Categorical(Distribution):
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')
 
         # Deterministic: maximum likelihood action
-        definite = tf.argmax(input=logits, axis=-1)
-        definite = tf_util.cast(x=definite, dtype='int')
+        definite = tf.argmax(input=action_values, axis=-1)
+        definite = tf.dtypes.cast(x=definite, dtype=util.tf_dtype('int'))
 
         # Set logits to minimal value
         min_float = tf.fill(dims=tf.shape(input=logits), value=tf_util.get_dtype(type='float').min)
@@ -178,18 +204,24 @@ class Categorical(Distribution):
 
         return tf.reduce_sum(input_tensor=(probabilities1 * log_prob_ratio), axis=-1)
 
-    @tf_function(num_args=2)
-    def action_value(self, *, parameters, action):
-        action_values = parameters['action_values']
-
-        action = tf.expand_dims(input=tf_util.int32(x=action), axis=-1)
-        action_values = tf.gather(params=action_values, indices=action, batch_dims=-1)
-        action_values = tf.squeeze(input=action_values, axis=-1)
-
-        return action_values  # TODO: states_value + tf.squeeze(input=logits, axis=-1)
-
     @tf_function(num_args=1)
     def states_value(self, *, parameters):
         states_value = parameters['states_value']
 
         return states_value
+
+    @tf_function(num_args=2)
+    def action_value(self, *, parameters, action):
+        action_values = parameters['action_values']
+
+        action = tf.expand_dims(input=tf_util.int32(x=action), axis=-1)
+        action_value = tf.gather(params=action_values, indices=action, batch_dims=-1)
+        action_value = tf.squeeze(input=action_value, axis=-1)
+
+        return action_value  # TODO: states_value + tf.squeeze(input=logits, axis=-1)
+
+    @tf_function(num_args=1)
+    def all_action_values(self, *, parameters):
+        action_values = parameters['action_values']
+
+        return action_values  # TODO: states_value + tf.squeeze(input=logits, axis=-1)

@@ -1,3 +1,5 @@
+import numpy as np
+
 from tensorforce import Environment
 
 
@@ -25,7 +27,6 @@ class CustomEnvironment(Environment):
         return state
 
     def execute(self, actions):
-        assert 0 <= actions.item() <= 3
         next_state = np.random.random(size=(8,))
         terminal = np.random.random() < 0.5
         reward = np.random.random()

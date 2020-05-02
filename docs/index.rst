@@ -17,7 +17,7 @@ Tensorforce follows a set of high-level design choices which differentiate it fr
 
   basics/installation
   basics/getting-started
-  basics/specification
+  basics/agent-specification
   basics/features
   basics/run
   basics/tune

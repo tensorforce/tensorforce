@@ -60,7 +60,7 @@ def main():
     runner = Runner(agent=agent, environment=environment)
 
     # Start the runner
-    runner.run(num_episodes=300)
+    runner.run(num_episodes=200)
     runner.close()
 
 

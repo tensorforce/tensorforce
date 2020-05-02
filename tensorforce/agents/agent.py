@@ -151,11 +151,20 @@ class Agent(object):
             filename = 'agent'
 
         agent = os.path.join(directory, os.path.splitext(filename)[0] + '.json')
-        if not os.path.isfile(agent):
-            assert agent[agent.rfind('-') + 1: -5].isdigit()
+        if not os.path.isfile(agent) and agent[agent.rfind('-') + 1: -5].isdigit():
             agent = agent[:agent.rindex('-')] + '.json'
-        with open(agent, 'r') as fp:
-            agent = json.load(fp=fp)
+        if os.path.isfile(agent):
+            with open(agent, 'r') as fp:
+                agent = json.load(fp=fp)
+            if 'agent' in kwargs:
+                if 'agent' in agent and agent['agent'] != kwargs['agent']:
+                    raise TensorforceError.value(
+                        name='Agent.load', argument='agent', value=kwargs['agent']
+                    )
+                agent['agent'] = kwargs.pop('agent')
+        else:
+            agent = kwargs
+            kwargs = dict()
 
         # Overwrite values
         if environment is not None and environment.max_episode_timesteps() is not None:
@@ -177,8 +186,8 @@ class Agent(object):
             )
 
         else:
-            agent.pop('internals')
-            agent.pop('initial_internals')
+            agent.pop('internals', None)
+            agent.pop('initial_internals', None)
             agent = Agent.create(agent=agent, environment=environment, **kwargs)
             agent.restore(directory=directory, filename=filename, format=format)
 
@@ -357,8 +366,17 @@ class Agent(object):
                     spec['initial_internals'] = self.initial_internals()
                     json.dump(obj=spec, fp=fp, cls=TensorforceJSONEncoder)
             except BaseException:
-                os.remove(path)
-                raise
+                try:
+                    with open(path, 'w') as fp:
+                        spec = OrderedDict()
+                        spec['states'] = self.spec['states']
+                        spec['actions'] = self.spec['actions']
+                        spec['internals'] = self.internals_spec
+                        spec['initial_internals'] = self.initial_internals()
+                        json.dump(obj=spec, fp=fp, cls=TensorforceJSONEncoder)
+                except BaseException:
+                    os.remove(path)
+                    raise
 
         # Reset model
         self.timesteps, self.episodes, self.updates = self.model.reset()
@@ -970,7 +988,16 @@ class Agent(object):
                 spec['initial_internals'] = self.initial_internals()
                 json.dump(obj=spec, fp=fp, cls=TensorforceJSONEncoder)
         except BaseException:
-            os.remove(spec_path)
+            try:
+                with open(spec_path, 'w') as fp:
+                    spec = OrderedDict()
+                    spec['states'] = self.spec['states']
+                    spec['actions'] = self.spec['actions']
+                    spec['internals'] = self.internals_spec
+                    spec['initial_internals'] = self.initial_internals()
+                    json.dump(obj=spec, fp=fp, cls=TensorforceJSONEncoder)
+            except BaseException:
+                os.remove(spec_path)
 
         return path
 

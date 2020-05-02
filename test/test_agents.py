@@ -55,6 +55,7 @@ class TestAgents(UnittestBase, unittest.TestCase):
         self.start_tests(name='DQN')
         # TODO: RNN is not supported
         self.unittest(
+            actions=dict(type='int', shape=(2,), num_values=4),
             agent='dqn', memory=100, batch_size=4,
             # network=dict(type='auto', size=8, depth=1, rnn=False)
         )
@@ -63,6 +64,7 @@ class TestAgents(UnittestBase, unittest.TestCase):
         self.start_tests(name='DuelingDQN')
         # TODO: RNN is not supported
         self.unittest(
+            actions=dict(type='int', shape=(2,), num_values=4),
             agent='dueling_dqn', memory=100, batch_size=4,
             # network=dict(type='auto', size=8, depth=1, rnn=False)
         )

@@ -13,6 +13,9 @@
 # limitations under the License.
 # ==============================================================================
 
+import tensorflow as tf
+
+from tensorforce import TensorforceError
 from tensorforce.core import SignatureDict, TensorSpec, tf_function
 from tensorforce.core.policies import Policy
 
@@ -53,6 +56,14 @@ class ActionValue(Policy):
                 actions=self.actions_spec.signature(batched=True)
             )
 
+        elif function == 'all_actions_values':
+            return SignatureDict(
+                states=self.states_spec.signature(batched=True),
+                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                internals=self.internals_spec.signature(batched=True),
+                auxiliaries=self.auxiliaries_spec.signature(batched=True)
+            )
+
         elif function == 'states_value':
             return SignatureDict(
                 states=self.states_spec.signature(batched=True),
@@ -85,6 +96,14 @@ class ActionValue(Policy):
             values=actions_values, reduced=reduced, return_per_action=return_per_action
         )
 
+    @tf_function(num_args=5)
+    def actions_values(self, *, states, horizons, internals, auxiliaries, actions):
+        raise NotImplementedError
+
+    @tf_function(num_args=4)
+    def all_actions_values(self, *, states, horizons, internals, auxiliaries):
+        raise NotImplementedError
+
     @tf_function(num_args=4)
     def states_value(self, *, states, horizons, internals, auxiliaries, reduced, return_per_action):
         states_values = self.states_values(
@@ -95,10 +114,12 @@ class ActionValue(Policy):
             values=states_values, reduced=reduced, return_per_action=return_per_action
         )
 
-    @tf_function(num_args=5)
-    def actions_values(self, *, states, horizons, internals, auxiliaries, actions):
-        raise NotImplementedError
-
     @tf_function(num_args=4)
     def states_values(self, *, states, horizons, internals, auxiliaries):
-        raise NotImplementedError
+        actions_values = self.all_actions_values(
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries
+        )
+
+        return actions_values.fmap(
+            function=(lambda action_values: tf.math.reduce_max(input_tensor=action_values, axis=-1))
+        )

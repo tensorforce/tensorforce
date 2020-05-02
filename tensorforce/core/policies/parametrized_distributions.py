@@ -41,8 +41,9 @@ class ParametrizedDistributions(Stochastic, ActionValue):
             bounded continuous actions).
         temperature (parameter | dict[parameter], float >= 0.0): Sampling temperature, global or
             per action (<span style="color:#00C000"><b>default</b></span>: 0.0).
-        infer_states_value (bool): Experimental, whether to infer state value from distribution
-            parameters (<span style="color:#00C000"><b>default</b></span>: false).
+        infer_state_value (False | "action-values" | "distribution"): Whether to infer the state
+            value from either the action values or (experimental) the distribution parameters
+            (<span style="color:#00C000"><b>default</b></span>: false).
         device (string): Device name
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         summary_labels ('all' | iter[string]): Labels of summaries to record
@@ -56,6 +57,7 @@ class ParametrizedDistributions(Stochastic, ActionValue):
         actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
+    # Network first
     def __init__(
         self, *, network='auto', distributions=None, temperature=0.0, infer_states_value=False,
         device=None, summary_labels=None, l2_regularization=None, name=None, states_spec=None,
@@ -108,10 +110,10 @@ class ParametrizedDistributions(Stochastic, ActionValue):
                 default_module=default_module, action_spec=spec, input_spec=output_spec
             )
 
-        # States value
-        if infer_states_value:
-            self.value = None
-        else:
+        # State value
+        assert infer_state_value in (False, 'action-values', 'distribution')
+        self.infer_state_value = infer_state_value
+        if self.infer_state_value is False:
             self.value = self.add_module(
                 name='states_value', module='linear', modules=layer_modules, size=0,
                 input_spec=output_spec
@@ -220,27 +222,8 @@ class ParametrizedDistributions(Stochastic, ActionValue):
         return self.distributions.fmap(function=function, cls=TensorDict, with_names=True)
 
     @tf_function(num_args=4)
-    def states_values(self, *, states, horizons, internals, auxiliaries):
-        embedding = self.network.apply(
-            x=states, horizons=horizons, internals=internals, return_internals=False
-        )
-
-        def function(name, distribution):
-            conditions = auxiliaries.get(name, default=TensorDict())
-            parameters = distribution.parametrize(x=embedding, conditions=conditions)
-            return distribution.states_value(parameters=parameters)
-
-        return self.distributions.fmap(function=function, cls=TensorDict, with_names=True)
-
-    @tf_function(num_args=4)
     def states_value(self, *, states, horizons, internals, auxiliaries, reduced, return_per_action):
-        if self.value is None:
-            return ActionValue.states_value(
-                self=self, states=states, horizons=horizons, internals=internals,
-                auxiliaries=auxiliaries, reduced=reduced, return_per_action=return_per_action
-            )
-
-        else:
+        if self.infer_state_value is False:
             if not reduced or return_per_action:
                 raise TensorforceError.invalid(name='policy.states_value', argument='reduced')
 
@@ -249,6 +232,31 @@ class ParametrizedDistributions(Stochastic, ActionValue):
             )
 
             return self.value.apply(x=embedding)
+
+        else:
+            return ActionValue.states_value(
+                self=self, states=states, horizons=horizons, internals=internals,
+                auxiliaries=auxiliaries, reduced=reduced, return_per_action=return_per_action
+            )
+
+    @tf_function(num_args=4)
+    def states_values(self, *, states, horizons, internals, auxiliaries):
+        if self.infer_state_value == 'action-values':
+            return ActionValue.states_values(
+                self=self, states=states, internals=internals, auxiliaries=auxiliaries
+            )
+
+        else:
+            embedding = self.network.apply(
+                x=states, horizons=horizons, internals=internals, return_internals=False
+            )
+
+            def function(name, distribution):
+                conditions = auxiliaries.get(name, default=TensorDict())
+                parameters = distribution.parametrize(x=embedding, conditions=conditions)
+                return distribution.states_value(parameters=parameters)
+
+        return self.distributions.fmap(function=function, cls=TensorDict, with_names=True)
 
     @tf_function(num_args=5)
     def actions_values(self, *, states, horizons, internals, auxiliaries, actions):
@@ -264,3 +272,22 @@ class ParametrizedDistributions(Stochastic, ActionValue):
         return self.distributions.fmap(
             function=function, cls=TensorDict, with_names=True, zip_values=actions
         )
+
+    @tf_function(num_args=4)
+    def all_actions_values(self, *, states, horizons, internals, auxiliaries):
+        if not all(spec['type'] in ('bool', 'int') for spec in self.actions_spec.values()):
+            raise TensorforceError.value(
+                name='ParametrizedDistributions', argument='infer_state_value',
+                value='action-values', condition='action types not bool/int'
+            )
+
+        embedding = self.network.apply(
+            x=states, horizons=horizons, internals=internals, return_internals=False
+        )
+
+        def function(name, distribution):
+            conditions = auxiliaries.get(name, default=TensorDict())
+            parameters = distribution.parametrize(x=embedding, conditions=conditions)
+            return distribution.all_action_values(parameters=parameters)
+
+        return self.distributions.fmap(function=function, cls=TensorDict, with_names=True)

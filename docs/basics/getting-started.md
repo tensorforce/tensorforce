@@ -71,7 +71,6 @@ class CustomEnvironment(Environment):
         return state
 
     def execute(self, actions):
-        assert 0 <= actions.item() <= 3
         next_state = np.random.random(size=(8,))
         terminal = np.random.random() < 0.5
         reward = np.random.random()
@@ -140,7 +139,7 @@ It is recommended to pass the environment object returned by `Environment.create
 
 
 
-##### Training and evaluation
+### Training and evaluation
 
 It is recommended to use the execution utilities for training and evaluation, like the [Runner utility](../execution/runner.html), which offer a range of configuration options:
 

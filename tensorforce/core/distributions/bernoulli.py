@@ -171,6 +171,12 @@ class Bernoulli(Distribution):
 
         return probability1 * true_log_prob_ratio + (one - probability1) * false_log_prob_ratio
 
+    @tf_function(num_args=1)
+    def states_value(self, *, parameters):
+        states_value = parameters['states_value']
+
+        return states_value
+
     @tf_function(num_args=2)
     def action_value(self, *, parameters, action):
         true_logit, false_logit, states_value = parameters.get(
@@ -182,7 +188,12 @@ class Bernoulli(Distribution):
         return states_value + logits
 
     @tf_function(num_args=1)
-    def states_value(self, *, parameters):
-        states_value = parameters['states_value']
+    def all_action_values(self, *, parameters):
+        true_logit, false_logit, states_value = parameters.get(
+            'true_logit', 'false_logit', 'states_value'
+        )
 
-        return states_value
+        logits = tf.stack(values=(false_logit, true_logit), axis=-1)
+        states_value = tf.expand_dims(input=states_value, axis=-1)
+
+        return states_value + logits

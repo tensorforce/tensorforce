@@ -74,31 +74,55 @@ class Runner(object):
         num_parallel=None, environments=None, remote=None, blocking=False, host=None, port=None
     ):
         if environment is None and environments is None:
-            assert num_parallel is not None and remote == 'socket-client'
+            if remote != 'socket-client':
+                raise TensorforceError.required(
+                    name='Runner', argument='environment or environments'
+                )
+            if num_parallel is None:
+                raise TensorforceError.required(
+                    name='Runner', argument='num_parallel', condition='socket-client remote mode'
+                )
             environments = [None for _ in range(num_parallel)]
 
         elif environment is None:
-            assert environments is not None
-            assert num_parallel is None or num_parallel == len(environments)
+            if environments is None:
+                raise TensorforceError.required(
+                    name='Runner', argument='environment or environments'
+                )
             if not util.is_iterable(x=environments):
                 raise TensorforceError.type(
-                    name='parallel-runner', argument='environments', value=environments
+                    name='Runner', argument='environments', value=environments
                 )
-            elif len(environments) == 0:
+            if len(environments) == 0:
                 raise TensorforceError.value(
-                    name='parallel-runner', argument='environments', value=environments
+                    name='Runner', argument='environments', value=environments
+                )
+            if num_parallel is not None and num_parallel != len(environments):
+                raise TensorforceError.value(
+                    name='Runner', argument='num_parallel', value=num_parallel,
+                    hint='!= len(environments)'
                 )
             num_parallel = len(environments)
             environments = list(environments)
 
         elif num_parallel is None:
-            assert environments is None
+            if environments is not None:
+                raise TensorforceError.invalid(
+                    name='Runner', argument='environments', condition='environment is specified'
+                )
             num_parallel = 1
             environments = [environment]
 
         else:
-            assert environments is None
-            assert not isinstance(environment, Environment)
+            if environments is not None:
+                raise TensorforceError.invalid(
+                    name='Runner', argument='environments', condition='environment is specified'
+                )
+            if isinstance(environment, Environment):
+                raise TensorforceError.type(
+                    name='Runner', argument='environment', dtype=type(environment),
+                    condition='num_parallel', hint='is not specification'
+                )
             environments = [environment for _ in range(num_parallel)]
 
         if port is None or isinstance(port, int):
@@ -107,11 +131,17 @@ class Runner(object):
             else:
                 port = [port for _ in range(num_parallel)]
         else:
-            assert len(port) == num_parallel
+            if len(port) != num_parallel:
+                raise TensorforceError.value(
+                    name='Runner', argument='len(port)', value=len(port), hint='!= num_parallel'
+                )
         if host is None or isinstance(host, str):
             host = [host for _ in range(num_parallel)]
         else:
-            assert len(host) == num_parallel
+            if len(host) != num_parallel:
+                raise TensorforceError.value(
+                    name='Runner', argument='len(host)', value=len(host), hint='!= num_parallel'
+                )
 
         self.environments = list()
         self.is_environment_external = isinstance(environments[0], Environment)

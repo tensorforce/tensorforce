@@ -2,6 +2,65 @@ Features
 ========
 
 
+### Multi-input and non-sequential network architectures
+
+Multi-input and other non-sequential networks are specified as list of layer lists, as opposed to
+simply a list of layers for sequential networks. The following example illustrates how to specify
+such a more complex network, by using the special layers `Register` and `Retrieve` to combine the
+multiple sequential layer stacks.
+
+```python
+Agent.create(
+    states=dict(
+        observation=dict(type='float', shape=(16, 16, 3)),
+        attributes=dict(type='int', shape=(4, 2), num_values=5)
+    ),
+    ...
+    policy=[
+        [
+            dict(type='retrieve', tensors='observation'),
+            dict(type='conv2d', size=16),
+            dict(type='flatten'),
+            dict(type='register', tensor='obs-embedding')
+        ],
+        [
+            dict(type='retrieve', tensors='attributes'),
+            dict(type='embedding', size=16),
+            dict(type='flatten'),
+            dict(type='register', tensor='attr-embedding')
+        ],
+        [
+            dict(
+                type='retrieve', tensors=['obs-embedding', 'attr-embedding'],
+                aggregation='concat'
+            ),
+            dict(type='dense', size=32)
+        ]
+    ],
+    ...
+)
+```
+
+
+
+### Action masking
+
+```python
+agent = Agent.create(
+    states=dict(type='float', shape=(10,)),
+    actions=dict(type='int', shape=(), num_actions=3), ...
+)
+...
+states = dict(
+    state=np.random.random_sample(size=(10,)),  # regular state
+    action_mask=[True, False, True]  # mask as '[ACTION-NAME]_mask'
+)
+action = agent.act(states=states)
+assert action != 1
+```
+
+
+
 ### Parallel environment execution
 
 Execute multiple environments running locally in one call / batched:
@@ -40,24 +99,6 @@ python run.py --environment gym --level CartPole-v1 --remote socket-server \
 python run.py --agent benchmarks/configs/ppo1.json --episodes 100 \
     --num-parallel 2 --remote socket-client --host 127.0.0.1,127.0.0.1 \
     --port 65432,65433 --batch-agent-calls
-```
-
-
-
-### Action masking
-
-```python
-agent = Agent.create(
-    states=dict(type='float', shape=(10,)),
-    actions=dict(type='int', shape=(), num_actions=3), ...
-)
-...
-states = dict(
-    state=np.random.random_sample(size=(10,)),  # regular state
-    action_mask=[True, False, True]  # mask as '[ACTION-NAME]_mask'
-)
-action = agent.act(states=states)
-assert action != 1
 ```
 
 

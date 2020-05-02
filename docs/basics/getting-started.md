@@ -139,7 +139,7 @@ It is recommended to pass the environment object returned by `Environment.create
 
 
 
-##### Training and evaluation
+### Training and evaluation
 
 It is recommended to use the execution utilities for training and evaluation, like the [Runner utility](../execution/runner.html), which offer a range of configuration options:
 

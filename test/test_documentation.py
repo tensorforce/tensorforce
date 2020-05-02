@@ -18,7 +18,6 @@ import unittest
 from tensorforce import Agent, Environment, Runner
 
 from test.unittest_base import UnittestBase
-from test.unittest_environment import UnittestEnvironment
 
 
 class TestDocumentation(UnittestBase, unittest.TestCase):
@@ -112,49 +111,6 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
 
         self.finished_test()
 
-    def test_quickstart(self):
-        self.start_tests(name='quickstart')
-
-        # ====================
-
-        # Create an OpenAI-Gym environment
-        environment = Environment.create(environment='gym', level='CartPole-v1')
-
-        # Create a PPO agent
-        agent = Agent.create(
-            agent='ppo', environment=environment,
-            # Automatically configured network
-            network='auto',
-            # Optimization
-            batch_size=10, update_frequency=2, learning_rate=1e-3, subsampling_fraction=0.2,
-            optimization_steps=5,
-            # Reward estimation
-            likelihood_ratio_clipping=0.2, discount=0.99, estimate_terminal=False,
-            # Critic
-            critic_network='auto',
-            critic_optimizer=dict(optimizer='adam', multi_step=10, learning_rate=1e-3),
-            # Preprocessing
-            preprocessing=None,
-            # Exploration
-            exploration=0.0, variable_noise=0.0,
-            # Regularization
-            l2_regularization=0.0, entropy_regularization=0.0,
-            # TensorFlow etc
-            name='agent', device=None, parallel_interactions=1, seed=None, execution=None, saver=None,
-            summarizer=None, recorder=None
-        )
-
-        # Initialize the runner
-        runner = Runner(agent=agent, environment=environment)
-
-        # Start the runner
-        runner.run(num_episodes=50, use_tqdm=False)
-        runner.close()
-
-        # ====================
-
-        self.finished_test()
-
     def test_readme(self):
         self.start_tests(name='readme')
 
@@ -197,6 +153,42 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
 
         # ====================
 
+        self.finished_test()
+
+    def test_states_actions_multi_input(self):
+        self.start_tests(name='states-actions-multi-input')
+
+        agent, environment = self.prepare(
+            states=dict(
+                observation=dict(type='float', shape=(16, 16, 3)),
+                attributes=dict(type='int', shape=(4, 2), num_values=5)
+            ),
+            actions=dict(type='float', shape=10),
+            policy=[
+                [
+                    dict(type='retrieve', tensors='observation'),
+                    dict(type='conv2d', size=16),
+                    dict(type='flatten'),
+                    dict(type='register', tensor='obs-embedding')
+                ],
+                [
+                    dict(type='retrieve', tensors='attributes'),
+                    dict(type='embedding', size=16),
+                    dict(type='flatten'),
+                    dict(type='register', tensor='attr-embedding')
+                ],
+                [
+                    dict(
+                        type='retrieve', tensors=['obs-embedding', 'attr-embedding'],
+                        aggregation='concat'
+                    ),
+                    dict(type='dense', size=32)
+                ]
+            ]
+        )
+
+        agent.close()
+        environment.close()
         self.finished_test()
 
     def test_masking(self):

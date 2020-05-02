@@ -32,10 +32,6 @@ class ParametrizedDistributions(Stochastic, ActionValue):
     Args:
         name (string): Module name
             (<span style="color:#0000C0"><b>internal use</b></span>).
-        states_spec (specification): States specification
-            (<span style="color:#0000C0"><b>internal use</b></span>).
-        actions_spec (specification): Actions specification
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         network ('auto' | specification): Policy network configuration, see
             [networks](../modules/networks.html)
             (<span style="color:#00C000"><b>default</b></span>: 'auto', automatically configured
@@ -58,11 +54,17 @@ class ParametrizedDistributions(Stochastic, ActionValue):
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        states_spec (specification): States specification
+            (<span style="color:#0000C0"><b>internal use</b></span>).
+        actions_spec (specification): Actions specification
+            (<span style="color:#0000C0"><b>internal use</b></span>).
     """
 
+    # Network first
     def __init__(
-        self, name, states_spec, actions_spec, network='auto', distributions=None, temperature=0.0,
-        infer_state_value=False, device=None, summary_labels=None, l2_regularization=None
+        self, name, network='auto', distributions=None, temperature=0.0, infer_state_value=False,
+        device=None, summary_labels=None, l2_regularization=None, states_spec=None,
+        actions_spec=None
     ):
         if isinstance(network, Network):
             assert device is None

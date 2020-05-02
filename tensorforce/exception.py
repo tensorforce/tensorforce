@@ -96,12 +96,33 @@ class TensorforceError(Exception):
             )
 
     @staticmethod
-    def type(name, argument, dtype):
-        return TensorforceError(
-            message="Invalid type for {name} argument {argument}: {type}.".format(
-                name=name, argument=argument, type=dtype
-            )
-        )
+    def type(name, argument, dtype, condition=None, hint=None):
+        if hint is None:
+            if condition is None:
+                return TensorforceError(
+                    message="Invalid type for {name} argument {argument}: {type}.".format(
+                        name=name, argument=argument, type=dtype
+                    )
+                )
+            else:
+                return TensorforceError(
+                    message="Invalid type for {name} argument {argument} given {condition}: {type}.".format(
+                        name=name, argument=argument, condition=condition, type=dtype
+                    )
+                )
+        else:
+            if condition is None:
+                return TensorforceError(
+                    message="Invalid type for {name} argument {argument}: {type} {hint}.".format(
+                        name=name, argument=argument, type=dtype, hint=hint
+                    )
+                )
+            else:
+                return TensorforceError(
+                    message="Invalid type for {name} argument {argument} given {condition}: {type} {hint}.".format(
+                        name=name, argument=argument, condition=condition, type=dtype, hint=hint
+                    )
+                )
 
     @staticmethod
     def value(name, argument, value, condition=None, hint=None):

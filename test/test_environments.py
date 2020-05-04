@@ -96,6 +96,10 @@ class TestEnvironments(UnittestBase, unittest.TestCase):
         from gym.envs.toy_text import BlackjackEnv
         self.unittest(environment=BlackjackEnv())
 
+        # state: box, action: box with non-uniform bounds
+        # xvfb-run -s "-screen 0 1400x900x24" python -m unittest ...
+        self.unittest(environment='CarRacing-v0')
+
     def test_openai_retro(self):
         self.start_tests(name='openai-retro')
         self.unittest(environment=dict(environment='retro', level='Airstriker-Genesis'))

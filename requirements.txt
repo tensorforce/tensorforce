@@ -4,6 +4,7 @@ matplotlib
 msgpack
 msgpack-numpy
 numpy
+pandas
 pytest
 scipy
 tqdm

@@ -253,7 +253,7 @@ class DeterministicPolicyGradient(TensorforceAgent):
             horizon=horizon, discount=discount, estimate_horizon='late',
             estimate_terminal=estimate_terminal, estimate_actions=True
         )
-        baseline_policy = dict(network=critic_network)
+        baseline_policy = dict(network=critic_network, distributions=dict(float='gaussian'))
         baseline_objective = dict(type='value', value='action')
 
         super().__init__(

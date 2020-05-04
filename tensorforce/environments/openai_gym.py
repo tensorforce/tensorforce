@@ -406,7 +406,7 @@ class OpenAIGym(Environment):
                     all(name.startswith('gymbox') for name in action):
                 name = next(iter(action))
                 shape = tuple(int(x) for x in name[name.index('-') + 1:].split('-'))
-                return np.array(object=actions).reshape(shape=shape)
+                return np.array(actions).reshape(shape)
             else:
                 return tuple(actions)
 

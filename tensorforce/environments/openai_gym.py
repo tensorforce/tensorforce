@@ -393,7 +393,7 @@ class OpenAIGym(Environment):
             while True:
                 if any(name.startswith(space_type + str(n) + '-') for name in action):
                     inner_action = {
-                        name[name.index('-') + 1:] for name, inner_action in action.items()
+                        name[name.index('-') + 1:]: value for name, value in action.items()
                         if name.startswith(space_type + str(n))
                     }
                     actions.append(OpenAIGym.unflatten_action(action=inner_action))

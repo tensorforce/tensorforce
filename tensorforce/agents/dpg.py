@@ -240,8 +240,6 @@ class DeterministicPolicyGradient(TensorforceAgent):
                 config=config
         )
 
-        # TODO: action type and shape
-
         policy = dict(network=network, temperature=0.0)
         memory = dict(type='replay', capacity=memory)
         update = dict(unit='timesteps', batch_size=batch_size)
@@ -276,7 +274,7 @@ class DeterministicPolicyGradient(TensorforceAgent):
 
         action_spec = next(iter(self.actions_spec.values()))
         if len(self.actions_spec) > 1 or action_spec['type'] != 'float' or \
-                action_spec['shape'] != ():
+                (action_spec['shape'] != () and action_spec['shape'] != (1,)):
             raise TensorforceError.value(
                 name='DeterministicPolicyGradient', argument='actions', value=actions,
                 hint='contains more than a single float action'

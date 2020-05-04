@@ -55,8 +55,15 @@ class DeterministicPolicyGradient(Objective):
         actions_value = baseline.actions_value(
             states=states, internals=internals, auxiliaries=auxiliaries, actions=actions
         )
-        assert len(actions) == 1 and len(util.shape(x=list(actions.values())[0])) == 1
-        gradients = -tf.gradients(ys=actions_value, xs=list(actions.values()))[0][0]
+        assert len(actions) == 1
+        action = next(iter(actions.values()))
+        shape = util.shape(x=action)
+        if len(shape) == 1:
+            gradients = -tf.gradients(ys=actions_value, xs=[action])[0][0]
+        elif len(shape) == 2 and shape[1] == 1:
+            gradients = -tf.gradients(ys=actions_value, xs=[action])[0][0][0]
+        else:
+            assert False
 
         return gradients
 

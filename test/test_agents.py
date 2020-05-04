@@ -13,10 +13,9 @@
 # limitations under the License.
 # ==============================================================================
 
-import pytest
 import unittest
 
-from tensorforce import Agent, Environment
+from tensorforce import Environment
 from test.unittest_base import UnittestBase
 
 

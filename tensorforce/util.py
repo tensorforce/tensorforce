@@ -499,12 +499,12 @@ def valid_value_spec(
                     name=value_type, argument='num_values', dtype=type(num_values)
                 )
             if accept_underspecified:
-                if not (num_values > 1 or num_values == 0):
+                if num_values < 0:
                     raise TensorforceError.value(
                         name=value_type, argument='num_values', value=num_values
                     )
             else:
-                if num_values <= 1:
+                if num_values < 1:
                     raise TensorforceError.value(
                         name=value_type, argument='num_values', value=num_values
                     )

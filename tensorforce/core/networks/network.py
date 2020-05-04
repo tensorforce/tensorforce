@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -166,7 +166,7 @@ class LayerbasedNetwork(Network):
             if module_cls is Retrieve:
                 if 'tensors' not in kwargs:
                     raise TensorforceError.required(name='retrieve layer', argument='tensors')
-                if kwargs['tensors'] not in self.registered_tensors_spec:
+                if tuple(kwargs['tensors']) not in self.registered_tensors_spec:
                     raise TensorforceError.exists_not(
                         name='registered tensor', value=kwargs['tensors']
                     )

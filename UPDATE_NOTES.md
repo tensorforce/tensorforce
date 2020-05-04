@@ -4,6 +4,21 @@ This file records all major updates and new features, starting from version 0.5.
 
 
 
+### Version 0.6
+
+- `internal_rnn/lstm/gru` --> `rnn/lstm/gru`
+- `rnn/lstm/gru` --> `input_rnn/lstm/gru`
+- Auto network `internal_rnn` --> `rnn`
+- internal_rnn `length` --> `horizon`
+- renamed reward summaries
+- Combined long and int types
+- Removed execution arg, moved buffer_observe/seed to config
+- Default memory device CPU:0
+- Removed deterministic/evaluation/query from Agent interface
+- buffer_observe not accepts true/false
+
+
+
 ### Version 0.5.5
 
 - Changed independent mode of `agent.act` to use final values of dynamic hyperparameters and avoid TensorFlow conditions
@@ -16,15 +31,6 @@ This file records all major updates and new features, starting from version 0.5.
 - Changed the default `bias` and `activation` argument of some layers
 - Fixed issues with `sequence` preprocessor
 - DQN and dueling DQN properly constrained to `int` actions only
-
-- Auto network `internal_rnn` --> `rnn`
-- internal_rnn `length` --> `horizon`
-- renamed reward summaries
-- Combined long and int types
-- Removed execution arg, moved buffer_observe/seed to config
-- Default memory device CPU:0
-- Removed deterministic/evaluation/query from Agent interface
-- buffer_observe not accepts true/false
 
 
 

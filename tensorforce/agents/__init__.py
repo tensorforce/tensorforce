@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ from tensorforce.agents.tensorforce import TensorforceAgent
 from tensorforce.agents.a2c import AdvantageActorCritic
 from tensorforce.agents.ac import ActorCritic
 from tensorforce.agents.dpg import DeterministicPolicyGradient
+from tensorforce.agents.double_dqn import DoubleDQN
 from tensorforce.agents.dqn import DeepQNetwork
 from tensorforce.agents.dueling_dqn import DuelingDQN
 from tensorforce.agents.ppo import ProximalPolicyOptimization

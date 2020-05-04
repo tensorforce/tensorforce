@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -113,7 +113,7 @@ class Gaussian(Distribution):
 
     @tf_function(num_args=2)
     def sample(self, *, parameters, temperature):
-        mean, stddev = parameters.get('mean', 'stddev')
+        mean, stddev = parameters.get(('mean', 'stddev'))
 
         summary_mean = mean
         summary_stddev = stddev
@@ -145,7 +145,7 @@ class Gaussian(Distribution):
 
     @tf_function(num_args=2)
     def log_probability(self, *, parameters, action):
-        mean, stddev, log_stddev = parameters.get('mean', 'stddev', 'log_stddev')
+        mean, stddev, log_stddev = parameters.get(('mean', 'stddev', 'log_stddev'))
 
         half = tf_util.constant(value=0.5, dtype='float')
         two = tf_util.constant(value=2.0, dtype='float')
@@ -171,8 +171,8 @@ class Gaussian(Distribution):
 
     @tf_function(num_args=2)
     def kl_divergence(self, *, parameters1, parameters2):
-        mean1, stddev1, log_stddev1 = parameters1.get('mean', 'stddev', 'log_stddev')
-        mean2, stddev2, log_stddev2 = parameters2.get('mean', 'stddev', 'log_stddev')
+        mean1, stddev1, log_stddev1 = parameters1.get(('mean', 'stddev', 'log_stddev'))
+        mean2, stddev2, log_stddev2 = parameters2.get(('mean', 'stddev', 'log_stddev'))
 
         half = tf_util.constant(value=0.5, dtype='float')
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')
@@ -196,7 +196,7 @@ class Gaussian(Distribution):
 
     @tf_function(num_args=2)
     def action_value(self, *, parameters, action):
-        mean, stddev, log_stddev = parameters.get('mean', 'stddev', 'log_stddev')
+        mean, stddev, log_stddev = parameters.get(('mean', 'stddev', 'log_stddev'))
 
         half = tf_util.constant(value=0.5, dtype='float')
         two = tf_util.constant(value=2.0, dtype='float')

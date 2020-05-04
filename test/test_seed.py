@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -34,7 +34,9 @@ class TestSeed(UnittestBase, unittest.TestCase):
             float_action=dict(type='float', shape=(2,)),
         )
 
-        agent, environment = self.prepare(states=states, actions=actions, exploration=0.5, seed=0)
+        agent, environment = self.prepare(
+            states=states, actions=actions, exploration=0.5, config=dict(seed=0)
+        )
 
         print_environment = False
         print_agent = False

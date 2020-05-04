@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -51,13 +51,13 @@ class Plus(Objective):
         self.objective1 = self.add_module(
             name='objective1', module=objective1, modules=tensorforce.core.objective_modules,
             states_spec=states_spec, internals_spec=internals_spec,
-            auxiliaries_spec=auxiliaries_spec, actions_spec=actions_spec
+            auxiliaries_spec=auxiliaries_spec, actions_spec=actions_spec, reward_spec=reward_spec
         )
 
         self.objective2 = self.add_module(
             name='objective2', module=objective2, modules=tensorforce.core.objective_modules,
             states_spec=states_spec, internals_spec=internals_spec,
-            auxiliaries_spec=auxiliaries_spec, actions_spec=actions_spec
+            auxiliaries_spec=auxiliaries_spec, actions_spec=actions_spec, reward_spec=reward_spec
         )
 
     def reference_spec(self):

@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core import tf_function, tf_util
+from tensorforce.core import TensorDict, tf_function, tf_util
 from tensorforce.core.objectives import Objective
 
 
@@ -59,17 +59,28 @@ class DeterministicPolicyGradient(Objective):
         arguments = super().optimizer_arguments()
 
         def fn_initial_gradients(*, states, horizons, internals, auxiliaries, actions, reward):
+            if 'policy' in internals:
+                policy_internals = internals['policy']
+                baseline_internals = internals['baseline']
+            else:
+                policy_internals = internals
+                # TODO: Baseline currently cannot have internal states, since generally only policy
+                # internals are passed to policy optimizer
+                assert len(baseline.internals_spec) == 0
+                baseline_internals = TensorDict()
+
             actions = policy.act(
-                states=states, horizons=horizons, internals=internals['policy'],
-                auxiliaries=auxiliaries, deterministic=True, return_internals=False
+                states=states, horizons=horizons, internals=policy_internals,
+                auxiliaries=auxiliaries,
+                 deterministic=True, return_internals=False
             )
             action = actions.value()
-            assert len(actions) == 1 and len(tf_util.shape(x=action)) == 1
 
             with tf.GradientTape(persistent=False, watch_accessed_variables=False) as tape:
                 tape.watch(tensor=action)
+                assert len(actions) == 1 and len(tf_util.shape(x=action)) == 1
                 actions_value = baseline.actions_value(
-                    states=states, horizons=horizons, internals=internals['baseline'],
+                    states=states, horizons=horizons, internals=baseline_internals,
                     auxiliaries=auxiliaries, actions=actions, reduced=True, return_per_action=False
                 )
 

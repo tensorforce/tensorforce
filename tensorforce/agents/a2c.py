@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -57,7 +57,7 @@ class AdvantageActorCritic(TensorforceAgent):
             (<span style="color:#00C000"><b>default</b></span>: not given, better implicitly
             specified via `environment` argument for `Agent.create(...)`).
 
-        batch_size (parameter, long > 0): Number of timesteps per update batch
+        batch_size (parameter, int > 0): Number of timesteps per update batch
             (<span style="color:#C00000"><b>required</b></span>).
 
         network ("auto" | specification): Policy network configuration, see
@@ -69,20 +69,18 @@ class AdvantageActorCritic(TensorforceAgent):
             network/estimator horizon + 1 timesteps
             (<span style="color:#00C000"><b>default</b></span>: minimum capacity, usually does not
             need to be changed).
-        update_frequency ("never" | parameter, long > 0): Frequency of updates
+        update_frequency ("never" | parameter, int > 0): Frequency of updates
             (<span style="color:#00C000"><b>default</b></span>: batch_size).
         learning_rate (parameter, float > 0.0): Optimizer learning rate
             (<span style="color:#00C000"><b>default</b></span>: 3e-4).
 
-        horizon ("episode" | parameter, long >= 0): Horizon of discounted-sum reward estimation
-            before critic estimate
+        horizon (parameter, int >= 0): Horizon of discounted-sum reward estimation before critic
+            estimate
             (<span style="color:#00C000"><b>default</b></span>: 0).
         discount (parameter, 0.0 <= float <= 1.0): Discount factor for future rewards of
             discounted-sum reward estimation
             (<span style="color:#00C000"><b>default</b></span>: 0.99).
-        state_action_value (bool): Whether to estimate state-action values instead of state values
-            (<span style="color:#00C000"><b>default</b></span>: false).
-        estimate_terminal (bool): Whether to estimate the value of (real) terminal states
+        estimate_terminals (bool): Whether to estimate the value of terminal horizon states
             (<span style="color:#00C000"><b>default</b></span>: false).
 
         critic_network (specification): Critic network configuration, see
@@ -215,7 +213,7 @@ class AdvantageActorCritic(TensorforceAgent):
         # Optimization
         update_frequency=None, learning_rate=3e-4,
         # Reward estimation
-        horizon=0, discount=0.99, state_action_value=False, estimate_terminal=False,
+        horizon=0, discount=0.99, state_action_value=False, estimate_terminals=False,
         # Critic
         critic_network='auto', critic_optimizer=1.0,
         # Preprocessing
@@ -236,7 +234,7 @@ class AdvantageActorCritic(TensorforceAgent):
             memory=memory,
             update_frequency=update_frequency, learning_rate=learning_rate,
             horizon=horizon, discount=discount, state_action_value=state_action_value,
-                estimate_terminal=estimate_terminal,
+                estimate_terminals=estimate_terminals,
             critic_network=critic_network, critic_optimizer=critic_optimizer,
             preprocessing=preprocessing,
             exploration=exploration, variable_noise=variable_noise,
@@ -257,8 +255,7 @@ class AdvantageActorCritic(TensorforceAgent):
         objective = 'policy_gradient'
         reward_estimation = dict(
             horizon=horizon, discount=discount, estimate_horizon='early',
-            estimate_actions=state_action_value, estimate_terminal=estimate_terminal,
-            estimate_advantage=True
+            estimate_terminals=estimate_terminals, estimate_advantage=True
         )
         baseline_policy = dict(network=critic_network)
         if state_action_value:

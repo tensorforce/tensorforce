@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -134,7 +134,8 @@ class TensorforceModel(Model):
         else:
             estimate_horizon = 'late'
 
-        if baseline_policy is not None and baseline_objective is None and baseline_optimizer is None:
+        if baseline_policy is not None and baseline_objective is None and \
+                baseline_optimizer is None:
             estimate_advantage = True
             self.advantage_in_loss = True
         else:
@@ -224,13 +225,13 @@ class TensorforceModel(Model):
 
         # Estimator
         if not all(key in (
-            'discount', 'estimate_actions', 'estimate_advantage', 'estimate_horizon',
-            'estimate_terminal', 'horizon'
+            'discount', 'estimate_action_values', 'estimate_advantage', 'estimate_horizon',
+            'estimate_terminals', 'horizon'
         ) for key in reward_estimation):
             raise TensorforceError.value(
                 name='agent', argument='reward_estimation', value=reward_estimation,
-                hint='not from {discount,estimate_actions,estimate_advantage,estimate_horizon,'
-                     'estimate_terminal,horizon}'
+                hint='not from {discount,estimate_action_values,estimate_advantage,'
+                     'estimate_horizon,estimate_terminals,horizon}'
             )
         max_past_horizon = self.baseline.max_past_horizon(on_policy=True)
         values_spec = TensorsSpec(
@@ -243,10 +244,9 @@ class TensorforceModel(Model):
             is_saved=False, values_spec=values_spec, horizon=reward_estimation['horizon'],
             discount=reward_estimation.get('discount', 1.0),
             estimate_horizon=reward_estimation.get('estimate_horizon', estimate_horizon),
-            estimate_actions=reward_estimation.get('estimate_actions', False),
-            estimate_terminal=reward_estimation.get('estimate_terminal', False),
+            estimate_action_values=reward_estimation.get('estimate_action_values', False),
+            estimate_terminals=reward_estimation.get('estimate_terminals', False),
             estimate_advantage=reward_estimation.get('estimate_advantage', estimate_advantage),
-            # capacity=reward_estimation['capacity']
             min_capacity=self.config.buffer_observe, max_past_horizon=max_past_horizon
         )
 
@@ -265,6 +265,8 @@ class TensorforceModel(Model):
                 min_capacity = (self.update_batch_size.max_value() + 1) * max_episode_timesteps
         else:
             assert False
+        # Max enqueue: estimator content plus following batch if terminal
+        min_capacity = max(min_capacity, 2 * self.estimator.capacity)
 
         self.memory = self.add_module(
             name='memory', module=memory, modules=memory_modules, is_trainable=False,
@@ -650,7 +652,8 @@ class TensorforceModel(Model):
         with tf.control_dependencies(control_inputs=dependencies):
             (reward,) = self.memory.retrieve(indices=indices, values=('reward',))
             reward = self.estimator.complete_return(
-                indices=indices, reward=reward, baseline=self.baseline, memory=self.memory
+                indices=indices, reward=reward, policy=self.policy, baseline=self.baseline,
+                memory=self.memory
             )
             reward = self.add_summary(label=('return', 'rewards'), name='return', tensor=reward)
             if 'return' in self.preprocessing:
@@ -661,8 +664,7 @@ class TensorforceModel(Model):
 
             if not self.advantage_in_loss:
                 reward = self.estimator.advantage(
-                    indices=indices, reward=reward, baseline=self.baseline, memory=self.memory,
-                    is_baseline_optimized=False
+                    indices=indices, reward=reward, baseline=self.baseline, memory=self.memory
                 )
                 reward = self.add_summary(
                     label=('advantage', 'rewards'), name='advantage', tensor=reward
@@ -1026,7 +1028,8 @@ class TensorforceModel(Model):
         # Reward estimation (separate from main policy, so updated baseline is used there)
         (reward,) = self.memory.retrieve(indices=indices, values=('reward',))
         reward = self.estimator.complete_return(
-            indices=indices, reward=reward, baseline=self.baseline, memory=self.memory
+            indices=indices, reward=reward, policy=self.policy, baseline=self.baseline,
+            memory=self.memory
         )
 
         variables = tuple(self.baseline.trainable_variables)

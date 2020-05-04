@@ -18,10 +18,9 @@ from collections import OrderedDict
 from tensorforce.agents import TensorforceAgent
 
 
-class ActorCritic(TensorforceAgent):
+class DoubleDQN(TensorforceAgent):
     """
-    [Actor-Critic](???) agent
-    (specification key: `ac`).
+    [Double DQN](https://arxiv.org/abs/1509.06461) agent (specification key: `double_dqn`).
 
     Args:
         states (specification): States specification
@@ -57,6 +56,9 @@ class ActorCritic(TensorforceAgent):
             (<span style="color:#00C000"><b>default</b></span>: not given, better implicitly
             specified via `environment` argument for `Agent.create(...)`).
 
+        memory (int > 0): Replay memory capacity, has to fit at least maximum batch_size + maximum
+            network/estimator horizon + 1 timesteps
+            (<span style="color:#C00000"><b>required</b></span>).
         batch_size (parameter, int > 0): Number of timesteps per update batch
             (<span style="color:#C00000"><b>required</b></span>).
 
@@ -65,17 +67,17 @@ class ActorCritic(TensorforceAgent):
             (<span style="color:#00C000"><b>default</b></span>: "auto", automatically configured
             network).
 
-        memory (int > 0): Batch memory capacity, has to fit at least maximum batch_size + maximum
-            network/estimator horizon + 1 timesteps
-            (<span style="color:#00C000"><b>default</b></span>: minimum capacity, usually does not
-            need to be changed).
         update_frequency ("never" | parameter, int > 0): Frequency of updates
             (<span style="color:#00C000"><b>default</b></span>: batch_size).
+        start_updating (parameter, int >= batch_size): Number of timesteps before first update
+            (<span style="color:#00C000"><b>default</b></span>: none).
         learning_rate (parameter, float > 0.0): Optimizer learning rate
             (<span style="color:#00C000"><b>default</b></span>: 3e-4).
+        huber_loss (parameter, float > 0.0): Huber loss threshold
+            (<span style="color:#00C000"><b>default</b></span>: no huber loss).
 
-        horizon (parameter, int >= 0): Horizon of discounted-sum reward estimation before critic
-            estimate
+        horizon (parameter, int >= 0): n-step DQN, horizon of discounted-sum reward estimation
+            before target network estimate
             (<span style="color:#00C000"><b>default</b></span>: 0).
         discount (parameter, 0.0 <= float <= 1.0): Discount factor for future rewards of
             discounted-sum reward estimation
@@ -83,12 +85,9 @@ class ActorCritic(TensorforceAgent):
         estimate_terminals (bool): Whether to estimate the value of terminal horizon states
             (<span style="color:#00C000"><b>default</b></span>: false).
 
-        critic_network (specification): Critic network configuration, see
-            [networks](../modules/networks.html)
-            (<span style="color:#00C000"><b>default</b></span>: "auto").
-        critic_optimizer (float > 0.0 | specification): Critic optimizer configuration, see
-            [optimizers](../modules/optimizers.html), a float instead specifies a custom weight for
-            the critic loss
+        target_sync_frequency (parameter, int > 0): Interval between target network updates
+            (<span style="color:#00C000"><b>default</b></span>: every update).
+        target_update_weight (parameter, 0.0 < float <= 1.0): Target network update weight
             (<span style="color:#00C000"><b>default</b></span>: 1.0).
 
         preprocessing (dict[specification]): Preprocessing as layer or list of layers, see
@@ -203,19 +202,17 @@ class ActorCritic(TensorforceAgent):
 
     def __init__(
         # Required
-        self, states, actions, batch_size,
+        self, states, actions, memory, batch_size,
         # Environment
         max_episode_timesteps=None,
         # Network
         network='auto',
-        # Memory
-        memory=None,
         # Optimization
-        update_frequency=None, learning_rate=3e-4,
+        update_frequency=None, start_updating=None, learning_rate=3e-4, huber_loss=0.0,
         # Reward estimation
-        horizon=0, discount=0.99, state_action_value=False, estimate_terminals=False,
-        # Critic
-        critic_network='auto', critic_optimizer=1.0,
+        horizon=0, discount=0.99, estimate_terminals=False,
+        # Target network
+        target_sync_frequency=1, target_update_weight=1.0,
         # Preprocessing
         preprocessing=None,
         # Exploration
@@ -227,15 +224,14 @@ class ActorCritic(TensorforceAgent):
         summarizer=None, recorder=None
     ):
         self.spec = OrderedDict(
-            agent='ac',
-            states=states, actions=actions, batch_size=batch_size,
+            agent='dqn',
+            states=states, actions=actions, memory=memory, batch_size=batch_size,
             max_episode_timesteps=max_episode_timesteps,
             network=network,
-            memory=memory,
-            update_frequency=update_frequency, learning_rate=learning_rate,
-            horizon=horizon, discount=discount, state_action_value=state_action_value,
-                estimate_terminals=estimate_terminals,
-            critic_network=critic_network, critic_optimizer=critic_optimizer,
+            update_frequency=update_frequency, start_updating=start_updating,
+                learning_rate=learning_rate, huber_loss=huber_loss,
+            horizon=horizon, discount=discount, estimate_terminals=estimate_terminals,
+            target_sync_frequency=target_sync_frequency, target_update_weight=target_update_weight,
             preprocessing=preprocessing,
             exploration=exploration, variable_noise=variable_noise,
             l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
@@ -243,26 +239,25 @@ class ActorCritic(TensorforceAgent):
                 saver=saver, summarizer=summarizer, recorder=recorder
         )
 
-        policy = dict(network=network, temperature=1.0)
-        if memory is None:
-            memory = dict(type='recent')
-        else:
-            memory = dict(type='recent', capacity=memory)
-        if update_frequency is None:
-            update = dict(unit='timesteps', batch_size=batch_size)
-        else:
-            update = dict(unit='timesteps', batch_size=batch_size, frequency=update_frequency)
+        policy = dict(network=network, temperature=0.0, infer_state_value='action-values')
+        memory = dict(type='replay', capacity=memory)
+        update = dict(unit='timesteps', batch_size=batch_size)
+        if update_frequency is not None:
+            update['frequency'] = update_frequency
+        if start_updating is not None:
+            update['start'] = start_updating
         optimizer = dict(type='adam', learning_rate=learning_rate)
-        objective = 'policy_gradient'
+        objective = dict(type='value', value='action', huber_loss=huber_loss)
         reward_estimation = dict(
-            horizon=horizon, discount=discount, estimate_horizon='early',
-            estimate_terminals=estimate_terminals
+            horizon=horizon, discount=discount, estimate_horizon='late',
+            estimate_action_values=True, estimate_terminals=estimate_terminals
         )
-        baseline_policy = dict(network=critic_network)
-        if state_action_value:
-            baseline_objective = dict(type='value', value='action')
-        else:
-            baseline_objective = dict(type='value', value='state')
+        baseline_policy = policy
+        baseline_optimizer = dict(
+            type='synchronization', sync_frequency=target_sync_frequency,
+            update_weight=target_update_weight
+        )
+        baseline_objective = None
 
         super().__init__(
             # Agent
@@ -275,6 +270,6 @@ class ActorCritic(TensorforceAgent):
             # TensorforceModel
             policy=policy, memory=memory, update=update, optimizer=optimizer, objective=objective,
             reward_estimation=reward_estimation, baseline_policy=baseline_policy,
-            baseline_optimizer=critic_optimizer, baseline_objective=baseline_objective,
+            baseline_optimizer=baseline_optimizer, baseline_objective=baseline_objective,
             entropy_regularization=entropy_regularization
         )

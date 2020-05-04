@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -59,7 +59,7 @@ class ParametrizedDistributions(Stochastic, ActionValue):
 
     # Network first
     def __init__(
-        self, *, network='auto', distributions=None, temperature=0.0, infer_states_value=False,
+        self, network='auto', *, distributions=None, temperature=0.0, infer_state_value=False,
         device=None, summary_labels=None, l2_regularization=None, name=None, states_spec=None,
         auxiliaries_spec=None, internals_spec=None, actions_spec=None
     ):
@@ -234,16 +234,16 @@ class ParametrizedDistributions(Stochastic, ActionValue):
             return self.value.apply(x=embedding)
 
         else:
-            return ActionValue.states_value(
-                self=self, states=states, horizons=horizons, internals=internals,
-                auxiliaries=auxiliaries, reduced=reduced, return_per_action=return_per_action
+            return super().states_value(
+                states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+                reduced=reduced, return_per_action=return_per_action
             )
 
     @tf_function(num_args=4)
     def states_values(self, *, states, horizons, internals, auxiliaries):
         if self.infer_state_value == 'action-values':
-            return ActionValue.states_values(
-                self=self, states=states, internals=internals, auxiliaries=auxiliaries
+            return super().states_values(
+                states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries
             )
 
         else:
@@ -275,7 +275,7 @@ class ParametrizedDistributions(Stochastic, ActionValue):
 
     @tf_function(num_args=4)
     def all_actions_values(self, *, states, horizons, internals, auxiliaries):
-        if not all(spec['type'] in ('bool', 'int') for spec in self.actions_spec.values()):
+        if not all(spec.type in ('bool', 'int') for spec in self.actions_spec.values()):
             raise TensorforceError.value(
                 name='ParametrizedDistributions', argument='infer_state_value',
                 value='action-values', condition='action types not bool/int'

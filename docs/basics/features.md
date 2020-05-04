@@ -18,13 +18,13 @@ Agent.create(
     ...
     policy=[
         [
-            dict(type='retrieve', tensors='observation'),
+            dict(type='retrieve', tensors=['observation']),
             dict(type='conv2d', size=16),
             dict(type='flatten'),
             dict(type='register', tensor='obs-embedding')
         ],
         [
-            dict(type='retrieve', tensors='attributes'),
+            dict(type='retrieve', tensors=['attributes']),
             dict(type='embedding', size=16),
             dict(type='flatten'),
             dict(type='register', tensor='attr-embedding')

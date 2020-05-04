@@ -54,7 +54,7 @@ class SignatureDict(NestedDict):
             if is_outer_args and isinstance(kwargs, (list, tuple)):
                 arg = kwargs[n]
             else:
-                arg = kwargs[name]
+                arg = kwargs.get(name, TensorDict())
             if isinstance(spec, self.__class__):
                 assert isinstance(arg, TensorDict)
                 args.append(spec.kwargs_to_args(kwargs=arg))

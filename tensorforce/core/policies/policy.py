@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -93,8 +93,10 @@ class Policy(Module):
     def join_value_per_action(self, *, values, reduced, return_per_action):
         assert not return_per_action or reduced
 
-        for name, spec, value in util.zip_items(self.actions_spec, values):
-            values[name] = tf.reshape(tensor=value, shape=(-1, util.product(xs=spec.shape)))
+        def function(value, spec):
+            return tf.reshape(tensor=value, shape=(-1, util.product(xs=spec.shape)))
+
+        values = values.fmap(function=function, zip_values=self.actions_spec)
 
         value = tf.concat(values=tuple(values.values()), axis=1)
 

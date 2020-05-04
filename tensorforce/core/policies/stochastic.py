@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -89,15 +89,6 @@ class Stochastic(Policy):
             )
 
         elif function == 'kl_divergence':
-            print(SignatureDict(
-                states=self.states_spec.signature(batched=True),
-                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
-                internals=self.internals_spec.signature(batched=True),
-                auxiliaries=self.auxiliaries_spec.signature(batched=True),
-                reference=self.distributions.fmap(
-                    function=(lambda x: x.parameters_spec), cls=TensorsSpec
-                ).signature(batched=True)
-            ))
             return SignatureDict(
                 states=self.states_spec.signature(batched=True),
                 horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),

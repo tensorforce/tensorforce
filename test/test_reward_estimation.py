@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -43,7 +43,7 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         reward_estimation = dict(horizon=2, estimate_horizon='early')
         self.unittest(reward_estimation=reward_estimation)
 
-        reward_estimation = dict(horizon=2, estimate_horizon='early', estimate_actions=True)
+        reward_estimation = dict(horizon=2, estimate_horizon='early', estimate_action_values=True)
         baseline_optimizer = 'adam'
         # TODO: action value doesn't exist for Beta
         self.unittest(
@@ -51,7 +51,7 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
             baseline_optimizer=baseline_optimizer
         )
 
-        reward_estimation = dict(horizon=2, estimate_horizon='early', estimate_terminal=True)
+        reward_estimation = dict(horizon=2, estimate_horizon='early', estimate_terminals=True)
         baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=1))
         baseline_objective = 'policy_gradient'
         self.unittest(
@@ -60,7 +60,8 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         )
 
         reward_estimation = dict(
-            horizon=2, estimate_horizon='early', estimate_actions=True, estimate_terminal=True
+            horizon=2, estimate_horizon='early', estimate_action_values=True,
+            estimate_terminals=True
         )
         baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=1))
         baseline_objective = 'policy_gradient'
@@ -79,8 +80,9 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         baseline_objective = 'policy_gradient'
         self.unittest(reward_estimation=reward_estimation, baseline_objective=baseline_objective)
 
-        reward_estimation = dict(horizon=2, estimate_horizon='late', estimate_actions=True)
-        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=1))
+        reward_estimation = dict(horizon=2, estimate_horizon='late', estimate_action_values=True)
+        # TODO: baseline horizon has to be equal to policy horizon
+        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=2))
         baseline_optimizer = 'adam'
         # TODO: action value doesn't exist for Beta
         self.unittest(
@@ -88,7 +90,7 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
             baseline_policy=baseline_policy, baseline_optimizer=baseline_optimizer
         )
 
-        reward_estimation = dict(horizon=2, estimate_horizon='late', estimate_terminal=True)
+        reward_estimation = dict(horizon=2, estimate_horizon='late', estimate_terminals=True)
         baseline_objective = 'policy_gradient'
         baseline_optimizer = 'adam'
         self.unittest(
@@ -97,9 +99,10 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         )
 
         reward_estimation = dict(
-            horizon=2, estimate_horizon='late', estimate_actions=True, estimate_terminal=True
+            horizon=2, estimate_horizon='late', estimate_action_values=True, estimate_terminals=True
         )
-        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=1))
+        # TODO: baseline horizon has to be equal to policy horizon
+        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=2))
         baseline_objective = 'policy_gradient'
         baseline_optimizer = 'adam'
         # TODO: action value doesn't exist for Beta
@@ -116,7 +119,8 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         self.unittest(reward_estimation=reward_estimation)
 
         reward_estimation = dict(
-            horizon=2, estimate_horizon='early', estimate_actions=True, estimate_advantage=True
+            horizon=2, estimate_horizon='early', estimate_action_values=True,
+            estimate_advantage=True
         )
         baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=1))
         # TODO: action value doesn't exist for Beta
@@ -126,7 +130,7 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         )
 
         reward_estimation = dict(
-            horizon=2, estimate_horizon='late', estimate_terminal=True, estimate_advantage=True
+            horizon=2, estimate_horizon='late', estimate_terminals=True, estimate_advantage=True
         )
         baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=1))
         baseline_objective = 'policy_gradient'

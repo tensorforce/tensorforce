@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -57,7 +57,7 @@ class ProximalPolicyOptimization(TensorforceAgent):
             (<span style="color:#00C000"><b>default</b></span>: not given, better implicitly
             specified via `environment` argument for `Agent.create(...)`).
 
-        batch_size (parameter, long > 0): Number of episodes per update batch
+        batch_size (parameter, int > 0): Number of episodes per update batch
             (<span style="color:#C00000"><b>required</b></span>).
 
         network ("auto" | specification): Policy network configuration, see
@@ -69,7 +69,7 @@ class ProximalPolicyOptimization(TensorforceAgent):
             (<span style="color:#00C000"><b>default</b></span>: minimum capacity, usually does not
             need to be changed).
 
-        update_frequency ("never" | parameter, long > 0): Frequency of updates
+        update_frequency ("never" | parameter, int > 0): Frequency of updates
             (<span style="color:#00C000"><b>default</b></span>: batch_size).
         learning_rate (parameter, float > 0.0): Optimizer learning rate
             (<span style="color:#00C000"><b>default</b></span>: 3e-4).
@@ -83,7 +83,7 @@ class ProximalPolicyOptimization(TensorforceAgent):
         discount (parameter, 0.0 <= float <= 1.0): Discount factor for future rewards of
             discounted-sum reward estimation
             (<span style="color:#00C000"><b>default</b></span>: 0.99).
-        estimate_terminal (bool): Whether to estimate the value of (real) terminal states
+        estimate_terminals (bool): Whether to estimate the value of terminal horizon states
             (<span style="color:#00C000"><b>default</b></span>: false).
 
         critic_network (specification): Critic network configuration, see
@@ -214,7 +214,7 @@ class ProximalPolicyOptimization(TensorforceAgent):
         # Optimization
         update_frequency=None, learning_rate=3e-4, subsampling_fraction=0.33, optimization_steps=10,
         # Reward estimation
-        likelihood_ratio_clipping=0.2, discount=0.99, estimate_terminal=False,
+        likelihood_ratio_clipping=0.2, discount=0.99, estimate_terminals=False,
         # Critic
         critic_network=None, critic_optimizer=None,
         # Preprocessing
@@ -236,7 +236,7 @@ class ProximalPolicyOptimization(TensorforceAgent):
             update_frequency=update_frequency, learning_rate=learning_rate,
                 subsampling_fraction=subsampling_fraction, optimization_steps=optimization_steps,
             likelihood_ratio_clipping=likelihood_ratio_clipping, discount=discount,
-                estimate_terminal=estimate_terminal,
+                estimate_terminals=estimate_terminals,
             critic_network=critic_network, critic_optimizer=critic_optimizer,
             preprocessing=preprocessing,
             exploration=exploration, variable_noise=variable_noise,
@@ -271,7 +271,7 @@ class ProximalPolicyOptimization(TensorforceAgent):
             reward_estimation = dict(
                 horizon='episode', discount=discount,
                 estimate_horizon=(False if critic_network is None else 'early'),
-                estimate_terminal=estimate_terminal, estimate_advantage=True
+                estimate_terminals=estimate_terminals, estimate_advantage=True
             )
             baseline_policy = dict(network=critic_network)
             assert critic_optimizer is not None

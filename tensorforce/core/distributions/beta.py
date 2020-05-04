@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -122,7 +122,7 @@ class Beta(Distribution):
 
     @tf_function(num_args=2)
     def sample(self, *, parameters, temperature):
-        alpha, beta, alpha_beta = parameters.get('alpha', 'beta', 'alpha_beta')
+        alpha, beta, alpha_beta = parameters.get(('alpha', 'beta', 'alpha_beta'))
 
         summary_alpha = alpha
         summary_beta = beta
@@ -159,7 +159,7 @@ class Beta(Distribution):
 
     @tf_function(num_args=2)
     def log_probability(self, *, parameters, action):
-        alpha, beta, log_norm = parameters.get('alpha', 'beta', 'log_norm')
+        alpha, beta, log_norm = parameters.get(('alpha', 'beta', 'log_norm'))
 
         min_value = tf_util.constant(value=self.action_spec.min_value, dtype='float')
         max_value = tf_util.constant(value=self.action_spec.max_value, dtype='float')
@@ -177,7 +177,7 @@ class Beta(Distribution):
     @tf_function(num_args=1)
     def entropy(self, *, parameters):
         alpha, beta, alpha_beta, log_norm = parameters.get(
-            'alpha', 'beta', 'alpha_beta', 'log_norm'
+            ('alpha', 'beta', 'alpha_beta', 'log_norm')
         )
 
         one = tf_util.constant(value=1.0, dtype='float')
@@ -194,10 +194,10 @@ class Beta(Distribution):
     @tf_function(num_args=2)
     def kl_divergence(self, *, parameters1, parameters2):
         alpha1, beta1, alpha_beta1, log_norm1 = parameters1.get(
-            'alpha', 'beta', 'alpha_beta', 'log_norm'
+            ('alpha', 'beta', 'alpha_beta', 'log_norm')
         )
         alpha2, beta2, alpha_beta2, log_norm2 = parameters2.get(
-            'alpha', 'beta', 'alpha_beta', 'log_norm'
+            ('alpha', 'beta', 'alpha_beta', 'log_norm')
         )
 
         digamma_alpha1 = tf_util.cast(x=tf.math.digamma(x=tf_util.float32(x=alpha1)), dtype='float')

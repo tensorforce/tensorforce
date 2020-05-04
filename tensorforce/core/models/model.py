@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -397,7 +397,7 @@ class Model(Module):
                 ]
 
         # Exploration
-        exploration = TensorsDict()
+        exploration = TensorDict()
         for name in self.actions_spec:
             if isinstance(self.exploration, dict):
                 if name in self.exploration and self.exploration[name].final_value() > 0.0:
@@ -492,11 +492,11 @@ class Model(Module):
             # Action assertions
             dependencies.extend(self.actions_spec.tf_assert(x=actions, batch_size=batch_size))
             if self.config.enable_int_action_masking:
-                for name, spec in self.actions_spec.items():
+                for name, spec, action in self.actions_spec.zip_items(actions):
                     if spec.type == 'int':
                         is_valid = tf.reduce_all(input_tensor=tf.gather(
                             params=auxiliaries[name]['mask'],
-                            indices=tf.expand_dims(input=actions[name], axis=(spec.rank + 1)),
+                            indices=tf.expand_dims(input=action, axis=(spec.rank + 1)),
                             batch_dims=(spec.rank + 1)
                         ))
                         dependencies.append(tf.debugging.assert_equal(

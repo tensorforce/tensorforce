@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -37,6 +37,15 @@ log_levels = dict(
 
 def debug(message):
     logging.warning('{}: {}'.format(datetime.now().strftime('%H:%M:%S-%f')[:-3], message))
+
+
+def overwrite_staticmethod(obj, function):
+    qualname = getattr(obj, function).__qualname__
+
+    def overwritten(*args, **kwargs):
+        raise TensorforceError(message="Function {}() is a static method.".format(qualname))
+
+    setattr(obj, function, overwritten)
 
 
 def is_iterable(x):

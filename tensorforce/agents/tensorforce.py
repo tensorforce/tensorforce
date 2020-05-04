@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -80,11 +80,11 @@ class TensorforceAgent(Agent):
             <ul>
             <li><b>unit</b> (<i>"timesteps" | "episodes"</i>) &ndash; unit for update attributes
             (<span style="color:#C00000"><b>required</b></span>).</li>
-            <li><b>batch_size</b> (<i>parameter, long > 0</i>) &ndash; size of update batch in
+            <li><b>batch_size</b> (<i>parameter, int > 0</i>) &ndash; size of update batch in
             number of units (<span style="color:#C00000"><b>required</b></span>).</li>
-            <li><b>frequency</b> (<i>"never" | parameter, long > 0</i>) &ndash; frequency of
+            <li><b>frequency</b> (<i>"never" | parameter, int > 0</i>) &ndash; frequency of
             updates (<span style="color:#00C000"><b>default</b></span>: batch_size).</li>
-            <li><b>start</b> (<i>parameter, long >= batch_size</i>) &ndash; number of units
+            <li><b>start</b> (<i>parameter, int >= batch_size</i>) &ndash; number of units
             before first update (<span style="color:#00C000"><b>default</b></span>: none).</li>
             </ul>
         optimizer (specification): Optimizer configuration, see
@@ -96,25 +96,28 @@ class TensorforceAgent(Agent):
         reward_estimation (specification): Reward estimation configuration with the following
             attributes (<span style="color:#C00000"><b>required</b></span>):
             <ul>
-            <li><b>horizon</b> (<i>"episode" | parameter, long >= 0</i>) &ndash; Horizon of
+            <li><b>horizon</b> (<i>"episode" | parameter, int >= 0</i>) &ndash; Horizon of
             discounted-sum reward estimation
             (<span style="color:#C00000"><b>required</b></span>).</li>
             <li><b>discount</b> (<i>parameter, 0.0 <= float <= 1.0</i>) &ndash; Discount factor for
             future rewards of discounted-sum reward estimation
             (<span style="color:#00C000"><b>default</b></span>: 1.0).</li>
-            <li><b>estimate_horizon</b> (<i>false | "early" | "late"</i>) &ndash; Whether to
-            estimate the value of horizon states, and if so, whether to estimate early when
-            experience is stored, or late when it is retrieved
-            (<span style="color:#00C000"><b>default</b></span>: "late" if any of the baseline_*
-            arguments is specified, else false).</li>
-            <li><b>estimate_actions</b> (<i>bool</i>) &ndash; Whether to estimate state-action
-            values instead of state values
+            <li><b>estimate_horizon</b> (<i>false | "early" | "late"</i>) &ndash; Whether to include
+            a baseline estimate of the horizon value as part of the return estimation, and if so,
+            whether to compute the estimate early when experiences are stored to memory, or late
+            when batches of experience are retrieved for optimization
+            (<span style="color:#00C000"><b>default</b></span>: "late" if baseline_policy or
+            baseline_objective are specified, else false).</li>
+            <li><b>estimate_action_values</b> (<i>bool</i>) &ndash; Whether to estimate state-action
+            instead of state values for the horizon estimate
             (<span style="color:#00C000"><b>default</b></span>: false).</li>
-            <li><b>estimate_terminal</b> (<i>bool</i>) &ndash; Whether to estimate the value of
-            (real) terminal states (<span style="color:#00C000"><b>default</b></span>: false).</li>
+            <li><b>estimate_terminals</b> (<i>bool</i>) &ndash; Whether to estimate the value of
+            terminal horizon states
+            (<span style="color:#00C000"><b>default</b></span>: false).</li>
             <li><b>estimate_advantage</b> (<i>bool</i>) &ndash; Whether to estimate the advantage
-            by subtracting the current estimate
-            (<span style="color:#00C000"><b>default</b></span>: false).</li>
+            instead of the return by subtracting the baseline value estimate from the return
+            (<span style="color:#00C000"><b>default</b></span>: false, unless baseline_policy is
+            specified but baseline_objective/optimizer are not).</li>
             </ul>
 
         baseline_policy (specification): Baseline policy configuration, main policy will be used as
@@ -414,8 +417,8 @@ class TensorforceAgent(Agent):
 
         if isinstance(terminal, np.ndarray):
             if terminal.dtype is util.np_dtype(dtype='bool'):
-                zeros = np.zeros_like(terminal, dtype=util.np_dtype(dtype='long'))
-                ones = np.ones_like(terminal, dtype=util.np_dtype(dtype='long'))
+                zeros = np.zeros_like(terminal, dtype=util.np_dtype(dtype='int'))
+                ones = np.ones_like(terminal, dtype=util.np_dtype(dtype='int'))
                 terminal = np.where(terminal, ones, zeros)
         else:
             terminal = np.asarray([int(x) if isinstance(x, bool) else x for x in terminal])

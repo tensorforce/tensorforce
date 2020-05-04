@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -599,7 +599,7 @@ class Runner(object):
         if self.evaluation_run and self.terminals[-1] <= 0:
             agent_start = time.time()
             self.actions[-1], self.evaluation_internals = self.agent.act(
-                states=self.states[-1], internals=self.evaluation_internals, evaluation=True
+                states=self.states[-1], internals=self.evaluation_internals, independent=True
             )
             self.episode_agent_second[-1] += time.time() - agent_start
 
@@ -610,7 +610,7 @@ class Runner(object):
         else:
             agent_start = time.time()
             actions, self.evaluation_internals = self.agent.act(
-                states=self.states[-1], internals=self.evaluation_internals, evaluation=True
+                states=self.states[-1], internals=self.evaluation_internals, independent=True
             )
             self.evaluation_agent_second += time.time() - agent_start
 

@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -48,10 +48,7 @@ class TestExamples(UnittestBase, unittest.TestCase):
             # Exploration
             exploration=0.0, variable_noise=0.0,
             # Regularization
-            l2_regularization=0.0, entropy_regularization=0.0,
-            # TensorFlow etc
-            name='agent', device=None, parallel_interactions=1, seed=None, execution=None, saver=None,
-            summarizer=None, recorder=None
+            l2_regularization=0.0, entropy_regularization=0.0
         )
 
         # Initialize the runner

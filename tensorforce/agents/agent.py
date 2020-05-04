@@ -197,6 +197,9 @@ class Agent(object):
         self, states, actions, max_episode_timesteps=None, parallel_interactions=1, config=None,
         recorder=None
     ):
+        util.overwrite_staticmethod(obj=self, function='create')
+        util.overwrite_staticmethod(obj=self, function='load')
+
         self.is_initialized = False
 
         # Check whether spec attribute exists
@@ -233,50 +236,9 @@ class Agent(object):
                 name='Agent', argument='parallel_interactions', dtype=type(parallel_interactions)
             )
 
-        # Buffer observe
+        # Config
         if config is None:
             config = dict()
-        buffer_observe = config.get('buffer_observe', True)
-        if isinstance(buffer_observe, bool):
-            if self.parallel_interactions > 1:
-                if not buffer_observe:
-                    raise TensorforceError.required(
-                        name='Agent', argument='config.buffer_observe',
-                        condition='parallel_interactions > 1'
-                    )
-                elif self.max_episode_timesteps is None:
-                    raise TensorforceError.required(
-                        name='Agent', argument='max_episode_timesteps',
-                        condition='parallel_interactions > 1'
-                    )
-            if not buffer_observe:
-                buffer_observe = 1
-            elif self.max_episode_timesteps is None:
-                buffer_observe = 100
-            else:
-                buffer_observe = self.max_episode_timesteps
-        elif isinstance(buffer_observe, int):
-            if buffer_observe <= 0:
-                raise TensorforceError.value(
-                    name='Agent', argument='config.buffer_observe', value=buffer_observe,
-                    hint='<= 0'
-                )
-            if self.parallel_interactions > 1:
-                raise TensorforceError.value(
-                    name='Agent', argument='config.buffer_observe', value=buffer_observe,
-                    condition='parallel_interactions > 1'
-                )
-            if self.max_episode_timesteps is None:
-                buffer_observe = buffer_observe
-            else:
-                buffer_observe = min(buffer_observe, self.max_episode_timesteps)
-        else:
-            raise TensorforceError.type(
-                name='Agent', argument='config.buffer_observe', dtype=type(buffer_observe)
-            )
-
-        # Tensorforce config
-        config['buffer_observe'] = buffer_observe
         self.config = TensorforceConfig(**config)
 
         # Random seed

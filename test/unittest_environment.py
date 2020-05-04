@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -224,6 +224,7 @@ class UnittestEnvironment(Environment):
 
     def execute(self, actions):
         if not self.is_valid_actions(actions, self._states):
+            print(actions, self._states)
             raise TensorforceError.value(name='execute', argument='actions', value=actions)
 
         self.timestep += 1

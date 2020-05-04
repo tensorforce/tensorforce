@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,7 +24,11 @@ class TestObjectives(UnittestBase, unittest.TestCase):
         self.start_tests(name='deterministic-policy-gradient')
 
         objective = dict(type='deterministic_policy_gradient')
-        self.unittest(actions=dict(type='float', shape=()), objective=objective)
+        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=False))
+        self.unittest(
+            actions=dict(type='float', shape=()), objective=objective,
+            baseline_policy=baseline_policy
+        )
 
     def test_plus(self):
         self.start_tests(name='plus')

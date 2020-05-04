@@ -42,6 +42,13 @@ class NestedDict(OrderedDict):
         super(NestedDict, x).__setattr__('overwrite', self.overwrite)
         return x
 
+    def zip_items(self, *others):
+        assert all(len(other) == len(self) for other in others)
+        for name, value in self.items():
+            assert all(name in other for other in others)
+            other_values = tuple(other[name] for other in others)
+            yield (name, value) + other_values
+
     def fmap(self, *, function, cls=None, with_names=False, zip_values=None):
         if cls is None:
             # Use same class and settings for mapped dict
@@ -138,7 +145,7 @@ class NestedDict(OrderedDict):
                 raise TensorforceError.unexpected()
 
     def __contains__(self, item):
-        if isinstance(item, tuple):
+        if isinstance(item, (list, tuple)):
             for name in item:
                 if name not in self:
                     return False
@@ -162,7 +169,7 @@ class NestedDict(OrderedDict):
             return super().__contains__(item)
 
     def __getitem__(self, key):
-        if isinstance(key, tuple):
+        if isinstance(key, (list, tuple)):
             return self.__class__(((name, self[name]) for name in key))
 
         elif not isinstance(key, str):
@@ -235,9 +242,9 @@ class NestedDict(OrderedDict):
     def item(self):
         return next(iter(self.items()))
 
-    def get(self, key, *args, default=None):
-        if len(args) > 0:
-            return tuple(self.get(key=x, default=default) for x in (key,) + args)
+    def get(self, key, default=None):
+        if isinstance(key, (list, tuple)):
+            return tuple(self.get(key=x, default=default) for x in key)
         elif key in self:
             return self[key]
         else:

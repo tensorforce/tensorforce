@@ -188,7 +188,7 @@ for _ in range(100):
     internals = agent.initial_internals()
     terminal = False
     while not terminal:
-        actions, internals = agent.act(states=states, internals=internals, evaluation=True)
+        actions, internals = agent.act(states=states, internals=internals, independent=True)
         states, terminal, reward = environment.execute(actions=actions)
         sum_rewards += reward
 

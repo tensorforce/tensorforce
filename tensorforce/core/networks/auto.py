@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -118,9 +118,7 @@ class AutoNetwork(LayeredNetwork):
 
         # Rnn
         if rnn is not False:
-            final_layers.append(
-                dict(type='internal_lstm', name='lstm', size=final_size, horizon=rnn)
-            )
+            final_layers.append(dict(type='lstm', name='lstm', size=final_size, horizon=rnn))
 
         super().__init__(
             layers=layers, device=device, summary_labels=summary_labels,

@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ from tensorforce.core import Module, parameter_modules, SignatureDict, TensorDic
 
 class Estimator(Module):
     """
-    Value estimator.
+    Return and value estimator.
 
     Args:
         horizon (parameter, long >= 0): Horizon of discounted-sum reward estimation
@@ -30,16 +30,19 @@ class Estimator(Module):
         discount (parameter, 0.0 <= float <= 1.0): Discount factor for future rewards of
             discounted-sum reward estimation
             (<span style="color:#C00000"><b>required</b></span>).
-        estimate_horizon (false | "early" | "late"): Whether to estimate the value of horizon
-            states, and if so, whether to estimate early when experience is stored, or late when it
-            is retrieved
+        estimate_horizon (false | "early" | "late"): Whether to include a baseline estimate of the
+            horizon value as part of the return estimation, and if so, whether to compute the
+            estimate early when experiences are stored to memory, or late when batches of experience
+            are retrieved for optimization
             (<span style="color:#C00000"><b>required</b></span>).
-        estimate_actions (bool): Whether to estimate state-action values instead of state values
+        estimate_action_values (bool): Whether to estimate state-action instead of state values for
+            the horizon estimate
             (<span style="color:#C00000"><b>required</b></span>).
-        estimate_terminal (bool): Whether to estimate the value of terminal states
+        estimate_terminals (bool): Whether to estimate the value of terminal horizon states
             (<span style="color:#C00000"><b>required</b></span>).
-        estimate_advantage (bool): Whether to estimate the advantage by subtracting the current
-            estimate (<span style="color:#C00000"><b>required</b></span>).
+        estimate_advantage (bool): Whether to estimate the advantage instead of the return by
+            subtracting the baseline value estimate from the return
+            (<span style="color:#C00000"><b>required</b></span>).
         device (string): Device name
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         summary_labels ('all' | iter[string]): Labels of summaries to record
@@ -51,7 +54,7 @@ class Estimator(Module):
     """
 
     def __init__(
-        self, *, horizon, discount, estimate_horizon, estimate_actions, estimate_terminal,
+        self, *, horizon, discount, estimate_horizon, estimate_action_values, estimate_terminals,
         estimate_advantage, device=None, summary_labels=None, name=None, values_spec=None,
         min_capacity=None, max_past_horizon=None
     ):
@@ -73,8 +76,8 @@ class Estimator(Module):
         # Baseline settings
         assert estimate_horizon in (False, 'early', 'late')
         self.estimate_horizon = estimate_horizon
-        self.estimate_actions = estimate_actions
-        self.estimate_terminal = estimate_terminal
+        self.estimate_action_values = estimate_action_values
+        self.estimate_terminals = estimate_terminals
         self.estimate_advantage = estimate_advantage
 
         # Capacity
@@ -203,24 +206,24 @@ class Estimator(Module):
             )
 
             # Baseline estimate
-            horizon_start = num_values - tf.math.maximum(x=(num_values - horizon), y=one)
-            function = (lambda value: value[horizon_start:])
-            _states = TensorDict()
-            _states = states.fmap(function=function)
-            # TODO: only retrieve baseline internals (but may be internals/policy)
-            if 'baseline' in internals:
-                _internals = internals['baseline'].fmap(function=function)
-            else:
-                _internals = internals['policy'].fmap(function=function)
-            _auxiliaries = auxiliaries.fmap(function=function)
-
             with tf.control_dependencies(control_inputs=(assertion,)):
+                horizon_start = num_values - tf.math.maximum(x=(num_values - horizon), y=one)
+                function = (lambda value: value[horizon_start:])
+                _states = TensorDict()
+                _states = states.fmap(function=function)
+                # TODO: only retrieve baseline internals (but may be internals/policy)
+                if 'baseline' in internals:
+                    _internals = internals['baseline'].fmap(function=function)
+                else:
+                    _internals = internals['policy'].fmap(function=function)
+                _auxiliaries = auxiliaries.fmap(function=function)
+
                 batch_size = num_values - horizon_start
                 starts = tf.range(start=batch_size)
                 lengths = tf_util.ones(shape=(batch_size,), dtype='int')
                 horizons = tf.stack(values=(starts, lengths), axis=1)
 
-            if self.estimate_actions:
+            if self.estimate_action_values:
                 _actions = actions.fmap(function=function)
                 horizon_estimate = baseline.actions_value(
                     states=_states, horizons=horizons, internals=_internals,
@@ -235,20 +238,17 @@ class Estimator(Module):
 
             # Expand rewards beyond terminal
             terminal_zeros = tf_util.zeros(shape=(horizon,), dtype='float')
-            if self.estimate_terminal:
+            if self.estimate_terminals:
                 rewards = tf.concat(
                     values=(reward[:-1], horizon_estimate[-1:], terminal_zeros), axis=0
                 )
 
             else:
-                with tf.control_dependencies(control_inputs=(assertion,)):
-                    last_reward = tf.where(
-                        condition=tf.math.greater(x=terminal[-1], y=one),
-                        x=horizon_estimate[-1], y=reward[-1]
-                    )
-                    rewards = tf.concat(
-                        values=(reward[:-1], (last_reward,), terminal_zeros), axis=0
-                    )
+                last_reward = tf.where(
+                    condition=tf.math.greater(x=terminal[-1], y=one),
+                    x=horizon_estimate[-1], y=reward[-1]
+                )
+                rewards = tf.concat(values=(reward[:-1], (last_reward,), terminal_zeros), axis=0)
 
             # Remove last if necessary
             horizon_end = tf.where(
@@ -375,7 +375,7 @@ class Estimator(Module):
                     horizons = tf.stack(values=(starts, lengths), axis=1)
                     # print('!!!', horizons, horizons.graph)
 
-                if self.estimate_actions:
+                if self.estimate_action_values:
                     _actions = actions.fmap(function=function, zip_values=self.buffers['actions'])
                     horizon_estimate = baseline.actions_value(
                         states=_states, horizons=horizons, internals=_internals,
@@ -477,110 +477,106 @@ class Estimator(Module):
             return any_overwritten, overwritten_values
 
     @tf_function(num_args=2)
-    def complete_return(self, *, indices, reward, baseline, memory):
-        if self.estimate_horizon == 'late':
-            assert baseline is not None
-            zero = tf_util.constant(value=0, dtype='int')
-            one = tf_util.constant(value=1, dtype='int')
+    def complete_return(self, *, indices, reward, policy, baseline, memory):
+        if self.estimate_horizon != 'late':
+            return reward
 
-            # Baseline dependencies
-            # TODO: handle arbitrary non-optimization horizons! or re-compute internals, hence off?
-            past_horizon = baseline.past_horizon(on_policy=True)
-            assertion = tf.debugging.assert_equal(
-                x=past_horizon, y=zero,
-                message="Temporary: baseline cannot depend on previous states."
+        assert baseline is not None
+        one = tf_util.constant(value=1, dtype='int')
+        horizon = self.horizon.value()
+        discount = self.discount.value()
+
+        if baseline.max_past_horizon(on_policy=False) == 0:
+            # TODO: remove restriction
+            assert policy.max_past_horizon(on_policy=False) == 0
+
+            batch_size = tf_util.cast(x=tf.shape(input=reward)[0], dtype='int')
+            starts = tf.range(start=batch_size)
+            lengths = tf_util.ones(shape=(batch_size,), dtype='int')
+            horizons = tf.stack(values=(starts, lengths), axis=1)
+
+            final_horizons, (states, internals, auxiliaries, terminal) = memory.successors(
+                indices=indices, horizon=(horizon + one), sequence_values=(),
+                final_values=('states', 'internals', 'auxiliaries', 'terminal')
             )
-            with tf.control_dependencies(control_inputs=(assertion,)):
-                batch_size = tf_util.cast(x=tf.shape(input=reward)[0], dtype='int')
-                starts = tf.range(start=batch_size)
-                lengths = tf_util.ones(shape=(batch_size,), dtype='int')
-                horizons = tf.stack(values=(starts, lengths), axis=1)
 
-            horizon = self.horizon.value()
-            discount = self.discount.value()
+        else:
+            baseline_horizon = baseline.past_horizon(on_policy=False)
+            # TODO: remove restriction
+            assertions = [tf.debugging.assert_less_equal(
+                x=baseline_horizon, y=(horizon + one),
+                message="Baseline horizon cannot be greater than reward estimation horizon."
+            )]
+            if self.estimate_action_values:
+                policy_horizon = policy.past_horizon(on_policy=False)
+                # TODO: remove restriction
+                assertions.append(tf.debugging.assert_equal(
+                    x=policy_horizon, y=baseline_horizon,
+                    message="Policy and baseline horizon have to be equal."
+                ))
 
-            if self.estimate_actions:
-                # horizon change: see timestep-based batch sampling
-                final_horizons, (states, internals, auxiliaries, terminal) = memory.successors(
-                    indices=indices, horizon=(horizon + one), sequence_values=(),
-                    final_values=('states', 'internals', 'auxiliaries', 'terminal')
+            with tf.control_dependencies(control_inputs=assertions):
+                starts, (internals,) = memory.successors(
+                    indices=indices, horizon=(horizon + one - baseline_horizon),
+                    sequence_values=(), final_values=('internals',)
                 )
-                # TODO: only retrieve baseline internals (but may be internals/policy)
-                internals = internals.get('baseline', default=internals['policy'])
-                # TODO: Double DQN would require main policy here
-                actions = baseline.act(
-                    states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-                    deterministic=True, return_internals=False
+                horizons, (states,), (auxiliaries, terminal) = memory.successors(
+                    indices=starts, horizon=baseline_horizon, sequence_values=('states',),
+                    final_values=('auxiliaries', 'terminal')
                 )
-                horizon_estimate = baseline.actions_value(
-                    states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-                    actions=actions, reduced=True, return_per_action=False
-                )
-            else:
-                # horizon change: see timestep-based batch sampling
-                final_horizons, (states, internals, auxiliaries, terminal) = memory.successors(
-                    indices=indices, horizon=(horizon + one), sequence_values=(),
-                    final_values=('states', 'internals', 'auxiliaries', 'terminal')
-                )
-                # TODO: only retrieve baseline internals (but may be internals/policy)
-                internals = internals.get('baseline', default=internals['policy'])
-                horizon_estimate = baseline.states_value(
-                    states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-                    reduced=True, return_per_action=False
-                )
+                final_horizons = starts + horizons[:, 1]
 
-            exponent = tf_util.cast(x=final_horizons, dtype='float')
-            discounts = tf.math.pow(x=discount, y=exponent)
-            if not self.estimate_terminal:
-                with tf.control_dependencies(control_inputs=(assertion,)):
-                    discounts = tf.where(
-                        condition=tf.math.equal(x=terminal, y=one),
-                        x=tf.zeros_like(input=discounts), y=discounts
-                    )
-            reward = reward + discounts * horizon_estimate
-            # TODO: stop gradients?
+        # TODO: only retrieve correct baseline internals if estimate_action_values false
+        policy_internals = internals['policy']
+        baseline_internals = internals.get('baseline', default=policy_internals)
 
-        return reward
+        if self.estimate_action_values:
+            actions = policy.act(
+                states=states, horizons=horizons, internals=policy_internals,
+                auxiliaries=auxiliaries, deterministic=True, return_internals=False
+            )
+            horizon_estimate = baseline.actions_value(
+                states=states, horizons=horizons, internals=baseline_internals,
+                auxiliaries=auxiliaries, actions=actions, reduced=True,
+                return_per_action=False
+            )
+
+        else:
+            horizon_estimate = baseline.states_value(
+                states=states, horizons=horizons, internals=baseline_internals,
+                auxiliaries=auxiliaries, reduced=True, return_per_action=False
+            )
+
+        exponent = tf_util.cast(x=final_horizons, dtype='float')
+        discounts = tf.math.pow(x=discount, y=exponent)
+        if not self.estimate_terminals:
+            discounts = tf.where(
+                condition=tf.math.greater(x=terminal, y=one),
+                x=discounts, y=tf.zeros_like(input=discounts)
+            )
+
+        return reward + discounts * horizon_estimate
 
     @tf_function(num_args=2)
-    def advantage(self, *, indices, reward, baseline, memory, is_baseline_optimized):
-        if self.estimate_advantage:
-            assert baseline is not None
-            # zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='int'))
+    def advantage(self, *, indices, reward, baseline, memory):
+        if not self.estimate_advantage:
+            return reward
 
-            # with tf.control_dependencies(control_inputs=(assertion,)):
-            # if util.tf_dtype(dtype='int') in (tf.int32, tf.int64):
-            #     batch_size = tf.shape(input=reward, out_type=util.tf_dtype(dtype='int'))[0]
-            # else:
-            #     batch_size = tf.dtypes.cast(
-            #         x=tf.shape(input=reward)[0], dtype=util.tf_dtype(dtype='int')
-            #     )
+        assert baseline is not None
+        past_horizon = baseline.past_horizon(on_policy=False)
 
-            # Baseline dependencies
-            # TODO: or re-compute internals, hence always off-policy?
-            past_horizon = baseline.past_horizon(on_policy=(not is_baseline_optimized))
-            horizons, (states,), (internals,) = memory.predecessors(
-                indices=indices, horizon=past_horizon, sequence_values=('states',),
-                initial_values=('internals',)
-            )
-            # TODO: only retrieve baseline internals (but may be internals/policy)
-            internals = internals.get('baseline', default=internals['policy'])
+        horizons, (states,), (internals,) = memory.predecessors(
+            indices=indices, horizon=past_horizon, sequence_values=('states',),
+            initial_values=('internals',)
+        )
+        (auxiliaries,) = memory.retrieve(indices=indices, values=('auxiliaries',))
 
-            if self.estimate_actions:
-                auxiliaries, actions = memory.retrieve(
-                    indices=indices, values=('auxiliaries', 'actions')
-                )
-                critic_estimate = baseline.actions_value(
-                    states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-                    actions=actions, reduced=True, return_per_action=False
-                )
-            else:
-                (auxiliaries,) = memory.retrieve(indices=indices, values=('auxiliaries',))
-                critic_estimate = baseline.states_value(
-                    states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-                    reduced=True, return_per_action=False
-                )
+        # TODO: only retrieve correct baseline internals
+        internals = internals.get('baseline', default=internals['policy'])
 
-            reward = reward - critic_estimate
+        critic_estimate = baseline.states_value(
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+            reduced=True, return_per_action=False
+        )
 
-        return reward
+        return reward - critic_estimate

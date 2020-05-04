@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -61,7 +61,7 @@ class DeterministicPolicyGradient(TensorforceAgent):
         memory (int > 0): Replay memory capacity, has to fit at least maximum batch_size + maximum
             network/estimator horizon + 1 timesteps
             (<span style="color:#C00000"><b>required</b></span>).
-        batch_size (parameter, long > 0): Number of timesteps per update batch
+        batch_size (parameter, int > 0): Number of timesteps per update batch
             (<span style="color:#C00000"><b>required</b></span>).
 
         network ("auto" | specification): Policy network configuration, see
@@ -69,20 +69,20 @@ class DeterministicPolicyGradient(TensorforceAgent):
             (<span style="color:#00C000"><b>default</b></span>: "auto", automatically configured
             network).
 
-        update_frequency ("never" | parameter, long > 0): Frequency of updates
+        update_frequency ("never" | parameter, int > 0): Frequency of updates
             (<span style="color:#00C000"><b>default</b></span>: batch_size).
-        start_updating (parameter, long >= batch_size): Number of timesteps before first update
+        start_updating (parameter, int >= batch_size): Number of timesteps before first update
             (<span style="color:#00C000"><b>default</b></span>: none).
         learning_rate (parameter, float > 0.0): Optimizer learning rate
             (<span style="color:#00C000"><b>default</b></span>: 3e-4).
 
-        horizon ("episode" | parameter, long >= 0): Horizon of discounted-sum reward estimation
-            before critic estimate
+        horizon (parameter, int >= 0): Horizon of discounted-sum reward estimation before critic
+            estimate
             (<span style="color:#00C000"><b>default</b></span>: 0).
         discount (parameter, 0.0 <= float <= 1.0): Discount factor for future rewards of
             discounted-sum reward estimation
             (<span style="color:#00C000"><b>default</b></span>: 0.99).
-        estimate_terminal (bool): Whether to estimate the value of (real) terminal states
+        estimate_terminals (bool): Whether to estimate the value of terminal horizon states
             (<span style="color:#00C000"><b>default</b></span>: false).
 
         critic_network (specification): Critic network configuration, see
@@ -213,7 +213,7 @@ class DeterministicPolicyGradient(TensorforceAgent):
         # Optimization
         update_frequency=None, start_updating=None, learning_rate=3e-4,
         # Reward estimation
-        horizon=0, discount=0.99, estimate_terminal=False,
+        horizon=0, discount=0.99, estimate_terminals=False,
         # Critic
         critic_network='auto', critic_optimizer=1.0,
         # Preprocessing
@@ -233,7 +233,7 @@ class DeterministicPolicyGradient(TensorforceAgent):
             network=network,
             update_frequency=update_frequency, start_updating=start_updating,
                 learning_rate=learning_rate,
-            horizon=horizon, discount=discount, estimate_terminal=estimate_terminal,
+            horizon=horizon, discount=discount, estimate_terminals=estimate_terminals,
             critic_network=critic_network, critic_optimizer=critic_optimizer,
             preprocessing=preprocessing,
             exploration=exploration, variable_noise=variable_noise,
@@ -255,7 +255,7 @@ class DeterministicPolicyGradient(TensorforceAgent):
         objective = 'deterministic_policy_gradient'
         reward_estimation = dict(
             horizon=horizon, discount=discount, estimate_horizon='late',
-            estimate_terminal=estimate_terminal, estimate_actions=True
+            estimate_terminals=estimate_terminals, estimate_actions=True
         )
         baseline_policy = dict(network=critic_network)
         baseline_objective = dict(type='value', value='action')

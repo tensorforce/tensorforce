@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -99,7 +99,7 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
             internals = agent.initial_internals()
             terminal = False
             while not terminal:
-                actions, internals = agent.act(states=states, internals=internals, evaluation=True)
+                actions, internals = agent.act(states=states, internals=internals, independent=True)
                 states, terminal, reward = environment.execute(actions=actions)
                 sum_rewards += reward
 
@@ -166,13 +166,13 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
             actions=dict(type='float', shape=10),
             policy=[
                 [
-                    dict(type='retrieve', tensors='observation'),
+                    dict(type='retrieve', tensors=['observation']),
                     dict(type='conv2d', size=16),
                     dict(type='flatten'),
                     dict(type='register', tensor='obs-embedding')
                 ],
                 [
-                    dict(type='retrieve', tensors='attributes'),
+                    dict(type='retrieve', tensors=['attributes']),
                     dict(type='embedding', size=16),
                     dict(type='flatten'),
                     dict(type='register', tensor='attr-embedding')

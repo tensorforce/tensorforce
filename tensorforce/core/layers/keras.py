@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -74,7 +74,7 @@ class Keras(Layer):
     def regularize(self):
         regularization_loss = super().regularize()
 
-        if len(self.rnn.losses) > 0:
+        if len(self.keras_layer.losses) > 0:
             regularization_loss += tf.math.add_n(inputs=self.keras_layer.losses)
 
         return regularization_loss

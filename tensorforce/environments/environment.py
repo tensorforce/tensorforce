@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -222,6 +222,7 @@ class Environment(object):
 
     def __init__(self):
         # first two arguments, if applicable: level, visualize=False
+        util.overwrite_staticmethod(obj=self, function='create')
         self._max_episode_timesteps = None
         self._expect_receive = None
         self._actions = None

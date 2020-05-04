@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -107,7 +107,7 @@ class Queue(Memory):
     def enqueue(self, *, states, internals, auxiliaries, actions, terminal, reward):
         zero = tf_util.constant(value=0, dtype='int')
         one = tf_util.constant(value=1, dtype='int')
-        three = tf_util.constant(value=3, dtype='int')
+        # three = tf_util.constant(value=3, dtype='int')
         capacity = tf_util.constant(value=self.capacity, dtype='int')
         num_timesteps = tf_util.cast(x=tf.shape(input=terminal)[0], dtype='int')
 
@@ -116,53 +116,53 @@ class Queue(Memory):
         # max_capacity = self.buffer_index - latest_terminal_index - one
         # max_capacity = capacity - (tf.math.mod(x=max_capacity, y=capacity) + one)
 
-        # Remove last observation terminal marker
-        last_index = tf.math.mod(x=(self.buffer_index - one), y=capacity)
-        last_terminal = tf.gather(params=self.buffers['terminal'], indices=(last_index,))[0]
-        corrected_terminal = tf.where(
-            condition=tf.math.equal(x=last_terminal, y=three), x=zero, y=last_terminal
-        )
-        assignment = tf.compat.v1.assign(
-            ref=self.buffers['terminal'][last_index], value=corrected_terminal
-        )
+        # # Remove last observation terminal marker
+        # last_index = tf.math.mod(x=(self.buffer_index - one), y=capacity)
+        # last_terminal = tf.gather(params=self.buffers['terminal'], indices=(last_index,))[0]
+        # corrected_terminal = tf.where(
+        #     condition=tf.math.equal(x=last_terminal, y=three), x=zero, y=last_terminal
+        # )
+        # assignment = tf.compat.v1.assign(
+        #     ref=self.buffers['terminal'][last_index], value=corrected_terminal
+        # )
 
         # Assertions
-        with tf.control_dependencies(control_inputs=(assignment,)):
-            assertions = [
-                # check: number of timesteps fit into effectively available buffer
-                tf.debugging.assert_less_equal(
-                    x=num_timesteps, y=capacity, message="Memory does not have enough capacity."
+        # with tf.control_dependencies(control_inputs=(assignment,)):
+        assertions = [
+            # check: number of timesteps fit into effectively available buffer
+            tf.debugging.assert_less_equal(
+                x=num_timesteps, y=capacity, message="Memory does not have enough capacity."
+            ),
+            # at most one terminal
+            tf.debugging.assert_less_equal(
+                x=tf.math.count_nonzero(input=terminal, dtype=tf_util.get_dtype(type='int')),
+                y=one, message="Timesteps contain more than one terminal."
+            ),
+            # if terminal, last timestep in batch
+            tf.debugging.assert_equal(
+                x=tf.math.reduce_any(input_tensor=tf.math.greater(x=terminal, y=zero)),
+                y=tf.math.greater(x=terminal[-1], y=zero),
+                message="Terminal is not the last timestep."
+            ),
+            # general check: all terminal indices true
+            tf.debugging.assert_equal(
+                x=tf.reduce_all(
+                    input_tensor=tf.gather(
+                        params=tf.math.greater(x=self.buffers['terminal'], y=zero),
+                        indices=self.terminal_indices[:self.episode_count + one]
+                    )
                 ),
-                # at most one terminal
-                tf.debugging.assert_less_equal(
-                    x=tf.math.count_nonzero(input=terminal, dtype=tf_util.get_dtype(type='int')),
-                    y=one, message="Timesteps contain more than one terminal."
+                y=tf_util.constant(value=True, dtype='bool'),
+                message="Memory consistency check."
+            ),
+            # general check: only terminal indices true
+            tf.debugging.assert_equal(
+                x=tf.math.count_nonzero(
+                    input=self.buffers['terminal'], dtype=tf_util.get_dtype(type='int')
                 ),
-                # if terminal, last timestep in batch
-                tf.debugging.assert_equal(
-                    x=tf.math.reduce_any(input_tensor=tf.math.greater(x=terminal, y=zero)),
-                    y=tf.math.greater(x=terminal[-1], y=zero),
-                    message="Terminal is not the last timestep."
-                ),
-                # general check: all terminal indices true
-                tf.debugging.assert_equal(
-                    x=tf.reduce_all(
-                        input_tensor=tf.gather(
-                            params=tf.math.greater(x=self.buffers['terminal'], y=zero),
-                            indices=self.terminal_indices[:self.episode_count + one]
-                        )
-                    ),
-                    y=tf_util.constant(value=True, dtype='bool'),
-                    message="Memory consistency check."
-                ),
-                # general check: only terminal indices true
-                tf.debugging.assert_equal(
-                    x=tf.math.count_nonzero(
-                        input=self.buffers['terminal'], dtype=tf_util.get_dtype(type='int')
-                    ),
-                    y=(self.episode_count + one), message="Memory consistency check."
-                )
-            ]
+                y=(self.episode_count + one), message="Memory consistency check."
+            )
+        ]
 
         # Buffer indices to overwrite
         with tf.control_dependencies(control_inputs=assertions):
@@ -195,11 +195,11 @@ class Queue(Memory):
 
         # Write new observations
         with tf.control_dependencies(control_inputs=(assignment,)):
-            # Add last observation terminal marker
-            corrected_terminal = tf.where(
-                condition=tf.math.equal(x=terminal[-1], y=zero), x=three, y=terminal[-1]
-            )
-            terminal = tf.concat(values=(terminal[:-1], (corrected_terminal,)), axis=0)
+            # # Add last observation terminal marker
+            # corrected_terminal = tf.where(
+            #     condition=tf.math.equal(x=terminal[-1], y=zero), x=three, y=terminal[-1]
+            # )
+            # terminal = tf.concat(values=(terminal[:-1], (corrected_terminal,)), axis=0)
             values = TensorDict(
                 states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
                 terminal=terminal, reward=reward

@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -57,7 +57,7 @@ class VanillaPolicyGradient(TensorforceAgent):
             (<span style="color:#00C000"><b>default</b></span>: not given, better implicitly
             specified via `environment` argument for `Agent.create(...)`).
 
-        batch_size (parameter, long > 0): Number of episodes per update batch
+        batch_size (parameter, int > 0): Number of episodes per update batch
             (<span style="color:#C00000"><b>required</b></span>).
 
         network ("auto" | specification): Policy network configuration, see
@@ -69,7 +69,7 @@ class VanillaPolicyGradient(TensorforceAgent):
             (<span style="color:#00C000"><b>default</b></span>: minimum capacity, usually does not
             need to be changed).
 
-        update_frequency ("never" | parameter, long > 0): Frequency of updates
+        update_frequency ("never" | parameter, int > 0): Frequency of updates
             (<span style="color:#00C000"><b>default</b></span>: batch_size).
         learning_rate (parameter, float > 0.0): Optimizer learning rate
             (<span style="color:#00C000"><b>default</b></span>: 3e-4).
@@ -77,7 +77,7 @@ class VanillaPolicyGradient(TensorforceAgent):
         discount (parameter, 0.0 <= float <= 1.0): Discount factor for future rewards of
             discounted-sum reward estimation
             (<span style="color:#00C000"><b>default</b></span>: 0.99).
-        estimate_terminal (bool): Whether to estimate the value of (real) terminal states
+        estimate_terminals (bool): Whether to estimate the value of terminal horizon states
             (<span style="color:#00C000"><b>default</b></span>: false).
 
         baseline_network (specification): Baseline network configuration, see
@@ -208,7 +208,7 @@ class VanillaPolicyGradient(TensorforceAgent):
         # Optimization
         update_frequency=None, learning_rate=3e-4,
         # Reward estimation
-        discount=0.99, estimate_terminal=False,
+        discount=0.99, estimate_terminals=False,
         # Baseline
         baseline_network=None, baseline_optimizer=None,
         # Preprocessing
@@ -228,7 +228,7 @@ class VanillaPolicyGradient(TensorforceAgent):
             network=network,
             memory=memory,
             update_frequency=update_frequency, learning_rate=learning_rate,
-            discount=discount, estimate_terminal=estimate_terminal,
+            discount=discount, estimate_terminals=estimate_terminals,
             baseline_network=baseline_network, baseline_optimizer=baseline_optimizer,
             preprocessing=preprocessing,
             exploration=exploration, variable_noise=variable_noise,
@@ -257,7 +257,7 @@ class VanillaPolicyGradient(TensorforceAgent):
             reward_estimation = dict(
                 horizon='episode', discount=discount,
                 estimate_horizon=(False if baseline_network is None else 'early'),
-                estimate_terminal=estimate_terminal, estimate_advantage=True
+                estimate_terminals=estimate_terminals, estimate_advantage=True
             )
             baseline_policy = dict(network=baseline_network)
             assert baseline_optimizer is not None

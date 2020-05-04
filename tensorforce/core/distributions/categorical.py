@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -65,9 +65,9 @@ class Categorical(Distribution):
 
         num_values = self.action_spec.num_values
         self.state_value = None
-        if len(self.embedding_shape) == 1:
+        if len(self.input_spec.shape) == 1:
             # Single embedding
-            action_size = util.product(xs=self.action_spec['shape'])
+            action_size = util.product(xs=self.action_spec.shape)
             self.action_values = self.add_module(
                 name='action_values', module='linear', modules=layer_modules,
                 size=(action_size * num_values), input_spec=input_spec
@@ -145,7 +145,7 @@ class Categorical(Distribution):
     @tf_function(num_args=2)
     def sample(self, *, parameters, temperature):
         logits, probabilities, action_values = parameters.get(
-            'logits', 'probabilities', 'action_values'
+            ('logits', 'probabilities', 'action_values')
         )
 
         summary_probs = probabilities
@@ -162,7 +162,7 @@ class Categorical(Distribution):
 
         # Deterministic: maximum likelihood action
         definite = tf.argmax(input=action_values, axis=-1)
-        definite = tf.dtypes.cast(x=definite, dtype=util.tf_dtype('int'))
+        definite = tf_util.cast(x=definite, dtype='int')
 
         # Set logits to minimal value
         min_float = tf.fill(dims=tf.shape(input=logits), value=tf_util.get_dtype(type='float').min)
@@ -184,20 +184,17 @@ class Categorical(Distribution):
     def log_probability(self, *, parameters, action):
         logits = parameters['logits']
 
-        action = tf.expand_dims(input=tf_util.int32(x=action), axis=-1)
-        logits = tf.gather(params=logits, indices=action, batch_dims=-1)
-
-        return tf.squeeze(input=logits, axis=-1)
+        return tf.gather(params=logits, indices=action, batch_dims=tf_util.rank(x=action))
 
     @tf_function(num_args=1)
     def entropy(self, *, parameters):
-        logits, probabilities = parameters.get('logits', 'probabilities')
+        logits, probabilities = parameters.get(('logits', 'probabilities'))
 
         return -tf.reduce_sum(input_tensor=(probabilities * logits), axis=-1)
 
     @tf_function(num_args=2)
     def kl_divergence(self, *, parameters1, parameters2):
-        logits1, probabilities1 = parameters1.get('logits', 'probabilities')
+        logits1, probabilities1 = parameters1.get(('logits', 'probabilities'))
         logits2 = parameters2['logits']
 
         log_prob_ratio = logits1 - logits2
@@ -206,22 +203,16 @@ class Categorical(Distribution):
 
     @tf_function(num_args=1)
     def states_value(self, *, parameters):
-        states_value = parameters['states_value']
-
-        return states_value
+        return parameters['states_value']
 
     @tf_function(num_args=2)
     def action_value(self, *, parameters, action):
         action_values = parameters['action_values']
 
-        action = tf.expand_dims(input=tf_util.int32(x=action), axis=-1)
-        action_value = tf.gather(params=action_values, indices=action, batch_dims=-1)
-        action_value = tf.squeeze(input=action_value, axis=-1)
-
-        return action_value  # TODO: states_value + tf.squeeze(input=logits, axis=-1)
+        return tf.gather(params=action_values, indices=action, batch_dims=tf_util.rank(x=action))
+        # TODO: states_value + tf.squeeze(input=logits, axis=-1)
 
     @tf_function(num_args=1)
     def all_action_values(self, *, parameters):
-        action_values = parameters['action_values']
-
-        return action_values  # TODO: states_value + tf.squeeze(input=logits, axis=-1)
+        return parameters['action_values']
+        # TODO: states_value + tf.squeeze(input=logits, axis=-1)

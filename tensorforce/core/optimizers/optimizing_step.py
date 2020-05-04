@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -108,7 +108,8 @@ class OptimizingStep(UpdateModifier):
                     return -fn_comparative_loss(**arguments, reference=reference)
 
             deltas = TensorDict(((var.name, delta) for var, delta in zip(variables, deltas)))
-            return self.line_search.solve(
+            deltas = self.line_search.solve(
                 x_init=deltas, base_value=loss_before, target_value=loss_step,
                 estimated_improvement=estimated_improvement, fn_x=evaluate_step
             )
+            return list(deltas.values())

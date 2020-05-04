@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -34,10 +34,10 @@ class TestLayers(UnittestBase, unittest.TestCase):
         )
         network = [
             dict(type='conv1d', size=8),
-            # dict(type='conv1d_transpose', size=8),
+            dict(type='conv1d_transpose', size=8),
             dict(type='linear', size=8)
         ]
-        self.unittest(states=states, actions=actions, policy=dict(network=network))
+        self.unittest(states=states, actions=actions, policy=network)
 
         states = dict(type='float', shape=(2, 2, 3))
         actions = dict(
@@ -48,10 +48,10 @@ class TestLayers(UnittestBase, unittest.TestCase):
         )
         network = [
             dict(type='conv2d', size=8),
-            # dict(type='conv2d_transpose', size=8),
+            dict(type='conv2d_transpose', size=8),
             dict(type='linear', size=8)
         ]
-        self.unittest(states=states, actions=actions, policy=dict(network=network))
+        self.unittest(states=states, actions=actions, policy=network)
 
     def test_dense(self):
         self.start_tests(name='dense')
@@ -61,31 +61,31 @@ class TestLayers(UnittestBase, unittest.TestCase):
             dict(type='dense', size=8),
             dict(type='linear', size=8)
         ]
-        self.unittest(states=states, policy=dict(network=network))
+        self.unittest(states=states, policy=network)
 
     def test_embedding(self):
         self.start_tests(name='embedding')
 
         states = dict(type='int', shape=(), num_values=5)
         network = [dict(type='embedding', size=8)]
-        self.unittest(states=states, policy=dict(network=network))
+        self.unittest(states=states, policy=network)
 
-    def test_internal_rnn(self):
-        self.start_tests(name='internal-rnn')
+    def test_input_rnn(self):
+        self.start_tests(name='input-rnn')
 
-        states = dict(type='float', shape=(3,))
+        states = dict(type='float', shape=(2, 3))
         network = [
-            dict(type='internal_rnn', cell='gru', size=8, horizon=2),
-            dict(type='internal_lstm', size=8, horizon=2)
+            dict(type='input_rnn', cell='gru', size=8, return_final_state=False),
+            dict(type='input_lstm', size=8)
         ]
-        self.unittest(states=states, policy=dict(network=network))
+        self.unittest(states=states, policy=network)
 
     def test_keras(self):
         self.start_tests(name='keras')
 
         states = dict(type='float', shape=(3,))
         network = [dict(type='keras', layer='Dense', units=8)]
-        self.unittest(states=states, policy=dict(network=network))
+        self.unittest(states=states, policy=network)
 
     def test_misc(self):
         self.start_tests(name='misc')
@@ -98,7 +98,7 @@ class TestLayers(UnittestBase, unittest.TestCase):
             dict(type='reshape', shape=6),
             dict(function=(lambda x: x[:, :2]), output_spec=dict(shape=(2,)))
         ]
-        self.unittest(states=states, policy=dict(network=network))
+        self.unittest(states=states, policy=network)
 
         states = dict(type='float', shape=(3,))
         network = [
@@ -107,7 +107,7 @@ class TestLayers(UnittestBase, unittest.TestCase):
             ]),
             dict(type='reuse', layer='test')
         ]
-        self.unittest(states=states, policy=dict(network=network))
+        self.unittest(states=states, policy=network)
 
         states = dict(type='float', shape=(3,))
         network = [
@@ -115,7 +115,7 @@ class TestLayers(UnittestBase, unittest.TestCase):
             dict(type='retrieve', tensors='test'),
             dict(type='retrieve', tensors=('*', 'test'), aggregation='product')
         ]
-        self.unittest(states=states, policy=dict(network=network))
+        self.unittest(states=states, policy=network)
 
     def test_normalization(self):
         self.start_tests(name='normalization')
@@ -125,7 +125,7 @@ class TestLayers(UnittestBase, unittest.TestCase):
             dict(type='exponential_normalization'),
             dict(type='instance_normalization')
         ]
-        self.unittest(states=states, policy=dict(network=network))
+        self.unittest(states=states, policy=network)
 
     def test_pooling(self):
         self.start_tests(name='pooling')
@@ -135,14 +135,14 @@ class TestLayers(UnittestBase, unittest.TestCase):
             dict(type='pool1d', reduction='average'),
             dict(type='flatten')
         ]
-        self.unittest(states=states, policy=dict(network=network))
+        self.unittest(states=states, policy=network)
 
         states = dict(type='float', shape=(2, 2, 3))
         network = [
             dict(type='pool2d', reduction='max'),
             dict(type='pooling', reduction='max')
         ]
-        self.unittest(states=states, policy=dict(network=network))
+        self.unittest(states=states, policy=network)
 
     def test_preprocessing(self):
         self.start_tests(name='preprocessing')
@@ -155,7 +155,7 @@ class TestLayers(UnittestBase, unittest.TestCase):
             ], reward=[dict(type='clipping', lower=-1.0, upper=1.0)]
         )
         network = [dict(type='dense', name='test', size=8)]
-        self.unittest(states=states, preprocessing=preprocessing, policy=dict(network=network))
+        self.unittest(states=states, preprocessing=preprocessing, policy=network)
 
         states = dict(type='float', shape=(4, 4, 3))
         preprocessing = dict(
@@ -168,7 +168,7 @@ class TestLayers(UnittestBase, unittest.TestCase):
         network = [dict(type='reshape', shape=32)]
         # TODO: buffer_observe incompatible with Deltafier/Sequence expecting single-step inputs
         agent, environment = self.prepare(
-            min_timesteps=4, states=states, policy=dict(network=network),
+            min_timesteps=4, states=states, policy=network,
             preprocessing=preprocessing, config=dict(buffer_observe=1)
         )
 
@@ -198,9 +198,9 @@ class TestLayers(UnittestBase, unittest.TestCase):
     def test_rnn(self):
         self.start_tests(name='rnn')
 
-        states = dict(type='float', shape=(2, 3))
+        states = dict(type='float', shape=(3,))
         network = [
-            dict(type='rnn', cell='gru', size=8, return_final_state=False),
-            dict(type='lstm', size=8)
+            dict(type='rnn', cell='gru', size=8, horizon=2),
+            dict(type='lstm', size=8, horizon=2)
         ]
-        self.unittest(states=states, policy=dict(network=network))
+        self.unittest(states=states, policy=network)

@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -35,7 +35,6 @@ class TestAgents(UnittestBase, unittest.TestCase):
 
     def test_a2c(self):
         self.start_tests(name='A2C')
-        # TODO: critic RNN is not supported
         self.unittest(
             agent='a2c', batch_size=4, network=dict(type='auto', size=8, depth=1, rnn=2),
             critic_network=dict(type='auto', size=7, depth=1, rnn=1)
@@ -43,12 +42,20 @@ class TestAgents(UnittestBase, unittest.TestCase):
 
     def test_dpg(self):
         self.start_tests(name='DPG')
-        # TODO: critic RNN is not supported
         self.unittest(
             actions=dict(type='float', shape=()),
             agent='dpg', memory=100, batch_size=4,
             network=dict(type='auto', size=8, depth=1, rnn=2),
             critic_network=dict(type='auto', size=7, depth=1, rnn=1)
+        )
+
+    def test_double_dqn(self):
+        self.start_tests(name='DoubleDQN')
+        # TODO: RNN is not supported
+        self.unittest(
+            actions=dict(type='int', shape=(2,), num_values=4),
+            agent='double_dqn', memory=100, batch_size=4,
+            # network=dict(type='auto', size=8, depth=1, rnn=False)
         )
 
     def test_dqn(self):

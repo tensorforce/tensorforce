@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -112,7 +112,7 @@ class Bernoulli(Distribution):
     @tf_function(num_args=2)
     def sample(self, *, parameters, temperature):
         true_logit, false_logit, probability = parameters.get(
-            'true_logit', 'false_logit', 'probability'
+            ('true_logit', 'false_logit', 'probability')
         )
 
         summary_probability = probability
@@ -143,14 +143,14 @@ class Bernoulli(Distribution):
 
     @tf_function(num_args=2)
     def log_probability(self, *, parameters, action):
-        true_logit, false_logit = parameters.get('true_logit', 'false_logit')
+        true_logit, false_logit = parameters.get(('true_logit', 'false_logit'))
 
         return tf.where(condition=action, x=true_logit, y=false_logit)
 
     @tf_function(num_args=1)
     def entropy(self, *, parameters):
         true_logit, false_logit, probability = parameters.get(
-            'true_logit', 'false_logit', 'probability'
+            ('true_logit', 'false_logit', 'probability')
         )
 
         one = tf_util.constant(value=1.0, dtype='float')
@@ -160,9 +160,9 @@ class Bernoulli(Distribution):
     @tf_function(num_args=2)
     def kl_divergence(self, *, parameters1, parameters2):
         true_logit1, false_logit1, probability1 = parameters1.get(
-            'true_logit', 'false_logit', 'probability'
+            ('true_logit', 'false_logit', 'probability')
         )
-        true_logit2, false_logit2 = parameters2.get('true_logit', 'false_logit')
+        true_logit2, false_logit2 = parameters2.get(('true_logit', 'false_logit'))
 
         true_log_prob_ratio = true_logit1 - true_logit2
         false_log_prob_ratio = false_logit1 - false_logit2
@@ -180,7 +180,7 @@ class Bernoulli(Distribution):
     @tf_function(num_args=2)
     def action_value(self, *, parameters, action):
         true_logit, false_logit, states_value = parameters.get(
-            'true_logit', 'false_logit', 'states_value'
+            ('true_logit', 'false_logit', 'states_value')
         )
 
         logits = tf.where(condition=action, x=true_logit, y=false_logit)
@@ -190,7 +190,7 @@ class Bernoulli(Distribution):
     @tf_function(num_args=1)
     def all_action_values(self, *, parameters):
         true_logit, false_logit, states_value = parameters.get(
-            'true_logit', 'false_logit', 'states_value'
+            ('true_logit', 'false_logit', 'states_value')
         )
 
         logits = tf.stack(values=(false_logit, true_logit), axis=-1)

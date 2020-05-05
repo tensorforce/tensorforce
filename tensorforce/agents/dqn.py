@@ -197,8 +197,6 @@ class DeepQNetwork(TensorforceAgent):
             (<span style="color:#00C000"><b>default</b></span>: all).</li>
     """
 
-    # [Normalized Advantage Function](https://arxiv.org/abs/1603.00748)
-
     def __init__(
         # Required
         self, states, actions, memory, batch_size,
@@ -242,7 +240,7 @@ class DeepQNetwork(TensorforceAgent):
         # Action value doesn't exist for Beta
         policy = dict(
             network=network, distributions=dict(float='gaussian'), temperature=0.0,
-            infer_state_value='action-values'
+            use_beta_distribution=False, infer_state_value='action-values'
         )
         memory = dict(type='replay', capacity=memory)
         update = dict(unit='timesteps', batch_size=batch_size)

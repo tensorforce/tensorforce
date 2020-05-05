@@ -67,8 +67,7 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         )
         # TODO: action value doesn't exist for Beta
         baseline_policy = dict(
-            network=dict(type='auto', size=7, depth=1, internal_rnn=1),
-            distributions=dict(float='gaussian')
+            network=dict(type='auto', size=7, depth=1, internal_rnn=1), use_beta_distribution=False
         )
         baseline_objective = 'policy_gradient'
         baseline_optimizer = 'adam'
@@ -106,8 +105,7 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         )
         # TODO: action value doesn't exist for Beta
         baseline_policy = dict(
-            network=dict(type='auto', size=7, depth=1, internal_rnn=1),
-            distributions=dict(float='gaussian')
+            network=dict(type='auto', size=7, depth=1, internal_rnn=1), use_beta_distribution=False
         )
         baseline_objective = 'policy_gradient'
         baseline_optimizer = 'adam'
@@ -129,7 +127,7 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         # TODO: action value doesn't exist for Beta
         baseline_policy = dict(
             network=dict(type='auto', size=7, depth=1, internal_rnn=False),
-            distributions=dict(float='gaussian')
+            use_beta_distribution=False
         )
         baseline_optimizer = 'adam'
         self.unittest(

@@ -96,6 +96,8 @@ class TestEnvironments(UnittestBase, unittest.TestCase):
         from gym.envs.toy_text import BlackjackEnv
         self.unittest(environment=BlackjackEnv())
 
+    @pytest.mark.skip(reason='breaks / takes too long')
+    def test_openai_gym2(self):
         # state: box, action: box with non-uniform bounds
         # xvfb-run -s "-screen 0 1400x900x24" python -m unittest ...
         self.unittest(environment='CarRacing-v0')

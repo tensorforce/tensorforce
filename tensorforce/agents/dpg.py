@@ -68,6 +68,9 @@ class DeterministicPolicyGradient(TensorforceAgent):
             [networks](../modules/networks.html)
             (<span style="color:#00C000"><b>default</b></span>: "auto", automatically configured
             network).
+        use_beta_distribution (bool): Whether to use the Beta distribution for bounded continuous
+            actions by default.
+            (<span style="color:#00C000"><b>default</b></span>: true).
 
         update_frequency ("never" | parameter, long > 0): Frequency of updates
             (<span style="color:#00C000"><b>default</b></span>: batch_size).
@@ -206,7 +209,7 @@ class DeterministicPolicyGradient(TensorforceAgent):
         # Environment
         max_episode_timesteps=None,
         # Network
-        network='auto',
+        network='auto', use_beta_distribution=True,
         # Optimization
         update_frequency=None, start_updating=None, learning_rate=3e-4,
         # Reward estimation
@@ -227,7 +230,7 @@ class DeterministicPolicyGradient(TensorforceAgent):
             agent='dpg',
             states=states, actions=actions, memory=memory, batch_size=batch_size,
             max_episode_timesteps=max_episode_timesteps,
-            network=network,
+            network=network, use_beta_distribution=use_beta_distribution,
             update_frequency=update_frequency, start_updating=start_updating,
                 learning_rate=learning_rate,
             horizon=horizon, discount=discount, estimate_terminal=estimate_terminal,
@@ -240,7 +243,7 @@ class DeterministicPolicyGradient(TensorforceAgent):
                 config=config
         )
 
-        policy = dict(network=network, temperature=0.0)
+        policy = dict(network=network, temperature=0.0, use_beta_distribution=use_beta_distribution)
         memory = dict(type='replay', capacity=memory)
         update = dict(unit='timesteps', batch_size=batch_size)
         if update_frequency is not None:

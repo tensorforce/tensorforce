@@ -64,6 +64,9 @@ class ProximalPolicyOptimization(TensorforceAgent):
             [networks](../modules/networks.html)
             (<span style="color:#00C000"><b>default</b></span>: "auto", automatically configured
             network).
+        use_beta_distribution (bool): Whether to use the Beta distribution for bounded continuous
+            actions by default.
+            (<span style="color:#00C000"><b>default</b></span>: true).
 
         memory (int > 0): Batch memory capacity, has to fit at least maximum batch_size + 1 episodes
             (<span style="color:#00C000"><b>default</b></span>: minimum capacity, usually does not
@@ -205,7 +208,7 @@ class ProximalPolicyOptimization(TensorforceAgent):
         # Required
         self, states, actions, max_episode_timesteps, batch_size,
         # Network
-        network='auto',
+        network='auto', use_beta_distribution=True,
         # Memory
         memory=None,
         # Optimization
@@ -228,7 +231,7 @@ class ProximalPolicyOptimization(TensorforceAgent):
             agent='ppo',
             states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
                 batch_size=batch_size,
-            network=network,
+            network=network, use_beta_distribution=use_beta_distribution,
             memory=memory,
             update_frequency=update_frequency, learning_rate=learning_rate,
                 subsampling_fraction=subsampling_fraction, optimization_steps=optimization_steps,
@@ -243,7 +246,7 @@ class ProximalPolicyOptimization(TensorforceAgent):
                 config=config
         )
 
-        policy = dict(network=network, temperature=1.0)
+        policy = dict(network=network, temperature=1.0, use_beta_distribution=use_beta_distribution)
         if memory is None:
             memory = dict(type='recent')
         else:

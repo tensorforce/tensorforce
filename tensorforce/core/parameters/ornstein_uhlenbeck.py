@@ -63,11 +63,15 @@ class OrnsteinUhlenbeck(Parameter):
     def final_value(self):
         return self.spec.py_type()(self.mu)
 
-    def parameter_value(self, *, step):
-        self.process = self.add_variable(
-            name='process', dtype='float', shape=(), is_trainable=False, initializer=self.mu
+    def initialize(self):
+        super().initialize()
+
+        self.process = self.variable(
+            name='process', dtype='float', shape=(), initializer=self.mu, is_trainable=False,
+            is_saved=True
         )
 
+    def parameter_value(self, *, step):
         delta = self.theta * (self.mu - self.process) + self.sigma * tf.random.normal(shape=())
         if self.absolute:
             parameter = self.process.assign(value=tf.math.abs(x=(self.process + delta)))

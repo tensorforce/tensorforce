@@ -218,7 +218,7 @@ class TensorSpec(object):
         return value
 
     def tf_assert(self, *, x, batch_size=None, include_type_shape=False, message=None):
-        if not isinstance(x, tf.Tensor):
+        if not isinstance(x, (tf.Tensor, tf.Variable)):
             raise TensorforceError.type(name='TensorSpec.tf_assert', argument='x', dtype=type(x))
 
         if batch_size is None:

@@ -71,8 +71,7 @@ class DeterministicPolicyGradient(Objective):
 
             actions = policy.act(
                 states=states, horizons=horizons, internals=policy_internals,
-                auxiliaries=auxiliaries,
-                 deterministic=True, return_internals=False
+                auxiliaries=auxiliaries, deterministic=True, return_internals=False
             )
             action = actions.value()
 

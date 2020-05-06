@@ -21,7 +21,7 @@ from tensorforce.agents import TensorforceAgent
 class VanillaPolicyGradient(TensorforceAgent):
     """
     [Vanilla Policy Gradient](https://link.springer.com/article/10.1007/BF00992696) aka REINFORCE
-    agent (specification key: `vpg`).
+    agent (specification key: `vpg` or `reinforce`).
 
     Args:
         states (specification): States specification

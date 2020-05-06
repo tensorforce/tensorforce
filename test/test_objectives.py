@@ -24,9 +24,9 @@ class TestObjectives(UnittestBase, unittest.TestCase):
         self.start_tests(name='deterministic-policy-gradient')
 
         objective = dict(type='deterministic_policy_gradient')
-        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=False))
+        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=1))
         self.unittest(
-            actions=dict(type='float', shape=()), objective=objective,
+            actions=dict(type='float', shape=(1,)), objective=objective,
             baseline_policy=baseline_policy
         )
 

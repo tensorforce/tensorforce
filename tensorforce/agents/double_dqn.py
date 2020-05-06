@@ -20,7 +20,8 @@ from tensorforce.agents import TensorforceAgent
 
 class DoubleDQN(TensorforceAgent):
     """
-    [Double DQN](https://arxiv.org/abs/1509.06461) agent (specification key: `double_dqn`).
+    [Double DQN](https://arxiv.org/abs/1509.06461) agent (specification key: `double_dqn` or
+    `ddqn`).
 
     Args:
         states (specification): States specification

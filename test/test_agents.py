@@ -13,25 +13,14 @@
 # limitations under the License.
 # ==============================================================================
 
-import pytest
 import unittest
 
-import tensorflow as tf
-
-from tensorforce import Agent, Environment
 from test.unittest_base import UnittestBase
 
 
 class TestAgents(UnittestBase, unittest.TestCase):
 
     agent = dict()
-
-    def test_ac(self):
-        self.start_tests(name='AC')
-        self.unittest(
-            agent='ac', batch_size=4, network=dict(type='auto', size=8, depth=1, rnn=2),
-            critic_network=dict(type='auto', size=7, depth=1, rnn=1)
-        )
 
     def test_a2c(self):
         self.start_tests(name='A2C')
@@ -40,13 +29,25 @@ class TestAgents(UnittestBase, unittest.TestCase):
             critic_network=dict(type='auto', size=7, depth=1, rnn=1)
         )
 
+    def test_ac(self):
+        self.start_tests(name='AC')
+        self.unittest(
+            agent='ac', batch_size=4, network=dict(type='auto', size=8, depth=1, rnn=2),
+            critic_network=dict(type='auto', size=7, depth=1, rnn=1)
+        )
+
+    def test_constant(self):
+        self.start_tests(name='Constant')
+        self.unittest(agent='constant')
+
     def test_dpg(self):
         self.start_tests(name='DPG')
         self.unittest(
             actions=dict(type='float', shape=()),
             agent='dpg', memory=100, batch_size=4,
             network=dict(type='auto', size=8, depth=1, rnn=2),
-            critic_network=dict(type='auto', size=7, depth=1, rnn=1)
+            # TODO: baseline horizon has to be equal to policy horizon
+            critic_network=dict(type='auto', size=7, depth=1, rnn=2)
         )
 
     def test_double_dqn(self):
@@ -54,8 +55,7 @@ class TestAgents(UnittestBase, unittest.TestCase):
         # TODO: RNN is not supported
         self.unittest(
             actions=dict(type='int', shape=(2,), num_values=4),
-            agent='double_dqn', memory=100, batch_size=4,
-            # network=dict(type='auto', size=8, depth=1, rnn=False)
+            agent='double_dqn', memory=100, batch_size=4
         )
 
     def test_dqn(self):
@@ -63,8 +63,7 @@ class TestAgents(UnittestBase, unittest.TestCase):
         # TODO: RNN is not supported
         self.unittest(
             actions=dict(type='int', shape=(2,), num_values=4),
-            agent='dqn', memory=100, batch_size=4,
-            # network=dict(type='auto', size=8, depth=1, rnn=False)
+            agent='dqn', memory=100, batch_size=4
         )
 
     def test_dueling_dqn(self):
@@ -72,24 +71,35 @@ class TestAgents(UnittestBase, unittest.TestCase):
         # TODO: RNN is not supported
         self.unittest(
             actions=dict(type='int', shape=(2,), num_values=4),
-            agent='dueling_dqn', memory=100, batch_size=4,
-            # network=dict(type='auto', size=8, depth=1, rnn=False)
+            agent='dueling_dqn', memory=100, batch_size=4
         )
 
     def test_ppo(self):
         self.start_tests(name='PPO')
+        self.unittest(agent='ppo', batch_size=2, network=dict(type='auto', size=8, depth=1, rnn=2))
+
+    def test_random(self):
+        self.start_tests(name='Random')
+        self.unittest(agent='random')
+
+    def test_tensorforce(self):
+        self.start_tests(name='Tensorforce')
+        # Explicit
         self.unittest(
-            agent='ppo', batch_size=2, network=dict(type='auto', size=8, depth=1, rnn=2)
+            dict(type='float', shape=(1,)), dict(type='float', shape=()),
+            agent='tensorforce', policy=dict(network=dict(type='auto', size=8, depth=1, rnn=2)),
+            update=4, objective='policy_gradient', reward_estimation=dict(horizon=3)
+        )
+        # Implicit
+        self.unittest(
+            policy=dict(network=dict(type='auto', size=8, depth=1, rnn=2)), update=4,
+            objective='policy_gradient', reward_estimation=dict(horizon=3)
         )
 
     def test_trpo(self):
         self.start_tests(name='TRPO')
-        self.unittest(
-            agent='trpo', batch_size=2, network=dict(type='auto', size=8, depth=1, rnn=2)
-        )
+        self.unittest(agent='trpo', batch_size=2, network=dict(type='auto', size=8, depth=1, rnn=2))
 
     def test_vpg(self):
         self.start_tests(name='VPG')
-        self.unittest(
-            agent='vpg', batch_size=2, network=dict(type='auto', size=8, depth=1, rnn=2)
-        )
+        self.unittest(agent='vpg', batch_size=2, network=dict(type='auto', size=8, depth=1, rnn=2))

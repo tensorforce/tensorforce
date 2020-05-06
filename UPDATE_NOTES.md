@@ -6,6 +6,9 @@ This file records all major updates and new features, starting from version 0.5.
 
 ### Version 0.6
 
+- Added double DQN (`double_dqn`)
+- `estimate_terminal` --> `estimate_terminals`
+- `estimate_actions` --> `estimate_action_values`
 - `internal_rnn/lstm/gru` --> `rnn/lstm/gru`
 - `rnn/lstm/gru` --> `input_rnn/lstm/gru`
 - Auto network `internal_rnn` --> `rnn`

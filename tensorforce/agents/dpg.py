@@ -22,7 +22,7 @@ from tensorforce.agents import TensorforceAgent
 class DeterministicPolicyGradient(TensorforceAgent):
     """
     [Deterministic Policy Gradient](https://arxiv.org/abs/1509.02971) agent (specification key:
-    `dpg`). Action space is required to consist of only a single float action.
+    `dpg` or `ddpg`). Action space is required to consist of only a single float action.
 
     Args:
         states (specification): States specification
@@ -255,7 +255,7 @@ class DeterministicPolicyGradient(TensorforceAgent):
         objective = 'deterministic_policy_gradient'
         reward_estimation = dict(
             horizon=horizon, discount=discount, estimate_horizon='late',
-            estimate_terminals=estimate_terminals, estimate_actions=True
+            estimate_terminals=estimate_terminals, estimate_action_values=True
         )
         baseline_policy = dict(network=critic_network)
         baseline_objective = dict(type='value', value='action')

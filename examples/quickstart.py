@@ -41,7 +41,7 @@ def main():
         batch_size=10, update_frequency=2, learning_rate=1e-3, subsampling_fraction=0.2,
         optimization_steps=5,
         # Reward estimation
-        likelihood_ratio_clipping=0.2, discount=0.99, estimate_terminal=False,
+        likelihood_ratio_clipping=0.2, discount=0.99, estimate_terminals=False,
         # Critic
         critic_network='auto',
         critic_optimizer=dict(optimizer='adam', multi_step=10, learning_rate=1e-3),

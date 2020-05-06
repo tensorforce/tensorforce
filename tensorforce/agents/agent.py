@@ -117,7 +117,7 @@ class Agent(object):
                 return Agent.create(agent=agent, environment=environment, **kwargs)
 
             else:
-                raise TensorforceError.value(name='Agent.create', argument='agent', dtype=agent)
+                raise TensorforceError.value(name='Agent.create', argument='agent', value=agent)
 
         else:
             raise TensorforceError.type(name='Agent.create', argument='agent', dtype=type(agent))
@@ -420,19 +420,24 @@ class Agent(object):
         if self.single_state and not isinstance(states, dict) and not (
             util.is_iterable(x=states) and isinstance(states[0], dict)
         ):
-            states = np.asarray(states)
+            if isinstance(states, np.ndarray):
+                input_type = np.asarray
+            else:
+                input_type = type(states)
+                states = np.asarray(states)
             if states.shape == self.states_spec['state'].shape:
                 # Single state is not batched
                 states = ArrayDict(state=np.expand_dims(states, axis=0))
                 batched = False
+                input_type = None
                 num_parallel = 1
-                states
 
             else:
                 # Single state is batched, iter[state]
                 assert states.shape[1:] == self.states_spec['state'].shape
                 states = ArrayDict(state=states)
                 batched = True
+                assert input_type is tuple or input_type is list or input_type is np.asarray
                 num_parallel = states.shape[0]
 
             if independent:
@@ -507,6 +512,8 @@ class Agent(object):
             if util.is_iterable(x=states):
                 # States is batched, iter[dict[state]]
                 batched = True
+                input_type = type(states)
+                assert input_type is tuple or input_type is list
                 is_iter_of_dicts = True
                 num_parallel = len(states)
                 if num_parallel == 0:
@@ -575,6 +582,11 @@ class Agent(object):
 
             elif isinstance(states, dict):
                 # States is dict, turn into arrays (TODO: recursive)
+                some_state = next(iter(states.values()))
+                if isinstance(some_state, np.ndarray):
+                    input_type = np.asarray
+                else:
+                    input_type = type(some_state)
                 states = ArrayDict(((name, np.asarray(state)) for name, state in states.items()))
                 name, spec = self.states_spec.item()
 
@@ -582,12 +594,16 @@ class Agent(object):
                     # States is not batched, dict[state]
                     states = states.fmap(function=(lambda state: np.expand_dims(state, axis=0)))
                     batched = False
+                    input_type = None
                     num_parallel = 1
+                    if isinstance(parallel, int):
+                        parallel = [parallel]
 
                 else:
                     # States is batched, dict[iter[state]]
                     assert states[name].shape[1:] == spec.shape
                     batched = True
+                    assert input_type is tuple or input_type is list or input_type is np.asarray
                     is_iter_of_dicts = False
                     num_parallel = states[name].shape[0]
                     if num_parallel == 0:
@@ -705,21 +721,22 @@ class Agent(object):
         # Unbatch actions
         if batched:
             # If inputs were batched, turn list of dicts into dict of lists
+            function = (lambda x: x.item() if x.shape == () else x)
             if self.single_action:
-                actions = actions['action']
+                actions = input_type(function(actions['action'][n]) for n in range(num_parallel))
             else:
                 # TODO: recursive
-                actions = [
-                    OrderedDict(((name, x[n]) for name, x in actions.items()))
+                actions = input_type(
+                    OrderedDict(((name, function(x[n])) for name, x in actions.items()))
                     for n in range(num_parallel)
-                ]
+                )
 
             if independent and not is_internals_none and is_iter_of_dicts:
                 # TODO: recursive
-                internals = [
-                    OrderedDict(((name, x[n]) for name, x in internals.items()))
+                internals = input_type(
+                    OrderedDict(((name, function(x[n])) for name, x in internals.items()))
                     for n in range(num_parallel)
-                ]
+                )
 
         else:
             # If inputs were not batched, unbatch outputs
@@ -758,26 +775,38 @@ class Agent(object):
             num_parallel = reward.shape[0]
             if terminal is False:
                 terminal = np.asarray([0 for _ in range(num_parallel)])
+            else:
+                terminal = np.asarray(terminal)
             if parallel == 0:
                 assert num_parallel == self.parallel_interactions
                 parallel = np.asarray(list(range(num_parallel)))
+            else:
+                parallel = np.asarray(parallel)
 
         elif util.is_iterable(x=terminal):
             terminal = np.asarray([int(t) for t in terminal])
             num_parallel = terminal.shape[0]
             if reward == 0.0:
                 reward = np.asarray([0.0 for _ in range(num_parallel)])
+            else:
+                reward = np.asarray(reward)
             if parallel == 0:
                 assert num_parallel == self.parallel_interactions
                 parallel = np.asarray(list(range(num_parallel)))
+            else:
+                parallel = np.asarray(parallel)
 
         elif util.is_iterable(x=parallel):
             parallel = np.asarray(parallel)
             num_parallel = parallel.shape[0]
             if reward == 0.0:
                 reward = np.asarray([0.0 for _ in range(num_parallel)])
+            else:
+                reward = np.asarray(reward)
             if terminal is False:
                 terminal = np.asarray([0 for _ in range(num_parallel)])
+            else:
+                terminal = np.asarray(terminal)
 
         else:
             reward = np.asarray([float(reward)])
@@ -811,7 +840,7 @@ class Agent(object):
         for n in range(num_parallel):
 
             # Buffer inputs
-            p = parallel[n]
+            p = parallel[n].item()
             index = self.buffer_indices[p]
             self.buffers['terminal'][p, index] = terminal[n]
             self.buffers['reward'][p, index] = reward[n]
@@ -825,15 +854,15 @@ class Agent(object):
                 raise TensorforceError(message="Episode longer than max_episode_timesteps.")
 
             # Continue if not terminal and buffer_observe
-            if terminal == 0 and index < self.config.buffer_observe:
+            if terminal[n].item() == 0 and index < self.config.buffer_observe:
                 continue
 
             # Reset buffer index
             self.buffer_indices[p] = 0
 
             # Buffered terminal/reward inputs
-            terminal = self.buffers['terminal'][p, :index]
-            reward = self.buffers['reward'][p, :index]
+            t = self.buffers['terminal'][p, :index]
+            r = self.buffers['reward'][p, :index]
 
             # Recorder
             if self.recorder_spec is not None and \
@@ -846,11 +875,11 @@ class Agent(object):
                     self.recorded[name].append(self.states_buffers[name][p, :index].copy())
                 for name, spec in self.actions_spec.items():
                     self.recorded[name].append(self.actions_buffers[name][p, :index].copy())
-                self.recorded['terminal'].append(terminal.copy())
-                self.recorded['reward'].append(reward.copy())
+                self.recorded['terminal'].append(t.copy())
+                self.recorded['reward'].append(r.copy())
 
                 # If terminal
-                if terminal[-1] > 0:
+                if t[-1] > 0:
                     self.num_episodes += 1
 
                     # Check whether recording step
@@ -888,13 +917,13 @@ class Agent(object):
                             recorded.clear()
 
             # Inputs to tensors
-            terminal = self.terminal_spec.to_tensor(value=terminal, batched=True)
-            reward = self.reward_spec.to_tensor(value=reward, batched=True)
+            terminal_tensor = self.terminal_spec.to_tensor(value=t, batched=True)
+            reward_tensor = self.reward_spec.to_tensor(value=r, batched=True)
             parallel_tensor = self.parallel_spec.to_tensor(value=p, batched=False)
 
             # Model.observe()
             is_updated, self.episodes, self.updates = self.model.observe(
-                terminal=terminal, reward=reward, parallel=parallel_tensor
+                terminal=terminal_tensor, reward=reward_tensor, parallel=parallel_tensor
             )
             num_updates += int(is_updated)
 
@@ -1243,7 +1272,6 @@ class ActonlyAgent(object):
                 if spec['type'] == 'int' and name + '_mask' in states:
                     auxiliaries[name + '_mask'] = states.pop(name + '_mask')
 
-
         def function(name, spec):
             auxiliary = ArrayDict()
             if self.config.enable_int_action_masking and spec.type == 'int' and \
@@ -1255,7 +1283,6 @@ class ActonlyAgent(object):
             return auxiliary
 
         auxiliaries = self.actions_spec.fmap(function=function, cls=ArrayDict, with_names=True)
-
 
         # Normalize states dictionary
         states = util.input2tensor(value=states, spec=self.states_spec)

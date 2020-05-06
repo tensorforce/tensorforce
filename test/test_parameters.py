@@ -27,61 +27,42 @@ class TestParameters(UnittestBase, unittest.TestCase):
         agent, environment = self.prepare(min_timesteps=3, exploration=exploration)
 
         states = environment.reset()
-        actions, exploration_output1 = agent.act(states=states, query='exploration')
-        self.assertIsInstance(exploration_output1, util.np_dtype(dtype='float'))
+        actions = agent.act(states=states)
+        exploration1 = agent.model.exploration.value().numpy().item()
         states, terminal, reward = environment.execute(actions=actions)
         agent.observe(terminal=terminal, reward=reward)
 
+        actions = agent.act(states=states)
+        exploration2 = agent.model.exploration.value().numpy().item()
         if not isinstance(exploration, dict) or exploration['type'] == 'constant':
-            actions, exploration_output2 = agent.act(states=states, query='exploration')
-            self.assertEqual(exploration_output2, exploration_output1)
-            states, terminal, reward = environment.execute(actions=actions)
-            agent.observe(terminal=terminal, reward=reward)
-
+            self.assertEqual(exploration2, exploration1)
         else:
-            actions, exploration_output2 = agent.act(states=states, query='exploration')
-            self.assertNotEqual(exploration_output2, exploration_output1)
-            states, terminal, reward = environment.execute(actions=actions)
-            agent.observe(terminal=terminal, reward=reward)
-
-        exploration_input = 0.5
-        actions, exploration_output = agent.act(
-            states=states, query='exploration', exploration=exploration_input
-        )
-        self.assertEqual(exploration_output, exploration_input)
+            self.assertNotEqual(exploration2, exploration1)
+        states, terminal, reward = environment.execute(actions=actions)
+        agent.observe(terminal=terminal, reward=reward)
 
         agent.close()
         environment.close()
 
         self.finished_test()
 
-    def long_unittest(self, horizon):
+    def int_unittest(self, horizon):
         agent, environment = self.prepare(min_timesteps=3, reward_estimation=dict(horizon=horizon))
 
         states = environment.reset()
         actions = agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)
-        _, horizon_output1 = agent.observe(terminal=terminal, reward=reward, query='horizon')
-        self.assertIsInstance(horizon_output1, util.np_dtype(dtype='long'))
+        agent.observe(terminal=terminal, reward=reward)
+        horizon1 = agent.model.estimator.horizon.value().numpy().item()
 
         actions = agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)
-        _, horizon_output2 = agent.observe(terminal=terminal, reward=reward, query='horizon')
+        agent.observe(terminal=terminal, reward=reward)
+        horizon2 = agent.model.estimator.horizon.value().numpy().item()
         if not isinstance(horizon, dict) or horizon['type'] == 'constant':
-            self.assertEqual(horizon_output2, horizon_output1)
+            self.assertEqual(horizon2, horizon1)
         else:
-            self.assertNotEqual(horizon_output2, horizon_output1)
-
-        actions = agent.act(states=states)
-        _, terminal, reward = environment.execute(actions=actions)
-        horizon_input = 3
-        _, horizon_output = agent.observe(
-            terminal=terminal, reward=reward, query='horizon',
-            **{'estimator/horizon': horizon_input}
-        )
-        self.assertEqual(
-            horizon_output, np.asarray(horizon_input, dtype=util.np_dtype(dtype='long'))
-        )
+            self.assertNotEqual(horizon2, horizon1)
 
         agent.close()
         environment.close()
@@ -95,7 +76,7 @@ class TestParameters(UnittestBase, unittest.TestCase):
         self.float_unittest(exploration=exploration)
 
         horizon = 4
-        self.long_unittest(horizon=horizon)
+        self.int_unittest(horizon=horizon)
 
     def test_decaying(self):
         # SPECIFICATION.MD
@@ -108,10 +89,10 @@ class TestParameters(UnittestBase, unittest.TestCase):
         self.float_unittest(exploration=exploration)
 
         horizon = dict(
-            type='decaying', dtype='long', unit='timesteps', decay='polynomial',
+            type='decaying', dtype='int', unit='timesteps', decay='polynomial',
             initial_value=2.0, decay_steps=2, final_value=4.0, power=1.0
         )
-        self.long_unittest(horizon=horizon)
+        self.int_unittest(horizon=horizon)
 
     def test_ornstein_uhlenbeck(self):
         self.start_tests(name='ornstein-uhlenbeck')
@@ -122,18 +103,15 @@ class TestParameters(UnittestBase, unittest.TestCase):
     def test_piecewise_constant(self):
         self.start_tests(name='piecewise-constant')
 
-        # first act at timestep 0
         exploration = dict(
-            type='piecewise_constant', unit='timesteps', boundaries=[0], values=[0.1, 0.0]
+            type='piecewise_constant', unit='timesteps', boundaries=[1], values=[0.1, 0.0]
         )
         self.float_unittest(exploration=exploration)
 
-        # first observe at timestep 1
         horizon = dict(
-            type='piecewise_constant', dtype='long', unit='timesteps', boundaries=[1],
-            values=[1, 2]
+            type='piecewise_constant', dtype='int', unit='timesteps', boundaries=[1], values=[1, 2]
         )
-        self.long_unittest(horizon=horizon)
+        self.int_unittest(horizon=horizon)
 
     def test_random(self):
         self.start_tests(name='random')

@@ -818,13 +818,13 @@ class Module(tf.Module):
         elif isinstance(initializer, np.ndarray):
             if initializer.shape != shape:
                 raise TensorforceError.mismatch(
-                    name='Module.add_variable', value1='shape', value2='initializer'
+                    name='Module.variable', value1='shape', value2='initializer'
                 )
             initializer = tf_util.constant(value=initializer, dtype=dtype)
         elif isinstance(initializer, tf.Tensor):
             if tf_util.shape(x=initializer) != shape:
                 raise TensorforceError.mismatch(
-                    name='Module.add_variable', value1='shape', value2='initializer'
+                    name='Module.variable', value1='shape', value2='initializer'
                 )
             initializer = initializer
         elif not isinstance(initializer, str):

@@ -624,7 +624,7 @@ class Runner(object):
             self.timesteps += 1
             if ((
                 self.episode_timestep[-1] % self.callback_timestep_frequency == 0 and
-                not self.callback(self, parallel)
+                not self.callback(self, -1)
             ) or self.timesteps >= self.num_timesteps):
                 self.terminate = 2
 
@@ -730,7 +730,7 @@ class Runner(object):
             self.episodes += 1
             if self.terminate == 0 and ((
                 self.episodes % self.callback_episode_frequency == 0 and
-                not self.callback(self, 0)
+                not self.callback(self, -1)
             ) or self.episodes >= self.num_episodes):
                 self.terminate = 1
 

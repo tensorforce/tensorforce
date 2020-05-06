@@ -515,9 +515,12 @@ class Model(Module):
         exploration = TensorDict()
         for name in self.actions_spec:
             if isinstance(self.exploration, dict):
-                if name in self.exploration and self.exploration[name].max_value() > 0.0:
+                if name not in self.exploration:
+                    continue
+                if self.exploration[name].max_value() is None or \
+                        self.exploration[name].max_value() > 0.0:
                     exploration[name] = self.exploration[name].value()
-            elif self.exploration.max_value() > 0.0:
+            elif self.exploration.max_value() is None or self.exploration.max_value() > 0.0:
                 exploration[name] = self.exploration.value()
         if len(exploration) > 0:
             with tf.control_dependencies(control_inputs=dependencies):
@@ -718,10 +721,8 @@ class Model(Module):
 
     @tf_function(num_args=3)
     def apply_exploration(self, *, auxiliaries, actions, exploration):
-        for name, spec in self.actions_spec.items():
-            if name not in exploration:
-                continue
-            shape = tf_util.cast(x=tf.shape(input=actions[name]), dtype='int')
+        for name, spec, action, exploration in self.actions_spec.zip_items(actions, exploration):
+            shape = tf_util.cast(x=tf.shape(input=action), dtype='int')
             float_dtype = tf_util.get_dtype(type='float')
 
             if spec.type == 'bool':
@@ -729,7 +730,7 @@ class Model(Module):
                 half = tf_util.constant(value=0.5, dtype='float')
                 random_action = tf.random.uniform(shape=shape, dtype=float_dtype) < half
                 is_random = tf.random.uniform(shape=shape, dtype=float_dtype) < exploration
-                actions[name] = tf.where(condition=is_random, x=random_action, y=actions[name])
+                actions[name] = tf.where(condition=is_random, x=random_action, y=action)
 
             elif spec.type == 'int' and spec.num_values is not None:
                 if self.config.enable_int_action_masking:
@@ -750,9 +751,11 @@ class Model(Module):
                     uniform = tf.random.uniform(shape=shape, dtype=float_dtype)
                     num_unmasked = tf_util.cast(x=num_unmasked, dtype='float')
                     random_offset = tf_util.cast(x=(uniform * num_unmasked), dtype='int')
-                    random_action = tf.gather(params=choices, indices=(masked_offset + random_offset))
+                    random_action = tf.gather(
+                        params=choices, indices=(masked_offset + random_offset)
+                    )
                     is_random = tf.random.uniform(shape=shape, dtype=float_dtype) < exploration
-                    actions[name] = tf.where(condition=is_random, x=random_action, y=actions[name])
+                    actions[name] = tf.where(condition=is_random, x=random_action, y=action)
 
                 else:
                     # Bounded int action: if uniform[0, 1] < exploration, then uniform[num_values]
@@ -760,7 +763,7 @@ class Model(Module):
                         shape=shape, maxval=spec.num_values, dtype=spec.tf_type()
                     )
                     is_random = tf.random.uniform(shape=shape, dtype=float_dtype) < exploration
-                    actions[name] = tf.where(condition=is_random, x=random_action, y=actions[name])
+                    actions[name] = tf.where(condition=is_random, x=random_action, y=action)
 
             else:
                 # Int/float action: action + normal[0, exploration]
@@ -768,9 +771,9 @@ class Model(Module):
 
                 # Clip action if left-/right-bounded
                 if spec.min_value is not None:
-                    actions[name] = tf.math.maximum(x=actions[name], y=spec.min_value)
+                    actions[name] = tf.math.maximum(x=action, y=spec.min_value)
                 if spec.max_value is not None:
-                    actions[name] = tf.math.minimum(x=actions[name], y=spec.max_value)
+                    actions[name] = tf.math.minimum(x=action, y=spec.max_value)
 
         return actions
 

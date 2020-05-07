@@ -64,6 +64,9 @@ class AdvantageActorCritic(TensorforceAgent):
             [networks](../modules/networks.html)
             (<span style="color:#00C000"><b>default</b></span>: "auto", automatically configured
             network).
+        use_beta_distribution (bool): Whether to use the Beta distribution for bounded continuous
+            actions by default.
+            (<span style="color:#00C000"><b>default</b></span>: true).
 
         memory (int > 0): Batch memory capacity, has to fit at least maximum batch_size + maximum
             network/estimator horizon + 1 timesteps
@@ -207,7 +210,7 @@ class AdvantageActorCritic(TensorforceAgent):
         # Environment
         max_episode_timesteps=None,
         # Network
-        network='auto',
+        network='auto', use_beta_distribution=True,
         # Memory
         memory=None,
         # Optimization
@@ -230,7 +233,7 @@ class AdvantageActorCritic(TensorforceAgent):
             agent='a2c',
             states=states, actions=actions, batch_size=batch_size,
             max_episode_timesteps=max_episode_timesteps,
-            network=network,
+            network=network, use_beta_distribution=use_beta_distribution,
             memory=memory,
             update_frequency=update_frequency, learning_rate=learning_rate,
             horizon=horizon, discount=discount, state_action_value=state_action_value,
@@ -243,7 +246,7 @@ class AdvantageActorCritic(TensorforceAgent):
                 saver=saver, summarizer=summarizer, recorder=recorder
         )
 
-        policy = dict(network=network, temperature=1.0)
+        policy = dict(network=network, temperature=1.0, use_beta_distribution=use_beta_distribution)
         if memory is None:
             memory = dict(type='recent')
         else:

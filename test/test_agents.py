@@ -43,7 +43,7 @@ class TestAgents(UnittestBase, unittest.TestCase):
     def test_dpg(self):
         self.start_tests(name='DPG')
         self.unittest(
-            actions=dict(type='float', shape=()),
+            actions=dict(type='float', shape=(), min_value=-1.0, max_value=1.0),
             agent='dpg', memory=100, batch_size=4,
             network=dict(type='auto', size=8, depth=1, rnn=2),
             # TODO: baseline horizon has to be equal to policy horizon

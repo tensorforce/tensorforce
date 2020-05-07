@@ -34,6 +34,7 @@ This file records all major updates and new features, starting from version 0.5.
 - Changed the default `bias` and `activation` argument of some layers
 - Fixed issues with `sequence` preprocessor
 - DQN and dueling DQN properly constrained to `int` actions only
+- Added `use_beta_distribution` argument with default `True` to many agents and `ParametrizedDistributions` policy, so default can be changed
 
 
 

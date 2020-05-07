@@ -41,6 +41,9 @@ class ParametrizedDistributions(Stochastic, ActionValue):
             bounded continuous actions).
         temperature (parameter | dict[parameter], float >= 0.0): Sampling temperature, global or
             per action (<span style="color:#00C000"><b>default</b></span>: 0.0).
+        use_beta_distribution (bool): Whether to use the Beta distribution for bounded continuous
+            actions by default.
+            (<span style="color:#00C000"><b>default</b></span>: true).
         infer_state_value (False | "action-values" | "distribution"): Whether to infer the state
             value from either the action values or (experimental) the distribution parameters
             (<span style="color:#00C000"><b>default</b></span>: false).
@@ -59,9 +62,9 @@ class ParametrizedDistributions(Stochastic, ActionValue):
 
     # Network first
     def __init__(
-        self, network='auto', *, distributions=None, temperature=0.0, infer_state_value=False,
-        device=None, summary_labels=None, l2_regularization=None, name=None, states_spec=None,
-        auxiliaries_spec=None, internals_spec=None, actions_spec=None
+        self, network='auto', *, distributions=None, temperature=0.0, use_beta_distribution=True,
+        infer_state_value=False, device=None, summary_labels=None, l2_regularization=None,
+        name=None, states_spec=None, auxiliaries_spec=None, internals_spec=None, actions_spec=None
     ):
         super().__init__(
             temperature=temperature, device=device, summary_labels=summary_labels,
@@ -88,7 +91,10 @@ class ParametrizedDistributions(Stochastic, ActionValue):
                 assert spec.num_values is not None
                 default_module = 'categorical'
             elif spec.type == 'float':
-                default_module = 'gaussian' if spec.min_value is None else 'beta'
+                if use_beta_distribution and spec.min_value is not None:
+                    default_module = 'beta'
+                else:
+                    default_module = 'gaussian'
 
             if distributions is None:
                 module = None

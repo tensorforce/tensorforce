@@ -200,8 +200,6 @@ class DeepQNetwork(TensorforceAgent):
             (<span style="color:#00C000"><b>default</b></span>: all).</li>
     """
 
-    # [Normalized Advantage Function](https://arxiv.org/abs/1603.00748)
-
     def __init__(
         # Required
         self, states, actions, memory, batch_size,

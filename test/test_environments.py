@@ -93,6 +93,53 @@ class TestEnvironments(UnittestBase, unittest.TestCase):
         from gym.envs.toy_text import BlackjackEnv
         self.unittest(environment=BlackjackEnv())
 
+    @pytest.mark.skip(reason='breaks / takes too long')
+    def test_openai_gym2(self):
+        # state: box, action: box with non-uniform bounds
+        # xvfb-run -s "-screen 0 1400x900x24" python -m unittest ...
+        self.unittest(environment='CarRacing-v0')
+
+        # Classic control
+        self.unittest(environment='CartPole-v1')
+        self.unittest(environment='MountainCar-v0')
+        self.unittest(environment='MountainCarContinuous-v0')
+        self.unittest(environment='Pendulum-v0')
+        self.unittest(environment='Acrobot-v1')
+
+        # Box2d
+        self.unittest(environment='LunarLander-v2')
+        self.unittest(environment='LunarLanderContinuous-v2')
+        self.unittest(environment='BipedalWalker-v3')
+        self.unittest(environment='BipedalWalkerHardcore-v3')
+        # above: self.unittest(environment='CarRacing-v0')
+
+        # Toy text
+        # above: self.unittest(environment='Blackjack-v0')
+        self.unittest(environment='KellyCoinflip-v0')
+        self.unittest(environment='KellyCoinflipGeneralized-v0')
+        self.unittest(environment='FrozenLake-v0')
+        self.unittest(environment='FrozenLake8x8-v0')
+        self.unittest(environment='CliffWalking-v0')
+        self.unittest(environment='NChain-v0')
+        self.unittest(environment='Roulette-v0')
+        self.unittest(environment='Taxi-v3')
+        self.unittest(environment='GuessingGame-v0')
+        self.unittest(environment='HotterColder-v0')
+
+        # Algorithmic
+        self.unittest(environment='Copy-v0')
+        self.unittest(environment='RepeatCopy-v0')
+        self.unittest(environment='ReversedAddition-v0')
+        self.unittest(environment='ReversedAddition3-v0')
+        self.unittest(environment='DuplicatedInput-v0')
+        # above: self.unittest(environment='Reverse-v0')
+
+        # Unit test
+        self.unittest(environment='CubeCrash-v0')
+        self.unittest(environment='CubeCrashSparse-v0')
+        self.unittest(environment='CubeCrashScreenBecomesBlack-v0')
+        self.unittest(environment='MemorizeDigits-v0')
+
     def test_openai_retro(self):
         self.start_tests(name='openai-retro')
         self.unittest(environment=dict(environment='retro', level='Airstriker-Genesis'))

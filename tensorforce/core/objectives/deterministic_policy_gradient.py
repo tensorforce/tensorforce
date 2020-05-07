@@ -74,6 +74,7 @@ class DeterministicPolicyGradient(Objective):
                 auxiliaries=auxiliaries, deterministic=True, return_internals=False
             )
             action = actions.value()
+            shape = util.shape(x=action)
 
             with tf.GradientTape(persistent=False, watch_accessed_variables=False) as tape:
                 tape.watch(tensor=action)
@@ -82,8 +83,12 @@ class DeterministicPolicyGradient(Objective):
                     states=states, horizons=horizons, internals=baseline_internals,
                     auxiliaries=auxiliaries, actions=actions, reduced=True, return_per_action=False
                 )
-
-            return -tape.gradient(target=actions_value, sources=action)[0]
+                if len(shape) == 1:
+                    return -tape.gradient(target=actions_value, sources=action)[0]
+                elif len(shape) == 2 and shape[1] == 1:
+                    return -tape.gradient(target=actions_value, sources=action)[0][0]
+                else:
+                    assert False
 
         arguments['fn_initial_gradients'] = fn_initial_gradients
 

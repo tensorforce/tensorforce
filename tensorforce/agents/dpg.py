@@ -68,6 +68,9 @@ class DeterministicPolicyGradient(TensorforceAgent):
             [networks](../modules/networks.html)
             (<span style="color:#00C000"><b>default</b></span>: "auto", automatically configured
             network).
+        use_beta_distribution (bool): Whether to use the Beta distribution for bounded continuous
+            actions by default.
+            (<span style="color:#00C000"><b>default</b></span>: true).
 
         update_frequency ("never" | parameter, int > 0): Frequency of updates
             (<span style="color:#00C000"><b>default</b></span>: batch_size).
@@ -209,7 +212,7 @@ class DeterministicPolicyGradient(TensorforceAgent):
         # Environment
         max_episode_timesteps=None,
         # Network
-        network='auto',
+        network='auto', use_beta_distribution=True,
         # Optimization
         update_frequency=None, start_updating=None, learning_rate=3e-4,
         # Reward estimation
@@ -230,7 +233,7 @@ class DeterministicPolicyGradient(TensorforceAgent):
             agent='dpg',
             states=states, actions=actions, memory=memory, batch_size=batch_size,
             max_episode_timesteps=max_episode_timesteps,
-            network=network,
+            network=network, use_beta_distribution=use_beta_distribution,
             update_frequency=update_frequency, start_updating=start_updating,
                 learning_rate=learning_rate,
             horizon=horizon, discount=discount, estimate_terminals=estimate_terminals,
@@ -242,9 +245,7 @@ class DeterministicPolicyGradient(TensorforceAgent):
                 saver=saver, summarizer=summarizer, recorder=recorder
         )
 
-        # TODO: action type and shape
-
-        policy = dict(network=network, temperature=0.0)
+        policy = dict(network=network, temperature=0.0, use_beta_distribution=use_beta_distribution)
         memory = dict(type='replay', capacity=memory)
         update = dict(unit='timesteps', batch_size=batch_size)
         if update_frequency is not None:
@@ -257,7 +258,7 @@ class DeterministicPolicyGradient(TensorforceAgent):
             horizon=horizon, discount=discount, estimate_horizon='late',
             estimate_terminals=estimate_terminals, estimate_action_values=True
         )
-        baseline_policy = dict(network=critic_network)
+        baseline_policy = dict(network=critic_network, distributions=dict(float='gaussian'))
         baseline_objective = dict(type='value', value='action')
 
         super().__init__(
@@ -277,5 +278,8 @@ class DeterministicPolicyGradient(TensorforceAgent):
 
         action_spec = next(iter(self.actions_spec.values()))
         if len(self.actions_spec) > 1 or action_spec['type'] != 'float' or \
-                action_spec['shape'] != ():
-            raise TensorforceError.unexpected()
+                (action_spec['shape'] != () and action_spec['shape'] != (1,)):
+            raise TensorforceError.value(
+                name='DeterministicPolicyGradient', argument='actions', value=actions,
+                hint='contains more than a single float action'
+            )

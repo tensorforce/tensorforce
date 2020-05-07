@@ -385,11 +385,12 @@ class OpenAIGym(Environment):
             n = 0
             while True:
                 if any(name.startswith(space_type + str(n) + '-') for name in action):
-                    inner_action = {
-                        name[name.index('-') + 1:] for name, inner_action in action.items()
+                    inner_action = [
+                        value for name, value in action.items()
                         if name.startswith(space_type + str(n))
-                    }
-                    actions.append(OpenAIGym.unflatten_action(action=inner_action))
+                    ]
+                    assert len(inner_action) == 1
+                    actions.append(OpenAIGym.unflatten_action(action=inner_action[0]))
                 elif any(name == space_type + str(n) for name in action):
                     actions.append(OpenAIGym.unflatten_action(action=action[space_type + str(n)]))
                 else:
@@ -399,7 +400,7 @@ class OpenAIGym(Environment):
                     all(name.startswith('gymbox') for name in action):
                 name = next(iter(action))
                 shape = tuple(int(x) for x in name[name.index('-') + 1:].split('-'))
-                return np.array(object=actions).reshape(shape=shape)
+                return np.array(actions).reshape(shape)
             else:
                 return tuple(actions)
 

@@ -85,7 +85,7 @@ class MultiStep(UpdateModifier):
 
             num_steps = self.num_steps.value()
             deltas = tf.while_loop(
-                cond=tf_util.always_true, body=body, loop_vars=(deltas,), back_prop=False,
+                cond=tf_util.always_true, body=body, loop_vars=(deltas,),
                 maximum_iterations=tf_util.int32(x=num_steps)
             )[0]
 

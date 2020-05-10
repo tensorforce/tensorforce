@@ -26,6 +26,17 @@ class ArrayDict(NestedDict):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, value_type=np.ndarray, overwrite=False, **kwargs)
 
+    def __setitem__(self, key, value):
+        if not isinstance(value, dict):
+            value = np.asarray(value)
+        super().__setitem__(key, value)
+
+
+class ListDict(NestedDict):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, value_type=list, overwrite=False, **kwargs)
+
 
 class ModuleDict(NestedDict):
 
@@ -50,9 +61,9 @@ class SignatureDict(NestedDict):
 
     def kwargs_to_args(self, *, kwargs, is_outer_args=False):
         args = list()
-        for n, (name, spec) in enumerate(super(NestedDict, self).items()):
+        for index, (name, spec) in enumerate(super(NestedDict, self).items()):
             if is_outer_args and isinstance(kwargs, (list, tuple)):
-                arg = kwargs[n]
+                arg = kwargs[index]
             else:
                 arg = kwargs.get(name, TensorDict())
             if isinstance(spec, self.__class__):
@@ -65,13 +76,22 @@ class SignatureDict(NestedDict):
 
     def args_to_kwargs(self, *, args):
         kwargs = TensorDict()
-        for (name, spec), arg in zip(super(NestedDict, self).items(), args):
-            if isinstance(spec, self.__class__):
-                assert isinstance(arg, (list, tuple))
-                kwargs[name] = spec.args_to_kwargs(args=arg)
+        index = 0
+        for name, spec in super(NestedDict, self).items():
+            if index < len(args):
+                arg = args[index]
             else:
+                arg = None
+            if isinstance(spec, tf.TensorSpec):
                 assert isinstance(arg, (tf.IndexedSlices, tf.Tensor, tf.Variable))
                 kwargs[name] = arg
+                index += 1
+            else:
+                if isinstance(arg, (list, tuple)) and super(NestedDict, spec).__len__() == len(arg):
+                    kwargs[name] = spec.args_to_kwargs(args=arg)
+                    index += 1
+                else:
+                    kwargs[name] = spec.args_to_kwargs(args=())
         return kwargs
 
 

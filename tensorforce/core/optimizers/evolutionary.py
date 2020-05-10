@@ -68,8 +68,8 @@ class Evolutionary(Optimizer):
     def step(self, *, arguments, variables, fn_loss, fn_reference, fn_comparative_loss, **kwargs):
         learning_rate = self.learning_rate.value()
 
-        reference = fn_reference(**arguments)
-        unperturbed_loss = fn_comparative_loss(**arguments, reference=reference)
+        reference = fn_reference(**arguments.to_kwargs())
+        unperturbed_loss = fn_comparative_loss(**arguments.to_kwargs(), reference=reference)
 
         deltas = [tf.zeros_like(input=variable) for variable in variables]
         previous_perturbations = [tf.zeros_like(input=variable) for variable in variables]
@@ -93,7 +93,9 @@ class Evolutionary(Optimizer):
                     previous_perturbations = perturbations
 
                 with tf.control_dependencies(control_inputs=assignments):
-                    perturbed_loss = fn_comparative_loss(**arguments, reference=reference)
+                    perturbed_loss = fn_comparative_loss(
+                        **arguments.to_kwargs(), reference=reference
+                    )
                     direction = tf.math.sign(x=(unperturbed_loss - perturbed_loss))
                     deltas = [
                         delta + direction * perturbation
@@ -118,7 +120,9 @@ class Evolutionary(Optimizer):
                         assignments.append(variable.assign_add(delta=delta, read_value=False))
 
                 with tf.control_dependencies(control_inputs=assignments):
-                    perturbed_loss = fn_comparative_loss(**arguments, reference=reference)
+                    perturbed_loss = fn_comparative_loss(
+                        **arguments.to_kwargs(), reference=reference
+                    )
                     direction = tf.math.sign(x=(unperturbed_loss - perturbed_loss))
                     deltas = [
                         delta + direction * perturbation
@@ -130,7 +134,7 @@ class Evolutionary(Optimizer):
             num_samples = self.num_samples.value()
             deltas, perturbations = tf.while_loop(
                 cond=tf_util.always_true, body=body, loop_vars=(deltas, previous_perturbations),
-                back_prop=False, maximum_iterations=tf_util.int32(x=num_samples)
+                maximum_iterations=tf_util.int32(x=num_samples)
             )
 
         with tf.control_dependencies(control_inputs=deltas):

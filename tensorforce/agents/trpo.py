@@ -255,7 +255,7 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
         )
         optimizer = dict(
             type='optimizing_step', optimizer=optimizer, ls_max_iterations=10, ls_accept_ratio=0.9,
-            ls_mode='exponential', ls_parameter=0.5  # !!!!!!!!!!!!!
+            ls_mode='exponential', ls_parameter=0.5  # TODO: public arguments?
         )
         objective = dict(type='policy_gradient', ratio_based=True)
         if critic_network is None:

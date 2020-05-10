@@ -13,10 +13,9 @@
 # limitations under the License.
 # ==============================================================================
 
-from collections import OrderedDict
 
-from tensorforce import TensorforceError, util
-from tensorforce.core.utils import NestedDict, SignatureDict, TensorDict, TensorSpec
+from tensorforce import TensorforceError
+from tensorforce.core.utils import ArrayDict, NestedDict, SignatureDict, TensorDict, TensorSpec
 
 
 class TensorsSpec(NestedDict):
@@ -35,7 +34,7 @@ class TensorsSpec(NestedDict):
             raise TensorforceError.type(name='TensorsSpec.tf_assert', argument='x', dtype=type(x))
 
         assertions = list()
-        for name, spec, x in util.zip_items(self, x):
+        for name, spec, x in self.zip_items(x):
             assertions.extend(spec.tf_assert(
                 x=x, batch_size=batch_size, include_type_shape=include_type_shape,
                 message=(None if message is None else message.format(name=name, issue='{issue}'))
@@ -44,7 +43,7 @@ class TensorsSpec(NestedDict):
         return assertions
 
     def to_tensor(self, *, value, batched):
-        if not isinstance(value, dict):
+        if not isinstance(value, ArrayDict):
             raise TensorforceError.type(
                 name='TensorsSpec.to_tensor', argument='value', dtype=type(value)
             )
@@ -73,7 +72,7 @@ class TensorsSpec(NestedDict):
                 name='TensorsSpec.from_tensor', argument='tensor', value=tensor
             )
 
-        value = OrderedDict()
+        value = ArrayDict()
         for name, spec in super().items():
             value[name] = spec.from_tensor(tensor=tensor[name], batched=batched)
 

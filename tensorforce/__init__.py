@@ -14,10 +14,7 @@
 # ==============================================================================
 
 import logging
-
-
-# os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-
+import os
 
 from tensorforce.exception import TensorforceError
 from tensorforce.environments import Environment
@@ -25,11 +22,10 @@ from tensorforce.agents import Agent
 from tensorforce.execution import Runner
 
 
-# tf.get_logger().setLevel('WARNING')
-# tf.autograph.set_verbosity(3)
-
 __all__ = ['Agent', 'Environment', 'Runner', 'TensorforceError']
 
-__version__ = '0.5.4'
+__version__ = '0.6'
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())

@@ -6,19 +6,18 @@ This file records all major updates and new features, starting from version 0.5.
 
 ### Version 0.6
 
-- Added double DQN (`double_dqn`)
-- `estimate_terminal` --> `estimate_terminals`
-- `estimate_actions` --> `estimate_action_values`
-- `internal_rnn/lstm/gru` --> `rnn/lstm/gru`
-- `rnn/lstm/gru` --> `input_rnn/lstm/gru`
-- Auto network `internal_rnn` --> `rnn`
-- internal_rnn `length` --> `horizon`
-- renamed reward summaries
-- Combined long and int types
-- Removed execution arg, moved buffer_observe/seed to config
-- Default memory device CPU:0
-- Removed deterministic/evaluation/query from Agent interface
-- buffer_observe not accepts true/false
+- Removed agent arguments: `execution`, `buffer_observe`, `seed` (see next point)
+- Removed agent `act()` argument: `deterministic`, `evaluation` (use `independent=True` instead)
+- Removed agent function arguments: `query` (functionality removed)
+- New agent argument `config` with values: `buffer_observe`, `enable_int_action_masking`, `seed`
+- Renamed RNN layers: `internal_{rnn/lstm/gru}` to `rnn/lstm/gru`, `rnn/lstm/gru` --> `input_{rnn/lstm/gru}`
+- Renamed reward estimation arguments: `estimate_terminal` to `estimate_terminals`, `estimate_actions` to `estimate_action_values`
+- Renamed `auto` network argument: `internal_rnn` to `rnn`
+- Renamed `(internal_)rnn/lstm/gru` layer argument: `length` to `horizon`
+- Changed default memory `device` argument: `CPU:0`
+- Renamed rewards summaries
+- Combined `long` and `int` type
+- Added double DQN agent (`double_dqn`)
 
 
 

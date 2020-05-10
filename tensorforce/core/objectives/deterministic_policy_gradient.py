@@ -15,7 +15,6 @@
 
 import tensorflow as tf
 
-from tensorforce import util
 from tensorforce.core import TensorDict, tf_function, tf_util
 from tensorforce.core.objectives import Objective
 
@@ -43,7 +42,7 @@ class DeterministicPolicyGradient(Objective):
         )
 
         summed_actions = list()
-        for name, spec, action in util.zip_items(policy.actions_spec, policy_actions):
+        for name, spec, action in policy.actions_spec.zip_items(policy_actions):
             rank = len(spec.shape)
             for n in range(rank):
                 action = tf.math.reduce_sum(input_tensor=action, axis=(rank - n))
@@ -73,12 +72,13 @@ class DeterministicPolicyGradient(Objective):
                 states=states, horizons=horizons, internals=policy_internals,
                 auxiliaries=auxiliaries, deterministic=True, return_internals=False
             )
+            assert len(actions) == 1
             action = actions.value()
-            shape = util.shape(x=action)
+            shape = tf_util.shape(x=action)
+            assert len(shape) <= 2
 
             with tf.GradientTape(persistent=False, watch_accessed_variables=False) as tape:
                 tape.watch(tensor=action)
-                assert len(actions) == 1 and len(tf_util.shape(x=action)) == 1
                 actions_value = baseline.actions_value(
                     states=states, horizons=horizons, internals=baseline_internals,
                     auxiliaries=auxiliaries, actions=actions, reduced=True, return_per_action=False

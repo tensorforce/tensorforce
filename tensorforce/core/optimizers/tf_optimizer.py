@@ -17,7 +17,6 @@ from functools import partial
 
 import tensorflow as tf
 
-from tensorforce import util
 from tensorforce.core import parameter_modules, tf_function, tf_util
 from tensorforce.core.optimizers import Optimizer
 
@@ -137,19 +136,19 @@ class TFOptimizer(Optimizer):
     @tf_function(num_args=1)
     def step(self, *, arguments, variables, fn_loss, fn_initial_gradients=None, **kwargs):
         # Trivial operation to enforce control dependency
-        previous_variables = util.fmap(function=tf_util.identity, xs=variables)
+        previous_variables = tuple(tf_util.identity(input=variable) for variable in variables)
 
         # Remember variables before update
         with tf.control_dependencies(control_inputs=previous_variables):
             if fn_initial_gradients is None:
                 initial_gradients = None
             else:
-                initial_gradients = fn_initial_gradients(**arguments)
+                initial_gradients = fn_initial_gradients(**arguments.to_kwargs())
 
             with tf.GradientTape(persistent=False, watch_accessed_variables=False) as tape:
                 for variable in variables:
                     tape.watch(tensor=variable)
-                loss = fn_loss(**arguments)
+                loss = fn_loss(**arguments.to_kwargs())
 
             gradients = tape.gradient(
                 target=loss, sources=variables, output_gradients=initial_gradients
@@ -170,9 +169,10 @@ class TFOptimizer(Optimizer):
 
         with tf.control_dependencies(control_inputs=assertions):
             gradient_norm_clipping = self.gradient_norm_clipping.value()
-            gradients, gradient_norm = tf.clip_by_global_norm(
-                t_list=gradients, clip_norm=gradient_norm_clipping
-            )
+            gradients, gradient_norm = tf.clip_by_global_norm(t_list=[
+                tf_util.cast(x=gradient, dtype='float') for gradient in gradients
+                if gradient is not None
+            ], clip_norm=gradient_norm_clipping)
             actual_gradients = self.add_summary(
                 label='update-norm', name='gradient-norm-unclipped', tensor=gradient_norm,
                 pass_tensors=actual_gradients

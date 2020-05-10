@@ -44,9 +44,12 @@ class ParametrizedDistributions(Stochastic, ActionValue):
         use_beta_distribution (bool): Whether to use the Beta distribution for bounded continuous
             actions by default.
             (<span style="color:#00C000"><b>default</b></span>: true).
-        infer_state_value (False | "action-values" | "distribution"): Whether to infer the state
-            value from either the action values or (experimental) the distribution parameters
-            (<span style="color:#00C000"><b>default</b></span>: false).
+        state_value_mode ("independent" | "max-action-values" | "infer-from-distributions" | "no-state-value" | "no-distributions"):
+            How to estimate state value, either via a separate linear layer independent of
+            distributions ("independent"), or inferred as maximum of discrete bool/int action
+            values, or inferred from distribution parameters ("infer-from-distributions",
+            experimental), or special degenerate "no-state-value"/"no-distributions" policy
+            (<span style="color:#00C000"><b>default</b></span>: "independent").
         device (string): Device name
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         summary_labels ('all' | iter[string]): Labels of summaries to record
@@ -63,8 +66,9 @@ class ParametrizedDistributions(Stochastic, ActionValue):
     # Network first
     def __init__(
         self, network='auto', *, distributions=None, temperature=0.0, use_beta_distribution=True,
-        infer_state_value=False, device=None, summary_labels=None, l2_regularization=None,
-        name=None, states_spec=None, auxiliaries_spec=None, internals_spec=None, actions_spec=None
+        state_value_mode='independent', device=None, summary_labels=None,
+        l2_regularization=None, name=None, states_spec=None, auxiliaries_spec=None,
+        internals_spec=None, actions_spec=None
     ):
         super().__init__(
             temperature=temperature, device=device, summary_labels=summary_labels,
@@ -82,44 +86,55 @@ class ParametrizedDistributions(Stochastic, ActionValue):
                 name='ParametrizedDistributions', argument='network output', dtype=output_spec.type
             )
 
-        # Distributions
-        self.distributions = ModuleDict()
-        for name, spec in self.actions_spec.items():
-            if spec.type == 'bool':
-                default_module = 'bernoulli'
-            elif spec.type == 'int':
-                assert spec.num_values is not None
-                default_module = 'categorical'
-            elif spec.type == 'float':
-                if use_beta_distribution and spec.min_value is not None:
-                    default_module = 'beta'
-                else:
-                    default_module = 'gaussian'
-
-            if distributions is None:
-                module = None
-            else:
-                module = dict()
-                if spec.type in distributions:
-                    if isinstance(distributions[spec.type], str):
-                        module = distributions[spec.type]
-                    else:
-                        module.update(distributions[spec.type])
-                if name in distributions:
-                    if isinstance(distributions[name], str):
-                        module = distributions[name]
-                    else:
-                        module.update(distributions[name])
-
-            self.distributions[name] = self.add_module(
-                name=(name + '_distribution'), module=module, modules=distribution_modules,
-                default_module=default_module, action_spec=spec, input_spec=output_spec
+        # State value mode
+        if state_value_mode not in (
+            'independent', 'max-action-values', 'infer-from-distributions', 'no-state-value',
+            'no-distributions'
+        ):
+            raise TensorforceError.value(
+                name='ParametrizedDistributions', argument='state_value_mode',
+                value=state_value_mode, hint='not from {independent,max-action-values,infer-from-di'
+                                             'stributions,no-state-value,no-distributions}'
             )
+        self.state_value_mode = state_value_mode
+
+        # Distributions
+        if self.state_value_mode != 'no-distributions':
+            self.distributions = ModuleDict()
+            for name, spec in self.actions_spec.items():
+                if spec.type == 'bool':
+                    default_module = 'bernoulli'
+                elif spec.type == 'int':
+                    assert spec.num_values is not None
+                    default_module = 'categorical'
+                elif spec.type == 'float':
+                    if use_beta_distribution and spec.min_value is not None:
+                        default_module = 'beta'
+                    else:
+                        default_module = 'gaussian'
+
+                if distributions is None:
+                    module = None
+                else:
+                    module = dict()
+                    if spec.type in distributions:
+                        if isinstance(distributions[spec.type], str):
+                            module = distributions[spec.type]
+                        else:
+                            module.update(distributions[spec.type])
+                    if name in distributions:
+                        if isinstance(distributions[name], str):
+                            module = distributions[name]
+                        else:
+                            module.update(distributions[name])
+
+                self.distributions[name] = self.add_module(
+                    name=(name + '_distribution'), module=module, modules=distribution_modules,
+                    default_module=default_module, action_spec=spec, input_spec=output_spec
+                )
 
         # State value
-        assert infer_state_value in (False, 'action-values', 'distribution')
-        self.infer_state_value = infer_state_value
-        if self.infer_state_value is False:
+        if self.state_value_mode == 'independent' or self.state_value_mode == 'no-distributions':
             self.value = self.add_module(
                 name='states_value', module='linear', modules=layer_modules, size=0,
                 input_spec=output_spec
@@ -229,7 +244,7 @@ class ParametrizedDistributions(Stochastic, ActionValue):
 
     @tf_function(num_args=4)
     def states_value(self, *, states, horizons, internals, auxiliaries, reduced, return_per_action):
-        if self.infer_state_value is False:
+        if self.state_value_mode == 'independent' or self.state_value_mode == 'no-distributions':
             if not reduced or return_per_action:
                 raise TensorforceError.invalid(name='policy.states_value', argument='reduced')
 
@@ -247,7 +262,7 @@ class ParametrizedDistributions(Stochastic, ActionValue):
 
     @tf_function(num_args=4)
     def states_values(self, *, states, horizons, internals, auxiliaries):
-        if self.infer_state_value == 'action-values':
+        if self.state_value_mode == 'max-action-values':
             return super().states_values(
                 states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries
             )
@@ -283,8 +298,8 @@ class ParametrizedDistributions(Stochastic, ActionValue):
     def all_actions_values(self, *, states, horizons, internals, auxiliaries):
         if not all(spec.type in ('bool', 'int') for spec in self.actions_spec.values()):
             raise TensorforceError.value(
-                name='ParametrizedDistributions', argument='infer_state_value',
-                value='action-values', condition='action types not bool/int'
+                name='ParametrizedDistributions', argument='state_value_mode',
+                value='max-action-values', condition='action types not bool/int'
             )
 
         embedding = self.network.apply(

@@ -130,7 +130,7 @@ class Model(Module):
                     )
 
         # Exploration
-        # TODO: recursive lookup???
+        # TODO: recursive lookup?
         if isinstance(exploration, dict) and all(name in self.actions_spec for name in exploration):
             # Different exploration per action
             self.exploration = ModuleDict()
@@ -240,7 +240,7 @@ class Model(Module):
 
         elif function == 'independent_act':
             return SignatureDict(
-                states=self.states_spec.signature(batched=True),
+                states=self.unprocessed_states_spec.signature(batched=True),
                 internals=self.internals_spec.signature(batched=True),
                 auxiliaries=self.auxiliaries_spec.signature(batched=True)
             )
@@ -385,7 +385,7 @@ class Model(Module):
             actions, internals = self.core_act(
                 states=states, internals=internals, auxiliaries=auxiliaries, deterministic=True
             )
-            dependencies = util.flatten(xs=actions) + util.flatten(xs=internals)
+            dependencies = actions.flatten() + internals.flatten()
             # Skip action assertions
 
         # Variable noise
@@ -414,7 +414,7 @@ class Model(Module):
                 actions = self.apply_exploration(
                     auxiliaries=auxiliaries, actions=actions, exploration=exploration
                 )
-                dependencies = util.flatten(xs=actions)
+                dependencies = actions.flatten()
 
         # Return
         with tf.control_dependencies(control_inputs=dependencies):
@@ -487,7 +487,7 @@ class Model(Module):
             actions, internals = self.core_act(
                 states=states, internals=internals, auxiliaries=auxiliaries, deterministic=False
             )
-            dependencies = util.flatten(xs=actions) + util.flatten(xs=internals)
+            dependencies = actions.flatten() + internals.flatten()
 
             # Action assertions
             dependencies.extend(self.actions_spec.tf_assert(x=actions, batch_size=batch_size))
@@ -527,7 +527,7 @@ class Model(Module):
                 actions = self.apply_exploration(
                     auxiliaries=auxiliaries, actions=actions, exploration=exploration
                 )
-                dependencies = util.flatten(xs=actions)
+                dependencies = actions.flatten()
 
         # Action assertions
         dependencies.extend(self.actions_spec.tf_assert(x=actions, batch_size=batch_size))
@@ -548,14 +548,14 @@ class Model(Module):
             dependencies = list()
             buffer_index = tf.gather(params=self.buffer_index, indices=parallel)
             indices = tf.stack(values=(parallel, buffer_index), axis=1)
-            for name, state, buffer in util.zip_items(states, self.states_buffer):
+            for name, buffer, state in self.states_buffer.zip_items(states):
                 dependencies.append(buffer.scatter_nd_update(indices=indices, updates=state))
-            for name, auxiliary, buffer in util.zip_items(auxiliaries, self.auxiliaries_buffer):
+            for name, buffer, auxiliary in self.auxiliaries_buffer.zip_items(auxiliaries):
                 dependencies.append(buffer.scatter_nd_update(indices=indices, updates=auxiliary))
-            for name, action, buffer in util.zip_items(actions, self.actions_buffer):
+            for name, buffer, action in self.actions_buffer.zip_items(actions):
                 dependencies.append(buffer.scatter_nd_update(indices=indices, updates=action))
             indices = tf.stack(values=(parallel, buffer_index + one), axis=1)
-            for name, internal, buffer in util.zip_items(internals, self.internals_buffer):
+            for name, buffer, internal in self.internals_buffer.zip_items(internals):
                 dependencies.append(buffer.scatter_nd_update(indices=indices, updates=internal))
 
         # Increment timesteps and buffer index 
@@ -778,6 +778,7 @@ class Model(Module):
         return actions
 
     def get_variable(self, *, variable):
+        assert False, 'Not updated yet!'
         if not variable.startswith(self.name):
             variable = util.join_scopes(self.name, variable)
         fetches = variable + '-output:0'

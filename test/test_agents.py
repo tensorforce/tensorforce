@@ -38,7 +38,7 @@ class TestAgents(UnittestBase, unittest.TestCase):
 
     def test_constant(self):
         self.start_tests(name='Constant')
-        self.unittest(agent='constant')
+        self.unittest(num_episodes=2, agent='constant')
 
     def test_dpg(self):
         self.start_tests(name='DPG')
@@ -46,32 +46,39 @@ class TestAgents(UnittestBase, unittest.TestCase):
             actions=dict(type='float', shape=(), min_value=-1.0, max_value=1.0),
             agent='dpg', memory=100, batch_size=4,
             network=dict(type='auto', size=8, depth=1, rnn=2),
-            # TODO: baseline horizon has to be equal to policy horizon
+            # TODO: baseline horizon cannot be greater than reward horizon + 1
+            horizon=1,
             critic_network=dict(type='auto', size=7, depth=1, rnn=2)
         )
 
     def test_double_dqn(self):
         self.start_tests(name='DoubleDQN')
-        # TODO: RNN is not supported
         self.unittest(
             actions=dict(type='int', shape=(2,), num_values=4),
-            agent='double_dqn', memory=100, batch_size=4
+            agent='double_dqn', memory=100, batch_size=4,
+            network=dict(type='auto', size=8, depth=1, rnn=2),
+            # TODO: baseline horizon cannot be greater than reward horizon + 1
+            horizon=1
         )
 
     def test_dqn(self):
         self.start_tests(name='DQN')
-        # TODO: RNN is not supported
         self.unittest(
             actions=dict(type='int', shape=(2,), num_values=4),
-            agent='dqn', memory=100, batch_size=4
+            agent='dqn', memory=100, batch_size=4,
+            network=dict(type='auto', size=8, depth=1, rnn=2),
+            # TODO: baseline horizon cannot be greater than reward horizon + 1
+            horizon=1
         )
 
     def test_dueling_dqn(self):
         self.start_tests(name='DuelingDQN')
-        # TODO: RNN is not supported
         self.unittest(
             actions=dict(type='int', shape=(2,), num_values=4),
-            agent='dueling_dqn', memory=100, batch_size=4
+            agent='dueling_dqn', memory=100, batch_size=4,
+            network=dict(type='auto', size=8, depth=1, rnn=2),
+            # TODO: baseline horizon cannot be greater than reward horizon + 1
+            horizon=1
         )
 
     def test_ppo(self):
@@ -80,13 +87,13 @@ class TestAgents(UnittestBase, unittest.TestCase):
 
     def test_random(self):
         self.start_tests(name='Random')
-        self.unittest(agent='random')
+        self.unittest(num_episodes=2, agent='random')
 
     def test_tensorforce(self):
         self.start_tests(name='Tensorforce')
         # Explicit
         self.unittest(
-            dict(type='float', shape=(1,)), dict(type='float', shape=()),
+            states=dict(type='float', shape=(1,)), actions=dict(type='float', shape=()),
             agent='tensorforce', policy=dict(network=dict(type='auto', size=8, depth=1, rnn=2)),
             update=4, objective='policy_gradient', reward_estimation=dict(horizon=3)
         )

@@ -23,8 +23,6 @@ from test.unittest_base import UnittestBase
 
 class TestSaving(UnittestBase, unittest.TestCase):
 
-    min_timesteps = 3
-
     directory = 'test/test-saving'
 
     def test_config(self):
@@ -110,7 +108,6 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
         self.finished_test()
 
-    # @pytest.mark.skip(reason='currently takes too long')
     def test_config_extended(self):
         self.start_tests(name='config extended')
 
@@ -331,7 +328,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
         environment.close()
 
         # differing agent config: episode length, update, parallel_interactions
-        environment = Environment.create(environment=self.environment_spec(max_episode_timesteps=7))
+        environment = Environment.create(environment=self.environment_spec())
 
         # load: filename (hdf5 format implicit)
         agent = Agent.load(

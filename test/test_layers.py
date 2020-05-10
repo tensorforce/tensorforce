@@ -20,8 +20,6 @@ from test.unittest_base import UnittestBase
 
 class TestLayers(UnittestBase, unittest.TestCase):
 
-    num_timesteps = 2
-
     def test_convolution(self):
         self.start_tests(name='convolution')
 
@@ -168,8 +166,8 @@ class TestLayers(UnittestBase, unittest.TestCase):
         network = [dict(type='reshape', shape=32)]
         # TODO: buffer_observe incompatible with Deltafier/Sequence expecting single-step inputs
         agent, environment = self.prepare(
-            min_timesteps=4, states=states, policy=network,
-            preprocessing=preprocessing, config=dict(buffer_observe=1)
+            states=states, policy=network, preprocessing=preprocessing,
+            config=dict(buffer_observe=1)
         )
 
         states = environment.reset()

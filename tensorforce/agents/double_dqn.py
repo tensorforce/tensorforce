@@ -240,7 +240,7 @@ class DoubleDQN(TensorforceAgent):
                 saver=saver, summarizer=summarizer, recorder=recorder
         )
 
-        policy = dict(network=network, temperature=0.0, infer_state_value='action-values')
+        policy = dict(network=network, temperature=0.0, state_value_mode='max-action-values')
         memory = dict(type='replay', capacity=memory)
         update = dict(unit='timesteps', batch_size=batch_size)
         if update_frequency is not None:

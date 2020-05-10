@@ -71,9 +71,9 @@ class OptimizingStep(UpdateModifier):
         fn_reference = kwargs['fn_reference']
         fn_comparative_loss = kwargs['fn_comparative_loss']
 
-        reference = fn_reference(**arguments)
+        reference = fn_reference(**arguments.to_kwargs())
         # Negative value since line search maximizes.
-        loss_before = -fn_comparative_loss(**arguments, reference=reference)
+        loss_before = -fn_comparative_loss(**arguments.to_kwargs(), reference=reference)
 
         with tf.control_dependencies(control_inputs=(loss_before,)):
             deltas = self.optimizer.step(
@@ -94,7 +94,7 @@ class OptimizingStep(UpdateModifier):
 
         with tf.control_dependencies(control_inputs=deltas):
             # Negative value since line search maximizes.
-            loss_step = -fn_comparative_loss(**arguments, reference=reference)
+            loss_step = -fn_comparative_loss(**arguments.to_kwargs(), reference=reference)
 
         with tf.control_dependencies(control_inputs=(loss_step,)):
 
@@ -105,7 +105,7 @@ class OptimizingStep(UpdateModifier):
                         assignments.append(variable.assign_add(delta=delta, read_value=False))
                 with tf.control_dependencies(control_inputs=assignments):
                     # Negative value since line search maximizes.
-                    return -fn_comparative_loss(**arguments, reference=reference)
+                    return -fn_comparative_loss(**arguments.to_kwargs(), reference=reference)
 
             deltas = TensorDict(((var.name, delta) for var, delta in zip(variables, deltas)))
             deltas = self.line_search.solve(

@@ -11,7 +11,7 @@
 
 #### Introduction
 
-Tensorforce is an open-source deep reinforcement learning framework, with an emphasis on modularized flexible library design and straightforward usability for applications in research and practice. Tensorforce is built on top of [Google's TensorFlow framework](https://www.tensorflow.org/) version 2.0 (!) and compatible with Python 3 (Python 2 support was dropped with version 0.5).
+Tensorforce is an open-source deep reinforcement learning framework, with an emphasis on modularized flexible library design and straightforward usability for applications in research and practice. Tensorforce is built on top of [Google's TensorFlow framework](https://www.tensorflow.org/) and compatible with Python 3 (Python 2 support was dropped with version 0.5).
 
 Tensorforce follows a set of high-level design choices which differentiate it from other similar libraries:
 

@@ -20,8 +20,7 @@ from tensorforce.agents import TensorforceAgent
 
 class ActorCritic(TensorforceAgent):
     """
-    [Actor-Critic](???) agent
-    (specification key: `ac`).
+    Actor-Critic agent (specification key: `ac`).
 
     Args:
         states (specification): States specification

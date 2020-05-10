@@ -170,7 +170,7 @@ class Estimator(Module):
         terminal = values['terminal']
 
         # Reset buffer index
-        with tf.control_dependencies(control_inputs=util.flatten(xs=values)):
+        with tf.control_dependencies(control_inputs=values.flatten()):
             assignment = self.buffer_index.assign(value=zero, read_value=False)
 
         with tf.control_dependencies(control_inputs=(assignment,)):
@@ -198,7 +198,7 @@ class Estimator(Module):
         # Horizon baseline value
         if self.estimate_horizon == 'early' and baseline is not None:
             # Dependency horizon
-            # TODO: handle arbitrary non-optimization horizons!
+            # TODO: remove restriction
             past_horizon = baseline.past_horizon(on_policy=True)
             assertion = tf.debugging.assert_equal(
                 x=past_horizon, y=zero,
@@ -211,8 +211,7 @@ class Estimator(Module):
                 function = (lambda value: value[horizon_start:])
                 _states = TensorDict()
                 _states = states.fmap(function=function)
-                # TODO: only retrieve baseline internals (but may be internals/policy)
-                if 'baseline' in internals:
+                if self.parent.separate_baseline_policy:
                     _internals = internals['baseline'].fmap(function=function)
                 else:
                     _internals = internals['policy'].fmap(function=function)
@@ -283,7 +282,7 @@ class Estimator(Module):
             return discounted_sum, horizon - one
 
         values['reward'], _ = tf.while_loop(
-            cond=cond, body=body, loop_vars=(horizon_estimate, horizon), back_prop=False
+            cond=cond, body=body, loop_vars=(horizon_estimate, horizon)
         )
 
         return values
@@ -348,13 +347,12 @@ class Estimator(Module):
                     tf.gather(params=buffer, indices=buffer_indices), value[:values_limit + one]
                 ), axis=0))
                 _states = states.fmap(function=function, zip_values=self.buffers['states'])
-                # TODO: only retrieve baseline internals (but may be internals/policy)
-                if 'baseline' in self.buffers['internals']:
+                if self.parent.separate_baseline_policy:
                     _internals = internals['baseline'].fmap(
                         function=function, zip_values=self.buffers['internals/baseline']
                     )
                 else:
-                    _internals = internals['baseline'].fmap(
+                    _internals = internals['policy'].fmap(
                         function=function, zip_values=self.buffers['internals/policy']
                     )
                 _auxiliaries = auxiliaries.fmap(
@@ -362,7 +360,7 @@ class Estimator(Module):
                 )
 
                 # Dependency horizon
-                # TODO: handle arbitrary non-optimization horizons!
+                # TODO: remove restriction
                 past_horizon = baseline.past_horizon(on_policy=True)
                 assertion = tf.debugging.assert_equal(
                     x=past_horizon, y=zero,
@@ -373,7 +371,6 @@ class Estimator(Module):
                     starts = tf.range(start=batch_size)
                     lengths = tf_util.ones(shape=(batch_size,), dtype='int')
                     horizons = tf.stack(values=(starts, lengths), axis=1)
-                    # print('!!!', horizons, horizons.graph)
 
                 if self.estimate_action_values:
                     _actions = actions.fmap(function=function, zip_values=self.buffers['actions'])
@@ -405,7 +402,7 @@ class Estimator(Module):
                 return discounted_sum, horizon - one
 
             discounted_sum, _ = tf.while_loop(
-                cond=cond, body=body, loop_vars=(horizon_estimate, horizon), back_prop=False
+                cond=cond, body=body, loop_vars=(horizon_estimate, horizon)
             )
 
             assertions = [
@@ -450,7 +447,7 @@ class Estimator(Module):
             overwritten_values = self.buffers.fmap(function=function, cls=TensorDict)
 
         # Buffer indices to (over)write
-        with tf.control_dependencies(control_inputs=util.flatten(xs=overwritten_values)):
+        with tf.control_dependencies(control_inputs=overwritten_values.flatten()):
             indices = tf.range(start=self.buffer_index, limit=(self.buffer_index + num_values))
             indices = tf.math.mod(x=indices, y=capacity)
             indices = tf.expand_dims(input=indices, axis=1)
@@ -495,10 +492,28 @@ class Estimator(Module):
             lengths = tf_util.ones(shape=(batch_size,), dtype='int')
             horizons = tf.stack(values=(starts, lengths), axis=1)
 
-            final_horizons, (states, internals, auxiliaries, terminal) = memory.successors(
-                indices=indices, horizon=(horizon + one), sequence_values=(),
-                final_values=('states', 'internals', 'auxiliaries', 'terminal')
-            )
+            if self.estimate_action_values and self.parent.separate_baseline_policy:
+                final_horizons, final_values = memory.successors(
+                    indices=indices, horizon=(horizon + one), sequence_values=(),
+                    final_values=(
+                        'states', 'internals/policy', 'internals/baseline', 'auxiliaries',
+                        'terminal'
+                    )
+                )
+                states, policy_internals, baseline_internals, auxiliaries, terminal = final_values
+            elif self.parent.separate_baseline_policy:
+                final_horizons, final_values = memory.successors(
+                    indices=indices, horizon=(horizon + one), sequence_values=(),
+                    final_values=('states', 'internals/baseline', 'auxiliaries', 'terminal')
+                )
+                states, baseline_internals, auxiliaries, terminal = final_values
+            else:
+                final_horizons, final_values = memory.successors(
+                    indices=indices, horizon=(horizon + one), sequence_values=(),
+                    final_values=('states', 'internals/policy', 'auxiliaries', 'terminal')
+                )
+                states, policy_internals, auxiliaries, terminal = final_values
+                baseline_internals = policy_internals
 
         else:
             baseline_horizon = baseline.past_horizon(on_policy=False)
@@ -516,19 +531,27 @@ class Estimator(Module):
                 ))
 
             with tf.control_dependencies(control_inputs=assertions):
-                starts, (internals,) = memory.successors(
-                    indices=indices, horizon=(horizon + one - baseline_horizon),
-                    sequence_values=(), final_values=('internals',)
-                )
+                if self.estimate_action_values and self.parent.separate_baseline_policy:
+                    starts, (policy_internals, baseline_internals) = memory.successors(
+                        indices=indices, horizon=(horizon + one - baseline_horizon),
+                        sequence_values=(), final_values=('internals/policy', 'internals/baseline')
+                    )
+                elif self.parent.separate_baseline_policy:
+                    starts, (baseline_internals,) = memory.successors(
+                        indices=indices, horizon=(horizon + one - baseline_horizon),
+                        sequence_values=(), final_values=('internals/baseline',)
+                    )
+                else:
+                    starts, (policy_internals,) = memory.successors(
+                        indices=indices, horizon=(horizon + one - baseline_horizon),
+                        sequence_values=(), final_values=('internals/policy',)
+                    )
+                    baseline_internals = policy_internals
                 horizons, (states,), (auxiliaries, terminal) = memory.successors(
                     indices=starts, horizon=baseline_horizon, sequence_values=('states',),
                     final_values=('auxiliaries', 'terminal')
                 )
                 final_horizons = starts + horizons[:, 1]
-
-        # TODO: only retrieve correct baseline internals if estimate_action_values false
-        policy_internals = internals['policy']
-        baseline_internals = internals.get('baseline', default=policy_internals)
 
         if self.estimate_action_values:
             actions = policy.act(
@@ -565,14 +588,15 @@ class Estimator(Module):
         assert baseline is not None
         past_horizon = baseline.past_horizon(on_policy=False)
 
+        if self.parent.separate_baseline_policy:
+            internals = 'internals/baseline'
+        else:
+            internals = 'internals/policy'
         horizons, (states,), (internals,) = memory.predecessors(
             indices=indices, horizon=past_horizon, sequence_values=('states',),
-            initial_values=('internals',)
+            initial_values=(internals,)
         )
         (auxiliaries,) = memory.retrieve(indices=indices, values=('auxiliaries',))
-
-        # TODO: only retrieve correct baseline internals
-        internals = internals.get('baseline', default=internals['policy'])
 
         critic_estimate = baseline.states_value(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,

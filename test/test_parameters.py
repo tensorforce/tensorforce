@@ -15,16 +15,13 @@
 
 import unittest
 
-import numpy as np
-
-from tensorforce import util
 from test.unittest_base import UnittestBase
 
 
 class TestParameters(UnittestBase, unittest.TestCase):
 
     def float_unittest(self, exploration):
-        agent, environment = self.prepare(min_timesteps=3, exploration=exploration)
+        agent, environment = self.prepare(exploration=exploration)
 
         states = environment.reset()
         actions = agent.act(states=states)
@@ -47,7 +44,7 @@ class TestParameters(UnittestBase, unittest.TestCase):
         self.finished_test()
 
     def int_unittest(self, horizon):
-        agent, environment = self.prepare(min_timesteps=3, reward_estimation=dict(horizon=horizon))
+        agent, environment = self.prepare(reward_estimation=dict(horizon=horizon))
 
         states = environment.reset()
         actions = agent.act(states=states)

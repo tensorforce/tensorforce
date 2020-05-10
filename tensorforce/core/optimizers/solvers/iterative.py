@@ -79,7 +79,7 @@ class Iterative(Solver):
             max_iterations = self.max_iterations.value()
             values = signature.kwargs_to_args(kwargs=values, is_outer_args=True)
             values = tf.while_loop(
-                cond=self.next_step, body=self.step, loop_vars=values, back_prop=False,
+                cond=self.next_step, body=self.step, loop_vars=values,
                 maximum_iterations=tf_util.int32(x=max_iterations)
             )
             values = signature.args_to_kwargs(args=values)

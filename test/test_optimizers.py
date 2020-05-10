@@ -52,8 +52,9 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
 
         self.unittest(
             policy=dict(network=dict(type='auto', size=8, depth=1, rnn=2)),
+            optimizer='synchronization',
             baseline_policy=dict(network=dict(type='auto', size=8, depth=1, rnn=1)),
-            baseline_optimizer=dict(type='synchronization')
+            baseline_optimizer='adam', baseline_objective='policy_gradient'
         )
 
     def test_tf_optimizer(self):

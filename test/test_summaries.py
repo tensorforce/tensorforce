@@ -38,12 +38,6 @@ class TestSummaries(UnittestBase, unittest.TestCase):
                 os.rmdir(path=directory)
             os.rmdir(path=self.__class__.directory)
 
-        # Remove directory if exists
-        if os.path.exists(path=self.__class__.directory):
-            for filename in os.listdir(path=self.__class__.directory):
-                os.remove(path=os.path.join(self.__class__.directory, filename))
-            os.rmdir(path=self.__class__.directory)
-
         # TODO: 'dropout'
         reward_estimation = dict(horizon=2, estimate_horizon='late')
         baseline_policy = dict(network=dict(type='auto', size=8, depth=1, rnn=1))

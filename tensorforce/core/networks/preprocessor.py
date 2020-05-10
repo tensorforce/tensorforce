@@ -16,7 +16,8 @@
 import tensorflow as tf
 
 from tensorforce import TensorforceError
-from tensorforce.core import SignatureDict, TensorDict, TensorSpec, TensorsSpec, tf_function
+from tensorforce.core import SignatureDict, TensorDict, TensorSpec, TensorsSpec, tf_function, \
+    tf_util
 from tensorforce.core.layers import PreprocessingLayer, Register, Retrieve
 from tensorforce.core.networks import LayeredNetwork
 
@@ -85,7 +86,10 @@ class Preprocessor(LayeredNetwork):
             if isinstance(layer, PreprocessingLayer):
                 operations.append(layer.reset())
 
-        return tf.group(*operations)
+        if len(operations) > 0:
+            return tf_util.identity(input=operations[0])
+        else:
+            return tf_util.constant(value=False, dtype='bool')
 
     @tf_function(num_args=1)
     def apply(self, *, x):

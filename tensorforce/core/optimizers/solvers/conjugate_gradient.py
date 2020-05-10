@@ -71,18 +71,19 @@ class ConjugateGradient(Iterative):
         self.fn_values_spec = fn_values_spec
 
     def input_signature(self, *, function):
+        values_spec = self.fn_values_spec()
         if function == 'end' or function == 'next_step' or function == 'step':
             return SignatureDict(
-                x=self.fn_values_spec().signature(batched=False),
-                conjugate=self.fn_values_spec().signature(batched=False),
-                residual=self.fn_values_spec().signature(batched=False),
+                x=values_spec.signature(batched=False),
+                conjugate=values_spec.signature(batched=False),
+                residual=values_spec.signature(batched=False),
                 squared_residual=TensorSpec(type='float', shape=()).signature(batched=False)
             )
 
         elif function == 'solve' or function == 'start':
             return SignatureDict(
-                x_init=self.fn_values_spec().signature(batched=False),
-                b=self.fn_values_spec().signature(batched=False)
+                x_init=values_spec.signature(batched=False),
+                b=values_spec.signature(batched=False)
             )
 
         else:
@@ -168,6 +169,10 @@ class ConjugateGradient(Iterative):
             function=(lambda res, conj: res + beta * conj), zip_values=conjugate
         )
 
+        values_signature = self.fn_values_spec().signature(batched=False)
+        next_x = values_signature.kwargs_to_args(kwargs=next_x)
+        next_conjugate = values_signature.kwargs_to_args(kwargs=next_conjugate)
+        next_residual = values_signature.kwargs_to_args(kwargs=next_residual)
         return next_x, next_conjugate, next_residual, next_squared_residual
 
     @tf_function(num_args=4)

@@ -13,8 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-import copy
-import time
 import unittest
 
 from tensorforce import Runner
@@ -23,7 +21,6 @@ from test.unittest_base import UnittestBase
 
 class TestRunner(UnittestBase, unittest.TestCase):
 
-    min_timesteps = 6
     agent = dict(
         policy=dict(network=dict(type='auto', size=8, depth=1, rnn=2)),
         update=dict(unit='episodes', batch_size=12),

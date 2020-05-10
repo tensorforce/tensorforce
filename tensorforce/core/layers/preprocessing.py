@@ -147,11 +147,7 @@ class Deltafier(PreprocessingLayer):
 
     @tf_function(num_args=0)
     def reset(self):
-        assignment = self.has_previous.assign(
-            value=tf_util.constant(value=False, dtype='bool'), read_value=False
-        )
-
-        return assignment
+        return self.has_previous.assign(value=tf_util.constant(value=False, dtype='bool'))
 
     @tf_function(num_args=1)
     def apply(self, *, x):
@@ -315,10 +311,7 @@ class Sequence(PreprocessingLayer):
 
     @tf_function(num_args=0)
     def reset(self):
-        assignment = self.has_previous.assign(
-            value=tf_util.constant(value=False, dtype='bool'), read_value=False
-        )
-        return assignment
+        return self.has_previous.assign(value=tf_util.constant(value=False, dtype='bool'))
 
     @tf_function(num_args=1)
     def apply(self, *, x):

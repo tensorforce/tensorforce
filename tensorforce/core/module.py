@@ -62,24 +62,23 @@ def tf_function(*, num_args):
 
         def decorated(self, *args, **kwargs):
             assert len(args) == 0 or len(kwargs) == 0
-            assert len(kwargs) >= num_args or len(args) == num_args
+            assert len(args) == 0 or len(args) == num_args
 
             # Function name and qualname
             name = function.__name__
             qualname = function.__qualname__
-            assert qualname.endswith('.' + name)
 
             # Parameters-to-graph mapping
-            if not hasattr(self, name + '_graphs'):
-                setattr(self, name + '_graphs', OrderedDict())
-            function_graphs = getattr(self, name + '_graphs')
-
-            # Graph parameters
-            graph_params = tuple(make_key(x=arg) for arg in list(kwargs.values())[num_args:])
+            if not hasattr(self, '_{name}_graphs'.format(name=name)):
+                setattr(self, '_{name}_graphs'.format(name=name), dict())
+                assert function.__qualname__.endswith('.' + name)
+                setattr(self, '_{name}_qualname'.format(name=name), function.__qualname__)
+            function_graphs = getattr(self, '_{name}_graphs'.format(name=name))
+            qualname = getattr(self, '_{name}_qualname'.format(name=name))
 
             # Apply raw function if qualname mismatch, which indicates super() call
-            # Call early to avoid check for number of arguments in case it has changed
-            if graph_params in function_graphs and qualname != function_graphs[graph_params][0]:
+            # (Call early to avoid check for number of arguments in case it has changed)
+            if function.__qualname__ != qualname:
                 return function(self, *args, **kwargs)
 
             # Graph signature
@@ -92,13 +91,20 @@ def tf_function(*, num_args):
             else:
                 graph_args = args
 
+            # Graph parameters
+            graph_params = tuple(
+                make_key(x=arg) for key, arg in kwargs.items() if key not in graph_signature
+            )
+
             if graph_params not in function_graphs:
                 # Check that length of graph specs are consistent
                 assert len(function_graphs) == 0 or \
                     len(next(iter(function_graphs))) == len(graph_params)
 
                 # Params kwargs
-                params_kwargs = dict(list(kwargs.items())[num_args:])
+                params_kwargs = {
+                    key: arg for key, arg in kwargs.items() if key not in graph_signature
+                }
 
                 # Function graph
                 def function_graph(*args):
@@ -120,14 +126,14 @@ def tf_function(*, num_args):
                         assert popped is self
                     return results
 
-                function_graphs[graph_params] = (qualname, tf.function(
+                function_graphs[graph_params] = tf.function(
                     func=function_graph, input_signature=graph_signature.to_list(), autograph=False
                     # experimental_implements=None, experimental_autograph_options=None,
                     # experimental_relax_shapes=False, experimental_compile=None
-                ))
+                )
 
             # Apply function graph
-            return function_graphs[graph_params][1](*graph_args)
+            return function_graphs[graph_params](*graph_args)
 
         # TensorFlow make_decorator
         return tf.compat.v1.flags.tf_decorator.make_decorator(
@@ -286,6 +292,7 @@ class Module(tf.Module):
                         self.summarizer_close = self.summarizer.close()
 
                         default_summarizer = self.summarizer.as_default()
+                        assert False, 'Not updated yet!'
                         default_summarizer.__enter__()
 
                         if self.summary_labels == 'all' or 'graph' in self.summary_labels:
@@ -399,23 +406,23 @@ class Module(tf.Module):
             max_to_keep = 5
         else:
             max_to_keep = self.saver_spec.get('max-checkpoints', 5)
-        self.saver = tf.compat.v1.train.Saver(
-            var_list=self.saved_variables,  # should be given?
-            reshape=False,
-            sharded=False,
-            max_to_keep=max_to_keep,
-            keep_checkpoint_every_n_hours=10000.0,
-            name=None,
-            restore_sequentially=False,
-            saver_def=None,
-            builder=None,
-            defer_build=False,
-            allow_empty=False,
-            write_version=tf.compat.v1.train.SaverDef.V2,
-            pad_step_number=False,
-            save_relative_paths=False,
-            filename=None
-        )
+        # self.saver = tf.compat.v1.train.Saver(
+        #     var_list=self.saved_variables,  # should be given?
+        #     reshape=False,
+        #     sharded=False,
+        #     max_to_keep=max_to_keep,
+        #     keep_checkpoint_every_n_hours=10000.0,
+        #     name=None,
+        #     restore_sequentially=False,
+        #     saver_def=None,
+        #     builder=None,
+        #     defer_build=False,
+        #     allow_empty=False,
+        #     write_version=tf.compat.v1.train.SaverDef.V2,
+        #     pad_step_number=False,
+        #     save_relative_paths=False,
+        #     filename=None
+        # )
 
         # # global_variables += [self.global_episode, self.global_timestep]
         # init_op = tf.compat.v1.variables_initializer(var_list=tf.compat.v1.global_variables())
@@ -463,6 +470,7 @@ class Module(tf.Module):
 
         # Checkpoint saver hook
         if self.saver_spec is not None:
+            assert False, 'Not updated yet!'
             self.saver_directory = self.saver_spec['directory']
             self.saver_filename = self.saver_spec.get('filename', self.name)
             frequency = self.saver_spec.get('frequency', 600)
@@ -644,93 +652,8 @@ class Module(tf.Module):
 
         return regularization_loss
 
-    def create_api_function(self, *, name, api_function):
-        # Call API TensorFlow function
-        MODULE_STACK.append(self)
-        MODULE_STACK.append(tf.name_scope(name=name[name.index('.') + 1:]))
-
-        if self.device is not None:
-            self.device.__enter__()
-        scope = tf.name_scope(name=name)
-        # Module.scope_stack.append(scope)
-        scope.__enter__()
-
-        results = api_function()
-        assert all(x.name.endswith('-output:0') for x in util.flatten(xs=results))
-        self.output_tensors[name[name.index('.') + 1:]] = [
-            x.name[len(name) + 1: -9] for x in util.flatten(xs=results)
-        ]
-
-        # # Function-level identity operation for retrieval
-        # query_tensors = set()
-        # # for scoped_name, tensor in Module.queryable_tensors.items():
-        # #     tensor = util.identity_operation(x=tensor, operation_name=(scoped_name + '-query'))
-        # #     assert tensor.name.endswith('-query:0')
-        # #     assert scoped_name not in query_tensors
-        # #     query_tensors.add(scoped_name)
-        # for scoped_name in self.global_tensors_spec:
-        #     scoped_name1 = scoped_name.replace('agent/', '')
-        #     scoped_name2 = scoped_name.replace('agent/', name.replace('.', '/') + '/')
-        #     collection = self.root.graph.get_collection(name=scoped_name2)
-        #     if len(collection) == 0:
-        #         continue
-        #     tensor = util.identity_operation(x=collection[0], operation_name=(scoped_name1 + '-query'))
-        #     assert tensor.name.endswith('-query:0')
-        #     assert scoped_name not in query_tensors
-        #     query_tensors.add(scoped_name)
-        # self.query_tensors[name[name.index('.') + 1:]] = sorted(query_tensors)
-
-        scope.__exit__(None, None, None)
-        if self.device is not None:
-            self.device.__exit__(None, None, None)
-
-        MODULE_STACK.pop()
-        popped = MODULE_STACK.pop()
-        assert popped is self
-
-        def fn(query=None, **kwargs):
-            # Feed_dict dictionary
-            feed_dict = dict()
-            for key, arg in kwargs.items():
-                if arg is None:
-                    continue
-                elif isinstance(arg, dict):
-                    # Support single nesting (for states, internals, actions)
-                    for key, arg in arg.items():
-                        feed_dict[util.join_scopes(self.name, key) + '-input:0'] = arg
-                else:
-                    feed_dict[util.join_scopes(self.name, key) + '-input:0'] = arg
-            if not all(isinstance(x, str) and x.endswith('-input:0') for x in feed_dict):
-                raise TensorforceError.value(
-                    name=api_function, argument='inputs', value=list(feed_dict)
-                )
-
-            # Fetches value/tuple
-            fetches = util.fmap(function=(lambda x: x.name), xs=results)
-            if query is not None:
-                # If additional tensors are to be fetched
-                query = util.fmap(
-                    function=(lambda x: util.join_scopes(name, x) + '-query:0'), xs=query
-                )
-                if util.is_iterable(x=fetches):
-                    fetches = tuple(fetches) + (query,)
-                else:
-                    fetches = (fetches, query)
-            if not util.reduce_all(
-                predicate=(lambda x: x.endswith('-output:0') or x.endswith('-query:0')), xs=fetches
-            ):
-                raise TensorforceError.value(
-                    name=api_function, argument='outputs', value=list(fetches)
-                )
-
-            # TensorFlow session call
-            fetched = self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
-
-            return fetched
-
-        return fn
-
     def set_global_tensor(self, *, name, tensor):
+        assert False, 'Not updated yet!'
         assert self.root.is_initialized
 
         if not isinstance(tensor, tf.Tensor):
@@ -752,6 +675,7 @@ class Module(tf.Module):
             self.root.graph.add_to_collection(name=scoped_name, value=tensor)
 
     def global_tensor(self, *, name):
+        assert False, 'Not updated yet!'
         assert self.root.is_initialized
 
         global_scope = list(get_global_scope())
@@ -1040,7 +964,7 @@ class Module(tf.Module):
         #         scope.__enter__()
 
         with tf.control_dependencies(control_inputs=summaries):
-            return util.fmap(function=tf_util.identity, xs=pass_tensors)
+            return [tf_util.identity(input=tensor) for tensor in pass_tensors]
 
     def get_available_summaries(self):
         summaries = set(self.available_summaries)

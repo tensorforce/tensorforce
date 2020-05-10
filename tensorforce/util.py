@@ -13,7 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-from collections import OrderedDict
 from datetime import datetime
 import logging
 
@@ -66,15 +65,6 @@ def unary_tuple(x, depth):
 
 
 def product(xs, empty=1):
-    """Computes the product along the elements in an iterable.
-
-    Args:
-        xs: Iterable containing numbers.
-        empty: ??
-
-    Returns: Product along iterable.
-
-    """
     result = None
     for x in xs:
         if result is None:
@@ -86,121 +76,6 @@ def product(xs, empty=1):
         result = empty
 
     return result
-
-
-def fmap(function, xs, depth=-1, map_keys=False, map_types=()):
-    if xs is None and None not in map_types:
-        assert depth <= 0
-        return None
-    elif isinstance(xs, tuple) and depth != 0 and tuple not in map_types:
-        return tuple(
-            fmap(function=function, xs=x, depth=(depth - 1), map_keys=map_keys, map_types=map_types)
-            for x in xs
-        )
-    elif isinstance(xs, list) and depth != 0 and list not in map_types:
-        return [
-            fmap(function=function, xs=x, depth=(depth - 1), map_keys=map_keys, map_types=map_types)
-            for x in xs
-        ]
-    elif isinstance(xs, set) and depth != 0 and set not in map_types:
-        return {
-            fmap(function=function, xs=x, depth=(depth - 1), map_keys=map_keys, map_types=map_types)
-            for x in xs
-        }
-    elif isinstance(xs, OrderedDict) and depth != 0 and OrderedDict not in map_types:
-        if map_keys:
-            return OrderedDict((
-                (function(key), fmap(
-                    function=function, xs=x, depth=(depth - 1), map_keys=map_keys,
-                    map_types=map_types
-                )) for key, x in xs.items()
-            ))
-        else:
-            return OrderedDict((
-                (key, fmap(
-                    function=function, xs=x, depth=(depth - 1), map_keys=map_keys,
-                    map_types=map_types
-                )) for key, x in xs.items()
-            ))
-    elif isinstance(xs, dict) and depth != 0 and dict not in map_types:
-        if map_keys:
-            return {
-                function(key): fmap(
-                    function=function, xs=x, depth=(depth - 1), map_keys=map_keys,
-                    map_types=map_types
-                ) for key, x in xs.items()
-            }
-        else:
-            return {
-                key: fmap(
-                    function=function, xs=x, depth=(depth - 1), map_keys=map_keys,
-                    map_types=map_types
-                ) for key, x in xs.items()
-            }
-    else:
-        if map_keys:  # or depth <= 0?
-            return xs
-        else:
-            assert depth <= 0
-            return function(xs)
-
-
-def reduce_all(predicate, xs):
-    if xs is None:
-        return False
-    elif isinstance(xs, tuple):
-        return all(reduce_all(predicate=predicate, xs=x) for x in xs)
-    elif isinstance(xs, list):
-        return all(reduce_all(predicate=predicate, xs=x) for x in xs)
-    elif isinstance(xs, set):
-        return all(reduce_all(predicate=predicate, xs=x) for x in xs)
-    elif isinstance(xs, dict):
-        return all(reduce_all(predicate=predicate, xs=x) for x in xs.values())
-    else:
-        return predicate(xs)
-
-
-def flatten(xs):
-    if xs is None:
-        return None
-    elif isinstance(xs, (tuple, list, set)):
-        return [x for ys in xs for x in flatten(xs=ys)]
-    elif isinstance(xs, dict):
-        return [x for ys in xs.values() for x in flatten(xs=ys)]
-    else:
-        return [xs]
-
-
-def zip_items(*args):
-    # assert len(args) > 0 and all(arg is None or isinstance(arg, dict) for arg in args)
-    # assert args[0] is not None
-    # for key in args[0]:
-    #     key_values = (key,) + tuple(None if arg is None else arg[key] for arg in args)
-    #     yield key_values
-    assert len(args) > 0
-    assert all(isinstance(arg, dict) and len(arg) == len(args[0]) for arg in args)
-    for key in args[0]:
-        key_values = (key,) + tuple(arg[key] for arg in args)
-        yield key_values
-
-
-def deep_equal(xs, ys):
-    if isinstance(xs, dict):
-        if not isinstance(ys, dict):
-            return False
-        for _, x, y in zip_items(xs, ys):
-            if not deep_equal(xs=x, ys=y):
-                return False
-        return True
-    elif is_iterable(x=xs):
-        if not is_iterable(x=ys):
-            return False
-        for x, y in zip(xs, ys):
-            if not deep_equal(xs=x, ys=y):
-                return False
-        return True
-    else:
-        return xs == ys
 
 
 def deep_disjoint_update(target, source):  # , ignore=()

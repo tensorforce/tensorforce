@@ -25,9 +25,10 @@ class TestObjectives(UnittestBase, unittest.TestCase):
 
         objective = dict(type='deterministic_policy_gradient')
         baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=1))
+        baseline_objective = dict(type='value', value='action')
         self.unittest(
             actions=dict(type='float', shape=(1,)), objective=objective,
-            baseline_policy=baseline_policy
+            baseline_policy=baseline_policy, baseline_objective=baseline_objective
         )
 
     def test_plus(self):
@@ -60,8 +61,11 @@ class TestObjectives(UnittestBase, unittest.TestCase):
         objective = dict(type='value', value='state')
         self.unittest(objective=objective)
 
+        policy = dict(
+            network=dict(type='auto', size=8, depth=1, rnn=2), use_beta_distribution=False
+        )
         objective = dict(type='value', value='action')
-        self.unittest(exclude_bounded_action=True, objective=objective)
+        self.unittest(policy=policy, objective=objective)
 
         objective = dict(type='value', huber_loss=1.0)
         self.unittest(objective=objective)

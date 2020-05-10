@@ -54,12 +54,20 @@ class Optimizer(Module):
 
     @tf_function(num_args=1)
     def update(self, *, arguments, variables, **kwargs):
-        if any(variable.dtype != tf_util.get_dtype(type='float') for variable in variables):
-            raise TensorforceError.unexpected()
+        assert all(variable.dtype.is_floating for variable in variables)
+        # for variable in variables:
+        #     tf.debugging.assert_type(
+        #         tensor=variable, tf_type=tf_util.get_dtype(type='float'),
+        #         message="Optimizer.update: invalid type for optimized variable {}: {}.".format(
+        #             variable.name, variable.dtype
+        #         )
+        #     )
 
         deltas = self.step(arguments=arguments, variables=variables, **kwargs)
 
-        update_norm = tf.linalg.global_norm(t_list=deltas)
+        update_norm = tf.linalg.global_norm(
+            t_list=[tf_util.cast(x=delta, dtype='float') for delta in deltas]
+        )
         deltas = self.add_summary(
             label='update-norm', name='update-norm', tensor=update_norm, pass_tensors=deltas
         )
@@ -76,4 +84,4 @@ class Optimizer(Module):
             )
 
         with tf.control_dependencies(control_inputs=deltas):
-            return tf_util.constant(value=False, dtype='bool')
+            return tf_util.identity(input=tf_util.constant(value=True, dtype='bool'))

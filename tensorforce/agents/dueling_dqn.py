@@ -242,7 +242,7 @@ class DuelingDQN(TensorforceAgent):
         distributions = dict(int=dict(type='categorical', advantage_based=True))
         policy = dict(
             network=network, distributions=distributions, temperature=0.0,
-            infer_state_value='action-values'
+            state_value_mode='max-action-values'
         )
         memory = dict(type='replay', capacity=memory)
         update = dict(unit='timesteps', batch_size=batch_size)

@@ -90,7 +90,7 @@ def ones(*, shape, dtype):
 
 def identity(input):
     zero = tf.zeros_like(input=input)
-    if dtype(x=zero) == 'bool':
+    if zero.dtype is tf.bool:
         return tf.math.logical_or(x=input, y=zero)
     else:
         return input + zero

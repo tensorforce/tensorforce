@@ -98,7 +98,7 @@ class Replay(Queue):
             indices = tf_util.zeros(shape=(0,), dtype='int')
             indices, _ = tf.while_loop(
                 cond=cond, body=reduce_range_concat, loop_vars=(indices, zero),
-                shape_invariants=(tf.TensorShape(dims=(None,)), zero.get_shape()), back_prop=False
+                shape_invariants=(tf.TensorShape(dims=(None,)), zero.get_shape())
             )
             indices = tf.math.mod(x=indices, y=capacity)
 

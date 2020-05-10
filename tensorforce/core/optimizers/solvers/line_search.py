@@ -67,33 +67,30 @@ class LineSearch(Iterative):
 
         self.fn_values_spec = fn_values_spec
 
+        if self.mode == 'linear':
+            self.additional_signature = SignatureDict(
+                base_value=TensorSpec(type='float', shape=()).signature(batched=False),
+                estimated_incr=TensorSpec(type='float', shape=()).signature(batched=False)
+            )
+        else:
+            self.additional_signature = TensorSpec(type='float', shape=()).signature(batched=False)
+
     def input_signature(self, *, function):
+        values_spec = self.fn_values_spec()
+
         if function == 'end' or function == 'next_step' or function == 'step':
-            if self.mode == 'linear':
-                return SignatureDict(
-                    x=self.fn_values_spec().signature(batched=False),
-                    deltas=self.fn_values_spec().signature(batched=False),
-                    improvement=TensorSpec(type='float', shape=()).signature(batched=False),
-                    last_improvement=TensorSpec(type='float', shape=()).signature(batched=False),
-                    estimated=TensorSpec(type='float', shape=()).signature(batched=False),
-                    additional=SignatureDict(
-                        base_value=TensorSpec(type='float', shape=()).signature(batched=False),
-                        estimated_incr=TensorSpec(type='float', shape=()).signature(batched=False)
-                    )
-                )
-            else:
-                return SignatureDict(
-                    x=self.fn_values_spec().signature(batched=False),
-                    deltas=self.fn_values_spec().signature(batched=False),
-                    improvement=TensorSpec(type='float', shape=()).signature(batched=False),
-                    last_improvement=TensorSpec(type='float', shape=()).signature(batched=False),
-                    estimated=TensorSpec(type='float', shape=()).signature(batched=False),
-                    additional=TensorSpec(type='float', shape=()).signature(batched=False)
-                )
+            return SignatureDict(
+                x=values_spec.signature(batched=False),
+                deltas=values_spec.signature(batched=False),
+                improvement=TensorSpec(type='float', shape=()).signature(batched=False),
+                last_improvement=TensorSpec(type='float', shape=()).signature(batched=False),
+                estimated=TensorSpec(type='float', shape=()).signature(batched=False),
+                additional=self.additional_signature
+            )
 
         elif function == 'solve' or function == 'start':
             return SignatureDict(
-                x_init=self.fn_values_spec().signature(batched=False),
+                x_init=values_spec.signature(batched=False),
                 base_value=TensorSpec(type='float', shape=()).signature(batched=False),
                 target_value=TensorSpec(type='float', shape=()).signature(batched=False),
                 estimated_improvement=TensorSpec(type='float', shape=()).signature(batched=False)
@@ -170,6 +167,10 @@ class LineSearch(Iterative):
         Returns:
             Updated arguments for next iteration.
         """
+        # x = values_spec.args_to_kwargs(args=x)
+        # deltas = values_spec.args_to_kwargs(args=deltas)
+        # additional = self.additional_signature.args_to_kwargs(args=additional)
+
         next_x = x.fmap(function=(lambda t, delta: t + delta), zip_values=deltas)
         parameter = self.parameter.value()
 
@@ -189,6 +190,11 @@ class LineSearch(Iterative):
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')
         next_improvement = difference / tf.math.maximum(x=next_estimated, y=epsilon)
 
+        values_signature = self.fn_values_spec().signature(batched=False)
+        next_x = values_signature.kwargs_to_args(kwargs=next_x)
+        next_deltas = values_signature.kwargs_to_args(kwargs=next_deltas)
+        if isinstance(self.additional_signature, SignatureDict):
+            additional = self.additional_signature.kwargs_to_args(kwargs=additional)
         return next_x, next_deltas, next_improvement, improvement, next_estimated, additional
 
     @tf_function(num_args=6)

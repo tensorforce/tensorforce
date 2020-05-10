@@ -18,14 +18,14 @@ from tensorforce.core.utils.nested_dict import NestedDict
 from tensorforce.core.utils.tensor_spec import TensorSpec
 
 # Requires NestedDict
-from tensorforce.core.utils.dicts import ArrayDict, ModuleDict, SignatureDict, TensorDict, \
-    VariableDict
+from tensorforce.core.utils.dicts import ArrayDict, ListDict, ModuleDict, SignatureDict, \
+    TensorDict, VariableDict
 
 # Requires TensorsDict (and TensorSpec)
 from tensorforce.core.utils.tensors_spec import TensorsSpec
 
 
 __all__ = [
-    'ArrayDict', 'ModuleDict', 'NestedDict', 'SignatureDict', 'TensorDict', 'TensorSpec', \
-    'TensorsSpec', 'tf_util', 'VariableDict'
+    'ArrayDict', 'ListDict', 'ModuleDict', 'NestedDict', 'SignatureDict', 'TensorDict',
+    'TensorSpec', 'TensorsSpec', 'tf_util', 'VariableDict'
 ]

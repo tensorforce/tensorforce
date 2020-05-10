@@ -15,7 +15,7 @@
 
 import numpy as np
 
-from tensorforce import TensorforceError, util
+from tensorforce import TensorforceError
 from tensorforce.environments import Environment
 
 
@@ -249,9 +249,9 @@ class OpenAIGym(Environment):
             else:
                 specs = dict()
                 nvec = space.nvec.flatten()
-                shape = '-'.join(str(x) for x in space.nvec.shape)
+                shape = '_'.join(str(x) for x in space.nvec.shape)
                 for n in range(nvec.shape[0]):
-                    specs['gymmdc{}-{}'.format(n, shape)] = dict(
+                    specs['gymmdc{}_{}'.format(n, shape)] = dict(
                         type='int', shape=(), num_values=nvec[n]
                     )
                 return specs
@@ -268,9 +268,9 @@ class OpenAIGym(Environment):
                 specs = dict()
                 low = space.low.flatten()
                 high = space.high.flatten()
-                shape = '-'.join(str(x) for x in space.low.shape)
+                shape = '_'.join(str(x) for x in space.low.shape)
                 for n in range(low.shape[0]):
-                    specs['gymbox{}-{}'.format(n, shape)] = dict(
+                    specs['gymbox{}_{}'.format(n, shape)] = dict(
                         type='float', shape=(), min_value=low[n], max_value=high[n]
                     )
                 return specs
@@ -286,7 +286,7 @@ class OpenAIGym(Environment):
                     specs['gymtpl{}'.format(n)] = spec
                 else:
                     for name, spec in spec.items():
-                        specs['gymtpl{}-{}'.format(n, name)] = spec
+                        specs['gymtpl{}_{}'.format(n, name)] = spec
             return specs
 
         elif isinstance(space, gym.spaces.Dict):
@@ -299,7 +299,7 @@ class OpenAIGym(Environment):
                     specs[space_name] = spec
                 else:
                     for name, spec in spec.items():
-                        specs['{}-{}'.format(space_name, name)] = spec
+                        specs['{}_{}'.format(space_name, name)] = spec
             return specs
 
         else:
@@ -315,14 +315,14 @@ class OpenAIGym(Environment):
                 else:
                     spec = None
                     for name in states_spec:
-                        if name.startswith('gymtpl{}-'.format(n)):
+                        if name.startswith('gymtpl{}_'.format(n)):
                             assert spec is None
                             spec = states_spec[name]
                     assert spec is not None
                 state = OpenAIGym.flatten_state(state=state, states_spec=spec)
                 if isinstance(state, dict):
                     for name, state in state.items():
-                        states['gymtpl{}-{}'.format(n, name)] = state
+                        states['gymtpl{}_{}'.format(n, name)] = state
                 else:
                     states['gymtpl{}'.format(n)] = state
             return states
@@ -335,14 +335,14 @@ class OpenAIGym(Environment):
                 else:
                     spec = None
                     for name in states_spec:
-                        if name.startswith('{}-'.format(state_name)):
+                        if name.startswith('{}_'.format(state_name)):
                             assert spec is None
                             spec = states_spec[name]
                     assert spec is not None
                 state = OpenAIGym.flatten_state(state=state, states_spec=spec)
                 if isinstance(state, dict):
                     for name, state in state.items():
-                        states['{}-{}'.format(state_name, name)] = state
+                        states['{}_{}'.format(state_name, name)] = state
                 else:
                     states[state_name] = state
             return states
@@ -353,17 +353,17 @@ class OpenAIGym(Environment):
         elif 'gymbox0' in states_spec:
             states = dict()
             state = state.flatten()
-            shape = '-'.join(str(x) for x in state.shape)
+            shape = '_'.join(str(x) for x in state.shape)
             for n in range(state.shape[0]):
-                states['gymbox{}-{}'.format(n, shape)] = state[n]
+                states['gymbox{}_{}'.format(n, shape)] = state[n]
             return states
 
         elif 'gymmdc0' in states_spec:
             states = dict()
             state = state.flatten()
-            shape = '-'.join(str(x) for x in state.shape)
+            shape = '_'.join(str(x) for x in state.shape)
             for n in range(state.shape[0]):
-                states['gymmdc{}-{}'.format(n, shape)] = state[n]
+                states['gymmdc{}_{}'.format(n, shape)] = state[n]
             return states
 
         else:
@@ -384,7 +384,7 @@ class OpenAIGym(Environment):
             actions = list()
             n = 0
             while True:
-                if any(name.startswith(space_type + str(n) + '-') for name in action):
+                if any(name.startswith(space_type + str(n) + '_') for name in action):
                     inner_action = [
                         value for name, value in action.items()
                         if name.startswith(space_type + str(n))
@@ -399,7 +399,7 @@ class OpenAIGym(Environment):
             if all(name.startswith('gymmdc') for name in action) or \
                     all(name.startswith('gymbox') for name in action):
                 name = next(iter(action))
-                shape = tuple(int(x) for x in name[name.index('-') + 1:].split('-'))
+                shape = tuple(int(x) for x in name[name.index('_') + 1:].split('_'))
                 return np.array(actions).reshape(shape)
             else:
                 return tuple(actions)
@@ -407,8 +407,8 @@ class OpenAIGym(Environment):
         else:
             actions = dict()
             for name, action in action.items():
-                if '-' in name:
-                    name, inner_name = name.split('-', 1)
+                if '_' in name:
+                    name, inner_name = name.split('_', 1)
                     if name not in actions:
                         actions[name] = dict()
                     actions[name][inner_name] = action

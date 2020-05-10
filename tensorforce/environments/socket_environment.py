@@ -18,7 +18,7 @@ from socket import SHUT_RDWR, socket as Socket
 import msgpack
 import msgpack_numpy
 
-from tensorforce import TensorforceError, util
+from tensorforce import TensorforceError
 from tensorforce.environments import RemoteEnvironment
 
 
@@ -83,8 +83,6 @@ class SocketEnvironment(RemoteEnvironment):
         if len(str_result) != num_bytes:
             raise TensorforceError.unexpected()
         result = msgpack.unpackb(packed=str_result)
-        decode = (lambda x: x.decode() if isinstance(x, bytes) else x)
-        result = util.fmap(function=decode, xs=result, map_keys=True)
 
         return success, result
 
@@ -137,8 +135,6 @@ class SocketEnvironment(RemoteEnvironment):
         if len(str_kwargs) != num_bytes:
             raise TensorforceError.unexpected()
         kwargs = msgpack.unpackb(packed=str_kwargs)
-        decode = (lambda x: x.decode() if isinstance(x, bytes) else x)
-        kwargs = util.fmap(function=decode, xs=kwargs, map_keys=True)
 
         return function, kwargs
 

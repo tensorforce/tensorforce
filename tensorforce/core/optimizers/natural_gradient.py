@@ -110,7 +110,7 @@ class NaturalGradient(Optimizer):
         with tf.GradientTape(persistent=False, watch_accessed_variables=False) as tape:
             for variable in variables:
                 tape.watch(tensor=variable)
-            loss = fn_loss(**arguments)
+            loss = fn_loss(**arguments.to_kwargs())
 
         # grad(loss)
         loss_gradients = tape.gradient(target=loss, sources=variables)

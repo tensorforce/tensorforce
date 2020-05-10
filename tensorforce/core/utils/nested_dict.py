@@ -24,7 +24,7 @@ def _is_keyword(x):
 
 class NestedDict(OrderedDict):
 
-    def __init__(self, arg=None, *, value_type, overwrite, **kwargs):
+    def __init__(self, arg=None, *, value_type=None, overwrite=None, **kwargs):
         super().__init__()
         super().__setattr__('value_type', value_type)
         super().__setattr__('overwrite', overwrite)
@@ -42,6 +42,9 @@ class NestedDict(OrderedDict):
         super(NestedDict, x).__setattr__('overwrite', self.overwrite)
         return x
 
+    def flatten(self):
+        return list(self.values())
+
     def zip_items(self, *others):
         assert all(len(other) == len(self) for other in others)
         for name, value in self.items():
@@ -57,16 +60,18 @@ class NestedDict(OrderedDict):
             super(NestedDict, values).__setattr__('overwrite', self.overwrite)
             setitem = values.__setitem__
 
-        elif cls is list:
+        elif issubclass(cls, list):
             # Special target class list implies flatten
-            values = list()
-            setitem = (lambda n, v: (values.extend(v) if isinstance(v, list) else values.append(v)))
+            values = cls()
+            setitem = (lambda n, v: (values.extend(v) if isinstance(v, cls) else values.append(v)))
 
-        else:
+        elif issubclass(cls, dict):
             # Custom target class
-            assert issubclass(cls, NestedDict)
             values = cls()
             setitem = values.__setitem__
+
+        else:
+            raise TensorforceError.value(name='NestedDict.fmap', argument='cls', value=cls)
 
         for name, value in super().items():
             # with_names
@@ -82,7 +87,7 @@ class NestedDict(OrderedDict):
                 zip_value = None
             elif isinstance(zip_values, NestedDict):
                 zip_value = (zip_values[name],)
-            elif isinstance(zip_values, tuple):
+            elif isinstance(zip_values, (tuple, list)):
                 zip_value = tuple(xs[name] for xs in zip_values)
             else:
                 raise TensorforceError.type(

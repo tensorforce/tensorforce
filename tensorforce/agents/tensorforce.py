@@ -21,6 +21,7 @@ import numpy as np
 
 from tensorforce import TensorforceError, util
 from tensorforce.agents import Agent
+from tensorforce.core import ArrayDict
 from tensorforce.core.models import TensorforceModel
 
 
@@ -123,13 +124,16 @@ class TensorforceAgent(Agent):
         baseline_policy (specification): Baseline policy configuration, main policy will be used as
             baseline if none
             (<span style="color:#00C000"><b>default</b></span>: none).
-        baseline_optimizer (float > 0.0 | specification): Baseline optimizer configuration, see
-            [optimizers](../modules/optimizers.html), main optimizer will be used for baseline if
-            none, a float implies none and specifies a custom weight for the baseline loss
+        baseline_optimizer (specification | parameter, float > 0.0): Baseline optimizer
+            configuration, see [optimizers](../modules/optimizers.html), main optimizer will be used
+            for baseline if none, a float implies none and specifies a custom weight for the
+            baseline loss
             (<span style="color:#00C000"><b>default</b></span>: none).
         baseline_objective (specification): Baseline optimization objective configuration, see
-            [objectives](../modules/objectives.html), main objective will be used for baseline if
-            none (<span style="color:#00C000"><b>default</b></span>: none).
+            [objectives](../modules/objectives.html), required if baseline optimizer is specified,
+            main objective will be used for baseline if baseline objective and optimizer are not
+            specified
+            (<span style="color:#00C000"><b>default</b></span>: none).
 
         preprocessing (dict[specification]): Preprocessing as layer or list of layers, see
             [preprocessing](../modules/preprocessing.html), specified per state-name or -type, and
@@ -355,9 +359,7 @@ class TensorforceAgent(Agent):
 
         self.experience_size = self.model.estimator.capacity
 
-    def experience(
-        self, states, actions, terminal, reward, internals=None, query=None, **kwargs
-    ):
+    def experience(self, states, actions, terminal, reward, internals=None):
         """
         Feed experience traces.
 
@@ -371,58 +373,124 @@ class TensorforceAgent(Agent):
             reward (array[float]): Array of rewards
                 (<span style="color:#C00000"><b>required</b></span>).
             internals (dict[state]): Dictionary containing arrays of internal agent states
-                (<span style="color:#00C000"><b>default</b></span>: no internal states).
-            query (list[str]): Names of tensors to retrieve
-                (<span style="color:#00C000"><b>default</b></span>: none).
-            kwargs: Additional input values, for instance, for dynamic hyperparameters.
+                (<span style="color:#C00000"><b>required</b></span> if agent has internal states).
         """
-        assert (self.buffer_indices == 0).all()
-        assert util.reduce_all(predicate=util.not_nan_inf, xs=states)
-        assert internals is None or util.reduce_all(predicate=util.not_nan_inf, xs=internals)
-        assert util.reduce_all(predicate=util.not_nan_inf, xs=actions)
-        assert util.reduce_all(predicate=util.not_nan_inf, xs=reward)
+        if not (self.buffer_indices == 0).all():
+            raise TensorforceError(message="Calling agent.experience is not possible mid-episode.")
 
-        # Auxiliaries
+        # Process states input and infer batching structure
+        states, batched, num_instances, is_iter_of_dicts, input_type = self._process_states_input(
+            states=states, function_name='Agent.experience'
+        )
+
+        if is_iter_of_dicts:
+            # Input structure iter[dict[input]]
+
+            # Internals
+            if internals is None:
+                internals = ArrayDict()
+            elif not isinstance(internals, (tuple, list)):
+                raise TensorforceError.type(
+                    name='Agent.experience', argument='internals', dtype=type(internals),
+                    hint='is not tuple/list'
+                )
+            else:
+                internals = [ArrayDict(internal) for internal in internals]
+                internals = internals[0].fmap(
+                    function=(lambda *xs: np.stack(xs, axis=0)), zip_values=internals[1:]
+                )
+
+            # Actions
+            if self.single_action and isinstance(actions, np.ndarray):
+                actions = ArrayDict(action=actions)
+            elif not isinstance(actions, (tuple, list)):
+                raise TensorforceError.type(
+                    name='Agent.experience', argument='actions', dtype=type(actions),
+                    hint='is not tuple/list'
+                )
+            elif self.single_action and not isinstance(actions[0], dict):
+                actions = ArrayDict(action=actions)
+            else:
+                actions = [ArrayDict(action) for action in actions]
+                actions = internals[0].fmap(
+                    function=(lambda *xs: np.stack(xs, axis=0)), zip_values=actions[1:]
+                )
+
+        else:
+            # Input structure dict[iter[input]]
+
+            # Internals
+            if internals is None:
+                internals = ArrayDict()
+            elif not isinstance(internals, dict):
+                raise TensorforceError.type(
+                    name='Agent.experience', argument='internals', dtype=type(internals),
+                    hint='is not dict'
+                )
+            else:
+                internals = ArrayDict(internals)
+
+            # Actions
+            if self.single_action and not isinstance(actions, dict):
+                actions = dict(action=actions)
+            elif not isinstance(actions, dict):
+                raise TensorforceError.type(
+                    name='Agent.experience', argument='actions', dtype=type(actions),
+                    hint='is not dict'
+                )
+            actions = ArrayDict(actions)
+
+        # Expand inputs if not batched
+        if not batched:
+            internals = internals.fmap(function=(lambda x: np.expand_dims(x, axis=0)))
+            actions = actions.fmap(function=(lambda x: np.expand_dims(x, axis=0)))
+            terminal = np.asarray([terminal])
+            reward = np.asarray([reward])
+        else:
+            terminal = np.asarray(terminal)
+            reward = np.asarray(reward)
+
+        # Check number of inputs
+        for name, internal in internals.items():
+            if internal.shape[0] != num_instances:
+                raise TensorforceError.value(
+                    name='Agent.experience', argument='len(internals[{}])'.format(name),
+                    value=internal.shape[0], hint='!= len(states)'
+                )
+        for name, action in actions.items():
+            if action.shape[0] != num_instances:
+                raise TensorforceError.value(
+                    name='Agent.experience', argument='len(actions[{}])'.format(name),
+                    value=action.shape[0], hint='!= len(states)'
+                )
+        if terminal.shape[0] != num_instances:
+            raise TensorforceError.value(
+                name='Agent.experience', argument='len(terminal)'.format(name),
+                value=terminal.shape[0], hint='!= len(states)'
+            )
+        if reward.shape[0] != num_instances:
+            raise TensorforceError.value(
+                name='Agent.experience', argument='len(reward)'.format(name),
+                value=reward.shape[0], hint='!= len(states)'
+            )
+
         def function(name, spec):
             auxiliary = ArrayDict()
             if self.config.enable_int_action_masking and spec.type == 'int' and \
                     spec.num_values is not None:
-                auxiliary['mask'] = np.asarray(states.pop(name + '_mask'))
+                # Mask, either part of states or default all true
+                auxiliary['mask'] = states.pop(name + '_mask', np.ones(
+                    shape=(num_instances,) + spec.shape + (spec.num_values,), dtype=spec.np_type()
+                ))
             return auxiliary
 
         auxiliaries = self.actions_spec.fmap(function=function, cls=ArrayDict, with_names=True)
 
-        # Normalize states/actions dictionaries
-        states = util.normalize_values(
-            value_type='state', values=states, values_spec=self.states_spec
-        )
-        actions = util.normalize_values(
-            value_type='action', values=actions, values_spec=self.actions_spec
-        )
-        if internals is None:
-            internals = OrderedDict()
-
-        if isinstance(terminal, (bool, int)):
-            states = util.fmap(function=(lambda x: [x]), xs=states, depth=1)
-            internals = util.fmap(function=(lambda x: [x]), xs=internals, depth=1)
-            auxiliaries = util.fmap(function=(lambda x: [x]), xs=auxiliaries, depth=1)
-            actions = util.fmap(function=(lambda x: [x]), xs=actions, depth=1)
-            terminal = [terminal]
-            reward = [reward]
-
-        states = util.fmap(function=np.asarray, xs=states, depth=1)
-        internals = util.fmap(function=np.asarray, xs=internals, depth=1)
-        auxiliaries = util.fmap(function=np.asarray, xs=auxiliaries, depth=1)
-        actions = util.fmap(function=np.asarray, xs=actions, depth=1)
-
-        if isinstance(terminal, np.ndarray):
-            if terminal.dtype is util.np_dtype(dtype='bool'):
-                zeros = np.zeros_like(terminal, dtype=util.np_dtype(dtype='int'))
-                ones = np.ones_like(terminal, dtype=util.np_dtype(dtype='int'))
-                terminal = np.where(terminal, ones, zeros)
-        else:
-            terminal = np.asarray([int(x) if isinstance(x, bool) else x for x in terminal])
-        reward = np.asarray(reward)
+        # Convert terminal to int if necessary
+        if terminal.dtype is util.np_dtype(dtype='bool'):
+            zeros = np.zeros_like(terminal, dtype=util.np_dtype(dtype='int'))
+            ones = np.ones_like(terminal, dtype=util.np_dtype(dtype='int'))
+            terminal = np.where(terminal, ones, zeros)
 
         # Batch experiences split into episodes and at most size buffer_observe
         last = 0
@@ -436,50 +504,41 @@ class TensorforceAgent(Agent):
                 index += 1
 
             function = (lambda x: x[last: index])
-            states_batch = util.fmap(function=function, xs=states, depth=1)
-            internals_batch = util.fmap(function=function, xs=internals, depth=1)
-            auxiliaries_batch = util.fmap(function=function, xs=auxiliaries, depth=1)
-            actions_batch = util.fmap(function=function, xs=actions, depth=1)
-            terminal_batch = terminal[last: index]
-            reward_batch = reward[last: index]
+            states_batch = states.fmap(function=function)
+            internals_batch = internals.fmap(function=function)
+            auxiliaries_batch = auxiliaries.fmap(function=function)
+            actions_batch = actions.fmap(function=function)
+            terminal_batch = function(terminal)
+            reward_batch = function(reward)
             last = index
 
+            # Inputs to tensors
+            states_batch = self.states_spec.to_tensor(value=states_batch, batched=True)
+            internals_batch = self.internals_spec.to_tensor(value=internals_batch, batched=True)
+            auxiliaries_batch = self.auxiliaries_spec.to_tensor(
+                value=auxiliaries_batch, batched=True
+            )
+            actions_batch = self.actions_spec.to_tensor(value=actions_batch, batched=True)
+            terminal_batch = self.terminal_spec.to_tensor(value=terminal_batch, batched=True)
+            reward_batch = self.reward_spec.to_tensor(value=reward_batch, batched=True)
+
             # Model.experience()
-            if query is None:
-                self.timesteps, self.episodes, self.updates = self.model.experience(
-                    states=states_batch, internals=internals_batch,
-                    auxiliaries=auxiliaries_batch, actions=actions_batch, terminal=terminal_batch,
-                    reward=reward_batch, **kwargs
-                )
-
-            else:
-                self.timesteps, self.episodes, self.updates, queried = self.model.experience(
-                    states=states_batch, internals=internals_batch,
-                    auxiliaries=auxiliaries_batch, actions=actions_batch, terminal=terminal_batch,
-                    reward=reward_batch, query=query, **kwargs
-                )
-
-        if query is not None:
-            return queried
+            timesteps, episodes, updates = self.model.experience(
+                states=states_batch, internals=internals_batch, auxiliaries=auxiliaries_batch,
+                actions=actions_batch, terminal=terminal_batch, reward=reward_batch
+            )
+            self.timesteps = timesteps.numpy().item()
+            self.episodes = episodes.numpy().item()
+            self.updates = updates.numpy().item()
 
     def update(self, query=None, **kwargs):
         """
         Perform an update.
-
-        Args:
-            query (list[str]): Names of tensors to retrieve
-                (<span style="color:#00C000"><b>default</b></span>: none).
-            kwargs: Additional input values, for instance, for dynamic hyperparameters.
         """
-        # Model.update()
-        if query is None:
-            self.timesteps, self.episodes, self.updates = self.model.update(**kwargs)
-
-        else:
-            self.timesteps, self.episodes, self.updates, queried = self.model.update(
-                query=query, **kwargs
-            )
-            return queried
+        timesteps, episodes, updates = self.model.update()
+        self.timesteps = timesteps.numpy().item()
+        self.episodes = episodes.numpy().item()
+        self.updates = updates.numpy().item()
 
     def pretrain(self, directory, num_iterations, num_traces=1, num_updates=1):
         """
@@ -515,28 +574,30 @@ class TensorforceAgent(Agent):
             else:
                 selection = indices[:num_traces]
 
-            states = OrderedDict(((name, list()) for name in self.states_spec))
-            for name, spec in self.actions_spec.items():
-                if spec['type'] == 'int':
-                    states[name + '_mask'] = list()
-            actions = OrderedDict(((name, list()) for name in self.actions_spec))
-            terminal = list()
-            reward = list()
+            # function = (lambda x: list())
+            # values = ListDict()
+            # values['states'] = self.states_spec.fmap(function=function, cls=ListDict)
+            # values['auxiliaries'] = self.auxiliaries_spec.fmap(function=function, cls=ListDict)
+            # values['actions'] = self.actions_spec.fmap(function=function, cls=ListDict)
+            # values['terminal'] = list()
+            # values['reward'] = list()
+            batch = None
             for index in selection:
-                trace = np.load(files[index])
-                for name in states:
-                    states[name].append(trace[name])
-                for name in actions:
-                    actions[name].append(trace[name])
-                terminal.append(trace['terminal'])
-                reward.append(trace['reward'])
+                trace = ArrayDict(np.load(files[index]))
+                if batch is None:
+                    batch = trace
+                else:
+                    batch = batch.fmap(
+                        function=(lambda x, y: np.concatenate([x, y], axis=0)), zip_values=(trace,)
+                    )
 
-            states = util.fmap(function=np.concatenate, xs=states, depth=1)
-            actions = util.fmap(function=np.concatenate, xs=actions, depth=1)
-            terminal = np.concatenate(terminal)
-            reward = np.concatenate(reward)
+            for name, value in batch.pop('auxiliaries').items():
+                assert name.endswith('/mask')
+                batch['states'][name[:-5] + '_mask'] = value
 
-            self.experience(states=states, actions=actions, terminal=terminal, reward=reward)
+            # values = values.fmap(function=np.concatenate, cls=ArrayDict)
+
+            self.experience(**batch)
             for _ in range(num_updates):
                 self.update()
             # TODO: self.obliviate()

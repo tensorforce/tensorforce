@@ -234,10 +234,9 @@ class Queue(Memory):
 
         # Increment episode count accordingly
         with tf.control_dependencies(control_inputs=(assignment,)):
-            assignment = self.episode_count.assign_add(delta=num_new_episodes, read_value=False)
+            assignment = self.episode_count.assign_add(delta=num_new_episodes)
 
-        with tf.control_dependencies(control_inputs=(assignment,)):
-            return tf_util.constant(value=False, dtype='bool')
+        return assignment < zero
 
     @tf_function(num_args=1)
     def retrieve(self, *, indices, values):
@@ -281,9 +280,8 @@ class Queue(Memory):
         shape = tf.TensorShape(dims=((None, None)))
 
         lengths, predecessor_indices, mask = tf.while_loop(
-            cond=tf_util.always_true, body=body,
-            loop_vars=(lengths, predecessor_indices, mask),
-            shape_invariants=(lengths.get_shape(), shape, shape), back_prop=False,
+            cond=tf_util.always_true, body=body, loop_vars=(lengths, predecessor_indices, mask),
+            shape_invariants=(lengths.get_shape(), shape, shape),
             maximum_iterations=tf_util.int32(x=horizon)
         )
 
@@ -349,7 +347,7 @@ class Queue(Memory):
 
         lengths, successor_indices, mask = tf.while_loop(
             cond=tf_util.always_true, body=body, loop_vars=(lengths, successor_indices, mask),
-            shape_invariants=(lengths.get_shape(), shape, shape), back_prop=False,
+            shape_invariants=(lengths.get_shape(), shape, shape),
             maximum_iterations=tf_util.int32(x=horizon)
         )
 

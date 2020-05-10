@@ -222,7 +222,7 @@ class Retrieve(Layer):
                     )
             shape = tuple(max(shape[n] for shape in shapes) for n in range(len(shapes[0])))
 
-        # TODO: Missing num_values, min/max_value!!!
+        # TODO: Missing num_values, min/max_value
         return TensorSpec(type=dtype, shape=shape)
 
     @tf_function(num_args=1)
@@ -293,7 +293,7 @@ class Reuse(Layer):
     def apply(self, *, x):
         return self.reused_layer.apply(x=x)
 
-    # TODO: other Module functions???
+    # TODO: other Module functions?
     def get_available_summaries(self):
         summaries = super().get_available_summaries()
         summaries.update(self.reused_layer.get_available_summaries())
@@ -515,7 +515,7 @@ class TemporalLayer(Layer):
 
             final_indices, final_remaining, xs = tf.while_loop(
                 cond=tf_util.always_true, body=body, loop_vars=(starts, lengths, initial_xs),
-                back_prop=True, maximum_iterations=tf_util.int64(x=horizon)
+                maximum_iterations=tf_util.int64(x=horizon)
             )
 
             x = self.cumulative_apply(xs=xs, lengths=lengths)
@@ -533,8 +533,8 @@ class TemporalLayer(Layer):
                 with tf.control_dependencies(control_inputs=(current_x, next_x)):
                     is_finished = tf.math.equal(x=remaining, y=zeros)
                     if isinstance(next_internals, dict):
-                        for name, current_internal, next_internal in util.zip_items(
-                            current_internals, next_internals
+                        for name, current_internal, next_internal in current_internals.zip_items(
+                            next_internals
                         ):
                             condition = is_finished
                             for _ in range(tf_util.rank(x=current_internal) - 1):
@@ -566,7 +566,7 @@ class TemporalLayer(Layer):
             internals = internals_signature.kwargs_to_args(kwargs=internals)
             final_indices, final_remaining, x, final_internals = tf.while_loop(
                 cond=tf_util.always_true, body=body,
-                loop_vars=(starts, lengths, initial_x, internals), back_prop=True,
+                loop_vars=(starts, lengths, initial_x, internals),
                 maximum_iterations=tf_util.int32(x=horizon)
             )
             internals = internals_signature.args_to_kwargs(args=final_internals)

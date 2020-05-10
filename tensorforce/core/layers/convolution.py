@@ -17,7 +17,7 @@ import tensorflow as tf
 from tensorflow.python.keras.utils.conv_utils import conv_output_length, deconv_output_length
 
 from tensorforce import TensorforceError, util
-from tensorforce.core import TensorSpec, tf_function
+from tensorforce.core import TensorSpec, tf_function, tf_util
 from tensorforce.core.layers import TransformationBase
 
 
@@ -276,7 +276,10 @@ class Conv1dTranspose(TransformationBase):
         l2_regularization=None, name=None, input_spec=None
     ):
         self.window = window
-        self.output_width = output_width
+        if output_width is None:
+            self.output_shape = None
+        elif self.squeeze:
+            self.output_shape = (output_width, max(1, size))
         self.stride = stride
         self.padding = padding
         self.dilation = dilation
@@ -286,6 +289,7 @@ class Conv1dTranspose(TransformationBase):
             vars_trainable=vars_trainable, input_spec=input_spec, summary_labels=summary_labels,
             l2_regularization=l2_regularization
         )
+
 
     def default_input_spec(self):
         return TensorSpec(type='float', shape=(0, 0))
@@ -298,13 +302,13 @@ class Conv1dTranspose(TransformationBase):
             stride=self.stride, dilation=self.dilation
         )
 
-        if self.output_width is None:
-            self.output_width = width
+        if self.output_shape is None:
+            self.output_shape = (width, self.size)
 
         if self.squeeze:
-            output_spec.shape = (self.output_width,)
+            output_spec.shape = self.output_shape[:1]
         else:
-            output_spec.shape = (self.output_width, self.size)
+            output_spec.shape = self.output_shape
 
         output_spec.min_value = None
         output_spec.max_value = None
@@ -327,8 +331,12 @@ class Conv1dTranspose(TransformationBase):
 
     @tf_function(num_args=1)
     def apply(self, *, x):
+        output_shape = tf.concat(values=[
+            tf_util.cast(x=tf.shape(input=x)[:1], dtype='int'),
+            tf_util.constant(value=self.output_shape, dtype='int')
+        ], axis=0)
         x = tf.nn.conv1d_transpose(
-            input=x, filters=self.weights, output_shape=(1, self.output_width, self.size),
+            input=x, filters=self.weights, output_shape=tf_util.int32(x=output_shape),
             strides=self.stride, padding=self.padding.upper(), dilations=self.dilation
         )
 
@@ -389,9 +397,9 @@ class Conv2dTranspose(TransformationBase):
         if output_shape is None:
             self.output_shape = None
         elif isinstance(output_shape, int):
-            self.output_shape = (1, output_shape, output_shape, size)
+            self.output_shape = (output_shape, output_shape, max(1, size))
         elif util.is_iterable(x=window) and len(output_shape) == 2:
-            self.output_shape = (1, output_shape[0], output_shape[1], size)
+            self.output_shape = (output_shape[0], output_shape[1], max(1, size))
         else:
             raise TensorforceError.type(
                 name='Conv2dTranspose', argument='window', dtype=type(output_shape)
@@ -439,12 +447,12 @@ class Conv2dTranspose(TransformationBase):
         )
 
         if self.output_shape is None:
-            self.output_shape = (1, height, width, self.size)
+            self.output_shape = (height, width, self.size)
 
         if self.squeeze:
-            output_spec.shape = self.output_shape[1: 3]
+            output_spec.shape = self.output_shape[: 2]
         else:
-            output_spec.shape = self.output_shape[1:]
+            output_spec.shape = self.output_shape
 
         output_spec.min_value = None
         output_spec.max_value = None
@@ -467,9 +475,13 @@ class Conv2dTranspose(TransformationBase):
 
     @tf_function(num_args=1)
     def apply(self, *, x):
+        output_shape = tf.concat(values=[
+            tf_util.cast(x=tf.shape(input=x)[:1], dtype='int'),
+            tf_util.constant(value=self.output_shape, dtype='int')
+        ], axis=0)
         x = tf.nn.conv2d_transpose(
-            input=x, filters=self.weights, output_shape=self.output_shape, strides=self.stride,
-            padding=self.padding.upper(), dilations=self.dilation
+            input=x, filters=self.weights, output_shape=tf_util.int32(x=output_shape),
+            strides=self.stride, padding=self.padding.upper(), dilations=self.dilation
         )
 
         return super().apply(x=x)

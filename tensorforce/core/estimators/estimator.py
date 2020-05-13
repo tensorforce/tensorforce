@@ -15,7 +15,6 @@
 
 import tensorflow as tf
 
-from tensorforce import util
 from tensorforce.core import Module, parameter_modules, SignatureDict, TensorDict, TensorSpec, \
     tf_function, tf_util, VariableDict
 
@@ -114,6 +113,15 @@ class Estimator(Module):
         if function == 'advantage':
             return SignatureDict(
                 indices=TensorSpec(type='int', shape=()).signature(batched=True),
+                reward=self.values_spec['reward'].signature(batched=True)
+            )
+
+        elif function == 'advantage_in_loss':
+            return SignatureDict(
+                states=self.values_spec['states'].signature(batched=True),
+                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                internals=self.values_spec['internals']['baseline'].signature(batched=True),
+                auxiliaries=self.values_spec['auxiliaries'].signature(batched=True),
                 reward=self.values_spec['reward'].signature(batched=True)
             )
 
@@ -598,9 +606,30 @@ class Estimator(Module):
         )
         (auxiliaries,) = memory.retrieve(indices=indices, values=('auxiliaries',))
 
-        critic_estimate = baseline.states_value(
+        baseline_estimate = baseline.states_value(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
             reduced=True, return_per_action=False
         )
 
-        return reward - critic_estimate
+        return reward - baseline_estimate
+
+    @tf_function(num_args=5)
+    def advantage_in_loss(self, *, states, horizons, internals, auxiliaries, reward, baseline):
+        if not self.estimate_advantage:
+            return reward
+
+        assert baseline is not None
+        past_horizon = baseline.past_horizon(on_policy=False)
+        # TODO: remove restriction
+        assertion = tf.debugging.assert_less_equal(
+            x=horizons[:, 1], y=past_horizon,
+            message="Baseline horizon cannot be greater than policy horizon."
+        )
+
+        with tf.control_dependencies(control_inputs=(assertion,)):
+            baseline_estimate = baseline.states_value(
+                states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+                reduced=True, return_per_action=False
+            )
+
+        return reward - baseline_estimate

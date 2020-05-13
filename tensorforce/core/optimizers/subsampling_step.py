@@ -34,16 +34,12 @@ class SubsamplingStep(UpdateModifier):
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
         arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        optimized_module (module): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(
-        self, *, optimizer, fraction, summary_labels=None, name=None, arguments_spec=None,
-        optimized_module=None
-    ):
+    def __init__(self, *, optimizer, fraction, summary_labels=None, name=None, arguments_spec=None):
         super().__init__(
             optimizer=optimizer, summary_labels=summary_labels, name=name,
-            arguments_spec=arguments_spec, optimized_module=optimized_module
+            arguments_spec=arguments_spec
         )
 
         self.fraction = self.add_module(
@@ -53,7 +49,6 @@ class SubsamplingStep(UpdateModifier):
 
     @tf_function(num_args=1)
     def step(self, *, arguments, **kwargs):
-        arguments = arguments.copy()
         if 'states' in arguments and 'horizons' in arguments:
             states = arguments['states']
             horizons = arguments['horizons']
@@ -74,25 +69,14 @@ class SubsamplingStep(UpdateModifier):
         subsampled_arguments = TensorDict()
 
         if states is not None:
-            is_one_horizons = tf.reduce_all(
-                input_tensor=tf.math.equal(x=horizons[:, 1], y=one), axis=0
-            )
             horizons = tf.gather(params=horizons, indices=indices)
-
-            def subsampled_states_indices():
-                fold = (lambda acc, h: tf.concat(
-                    values=(acc, tf.range(start=h[0], limit=(h[0] + h[1]))), axis=0
-                ))
-                return tf.foldl(fn=fold, elems=horizons, initializer=indices[:0])
-
-            states_indices = tf.cond(
-                pred=is_one_horizons, true_fn=(lambda: indices), false_fn=subsampled_states_indices
-            )
+            starts = horizons[:, 0]
+            lengths = horizons[:, 1]
+            states_indices = tf.ragged.range(starts=starts, limits=(starts + lengths)).values
             function = (lambda x: tf.gather(params=x, indices=states_indices))
             subsampled_arguments['states'] = states.fmap(function=function)
-            subsampled_arguments['horizons'] = tf.stack(
-                values=(tf.math.cumsum(x=horizons[:, 1], exclusive=True), horizons[:, 1]), axis=1
-            )
+            starts = tf.math.cumsum(x=lengths, exclusive=True)
+            subsampled_arguments['horizons'] = tf.stack(values=(starts, lengths), axis=1)
 
         for name, argument in arguments.items():
             if states is None or (not name.startswith('states') and name != 'horizons'):

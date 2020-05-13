@@ -252,14 +252,14 @@ class VanillaPolicyGradient(TensorforceAgent):
         optimizer = dict(type='adam', learning_rate=learning_rate)
         objective = 'policy_gradient'
         if baseline_network is None:
-            reward_estimation = dict(horizon='episode', discount=discount)
+            assert not estimate_terminals
+            reward_estimation = dict(horizon='episode', discount=discount, estimate_horizon=False)
             baseline_policy = None
             assert baseline_optimizer is None
             baseline_objective = None
         else:
             reward_estimation = dict(
-                horizon='episode', discount=discount,
-                estimate_horizon=(False if baseline_network is None else 'early'),
+                horizon='episode', discount=discount, estimate_horizon='early',
                 estimate_terminals=estimate_terminals, estimate_advantage=True
             )
             baseline_policy = dict(network=baseline_network)

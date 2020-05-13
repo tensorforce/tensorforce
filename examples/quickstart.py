@@ -42,9 +42,9 @@ def main():
         optimization_steps=5,
         # Reward estimation
         likelihood_ratio_clipping=0.2, discount=0.99, estimate_terminals=False,
-        # Critic
-        critic_network='auto',
-        critic_optimizer=dict(optimizer='adam', multi_step=10, learning_rate=1e-3),
+        # Baseline
+        baseline_network='auto',
+        baseline_optimizer=dict(optimizer='adam', multi_step=10, learning_rate=1e-3),
         # Preprocessing
         preprocessing=None,
         # Exploration

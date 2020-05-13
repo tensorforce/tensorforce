@@ -35,17 +35,13 @@ class Synchronization(Optimizer):
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
         arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        optimized_module (module): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
         self, *, sync_frequency=1, update_weight=1.0, summary_labels=None, name=None,
-        arguments_spec=None, optimized_module=None
+        arguments_spec=None
     ):
-        super().__init__(
-            summary_labels=summary_labels, name=name, arguments_spec=arguments_spec,
-            optimized_module=optimized_module
-        )
+        super().__init__(summary_labels=summary_labels, name=name, arguments_spec=arguments_spec)
 
         self.sync_frequency = self.add_module(
             name='sync_frequency', module=sync_frequency, modules=parameter_modules, dtype='int',

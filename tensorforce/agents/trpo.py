@@ -83,10 +83,10 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
         estimate_terminals (bool): Whether to estimate the value of terminal horizon states
             (<span style="color:#00C000"><b>default</b></span>: false).
 
-        critic_network (specification): Critic network configuration, see
+        baseline_network (specification): Critic network configuration, see
             [networks](../modules/networks.html), main policy will be used as critic if none
             (<span style="color:#00C000"><b>default</b></span>: none).
-        critic_optimizer (float > 0.0 | specification): Critic optimizer configuration, see
+        baseline_optimizer (float > 0.0 | specification): Critic optimizer configuration, see
             [optimizers](../modules/optimizers.html), main optimizer will be used for critic if
             none, a float implies none and specifies a custom weight for the critic loss
             (<span style="color:#00C000"><b>default</b></span>: none).
@@ -213,7 +213,7 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
         # Reward estimation
         discount=0.99, estimate_terminals=False,
         # Critic
-        critic_network=None, critic_optimizer=None,
+        baseline_network=None, baseline_optimizer=None,
         # Preprocessing
         preprocessing=None,
         # Exploration
@@ -232,7 +232,7 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
             memory=memory,
             update_frequency=update_frequency, learning_rate=learning_rate,
             discount=discount, estimate_terminals=estimate_terminals,
-            critic_network=critic_network, critic_optimizer=critic_optimizer,
+            baseline_network=baseline_network, baseline_optimizer=baseline_optimizer,
             preprocessing=preprocessing,
             exploration=exploration, variable_noise=variable_noise,
             l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
@@ -258,19 +258,19 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
             ls_mode='exponential', ls_parameter=0.5  # TODO: public arguments?
         )
         objective = dict(type='policy_gradient', ratio_based=True)
-        if critic_network is None:
-            reward_estimation = dict(horizon='episode', discount=discount)
+        if baseline_network is None:
+            assert not estimate_terminals
+            reward_estimation = dict(horizon='episode', discount=discount, estimate_horizon=False)
             baseline_policy = None
-            assert critic_optimizer is None
+            assert baseline_optimizer is None
             baseline_objective = None
         else:
             reward_estimation = dict(
-                horizon='episode', discount=discount,
-                estimate_horizon=(False if critic_network is None else 'early'),
+                horizon='episode', discount=discount, estimate_horizon='early',
                 estimate_terminals=estimate_terminals, estimate_advantage=True
             )
-            baseline_policy = dict(network=critic_network)
-            assert critic_optimizer is not None
+            baseline_policy = dict(network=baseline_network)
+            assert baseline_optimizer is not None
             baseline_objective = dict(type='value', value='state')
 
         super().__init__(
@@ -284,6 +284,6 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
             # TensorforceModel
             policy=policy, memory=memory, update=update, optimizer=optimizer, objective=objective,
             reward_estimation=reward_estimation, baseline_policy=baseline_policy,
-            baseline_optimizer=critic_optimizer, baseline_objective=baseline_objective,
+            baseline_optimizer=baseline_optimizer, baseline_objective=baseline_objective,
             entropy_regularization=entropy_regularization
         )

@@ -8,8 +8,8 @@
     "optimization_steps": 5,
     "likelihood_ratio_clipping": 0.09955676846552193,
     "discount": 0.9985351346308641,
-    "critic_network": {"type": "auto", "rnn": false},
-    "critic_optimizer": {
+    "baseline_network": {"type": "auto", "rnn": false},
+    "baseline_optimizer": {
         "type": "multi_step",
         "optimizer": {"type": "adam", "learning_rate": 0.003670157218888348},
         "num_steps": 10

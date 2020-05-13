@@ -67,6 +67,7 @@ class UnittestBase(object):
         #     message='Logging before flag parsing goes to stderr'
         # )
         tf.config.experimental_run_functions_eagerly(run_eagerly=True)
+        pass
 
     def start_tests(self, name=None):
         """

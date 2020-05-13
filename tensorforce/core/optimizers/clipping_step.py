@@ -35,16 +35,15 @@ class ClippingStep(UpdateModifier):
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
         arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        optimized_module (module): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
         self, *, optimizer, threshold, mode='global_norm', summary_labels=None, name=None,
-        arguments_spec=None, optimized_module=None
+        arguments_spec=None
     ):
         super().__init__(
             optimizer=optimizer, summary_labels=summary_labels, name=name,
-            arguments_spec=arguments_spec, optimized_module=optimized_module
+            arguments_spec=arguments_spec
         )
 
         self.threshold = self.add_module(

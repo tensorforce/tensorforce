@@ -33,7 +33,6 @@ class GlobalOptimizer(UpdateModifier):
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
         arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        optimized_module (module): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     @tf_function(num_args=1)

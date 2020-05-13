@@ -28,18 +28,12 @@ class Optimizer(Module):
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
         arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        optimized_module (module): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    _TF_MODULE_IGNORED_PROPERTIES = Module._TF_MODULE_IGNORED_PROPERTIES | {'optimized_module'}
-
-    def __init__(
-        self, *, summary_labels=None, name=None, arguments_spec=None, optimized_module=None
-    ):
+    def __init__(self, *, summary_labels=None, name=None, arguments_spec=None):
         super().__init__(name=name, summary_labels=summary_labels)
 
         self.arguments_spec = arguments_spec
-        self.optimized_module = optimized_module
 
     def input_signature(self, *, function):
         if function == 'step' or function == 'update':

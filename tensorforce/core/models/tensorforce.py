@@ -227,42 +227,6 @@ class TensorforceModel(Model):
                 raise TensorforceError.exists(name='value name', value=name)
             self.value_names.add(name)
 
-        # Optimizers
-        if baseline_optimizer is None:
-            self.baseline_loss_weight = None
-            internals_spec = self.internals_spec
-            self.baseline_optimizer = None
-        elif isinstance(baseline_optimizer, float):
-            self.baseline_loss_weight = self.add_module(
-                name='baseline_loss_weight', module=baseline_optimizer, modules=parameter_modules,
-                is_trainable=False, dtype='float', min_value=0.0
-            )
-            internals_spec = self.internals_spec
-            self.baseline_optimizer = None
-        else:
-            self.baseline_loss_weight = None
-            internals_spec = self.internals_spec['policy']
-            if self.separate_baseline_policy:
-                baseline_internals = self.internals_spec['baseline']
-            else:
-                baseline_internals = self.internals_spec['policy']
-            self.baseline_optimizer = self.add_module(
-                name='baseline_optimizer', module=baseline_optimizer, modules=optimizer_modules,
-                is_trainable=False, optimized_module=self.baseline, arguments_spec=TensorsSpec(
-                    states=self.states_spec, horizons=TensorSpec(type='int', shape=(2,)),
-                    internals=baseline_internals, auxiliaries=self.auxiliaries_spec,
-                    actions=self.actions_spec, reward=self.reward_spec
-                )
-            )
-        self.optimizer = self.add_module(
-            name='optimizer', module=optimizer, modules=optimizer_modules, optimized_module=self,
-            arguments_spec=TensorsSpec(
-                states=self.states_spec, horizons=TensorSpec(type='int', shape=(2,)),
-                internals=internals_spec, auxiliaries=self.auxiliaries_spec,
-                actions=self.actions_spec, reward=self.reward_spec
-            )
-        )
-
         # Objectives
         self.objective = self.add_module(
             name='objective', module=objective, modules=objective_modules,
@@ -283,6 +247,53 @@ class TensorforceModel(Model):
                 internals_spec=internals_spec, auxiliaries_spec=self.auxiliaries_spec,
                 actions_spec=self.actions_spec, reward_spec=self.reward_spec
             )
+
+        # Optimizers
+        if baseline_optimizer is None:
+            self.baseline_loss_weight = None
+            internals_spec = self.internals_spec
+            self.baseline_optimizer = None
+        elif isinstance(baseline_optimizer, float):
+            self.baseline_loss_weight = self.add_module(
+                name='baseline_loss_weight', module=baseline_optimizer, modules=parameter_modules,
+                is_trainable=False, dtype='float', min_value=0.0
+            )
+            internals_spec = self.internals_spec
+            self.baseline_optimizer = None
+        else:
+            self.baseline_loss_weight = None
+            internals_spec = self.internals_spec['policy']
+            if self.separate_baseline_policy:
+                baseline_internals = self.internals_spec['baseline']
+            else:
+                baseline_internals = self.internals_spec['policy']
+            arguments_spec = TensorsSpec(
+                states=self.states_spec, horizons=TensorSpec(type='int', shape=(2,)),
+                internals=baseline_internals, auxiliaries=self.auxiliaries_spec,
+                actions=self.actions_spec, reward=self.reward_spec
+            )
+            if self.baseline_objective is not None:
+                arguments_spec['reference'] = self.baseline_objective.reference_spec()
+            self.baseline_optimizer = self.add_module(
+                name='baseline_optimizer', module=baseline_optimizer, modules=optimizer_modules,
+                is_trainable=False, arguments_spec=arguments_spec
+            )
+        arguments_spec = TensorsSpec(
+            states=self.states_spec, horizons=TensorSpec(type='int', shape=(2,)),
+            internals=internals_spec, auxiliaries=self.auxiliaries_spec, actions=self.actions_spec,
+            reward=self.reward_spec
+        )
+        if self.baseline_loss_weight is not None and self.separate_baseline_policy:
+            arguments_spec['reference'] = TensorsSpec(
+                policy=self.objective.reference_spec(),
+                baseline=self.baseline_objective.reference_spec()
+            )
+        else:
+            arguments_spec['reference'] = self.objective.reference_spec()
+        self.optimizer = self.add_module(
+            name='optimizer', module=optimizer, modules=optimizer_modules,
+            arguments_spec=arguments_spec
+        )
 
         # Estimator
         max_past_horizon = self.baseline.max_past_horizon(on_policy=True)
@@ -334,47 +345,33 @@ class TensorforceModel(Model):
 
     def input_signature(self, *, function):
         if function == 'baseline_loss':
-            return SignatureDict(
-                states=self.states_spec.signature(batched=True),
-                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
-                internals=(
-                    self.internals_spec['baseline'].signature(batched=True)
-                    if self.separate_baseline_policy else
-                    self.internals_spec['policy'].signature(batched=True)
-                ),
-                auxiliaries=self.auxiliaries_spec.signature(batched=True),
-                actions=self.actions_spec.signature(batched=True),
-                reward=self.reward_spec.signature(batched=True)
-            )
-
-        elif function == 'baseline_comparative_loss':
-            return SignatureDict(
-                states=self.states_spec.signature(batched=True),
-                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
-                internals=(
-                    self.internals_spec['baseline'].signature(batched=True)
-                    if self.separate_baseline_policy else
-                    self.internals_spec['policy'].signature(batched=True)
-                ),
-                auxiliaries=self.auxiliaries_spec.signature(batched=True),
-                actions=self.actions_spec.signature(batched=True),
-                reward=self.reward_spec.signature(batched=True),
-                reference=self.baseline_objective.reference_spec().signature(batched=True)
-            )
-
-        elif function == 'comparative_loss':
-            return SignatureDict(
-                states=self.states_spec.signature(batched=True),
-                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
-                internals=(
-                    self.internals_spec.signature(batched=True) if self.baseline_optimizer is None
-                    else self.internals_spec['policy'].signature(batched=True)
-                ),
-                auxiliaries=self.auxiliaries_spec.signature(batched=True),
-                actions=self.actions_spec.signature(batched=True),
-                reward=self.reward_spec.signature(batched=True),
-                reference=self.objective.reference_spec().signature(batched=True)
-            )
+            if self.baseline_objective is None:
+                return SignatureDict(
+                    states=self.states_spec.signature(batched=True),
+                    horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                    internals=(
+                        self.internals_spec['baseline'].signature(batched=True)
+                        if self.separate_baseline_policy else
+                        self.internals_spec['policy'].signature(batched=True)
+                    ),
+                    auxiliaries=self.auxiliaries_spec.signature(batched=True),
+                    actions=self.actions_spec.signature(batched=True),
+                    reward=self.reward_spec.signature(batched=True)
+                )
+            else:
+                return SignatureDict(
+                    states=self.states_spec.signature(batched=True),
+                    horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                    internals=(
+                        self.internals_spec['baseline'].signature(batched=True)
+                        if self.separate_baseline_policy else
+                        self.internals_spec['policy'].signature(batched=True)
+                    ),
+                    auxiliaries=self.auxiliaries_spec.signature(batched=True),
+                    actions=self.actions_spec.signature(batched=True),
+                    reward=self.reward_spec.signature(batched=True),
+                    reference=self.baseline_objective.reference_spec().signature(batched=True)
+                )
 
         elif function == 'core_experience':
             return SignatureDict(
@@ -400,17 +397,39 @@ class TensorforceModel(Model):
             )
 
         elif function == 'loss':
-            return SignatureDict(
-                states=self.states_spec.signature(batched=True),
-                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
-                internals=(
-                    self.internals_spec.signature(batched=True) if self.baseline_optimizer is None
-                    else self.internals_spec['policy'].signature(batched=True)
-                ),
-                auxiliaries=self.auxiliaries_spec.signature(batched=True),
-                actions=self.actions_spec.signature(batched=True),
-                reward=self.reward_spec.signature(batched=True)
-            )
+            if self.baseline_loss_weight is not None and self.separate_baseline_policy:
+                return SignatureDict(
+                    states=self.states_spec.signature(batched=True),
+                    horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                    internals=self.internals_spec.signature(batched=True),
+                    auxiliaries=self.auxiliaries_spec.signature(batched=True),
+                    actions=self.actions_spec.signature(batched=True),
+                    reward=self.reward_spec.signature(batched=True),
+                    reference=SignatureDict(
+                        policy=self.objective.reference_spec().signature(batched=True),
+                        baseline=self.baseline_objective.reference_spec().signature(batched=True)
+                    )
+                )
+            elif self.baseline_optimizer is None:
+                return SignatureDict(
+                    states=self.states_spec.signature(batched=True),
+                    horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                    internals=self.internals_spec.signature(batched=True),
+                    auxiliaries=self.auxiliaries_spec.signature(batched=True),
+                    actions=self.actions_spec.signature(batched=True),
+                    reward=self.reward_spec.signature(batched=True),
+                    reference=self.objective.reference_spec().signature(batched=True)
+                )
+            else:
+                return SignatureDict(
+                    states=self.states_spec.signature(batched=True),
+                    horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                    internals=self.internals_spec['policy'].signature(batched=True),
+                    auxiliaries=self.auxiliaries_spec.signature(batched=True),
+                    actions=self.actions_spec.signature(batched=True),
+                    reward=self.reward_spec.signature(batched=True),
+                    reference=self.objective.reference_spec().signature(batched=True)
+                )
 
         elif function == 'optimize':
             return SignatureDict(indices=TensorSpec(type='int', shape=()).signature(batched=True))
@@ -580,7 +599,7 @@ class TensorforceModel(Model):
 
         # If no periodic update
         if self.update_frequency is None:
-            return experienced
+            return tf.math.logical_and(x=experienced, y=tf_util.constant(value=False, dtype='bool'))
 
         # Periodic update
         with tf.control_dependencies(control_inputs=(experienced,)):
@@ -752,17 +771,33 @@ class TensorforceModel(Model):
                 indices=indices, values=('auxiliaries', 'actions')
             )
 
+        if self.baseline_optimizer is None:
+            policy_internals = internals['policy']
+        else:
+            policy_internals = internals
+        reference = self.objective.reference(
+            states=states, horizons=horizons, internals=policy_internals, auxiliaries=auxiliaries,
+            actions=actions, reward=reward, policy=self.policy
+        )
+        if self.baseline_loss_weight is not None and self.separate_baseline_policy:
+            reference = TensorDict(policy=reference)
+            reference['baseline'] = self.baseline_objective.reference(
+                states=states, horizons=horizons, internals=internals['baseline'],
+                auxiliaries=auxiliaries, actions=actions, reward=reward, policy=self.baseline
+            )
+
         arguments = TensorDict(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-            actions=actions, reward=reward
+            actions=actions, reward=reward, reference=reference
         )
 
         if self.advantage_in_loss:
             variables = tuple(self.trainable_variables)
 
-            def fn_loss(*, states, horizons, internals, auxiliaries, actions, reward):
-                reward = self.estimator.advantage(
-                    indices=indices, reward=reward, baseline=self.baseline, memory=self.memory
+            def fn_loss(*, states, horizons, internals, auxiliaries, actions, reward, reference):
+                reward = self.estimator.advantage_in_loss(
+                    states=states, horizons=horizons, internals=internals['baseline'],
+                    auxiliaries=auxiliaries, reward=reward, baseline=self.baseline
                 )
                 reward = self.add_summary(
                     label=('advantage', 'rewards'), name='advantage', tensor=reward
@@ -774,49 +809,16 @@ class TensorforceModel(Model):
                     )
                 return self.loss(
                     states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-                    actions=actions, reward=reward
-                )
-
-            def fn_comparative_loss(
-                *, states, horizons, internals, auxiliaries, actions, reward, reference
-            ):
-                reward = self.estimator.advantage(
-                    indices=indices, reward=reward, baseline=self.baseline, memory=self.memory
-                )
-                reward = self.add_summary(
-                    label=('advantage', 'rewards'), name='advantage', tensor=reward
-                )
-                if 'advantage' in self.preprocessing:
-                    reward = self.preprocessing['advantage'].apply(x=reward)
-                    reward = self.add_summary(
-                        label=('advantage', 'rewards'), name='preprocessed-advantage', tensor=reward
-                    )
-                return self.comparative_loss(
-                    states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
                     actions=actions, reward=reward, reference=reference
                 )
 
         else:
             variables = tuple(self.policy.trainable_variables)
             fn_loss = self.loss
-            fn_comparative_loss = self.comparative_loss
 
-        def fn_reference(*, states, horizons, internals, auxiliaries, actions, reward):
-            policy_reference = self.objective.reference(
-                states=states, horizons=horizons, internals=internals['policy'],
-                auxiliaries=auxiliaries, actions=actions, reward=reward, policy=self.policy
-            )
-            if self.baseline_loss_weight is None:
-                return policy_reference
-
-            else:
-                baseline_reference = self.baseline_objective.reference(
-                    states=states, horizons=horizons, internals=internals['baseline'],
-                    auxiliaries=auxiliaries, actions=actions, reward=reward, policy=self.baseline
-                )
-                return policy_reference, baseline_reference
-
-        def fn_kl_divergence(*, states, horizons, internals, auxiliaries, actions, reward):
+        def fn_kl_divergence(
+            *, states, horizons, internals, auxiliaries, actions, reward, reference
+        ):
             reference = self.policy.kldiv_reference(
                 states=states, horizons=horizons, internals=internals['policy'],
                 auxiliaries=auxiliaries
@@ -837,9 +839,7 @@ class TensorforceModel(Model):
                 )
             return kl_divergence
 
-        kwargs = self.objective.optimizer_arguments(
-            policy=self.policy, baseline=self.baseline
-        )
+        kwargs = self.objective.optimizer_arguments(policy=self.policy, baseline=self.baseline)
         if self.baseline_loss_weight is not None and self.baseline_objective is not None:
             util.deep_disjoint_update(
                 target=kwargs,
@@ -870,7 +870,6 @@ class TensorforceModel(Model):
         with tf.control_dependencies(control_inputs=dependencies):
             optimized = self.optimizer.update(
                 arguments=arguments, variables=variables, fn_loss=fn_loss,
-                fn_reference=fn_reference, fn_comparative_loss=fn_comparative_loss,
                 fn_kl_divergence=fn_kl_divergence, **kwargs
             )
 
@@ -985,55 +984,19 @@ class TensorforceModel(Model):
 
         return optimized
 
-    @tf_function(num_args=6)
-    def loss(self, *, states, horizons, internals, auxiliaries, actions, reward):
+    @tf_function(num_args=7)
+    def loss(self, *, states, horizons, internals, auxiliaries, actions, reward, reference):
         if self.baseline_optimizer is None:
             policy_internals = internals['policy']
         else:
             policy_internals = internals
+        if self.baseline_loss_weight is not None and self.separate_baseline_policy:
+            policy_reference = reference['policy']
+        else:
+            policy_reference = reference
 
         # Loss per instance
         loss = self.objective.loss(
-            states=states, horizons=horizons, internals=policy_internals, auxiliaries=auxiliaries,
-            actions=actions, reward=reward, policy=self.policy
-        )
-
-        # Objective loss
-        loss = tf.math.reduce_mean(input_tensor=loss, axis=0)
-
-        # Regularization losses
-        loss += self.regularize(
-            states=states, horizons=horizons, internals=policy_internals, auxiliaries=auxiliaries
-        )
-
-        # Baseline loss
-        if self.baseline_loss_weight is not None:
-            if self.separate_baseline_policy:
-                baseline_internals = internals['baseline']
-            else:
-                baseline_internals = policy_internals
-            loss += self.baseline_loss_weight.value() * self.baseline_loss(
-                states=states, horizons=horizons, internals=baseline_internals,
-                auxiliaries=auxiliaries, actions=actions, reward=reward
-            )
-
-        return loss
-
-    @tf_function(num_args=7)
-    def comparative_loss(
-        self, *, states, horizons, internals, auxiliaries, actions, reward, reference
-    ):
-        if self.baseline_optimizer is None:
-            policy_internals = internals['policy']
-        else:
-            policy_internals = internals
-        if self.baseline_loss_weight is None:
-            policy_reference = reference
-        else:
-            policy_reference, baseline_reference = reference
-
-        # Loss per instance
-        loss = self.objective.comparative_loss(
             states=states, horizons=horizons, internals=policy_internals, auxiliaries=auxiliaries,
             actions=actions, reward=reward, reference=policy_reference, policy=self.policy
         )
@@ -1052,7 +1015,11 @@ class TensorforceModel(Model):
                 baseline_internals = internals['baseline']
             else:
                 baseline_internals = policy_internals
-            loss += self.baseline_loss_weight.value() * self.comparative_baseline_loss(
+            if self.separate_baseline_policy:
+                baseline_reference = reference['baseline']
+            else:
+                baseline_reference = reference
+            loss += self.baseline_loss_weight.value() * self.baseline_loss(
                 states=states, horizons=horizons, internals=baseline_internals,
                 auxiliaries=auxiliaries, actions=actions, reward=reward,
                 reference=baseline_reference
@@ -1111,23 +1078,19 @@ class TensorforceModel(Model):
             memory=self.memory
         )
 
-        variables = tuple(self.baseline.trainable_variables)
-
         arguments = TensorDict(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
             actions=actions, reward=reward
         )
-
-        fn_loss = self.baseline_loss
-        fn_comparative_loss = self.baseline_comparative_loss
-
-        def fn_reference(*, states, horizons, internals, auxiliaries, actions, reward):
-            return self.baseline_objective.reference(
+        if self.baseline_objective is not None:
+            arguments['reference'] = self.baseline_objective.reference(
                 states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
                 actions=actions, reward=reward, policy=self.baseline
             )
 
-        def fn_kl_divergence(*, states, horizons, internals, auxiliaries, actions, reward):
+        def fn_kl_divergence(
+            *, states, horizons, internals, auxiliaries, actions, reward, reference
+        ):
             reference = self.baseline.kldiv_reference(
                 states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries
             )
@@ -1148,8 +1111,8 @@ class TensorforceModel(Model):
 
         # Optimization
         optimized = self.baseline_optimizer.update(
-            arguments=arguments, variables=variables, fn_loss=fn_loss, fn_reference=fn_reference,
-            fn_comparative_loss=fn_comparative_loss, fn_kl_divergence=fn_kl_divergence, **kwargs
+            arguments=arguments, variables=tuple(self.baseline.trainable_variables),
+            fn_loss=self.baseline_loss, fn_kl_divergence=fn_kl_divergence, **kwargs
         )
 
         with tf.control_dependencies(control_inputs=(optimized,)):
@@ -1186,29 +1149,12 @@ class TensorforceModel(Model):
 
         return optimized
 
-    @tf_function(num_args=6)
-    def baseline_loss(self, *, states, horizons, internals, auxiliaries, actions, reward):
-        # Loss per instance
-        loss = self.baseline_objective.loss(
-            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-            actions=actions, reward=reward, policy=self.baseline
-        )
-
-        # Objective loss
-        loss = tf.math.reduce_mean(input_tensor=loss, axis=0)
-
-        # Regularization losses
-        if self.separate_baseline_policy:
-            loss += self.baseline.regularize()
-
-        return loss
-
     @tf_function(num_args=7)
-    def baseline_comparative_loss(
+    def baseline_loss(
         self, *, states, horizons, internals, auxiliaries, actions, reward, reference
     ):
         # Loss per instance
-        loss = self.baseline_objective.comparative_loss(
+        loss = self.baseline_objective.loss(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
             actions=actions, reward=reward, reference=reference, policy=self.baseline
         )

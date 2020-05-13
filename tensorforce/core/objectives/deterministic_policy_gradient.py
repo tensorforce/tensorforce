@@ -34,8 +34,8 @@ class DeterministicPolicyGradient(Objective):
         reward_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    @tf_function(num_args=6)
-    def loss(self, *, states, horizons, internals, auxiliaries, actions, reward, policy):
+    @tf_function(num_args=7)
+    def loss(self, *, states, horizons, internals, auxiliaries, actions, reward, policy, reference):
         policy_actions = policy.act(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
             deterministic=True, return_internals=False
@@ -57,7 +57,9 @@ class DeterministicPolicyGradient(Objective):
     def optimizer_arguments(self, *, policy, baseline, **kwargs):
         arguments = super().optimizer_arguments()
 
-        def fn_initial_gradients(*, states, horizons, internals, auxiliaries, actions, reward):
+        def fn_initial_gradients(
+            *, states, horizons, internals, auxiliaries, actions, reward, reference
+        ):
             if 'policy' in internals:
                 policy_internals = internals['policy']
                 baseline_internals = internals['baseline']

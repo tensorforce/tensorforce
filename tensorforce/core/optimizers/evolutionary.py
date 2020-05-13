@@ -36,17 +36,13 @@ class Evolutionary(Optimizer):
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
         arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        optimized_module (module): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
         self, *, learning_rate, num_samples=1, unroll_loop=False, summary_labels=None, name=None,
-        arguments_spec=None, optimized_module=None
+        arguments_spec=None
     ):
-        super().__init__(
-            summary_labels=summary_labels, name=name, arguments_spec=arguments_spec,
-            optimized_module=optimized_module
-        )
+        super().__init__(summary_labels=summary_labels, name=name, arguments_spec=arguments_spec)
 
         self.learning_rate = self.add_module(
             name='learning_rate', module=learning_rate, modules=parameter_modules, dtype='float',
@@ -65,11 +61,10 @@ class Evolutionary(Optimizer):
             )
 
     @tf_function(num_args=1)
-    def step(self, *, arguments, variables, fn_loss, fn_reference, fn_comparative_loss, **kwargs):
+    def step(self, *, arguments, variables, fn_loss, **kwargs):
         learning_rate = self.learning_rate.value()
 
-        reference = fn_reference(**arguments.to_kwargs())
-        unperturbed_loss = fn_comparative_loss(**arguments.to_kwargs(), reference=reference)
+        unperturbed_loss = fn_loss(**arguments.to_kwargs())
 
         deltas = [tf.zeros_like(input=variable) for variable in variables]
         previous_perturbations = [tf.zeros_like(input=variable) for variable in variables]
@@ -93,9 +88,7 @@ class Evolutionary(Optimizer):
                     previous_perturbations = perturbations
 
                 with tf.control_dependencies(control_inputs=assignments):
-                    perturbed_loss = fn_comparative_loss(
-                        **arguments.to_kwargs(), reference=reference
-                    )
+                    perturbed_loss = fn_loss(**arguments.to_kwargs())
                     direction = tf.math.sign(x=(unperturbed_loss - perturbed_loss))
                     deltas = [
                         delta + direction * perturbation
@@ -120,9 +113,7 @@ class Evolutionary(Optimizer):
                         assignments.append(variable.assign_add(delta=delta, read_value=False))
 
                 with tf.control_dependencies(control_inputs=assignments):
-                    perturbed_loss = fn_comparative_loss(
-                        **arguments.to_kwargs(), reference=reference
-                    )
+                    perturbed_loss = fn_loss(**arguments.to_kwargs())
                     direction = tf.math.sign(x=(unperturbed_loss - perturbed_loss))
                     deltas = [
                         delta + direction * perturbation

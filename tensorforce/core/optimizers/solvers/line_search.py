@@ -28,10 +28,7 @@ class LineSearch(Iterative):
     moving towards $x'$.
     """
 
-    def __init__(
-        self, *, name, max_iterations, accept_ratio, mode, parameter, unroll_loop=False,
-        fn_values_spec=None
-    ):
+    def __init__(self, *, name, max_iterations, accept_ratio, mode, parameter, unroll_loop=False):
         """
         Creates a new line search solver instance.
 
@@ -65,8 +62,6 @@ class LineSearch(Iterative):
             min_value=0.0, max_value=1.0
         )
 
-        self.fn_values_spec = fn_values_spec
-
         if self.mode == 'linear':
             self.additional_signature = SignatureDict(
                 base_value=TensorSpec(type='float', shape=()).signature(batched=False),
@@ -76,12 +71,10 @@ class LineSearch(Iterative):
             self.additional_signature = TensorSpec(type='float', shape=()).signature(batched=False)
 
     def input_signature(self, *, function):
-        values_spec = self.fn_values_spec()
-
         if function == 'end' or function == 'next_step' or function == 'step':
             return SignatureDict(
-                x=values_spec.signature(batched=False),
-                deltas=values_spec.signature(batched=False),
+                x=self.values_spec.signature(batched=False),
+                deltas=self.values_spec.signature(batched=False),
                 improvement=TensorSpec(type='float', shape=()).signature(batched=False),
                 last_improvement=TensorSpec(type='float', shape=()).signature(batched=False),
                 estimated=TensorSpec(type='float', shape=()).signature(batched=False),
@@ -90,7 +83,7 @@ class LineSearch(Iterative):
 
         elif function == 'solve' or function == 'start':
             return SignatureDict(
-                x_init=values_spec.signature(batched=False),
+                x_init=self.values_spec.signature(batched=False),
                 base_value=TensorSpec(type='float', shape=()).signature(batched=False),
                 target_value=TensorSpec(type='float', shape=()).signature(batched=False),
                 estimated_improvement=TensorSpec(type='float', shape=()).signature(batched=False)
@@ -167,10 +160,6 @@ class LineSearch(Iterative):
         Returns:
             Updated arguments for next iteration.
         """
-        # x = values_spec.args_to_kwargs(args=x)
-        # deltas = values_spec.args_to_kwargs(args=deltas)
-        # additional = self.additional_signature.args_to_kwargs(args=additional)
-
         next_x = x.fmap(function=(lambda t, delta: t + delta), zip_values=deltas)
         parameter = self.parameter.value()
 
@@ -190,7 +179,7 @@ class LineSearch(Iterative):
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')
         next_improvement = difference / tf.math.maximum(x=next_estimated, y=epsilon)
 
-        values_signature = self.fn_values_spec().signature(batched=False)
+        values_signature = self.values_spec.signature(batched=False)
         next_x = values_signature.kwargs_to_args(kwargs=next_x)
         next_deltas = values_signature.kwargs_to_args(kwargs=next_deltas)
         if isinstance(self.additional_signature, SignatureDict):

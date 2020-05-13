@@ -91,9 +91,7 @@ class PolicyGradient(Objective):
             )
 
     @tf_function(num_args=7)
-    def comparative_loss(
-        self, *, states, horizons, internals, auxiliaries, actions, reward, reference, policy
-    ):
+    def loss(self, *, states, horizons, internals, auxiliaries, actions, reward, reference, policy):
         log_probability = policy.log_probability(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
             actions=actions, reduced=self.early_reduce, return_per_action=False

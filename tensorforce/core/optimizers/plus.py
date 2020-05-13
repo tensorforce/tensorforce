@@ -33,25 +33,20 @@ class Plus(Optimizer):
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
         arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        optimized_module (module): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
-        self, *, optimizer1, optimizer2, summary_labels=None, name=None, arguments_spec=None,
-        optimized_module=None
+        self, *, optimizer1, optimizer2, summary_labels=None, name=None, arguments_spec=None
     ):
-        super().__init__(
-            summary_labels=summary_labels, name=name, arguments_spec=arguments_spec,
-            optimized_module=optimized_module
-        )
+        super().__init__(summary_labels=summary_labels, name=name, arguments_spec=arguments_spec)
 
         self.optimizer1 = self.add_module(
             name='optimizer1', module=optimizer1, modules=tensorforce.core.optimizer_modules,
-            arguments_spec=self.arguments_spec, optimized_module=self.optimized_module
+            arguments_spec=self.arguments_spec
         )
         self.optimizer2 = self.add_module(
             name='optimizer2', module=optimizer2, modules=tensorforce.core.optimizer_modules,
-            arguments_spec=self.arguments_spec, optimized_module=self.optimized_module
+            arguments_spec=self.arguments_spec
         )
 
     @tf_function(num_args=1)

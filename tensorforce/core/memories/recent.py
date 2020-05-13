@@ -63,11 +63,9 @@ class Recent(Queue):
 
         # Get start and limit index for most recent n episodes
         with tf.control_dependencies(control_inputs=(assertion,)):
-            start = self.terminal_indices[self.episode_count - n]
-            limit = self.terminal_indices[self.episode_count]
-            # Increment terminal of previous episode
-            start = start + one
-            limit = limit + one
+            # (Increment terminal of previous episode)
+            start = self.terminal_indices[self.episode_count - n] + one
+            limit = self.terminal_indices[self.episode_count] + one
 
             # Correct limit index if smaller than start index
             limit = limit + tf.where(condition=(limit < start), x=capacity, y=zero)

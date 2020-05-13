@@ -10,6 +10,7 @@ This file records all major updates and new features, starting from version 0.5.
 - Removed agent `act()` argument: `deterministic`, `evaluation` (use `independent=True` instead)
 - Removed agent function arguments: `query` (functionality removed)
 - New agent argument `config` with values: `buffer_observe`, `enable_int_action_masking`, `seed`
+- Renamed PPO/TRPO argument: `critic_network/optimizer` to `baseline_network/optimizer`
 - Renamed RNN layers: `internal_{rnn/lstm/gru}` to `rnn/lstm/gru`, `rnn/lstm/gru` --> `input_{rnn/lstm/gru}`
 - Renamed reward estimation arguments: `estimate_terminal` to `estimate_terminals`, `estimate_actions` to `estimate_action_values`
 - Renamed `auto` network argument: `internal_rnn` to `rnn`

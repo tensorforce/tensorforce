@@ -43,41 +43,31 @@ class OptimizingStep(UpdateModifier):
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
         arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        optimized_module (module): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
         self, *, optimizer, ls_max_iterations=10, ls_accept_ratio=0.9, ls_mode='exponential',
-        ls_parameter=0.5, ls_unroll_loop=False, summary_labels=None, name=None, arguments_spec=None,
-        optimized_module=None
+        ls_parameter=0.5, ls_unroll_loop=False, summary_labels=None, name=None, arguments_spec=None
     ):
         super().__init__(
             optimizer=optimizer, summary_labels=summary_labels, name=name,
-            arguments_spec=arguments_spec, optimized_module=optimized_module
+            arguments_spec=arguments_spec
         )
 
         self.line_search = self.add_module(
             name='line_search', module='line_search', modules=solver_modules,
             max_iterations=ls_max_iterations, accept_ratio=ls_accept_ratio, mode=ls_mode,
-            parameter=ls_parameter, unroll_loop=ls_unroll_loop,
-            fn_values_spec=(lambda: TensorsSpec((
-                (x.name, TensorSpec(type=tf_util.dtype(x=x), shape=tf_util.shape(x=x)))
-                for x in self.optimized_module.trainable_variables
-            )))
+            parameter=ls_parameter, unroll_loop=ls_unroll_loop
         )
 
     @tf_function(num_args=1)
-    def step(self, *, arguments, variables, **kwargs):
-        fn_reference = kwargs['fn_reference']
-        fn_comparative_loss = kwargs['fn_comparative_loss']
-
-        reference = fn_reference(**arguments.to_kwargs())
-        # Negative value since line search maximizes.
-        loss_before = -fn_comparative_loss(**arguments.to_kwargs(), reference=reference)
+    def step(self, *, arguments, variables, fn_loss, **kwargs):
+        # Negative value since line search maximizes
+        loss_before = -fn_loss(**arguments.to_kwargs())
 
         with tf.control_dependencies(control_inputs=(loss_before,)):
             deltas = self.optimizer.step(
-                arguments=arguments, variables=variables, **kwargs,
+                arguments=arguments, variables=variables, fn_loss=fn_loss, **kwargs,
                 return_estimated_improvement=True
             )
 
@@ -94,7 +84,7 @@ class OptimizingStep(UpdateModifier):
 
         with tf.control_dependencies(control_inputs=deltas):
             # Negative value since line search maximizes.
-            loss_step = -fn_comparative_loss(**arguments.to_kwargs(), reference=reference)
+            loss_step = -fn_loss(**arguments.to_kwargs())
 
         with tf.control_dependencies(control_inputs=(loss_step,)):
 
@@ -105,11 +95,18 @@ class OptimizingStep(UpdateModifier):
                         assignments.append(variable.assign_add(delta=delta, read_value=False))
                 with tf.control_dependencies(control_inputs=assignments):
                     # Negative value since line search maximizes.
-                    return -fn_comparative_loss(**arguments.to_kwargs(), reference=reference)
+                    return -fn_loss(**arguments.to_kwargs())
+
+            values_spec = TensorsSpec((
+                (var.name, TensorSpec(type=tf_util.dtype(x=var), shape=tf_util.shape(x=var)))
+                for var in variables
+            ))
+            self.line_search.prepare_solve_call(values_spec=values_spec)
 
             deltas = TensorDict(((var.name, delta) for var, delta in zip(variables, deltas)))
             deltas = self.line_search.solve(
                 x_init=deltas, base_value=loss_before, target_value=loss_step,
                 estimated_improvement=estimated_improvement, fn_x=evaluate_step
             )
+
             return list(deltas.values())

@@ -63,8 +63,8 @@ class Value(Objective):
 
         self.early_reduce = early_reduce
 
-    @tf_function(num_args=6)
-    def loss(self, *, states, horizons, internals, auxiliaries, actions, reward, policy):
+    @tf_function(num_args=7)
+    def loss(self, *, states, horizons, internals, auxiliaries, actions, reward, policy, reference):
         if not self.early_reduce:
             reward = tf.expand_dims(input=reward, axis=1)
 

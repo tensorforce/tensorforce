@@ -52,7 +52,7 @@ class ConjugateGradient(Iterative):
 
     """
 
-    def __init__(self, *, name, max_iterations, damping, unroll_loop=False, fn_values_spec=None):
+    def __init__(self, *, name, max_iterations, damping, unroll_loop=False):
         """
         Creates a new conjugate gradient solver instance.
 
@@ -68,22 +68,19 @@ class ConjugateGradient(Iterative):
             max_value=1.0
         )
 
-        self.fn_values_spec = fn_values_spec
-
     def input_signature(self, *, function):
-        values_spec = self.fn_values_spec()
         if function == 'end' or function == 'next_step' or function == 'step':
             return SignatureDict(
-                x=values_spec.signature(batched=False),
-                conjugate=values_spec.signature(batched=False),
-                residual=values_spec.signature(batched=False),
+                x=self.values_spec.signature(batched=False),
+                conjugate=self.values_spec.signature(batched=False),
+                residual=self.values_spec.signature(batched=False),
                 squared_residual=TensorSpec(type='float', shape=()).signature(batched=False)
             )
 
         elif function == 'solve' or function == 'start':
             return SignatureDict(
-                x_init=values_spec.signature(batched=False),
-                b=values_spec.signature(batched=False)
+                x_init=self.values_spec.signature(batched=False),
+                b=self.values_spec.signature(batched=False)
             )
 
         else:
@@ -169,7 +166,7 @@ class ConjugateGradient(Iterative):
             function=(lambda res, conj: res + beta * conj), zip_values=conjugate
         )
 
-        values_signature = self.fn_values_spec().signature(batched=False)
+        values_signature = self.values_spec.signature(batched=False)
         next_x = values_signature.kwargs_to_args(kwargs=next_x)
         next_conjugate = values_signature.kwargs_to_args(kwargs=next_conjugate)
         next_residual = values_signature.kwargs_to_args(kwargs=next_residual)

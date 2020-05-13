@@ -67,39 +67,18 @@ class Replay(Queue):
 
         # Get start and limit indices for randomly sampled n episodes
         with tf.control_dependencies(control_inputs=(assertion,)):
-            random_terminal_indices = tf.random.uniform(
+            random_indices = tf.random.uniform(
                 shape=(n,), maxval=self.episode_count, dtype=tf_util.get_dtype(type='int')
             )
-            starts = tf.gather(params=self.terminal_indices, indices=random_terminal_indices)
-            limits = tf.gather(
-                params=self.terminal_indices, indices=(random_terminal_indices + one)
-            )
-            # Increment terminal of previous episode
-            starts = starts + one
-            limits = limits + one
+            # (Increment terminal of previous episode)
+            starts = tf.gather(params=self.terminal_indices, indices=random_indices) + one
+            limits = tf.gather(params=self.terminal_indices, indices=(random_indices + one)) + one
 
-            # Correct limit indices if smaller than start indices
-            zero_array = tf.fill(dims=(n,), value=tf_util.constant(value=0, dtype='int'))
-            capacity_array = tf.fill(
-                dims=(n,), value=tf_util.constant(value=self.capacity, dtype='int')
-            )
-            limits = limits + tf.where(condition=(limits < starts), x=capacity_array, y=zero_array)
+            # Correct limit index if smaller than start index
+            limits = limits + tf.where(condition=(limits < starts), x=capacity, y=zero)
 
-            # Concatenate randomly sampled episode indices ranges
-            def cond(indices, i):
-                return tf.math.less(x=i, y=n)
-
-            def reduce_range_concat(indices, i):
-                episode_indices = tf.range(start=starts[i], limit=limits[i])
-                indices = tf.concat(values=(indices, episode_indices), axis=0)
-                i = i + one
-                return indices, i
-
-            indices = tf_util.zeros(shape=(0,), dtype='int')
-            indices, _ = tf.while_loop(
-                cond=cond, body=reduce_range_concat, loop_vars=(indices, zero),
-                shape_invariants=(tf.TensorShape(dims=(None,)), zero.get_shape())
-            )
+            # Random episode indices ranges
+            indices = tf.ragged.range(starts=starts, limits=limits).values
             indices = tf.math.mod(x=indices, y=capacity)
 
         return indices

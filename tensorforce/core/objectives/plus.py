@@ -74,20 +74,6 @@ class Plus(Objective):
         return arguments
 
     @tf_function(num_args=6)
-    def loss(self, *, states, horizons, internals, auxiliaries, actions, reward, policy):
-        loss1 = self.objective1.loss(
-            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-            actions=actions, reward=reward, policy=policy
-        )
-
-        loss2 = self.objective2.loss(
-            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-            actions=actions, reward=reward, policy=policy
-        )
-
-        return loss1 + loss2
-
-    @tf_function(num_args=6)
     def reference(self, *, states, horizons, internals, auxiliaries, actions, reward, policy):
         reference1 = self.objective1.reference(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
@@ -102,9 +88,7 @@ class Plus(Objective):
         return (reference1, reference2)
 
     @tf_function(num_args=7)
-    def comparative_loss(
-        self, *, states, horizons, internals, auxiliaries, actions, reward, reference, policy
-    ):
+    def loss(self, *, states, horizons, internals, auxiliaries, actions, reward, reference, policy):
         loss1 = self.objective1.comparative_loss(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
             actions=actions, reward=reward, reference=reference[0], policy=policy

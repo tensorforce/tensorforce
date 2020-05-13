@@ -67,7 +67,6 @@ class TFOptimizer(Optimizer):
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
         arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        optimized_module (module): <span style="color:#0000C0"><b>internal use</b></span>.
         kwargs: Arguments for the TensorFlow optimizer, special values "decoupled_weight_decay",
             "lookahead" and "moving_average", see
             `TensorFlow docs <https://www.tensorflow.org/api_docs/python/tf/keras/optimizers>`__
@@ -77,12 +76,9 @@ class TFOptimizer(Optimizer):
 
     def __init__(
         self, *, optimizer, learning_rate=3e-4, gradient_norm_clipping=1.0, summary_labels=None,
-        name=None, arguments_spec=None, optimized_module=None, **kwargs
+        name=None, arguments_spec=None, **kwargs
     ):
-        super().__init__(
-            summary_labels=summary_labels, name=name, arguments_spec=arguments_spec,
-            optimized_module=optimized_module
-        )
+        super().__init__(summary_labels=summary_labels, name=name, arguments_spec=arguments_spec)
 
         assert optimizer in tensorflow_optimizers
         self.optimizer = tensorflow_optimizers[optimizer]
@@ -136,55 +132,47 @@ class TFOptimizer(Optimizer):
     @tf_function(num_args=1)
     def step(self, *, arguments, variables, fn_loss, fn_initial_gradients=None, **kwargs):
         # Trivial operation to enforce control dependency
-        previous_variables = tuple(tf_util.identity(input=variable) for variable in variables)
+        previous_values = list(tf_util.identity(input=variable) for variable in variables)
 
         # Remember variables before update
-        with tf.control_dependencies(control_inputs=previous_variables):
+        with tf.control_dependencies(control_inputs=previous_values):
             if fn_initial_gradients is None:
-                initial_gradients = None
+                initial = None
             else:
-                initial_gradients = fn_initial_gradients(**arguments.to_kwargs())
+                initial = fn_initial_gradients(**arguments.to_kwargs())
 
             with tf.GradientTape(persistent=False, watch_accessed_variables=False) as tape:
                 for variable in variables:
                     tape.watch(tensor=variable)
                 loss = fn_loss(**arguments.to_kwargs())
 
-            gradients = tape.gradient(
-                target=loss, sources=variables, output_gradients=initial_gradients
-            )
+            gradients = tape.gradient(target=loss, sources=variables, output_gradients=initial)
 
-            actual_variables = list()
-            actual_gradients = list()
-            for variable, gradient in zip(variables, gradients):
-                if gradient is not None:
-                    actual_variables.append(variable)
-                    actual_gradients.append(gradient)
-            assert len(actual_variables) > 0
-
-            assertions = [
-                tf.debugging.assert_all_finite(x=gradient, message="Finite gradients check.")
-                for gradient in actual_gradients if gradient is not None
-            ]
+            assertions = list()
+            gradients = list(gradients)
+            grads_and_vars = list(zip(gradients, variables))
+            for n in range(len(gradients) - 1, -1, -1):
+                if gradients[n] is None:
+                    gradients.pop(n)
+                    grads_and_vars.pop(n)
+                else:
+                    assertions.append(tf.debugging.assert_all_finite(
+                        x=gradients[n], message="Invalid gradient: contains inf or nan."
+                    ))
+            assert len(gradients) > 0
 
         with tf.control_dependencies(control_inputs=assertions):
-            gradient_norm_clipping = self.gradient_norm_clipping.value()
-            gradients, gradient_norm = tf.clip_by_global_norm(t_list=[
-                tf_util.cast(x=gradient, dtype='float') for gradient in gradients
-                if gradient is not None
-            ], clip_norm=gradient_norm_clipping)
-            actual_gradients = self.add_summary(
+            clip_norm = self.gradient_norm_clipping.value()
+            gradients, gradient_norm = tf.clip_by_global_norm(
+                t_list=[tf_util.cast(x=g, dtype='float') for g in gradients], clip_norm=clip_norm
+            )
+            gradients = self.add_summary(
                 label='update-norm', name='gradient-norm-unclipped', tensor=gradient_norm,
-                pass_tensors=actual_gradients
+                pass_tensors=gradients
             )
 
-            applied = self.optimizer.apply_gradients(
-                grads_and_vars=zip(actual_gradients, actual_variables)
-            )
+            applied = self.optimizer.apply_gradients(grads_and_vars=grads_and_vars)
 
         # Return deltas after actually having change the variables.
         with tf.control_dependencies(control_inputs=(applied,)):
-            return [
-                variable - previous_variable
-                for variable, previous_variable in zip(variables, previous_variables)
-            ]
+            return [variable - previous for variable, previous in zip(variables, previous_values)]

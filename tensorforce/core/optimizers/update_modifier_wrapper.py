@@ -18,8 +18,7 @@ import tensorforce.core
 
 def UpdateModifierWrapper(
     optimizer, *, multi_step=1, subsampling_fraction=1.0, clipping_threshold=None,
-    optimizing_iterations=0, summary_labels=None, name=None, arguments_spec=None,
-    optimized_module=None, **kwargs
+    optimizing_iterations=0, summary_labels=None, name=None, arguments_spec=None, **kwargs
 ):
     """
     Update modifier wrapper (specification key: `update_modifier_wrapper`).
@@ -39,7 +38,6 @@ def UpdateModifierWrapper(
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
         arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        optimized_module (module): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     optimizer = dict(type=optimizer)
@@ -59,6 +57,5 @@ def UpdateModifierWrapper(
     optimizer_cls = tensorforce.core.optimizer_modules[optimizer.pop('type')]
 
     return optimizer_cls(
-        **optimizer, summary_labels=summary_labels, name=name, arguments_spec=arguments_spec,
-        optimized_module=optimized_module
+        **optimizer, summary_labels=summary_labels, name=name, arguments_spec=arguments_spec
     )

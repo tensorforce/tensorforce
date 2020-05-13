@@ -59,7 +59,8 @@ class Objective(Module):
                 internals=self.internals_spec.signature(batched=True),
                 auxiliaries=self.auxiliaries_spec.signature(batched=True),
                 actions=self.actions_spec.signature(batched=True),
-                reward=self.reward_spec.signature(batched=True)
+                reward=self.reward_spec.signature(batched=True),
+                reference=self.reference_spec().signature(batched=True)
             )
 
         elif function == 'reference':
@@ -72,40 +73,13 @@ class Objective(Module):
                 reward=self.reward_spec.signature(batched=True)
             )
 
-        elif function == 'comparative_loss':
-            return SignatureDict(
-                states=self.states_spec.signature(batched=True),
-                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
-                internals=self.internals_spec.signature(batched=True),
-                auxiliaries=self.auxiliaries_spec.signature(batched=True),
-                actions=self.actions_spec.signature(batched=True),
-                reward=self.reward_spec.signature(batched=True),
-                reference=self.reference_spec().signature(batched=True)
-            )
-
         else:
             return super().input_signature(function=function)
-
-    @tf_function(num_args=6)
-    def loss(self, *, states, horizons, internals, auxiliaries, actions, reward, policy):
-        reference = self.reference(
-            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-            actions=actions, reward=reward, policy=policy
-        )
-        return self.comparative_loss(
-            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-            actions=actions, reward=reward, reference=reference, policy=policy
-        )
 
     @tf_function(num_args=6)
     def reference(self, *, states, horizons, internals, auxiliaries, actions, reward, policy):
         return tf.zeros_like(input=reward)
 
     @tf_function(num_args=7)
-    def comparative_loss(
-        self, *, states, horizons, internals, auxiliaries, actions, reward, reference, policy
-    ):
-        return self.loss(
-            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-            actions=actions, reward=reward, policy=policy
-        )
+    def loss(self, *, states, horizons, internals, auxiliaries, actions, reward, reference, policy):
+        raise NotImplementedError

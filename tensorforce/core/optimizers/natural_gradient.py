@@ -38,17 +38,13 @@ class NaturalGradient(Optimizer):
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
         arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
-        optimized_module (module): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
         self, *, learning_rate, cg_max_iterations=10, cg_damping=1e-3, cg_unroll_loop=False,
-        summary_labels=None, name=None, arguments_spec=None, optimized_module=None
+        summary_labels=None, name=None, arguments_spec=None
     ):
-        super().__init__(
-            summary_labels=summary_labels, name=name, arguments_spec=arguments_spec,
-            optimized_module=optimized_module
-        )
+        super().__init__(summary_labels=summary_labels, name=name, arguments_spec=arguments_spec)
 
         self.learning_rate = self.add_module(
             name='learning_rate', module=learning_rate, modules=parameter_modules, dtype='float',
@@ -57,10 +53,7 @@ class NaturalGradient(Optimizer):
 
         self.conjugate_gradient = self.add_module(
             name='conjugate_gradient', module='conjugate_gradient', modules=solver_modules,
-            max_iterations=cg_max_iterations, damping=cg_damping, unroll_loop=cg_unroll_loop,
-            fn_values_spec=(lambda: TensorsSpec(((
-                x.name, TensorSpec(type=tf_util.dtype(x=x), shape=tf_util.shape(x=x))
-            ) for x in self.optimized_module.trainable_variables)))
+            max_iterations=cg_max_iterations, damping=cg_damping, unroll_loop=cg_unroll_loop
         )
 
     @tf_function(num_args=1)
@@ -122,6 +115,11 @@ class NaturalGradient(Optimizer):
         # Solve the following system for delta' via the conjugate gradient solver.
         # [delta' * F] * delta' = -grad(loss)
         # --> delta'  (= lambda * delta)
+        values_spec = TensorsSpec((
+            (var.name, TensorSpec(type=tf_util.dtype(x=var), shape=tf_util.shape(x=var)))
+            for var in variables
+        ))
+        self.conjugate_gradient.prepare_solve_call(values_spec=values_spec)
         deltas = self.conjugate_gradient.solve(
             x_init=TensorDict(((var.name, tf.zeros_like(input=var)) for var in variables)),
             b=TensorDict(((var.name, -x) for var, x in zip(variables, loss_gradients))),

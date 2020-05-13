@@ -46,6 +46,9 @@ class Iterative(Solver):
                 dtype='int', min_value=0
             )
 
+    def prepare_solve_call(self, values_spec):
+        self.values_spec = values_spec
+
     def solve(self, *, x_init, fn_x=None, **kwargs):
         """
         Iteratively solves an equation/optimization for $x$ involving an expression $f(x)$.
@@ -79,11 +82,13 @@ class Iterative(Solver):
             max_iterations = self.max_iterations.value()
             values = signature.kwargs_to_args(kwargs=values, is_outer_args=True)
             values = tf.while_loop(
-                cond=self.next_step, body=self.step, loop_vars=values,
+                cond=self.next_step, body=self.step, loop_vars=tuple(values),
                 maximum_iterations=tf_util.int32(x=max_iterations)
             )
             values = signature.args_to_kwargs(args=values)
             solution = self.end(**values.to_kwargs())
+
+        self.values_spec = None
 
         return solution
 
@@ -98,7 +103,7 @@ class Iterative(Solver):
         Returns:
             Initial arguments for step.
         """
-        return (x_init,) + tuple(kwargs.values())
+        return [x_init] + list(kwargs.values())
 
     def step(self, *, x, **kwargs):
         """

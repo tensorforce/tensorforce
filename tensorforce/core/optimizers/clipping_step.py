@@ -31,28 +31,25 @@ class ClippingStep(UpdateModifier):
             (<span style="color:#C00000"><b>required</b></span>).
         mode ('global_norm' | 'norm' | 'value'): Clipping mode
             (<span style="color:#00C000"><b>default</b></span>: 'global_norm').
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
         arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(
-        self, *, optimizer, threshold, mode='global_norm', summary_labels=None, name=None,
-        arguments_spec=None
-    ):
-        super().__init__(
-            optimizer=optimizer, summary_labels=summary_labels, name=name,
-            arguments_spec=arguments_spec
-        )
+    def __init__(self, *, optimizer, threshold, mode='global_norm', name=None, arguments_spec=None):
+        super().__init__(optimizer=optimizer, name=name, arguments_spec=arguments_spec)
 
-        self.threshold = self.add_module(
+        self.threshold = self.submodule(
             name='threshold', module=threshold, modules=parameter_modules, dtype='float',
             min_value=0.0
         )
 
         assert mode in ('global_norm', 'norm', 'value')
         self.mode = mode
+
+    def initialize(self):
+        super().initialize()
+
+        self.register_summary(label='update-norm', name='update-norm-unclipped')
 
     @tf_function(num_args=1)
     def step(self, *, arguments, variables, **kwargs):
@@ -76,9 +73,8 @@ class ClippingStep(UpdateModifier):
                         )
                     clipped_deltas.append(clipped_delta)
 
-            clipped_deltas = self.add_summary(
-                label='update-norm', name='update-norm-unclipped', tensor=update_norm,
-                pass_tensors=clipped_deltas
+            self.summary(
+                label='update-norm', name='update-norm-unclipped', data=update_norm, step='updates'
             )
 
             assignments = list()

@@ -27,8 +27,6 @@ class Keras(Layer):
         layer (string): Keras layer class name, see
             `TensorFlow docs <https://www.tensorflow.org/api_docs/python/tf/keras/layers>`__
             (<span style="color:#C00000"><b>required</b></span>).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): Layer name
@@ -38,14 +36,8 @@ class Keras(Layer):
             `TensorFlow docs <https://www.tensorflow.org/api_docs/python/tf/keras/layers>`__.
     """
 
-    def __init__(
-        self, *, layer, summary_labels=None, l2_regularization=None, name=None, input_spec=None,
-        **kwargs
-    ):
-        super().__init__(
-            summary_labels=summary_labels, l2_regularization=l2_regularization, name=name,
-            input_spec=input_spec
-        )
+    def __init__(self, *, layer, l2_regularization=None, name=None, input_spec=None, **kwargs):
+        super().__init__(l2_regularization=l2_regularization, name=name, input_spec=input_spec)
 
         self.keras_layer = getattr(tf.keras.layers, layer)(
             name=name, dtype=tf_util.get_dtype(type='float'), input_shape=input_spec.shape, **kwargs
@@ -64,11 +56,7 @@ class Keras(Layer):
     def initialize(self):
         super().initialize()
 
-        if self.device is not None:
-            self.device.__enter__()
         self.keras_layer.build(input_shape=((None,) + self.input_spec.shape))
-        if self.device is not None:
-            self.device.__exit__(None, None, None)
 
     @tf_function(num_args=0)
     def regularize(self):

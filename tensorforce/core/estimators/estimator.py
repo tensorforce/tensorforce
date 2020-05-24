@@ -44,8 +44,6 @@ class Estimator(Module):
             (<span style="color:#C00000"><b>required</b></span>).
         device (string): Device name
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
         values_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         min_capacity (int > 0): <span style="color:#0000C0"><b>internal use</b></span>.
@@ -54,20 +52,20 @@ class Estimator(Module):
 
     def __init__(
         self, *, horizon, discount, estimate_horizon, estimate_action_values, estimate_terminals,
-        estimate_advantage, device=None, summary_labels=None, name=None, values_spec=None,
-        min_capacity=None, max_past_horizon=None
+        estimate_advantage, device=None, name=None, values_spec=None, min_capacity=None,
+        max_past_horizon=None
     ):
-        super().__init__(device=device, summary_labels=summary_labels, name=name)
+        super().__init__(device=device, name=name)
 
         self.values_spec = values_spec
 
         # Horizon
-        self.horizon = self.add_module(
+        self.horizon = self.submodule(
             name='horizon', module=horizon, modules=parameter_modules, dtype='int', min_value=0
         )
 
         # Discount
-        self.discount = self.add_module(
+        self.discount = self.submodule(
             name='discount', module=discount, modules=parameter_modules, dtype='float',
             min_value=0.0, max_value=1.0
         )
@@ -97,24 +95,36 @@ class Estimator(Module):
 
         # Value buffers
         function = (lambda name, spec: self.variable(
-            name=(name.replace('/', '_') + '-buffer'), dtype=spec.type,
-            shape=((self.capacity,) + spec.shape), initializer='zeros', is_trainable=False,
-            is_saved=False
+            name=(name.replace('/', '_') + '-buffer'),
+            spec=TensorSpec(type=spec.type, shape=((self.capacity,) + spec.shape)),
+            initializer='zeros', is_trainable=False, is_saved=False
         ))
         self.buffers = self.values_spec.fmap(function=function, cls=VariableDict, with_names=True)
 
         # Buffer index (modulo capacity, next index to write to)
         self.buffer_index = self.variable(
-            name='buffer-index', dtype='int', shape=(), initializer='zeros', is_trainable=False,
-            is_saved=False
+            name='buffer-index', spec=TensorSpec(type='int'), initializer='zeros',
+            is_trainable=False, is_saved=False
         )
 
     def input_signature(self, *, function):
         if function == 'advantage':
-            return SignatureDict(
-                indices=TensorSpec(type='int', shape=()).signature(batched=True),
-                reward=self.values_spec['reward'].signature(batched=True)
-            )
+            if 'baseline' in self.values_spec['internals']:  # TODO: better as argument
+                return SignatureDict(
+                    states=self.values_spec['states'].signature(batched=True),
+                    horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                    internals=self.values_spec['internals']['baseline'].signature(batched=True),
+                    auxiliaries=self.values_spec['auxiliaries'].signature(batched=True),
+                    reward=self.values_spec['reward'].signature(batched=True)
+                )
+            else:
+                return SignatureDict(
+                    states=self.values_spec['states'].signature(batched=True),
+                    horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                    internals=self.values_spec['internals']['policy'].signature(batched=True),
+                    auxiliaries=self.values_spec['auxiliaries'].signature(batched=True),
+                    reward=self.values_spec['reward'].signature(batched=True)
+                )
 
         elif function == 'advantage_in_loss':
             return SignatureDict(
@@ -140,6 +150,9 @@ class Estimator(Module):
         elif function == 'reset':
             return SignatureDict()
 
+        elif function == 'terminate':
+            return SignatureDict()
+
         else:
             return super().input_signature(function=function)
 
@@ -151,7 +164,12 @@ class Estimator(Module):
             return tf_util.constant(value=0, dtype='int')
 
     @tf_function(num_args=0)
-    def reset(self, *, baseline):
+    def reset(self):
+        zero = tf_util.constant(value=0, dtype='int')
+        return self.buffer_index.assign(value=zero)
+
+    @tf_function(num_args=0)
+    def terminate(self, *, baseline):
         # Constants and parameters
         zero = tf_util.constant(value=0, dtype='int')
         one = tf_util.constant(value=1, dtype='int')
@@ -321,7 +339,7 @@ class Estimator(Module):
         assertions.append(
             tf.debugging.assert_equal(
                 x=tf.reduce_any(input_tensor=tf.math.greater(x=terminal, y=zero)),
-                y=tf.math.greater(x=terminal[-1], y=zero),
+                y=tf.math.greater(x=tf.concat(values=([zero], terminal), axis=0)[-1], y=zero),
                 message="Terminal is not the last timestep."
             )
         )
@@ -588,24 +606,12 @@ class Estimator(Module):
 
         return reward + discounts * horizon_estimate
 
-    @tf_function(num_args=2)
-    def advantage(self, *, indices, reward, baseline, memory):
+    @tf_function(num_args=5)
+    def advantage(self, *, states, horizons, internals, auxiliaries, reward, baseline):
         if not self.estimate_advantage:
             return reward
 
         assert baseline is not None
-        past_horizon = baseline.past_horizon(on_policy=False)
-
-        if self.parent.separate_baseline_policy:
-            internals = 'internals/baseline'
-        else:
-            internals = 'internals/policy'
-        horizons, (states,), (internals,) = memory.predecessors(
-            indices=indices, horizon=past_horizon, sequence_values=('states',),
-            initial_values=(internals,)
-        )
-        (auxiliaries,) = memory.retrieve(indices=indices, values=('auxiliaries',))
-
         baseline_estimate = baseline.states_value(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
             reduced=True, return_per_action=False

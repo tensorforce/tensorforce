@@ -35,8 +35,6 @@ class Dense(TransformationBase):
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
         vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): Layer name
@@ -46,12 +44,12 @@ class Dense(TransformationBase):
 
     def __init__(
         self, *, size, bias=True, activation='tanh', dropout=0.0, vars_trainable=True,
-        summary_labels=None, l2_regularization=None, name=None, input_spec=None
+        l2_regularization=None, name=None, input_spec=None
     ):
         super().__init__(
             size=size, bias=bias, activation=activation, dropout=dropout,
-            vars_trainable=vars_trainable, summary_labels=summary_labels,
-            l2_regularization=l2_regularization, name=name, input_spec=input_spec
+            vars_trainable=vars_trainable, l2_regularization=l2_regularization, name=name,
+            input_spec=input_spec
         )
 
     def default_input_spec(self):
@@ -80,8 +78,8 @@ class Dense(TransformationBase):
             initializer += '-relu'
 
         self.weights = self.variable(
-            name='weights', dtype='float', shape=(in_size, self.size), initializer=initializer,
-            is_trainable=self.vars_trainable, is_saved=True
+            name='weights', spec=TensorSpec(type='float', shape=(in_size, self.size)),
+            initializer=initializer, is_trainable=self.vars_trainable, is_saved=True
         )
 
     @tf_function(num_args=1)

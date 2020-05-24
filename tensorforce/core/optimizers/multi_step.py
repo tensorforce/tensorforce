@@ -31,20 +31,12 @@ class MultiStep(UpdateModifier):
             (<span style="color:#C00000"><b>required</b></span>).
         unroll_loop (bool): Whether to unroll the repetition loop
             (<span style="color:#00C000"><b>default</b></span>: false).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
         arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(
-        self, *, optimizer, num_steps, unroll_loop=False, summary_labels=None, name=None,
-        arguments_spec=None
-    ):
-        super().__init__(
-            optimizer=optimizer, summary_labels=summary_labels, name=name,
-            arguments_spec=arguments_spec
-        )
+    def __init__(self, *, optimizer, num_steps, unroll_loop=False, name=None, arguments_spec=None):
+        super().__init__(optimizer=optimizer, name=name, arguments_spec=arguments_spec)
 
         assert isinstance(unroll_loop, bool)
         self.unroll_loop = unroll_loop
@@ -52,7 +44,7 @@ class MultiStep(UpdateModifier):
         if self.unroll_loop:
             self.num_steps = num_steps
         else:
-            self.num_steps = self.add_module(
+            self.num_steps = self.submodule(
                 name='num_steps', module=num_steps, modules=parameter_modules, dtype='int',
                 min_value=0
             )

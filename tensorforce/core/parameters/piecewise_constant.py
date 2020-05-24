@@ -31,8 +31,6 @@ class PiecewiseConstant(Parameter):
             (<span style="color:#C00000"><b>required</b></span>).
         values (iter[dtype-dependent]): Interval values of constant segments, one more than
             (<span style="color:#C00000"><b>required</b></span>).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
         dtype (type): <span style="color:#0000C0"><b>internal use</b></span>.
         min_value (dtype-compatible value): <span style="color:#0000C0"><b>internal use</b></span>.
@@ -40,8 +38,7 @@ class PiecewiseConstant(Parameter):
     """
 
     def __init__(
-        self, *, unit, boundaries, values, summary_labels=None, name=None, dtype=None,
-        min_value=None, max_value=None
+        self, *, unit, boundaries, values, name=None, dtype=None, min_value=None, max_value=None
     ):
         if isinstance(values[0], bool):
             if dtype != 'bool':
@@ -63,8 +60,7 @@ class PiecewiseConstant(Parameter):
         self.values = values
 
         super().__init__(
-            unit=unit, summary_labels=summary_labels, name=name, dtype=dtype, min_value=min_value,
-            max_value=max_value
+            unit=unit, name=name, dtype=dtype, min_value=min_value, max_value=max_value
         )
 
     def min_value(self):

@@ -34,24 +34,22 @@ class NaturalGradient(Optimizer):
             (<span style="color:#00C000"><b>default</b></span>: 1e-3).
         cg_unroll_loop (bool): Whether to unroll the conjugate gradient loop
             (<span style="color:#00C000"><b>default</b></span>: false).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
         arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
         self, *, learning_rate, cg_max_iterations=10, cg_damping=1e-3, cg_unroll_loop=False,
-        summary_labels=None, name=None, arguments_spec=None
+        name=None, arguments_spec=None
     ):
-        super().__init__(summary_labels=summary_labels, name=name, arguments_spec=arguments_spec)
+        super().__init__(name=name, arguments_spec=arguments_spec)
 
-        self.learning_rate = self.add_module(
+        self.learning_rate = self.submodule(
             name='learning_rate', module=learning_rate, modules=parameter_modules, dtype='float',
             min_value=0.0
         )
 
-        self.conjugate_gradient = self.add_module(
+        self.conjugate_gradient = self.submodule(
             name='conjugate_gradient', module='conjugate_gradient', modules=solver_modules,
             max_iterations=cg_max_iterations, damping=cg_damping, unroll_loop=cg_unroll_loop
         )

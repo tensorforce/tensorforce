@@ -30,19 +30,14 @@ class SubsamplingStep(UpdateModifier):
             (<span style="color:#C00000"><b>required</b></span>).
         fraction (parameter, 0.0 <= float <= 1.0): Fraction of batch timesteps to subsample
             (<span style="color:#C00000"><b>required</b></span>).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
         arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(self, *, optimizer, fraction, summary_labels=None, name=None, arguments_spec=None):
-        super().__init__(
-            optimizer=optimizer, summary_labels=summary_labels, name=name,
-            arguments_spec=arguments_spec
-        )
+    def __init__(self, *, optimizer, fraction, name=None, arguments_spec=None):
+        super().__init__(optimizer=optimizer, name=name, arguments_spec=arguments_spec)
 
-        self.fraction = self.add_module(
+        self.fraction = self.submodule(
             name='fraction', module=fraction, modules=parameter_modules, dtype='float',
             min_value=0.0, max_value=1.0
         )

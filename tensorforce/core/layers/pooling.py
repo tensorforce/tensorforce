@@ -28,19 +28,17 @@ class Pooling(Layer):
     Args:
         reduction ('concat' | 'max' | 'mean' | 'product' | 'sum'): Pooling type
             (<span style="color:#C00000"><b>required</b></span>).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): Layer name
             (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(self, *, reduction, summary_labels=None, name=None, input_spec=None):
+    def __init__(self, *, reduction, name=None, input_spec=None):
         if reduction not in ('concat', 'max', 'mean', 'product', 'sum'):
             raise TensorforceError.value(name='pooling', argument='reduction', value=reduction)
         self.reduction = reduction
 
-        super().__init__(summary_labels=summary_labels, name=name, input_spec=input_spec)
+        super().__init__(name=name, input_spec=input_spec)
 
     def default_input_spec(self):
         return TensorSpec(type='float', shape=None)
@@ -89,17 +87,13 @@ class Flatten(Pooling):
     Flatten layer (specification key: `flatten`).
 
     Args:
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): Layer name
             (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(self, *, summary_labels=None, name=None, input_spec=None):
-        super().__init__(
-            reduction='concat', summary_labels=summary_labels, name=name, input_spec=input_spec
-        )
+    def __init__(self, *, name=None, input_spec=None):
+        super().__init__(reduction='concat', name=name, input_spec=input_spec)
 
     @tf_function(num_args=1)
     def apply(self, *, x):
@@ -124,17 +118,12 @@ class Pool1d(Layer):
         padding ('same' | 'valid'): Padding type, see
             `TensorFlow docs <https://www.tensorflow.org/api_docs/python/tf/nn/convolution>`__
             (<span style="color:#00C000"><b>default</b></span>: 'same').
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): Layer name
             (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(
-        self, *, reduction, window=2, stride=2, padding='same', summary_labels=None, name=None,
-        input_spec=None
-    ):
+    def __init__(self, *, reduction, window=2, stride=2, padding='same', name=None,input_spec=None):
         self.reduction = reduction
 
         if isinstance(window, int):
@@ -149,7 +138,7 @@ class Pool1d(Layer):
 
         self.padding = padding
 
-        super().__init__(summary_labels=summary_labels, name=name, input_spec=input_spec)
+        super().__init__(name=name, input_spec=input_spec)
 
     def default_input_spec(self):
         return TensorSpec(type='float', shape=(0, 0))
@@ -200,17 +189,12 @@ class Pool2d(Layer):
         padding ('same' | 'valid'): Padding type, see
             `TensorFlow docs <https://www.tensorflow.org/api_docs/python/tf/nn/convolution>`__
             (<span style="color:#00C000"><b>default</b></span>: 'same').
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): Layer name
             (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(
-        self, *, reduction, window=2, stride=2, padding='same', summary_labels=None, name=None,
-        input_spec=None
-    ):
+    def __init__(self, *, reduction, window=2, stride=2, padding='same', name=None,input_spec=None):
         self.reduction = reduction
 
         if isinstance(window, int):
@@ -229,7 +213,7 @@ class Pool2d(Layer):
 
         self.padding = padding
 
-        super().__init__(summary_labels=summary_labels, name=name, input_spec=input_spec)
+        super().__init__(name=name, input_spec=input_spec)
 
     def default_input_spec(self):
         return TensorSpec(type='float', shape=(0, 0, 0))

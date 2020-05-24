@@ -92,9 +92,12 @@ class TestLayers(UnittestBase, unittest.TestCase):
         network = [
             dict(type='activation', nonlinearity='tanh'),
             dict(type='dropout', rate=0.5),
-            dict(type='function', function=(lambda x: x + 1.0)),
+            (lambda x: x + 1.0),
             dict(type='reshape', shape=6),
-            dict(function=(lambda x: x[:, :2]), output_spec=dict(shape=(2,)))
+            dict(
+                type='function', function=(lambda x: x[:, :2]),
+                output_spec=dict(type='float', shape=(2,))
+            )
         ]
         self.unittest(states=states, policy=network)
 

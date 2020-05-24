@@ -41,7 +41,7 @@ class Iterative(Solver):
         if self.unroll_loop:
             self.max_iterations = max_iterations
         else:
-            self.max_iterations = self.add_module(
+            self.max_iterations = self.submodule(
                 name='max_iterations', module=max_iterations, modules=parameter_modules,
                 dtype='int', min_value=0
             )

@@ -55,7 +55,7 @@ class TestExamples(UnittestBase, unittest.TestCase):
         runner = Runner(agent=agent, environment=environment)
 
         # Start the runner
-        runner.run(num_episodes=50)
+        runner.run(num_episodes=10)
         runner.close()
 
         # ====================

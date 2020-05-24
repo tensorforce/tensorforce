@@ -14,7 +14,7 @@
 # ==============================================================================
 
 from tensorforce import TensorforceError
-from tensorforce.core import tf_util
+from tensorforce.core import tf_function, tf_util
 from tensorforce.core.parameters import Parameter
 
 
@@ -25,8 +25,6 @@ class Constant(Parameter):
     Args:
         value (dtype-dependent): Constant hyperparameter value
             (<span style="color:#C00000"><b>required</b></span>).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
         dtype (type): <span style="color:#0000C0"><b>internal use</b></span>.
         min_value (dtype-compatible value): <span style="color:#0000C0"><b>internal use</b></span>.
@@ -34,27 +32,32 @@ class Constant(Parameter):
     """
 
     # Argument 'value' first for default specification
-    def __init__(
-        self, value, *, summary_labels=None, name=None, dtype=None, min_value=None, max_value=None
-    ):
+    def __init__(self, value, *, name=None, dtype=None, min_value=None, max_value=None):
         if isinstance(value, bool):
             if dtype != 'bool':
-                raise TensorforceError.unexpected()
+                raise TensorforceError.dtype(name='Constant', argument='value', dtype=type(value))
         elif isinstance(value, int):
             if dtype != 'int':
-                raise TensorforceError.unexpected()
+                raise TensorforceError.dtype(name='Constant', argument='value', dtype=type(value))
         elif isinstance(value, float):
             if dtype != 'float':
-                raise TensorforceError.unexpected()
+                raise TensorforceError.dtype(name='Constant', argument='value', dtype=type(value))
         else:
             raise TensorforceError.unexpected()
+        if min_value is not None and value < min_value:
+            raise TensorforceError.value(
+                name='Constant', argument='value', value=value,
+                hint='< {} lower bound'.format(min_value)
+            )
+        if max_value is not None and value > max_value:
+            raise TensorforceError.value(
+                name='Constant', argument='value', value=value,
+                hint='> {} upper bound'.format(max_value)
+            )
 
         self.constant_value = value
 
-        super().__init__(
-            summary_labels=summary_labels, name=name, dtype=dtype, min_value=min_value,
-            max_value=max_value
-        )
+        super().__init__(name=name, dtype=dtype, min_value=min_value, max_value=max_value)
 
     def min_value(self):
         return self.constant_value
@@ -65,7 +68,6 @@ class Constant(Parameter):
     def final_value(self):
         return self.constant_value
 
-    def parameter_value(self, *, step):
-        parameter = tf_util.constant(value=self.constant_value, dtype=self.spec.type)
-
-        return parameter
+    @tf_function(num_args=0)
+    def value(self):
+        return tf_util.constant(value=self.constant_value, dtype=self.spec.type)

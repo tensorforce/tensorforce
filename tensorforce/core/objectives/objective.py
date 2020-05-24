@@ -23,8 +23,6 @@ class Objective(Module):
     Base class for optimization objectives.
 
     Args:
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
         states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
@@ -34,10 +32,10 @@ class Objective(Module):
     """
 
     def __init__(
-        self, *, summary_labels=None, name=None, states_spec=None, internals_spec=None,
-        auxiliaries_spec=None, actions_spec=None, reward_spec=None
+        self, *, name=None, states_spec=None, internals_spec=None, auxiliaries_spec=None,
+        actions_spec=None, reward_spec=None
     ):
-        super().__init__(name=name, summary_labels=summary_labels)
+        super().__init__(name=name)
 
         self.states_spec = states_spec
         self.internals_spec = internals_spec

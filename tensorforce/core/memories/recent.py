@@ -28,8 +28,6 @@ class Recent(Queue):
             (<span style="color:#00C000"><b>default</b></span>: minimum capacity).
         device (string): Device name
             (<span style="color:#00C000"><b>default</b></span>: CPU:0).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
         values_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         min_capacity (int >= 0): <span style="color:#0000C0"><b>internal use</b></span>.
@@ -42,7 +40,7 @@ class Recent(Queue):
 
         # Check whether memory contains at least one valid timestep
         num_timesteps = tf.math.minimum(x=self.buffer_index, y=capacity)
-        num_timesteps -= past_horizon + future_horizon
+        num_timesteps -= (past_horizon + future_horizon)
         assertion = tf.debugging.assert_greater_equal(x=num_timesteps, y=one)
 
         # Most recent timestep indices range

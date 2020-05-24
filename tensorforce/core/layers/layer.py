@@ -29,8 +29,6 @@ class Layer(Module):
     Base class for neural network layers.
 
     Args:
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): Layer name
@@ -42,10 +40,8 @@ class Layer(Module):
 
     registered_layers = OrderedDict()
 
-    def __init__(self, *, summary_labels=None, l2_regularization=None, name=None, input_spec=None):
-        super().__init__(
-            summary_labels=summary_labels, l2_regularization=l2_regularization, name=name
-        )
+    def __init__(self, *, l2_regularization=None, name=None, input_spec=None):
+        super().__init__(l2_regularization=l2_regularization, name=name)
 
         Layer.registered_layers[self.name] = self
 
@@ -63,8 +59,8 @@ class Layer(Module):
     def output_spec(self):
         return self.input_spec.copy(overwrite=True)
 
-    def add_module(self, *args, **kwargs):
-        layer = super().add_module(*args, **kwargs)
+    def submodule(self, *args, **kwargs):
+        layer = super().submodule(*args, **kwargs)
 
         if not isinstance(layer, (Layer, Parameter)):
             raise TensorforceError.type(name='layer', argument='submodule', dtype=type(layer))
@@ -92,15 +88,13 @@ class Register(Layer):
     Args:
         tensor (string): Name under which tensor will be registered
             (<span style="color:#C00000"><b>required</b></span>).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): Layer name
             (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(self, *, tensor, summary_labels=None, name=None, input_spec=None):
-        super().__init__(summary_labels=summary_labels, name=name, input_spec=input_spec)
+    def __init__(self, *, tensor, name=None, input_spec=None):
+        super().__init__(name=name, input_spec=input_spec)
 
         if not isinstance(tensor, str):
             raise TensorforceError.type(name='register', argument='tensor', dtype=type(tensor))
@@ -123,18 +117,13 @@ class Retrieve(Layer):
             (<span style="color:#00C000"><b>default</b></span>: 'concat').
         axis (int >= 0): Aggregation axis, excluding batch axis
             (<span style="color:#00C000"><b>default</b></span>: 0).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): Layer name
             (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(
-        self, *, tensors, aggregation='concat', axis=0, summary_labels=None, name=None,
-        input_spec=None
-    ):
-        super().__init__(summary_labels=summary_labels, name=name, input_spec=input_spec)
+    def __init__(self, *, tensors, aggregation='concat', axis=0, name=None, input_spec=None):
+        super().__init__(name=name, input_spec=input_spec)
 
         if not util.is_iterable(x=tensors):
             raise TensorforceError.type(name='retrieve', argument='tensors', dtype=type(tensors))
@@ -275,9 +264,7 @@ class Reuse(Layer):
 
         self.layer = layer
 
-        super().__init__(
-            name=name, input_spec=input_spec, summary_labels=None, l2_regularization=0.0
-        )
+        super().__init__(name=name, input_spec=input_spec, l2_regularization=0.0)
 
     @property
     def reused_layer(self):
@@ -316,8 +303,6 @@ class TransformationBase(Layer):
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
         vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): Layer name
@@ -328,11 +313,10 @@ class TransformationBase(Layer):
 
     def __init__(
         self, *, size, bias=False, activation=None, dropout=0.0, vars_trainable=True,
-        summary_labels=None, l2_regularization=None, name=None, input_spec=None, **kwargs
+        l2_regularization=None, name=None, input_spec=None, **kwargs
     ):
         super().__init__(
-            summary_labels=summary_labels, l2_regularization=l2_regularization, name=name,
-            input_spec=input_spec, **kwargs
+            l2_regularization=l2_regularization, name=name, input_spec=input_spec, **kwargs
         )
 
         self.squeeze = (size == 0)
@@ -342,7 +326,7 @@ class TransformationBase(Layer):
         if activation is None:
             self.activation = None
         else:
-            self.activation = self.add_module(
+            self.activation = self.submodule(
                 name='activation', module='activation', modules=tensorforce.core.layer_modules,
                 nonlinearity=activation, input_spec=self.output_spec()
             )
@@ -350,7 +334,7 @@ class TransformationBase(Layer):
         if dropout == 0.0:
             self.dropout = None
         else:
-            self.dropout = self.add_module(
+            self.dropout = self.submodule(
                 name='dropout', module='dropout', modules=tensorforce.core.layer_modules,
                 rate=dropout, input_spec=self.output_spec()
             )
@@ -362,7 +346,7 @@ class TransformationBase(Layer):
 
         if self.bias:
             self.bias = self.variable(
-                name='bias', dtype='float', shape=(self.size,), initializer='zeros',
+                name='bias', spec=TensorSpec(type='float', shape=(self.size,)), initializer='zeros',
                 is_trainable=self.vars_trainable, is_saved=True
             )
         else:
@@ -394,8 +378,6 @@ class TemporalLayer(Layer):
             (<span style="color:#C00000"><b>required</b></span>).
         horizon (parameter, long >= 0): Past horizon
             (<span style="color:#C00000"><b>required</b></span>).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): Layer name
@@ -405,8 +387,8 @@ class TemporalLayer(Layer):
     """
 
     def __init__(
-        self, *, temporal_processing, horizon, summary_labels=None, l2_regularization=None,
-        name=None, input_spec=None, **kwargs
+        self, *, temporal_processing, horizon, l2_regularization=None, name=None, input_spec=None,
+        **kwargs
     ):
         if temporal_processing not in ('cumulative', 'iterative'):
             raise TensorforceError.value(
@@ -416,8 +398,7 @@ class TemporalLayer(Layer):
         self.temporal_processing = temporal_processing
 
         super().__init__(
-            summary_labels=summary_labels, l2_regularization=l2_regularization, name=name,
-            input_spec=input_spec, **kwargs
+            l2_regularization=l2_regularization, name=name, input_spec=input_spec, **kwargs
         )
 
         if self.temporal_processing == 'cumulative' and len(self.internals_spec) > 0:
@@ -426,7 +407,7 @@ class TemporalLayer(Layer):
                 condition='num internals > 0'
             )
 
-        self.horizon = self.add_module(
+        self.horizon = self.submodule(
             name='horizon', module=horizon, modules=parameter_modules, is_trainable=False,
             dtype='int', min_value=0
         )

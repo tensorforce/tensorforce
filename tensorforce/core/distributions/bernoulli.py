@@ -26,14 +26,12 @@ class Bernoulli(Distribution):
     Bernoulli distribution, for binary boolean actions (specification key: `bernoulli`).
 
     Args:
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
         action_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         input_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(self, *, summary_labels=None, name=None, action_spec=None, input_spec=None):
+    def __init__(self, *, name=None, action_spec=None, input_spec=None):
         assert action_spec.type == 'bool'
 
         parameters_spec = TensorsSpec(
@@ -45,14 +43,14 @@ class Bernoulli(Distribution):
         conditions_spec = TensorsSpec()
 
         super().__init__(
-            summary_labels=summary_labels, name=name, action_spec=action_spec,
-            input_spec=input_spec, parameters_spec=parameters_spec, conditions_spec=conditions_spec
+            name=name, action_spec=action_spec, input_spec=input_spec,
+            parameters_spec=parameters_spec, conditions_spec=conditions_spec
         )
 
         if len(self.input_spec.shape) == 1:
             # Single embedding
             action_size = util.product(xs=self.action_spec.shape, empty=0)
-            self.logit = self.add_module(
+            self.logit = self.submodule(
                 name='logit', module='linear', modules=layer_modules, size=action_size,
                 input_spec=self.input_spec
             )
@@ -73,10 +71,17 @@ class Bernoulli(Distribution):
                     name=name, argument='input_spec.shape', value=self.input_spec.shape,
                     hint='not flattened and incompatible with action shape'
                 )
-            self.logit = self.add_module(
+            self.logit = self.submodule(
                 name='logit', module='linear', modules=layer_modules, size=size,
                 input_spec=self.input_spec
             )
+
+    def initialize(self):
+        super().initialize()
+
+        self.register_summary(
+            label='distributions', name=('distributions/' + self.name + '-probability')
+        )
 
     @tf_function(num_args=2)
     def parametrize(self, *, x, conditions):
@@ -115,14 +120,10 @@ class Bernoulli(Distribution):
             ('true_logit', 'false_logit', 'probability')
         )
 
-        summary_probability = probability
-        for _ in range(len(self.action_spec.shape)):
-            summary_probability = tf.math.reduce_mean(input_tensor=summary_probability, axis=1)
-
-        true_logit, false_logit, probability = self.add_summary(
-            label=('distributions', 'bernoulli'), name='probability', tensor=summary_probability,
-            pass_tensors=(true_logit, false_logit, probability)
-        )
+        # Distribution parameter summaries
+        name = 'distributions/' + self.name + '-probability'
+        x = tf.math.reduce_mean(input_tensor=probability, axis=range(self.action_spec.rank + 1))
+        self.summary(label='distributions', name=name, data=x, step='timesteps')
 
         half = tf_util.constant(value=0.5, dtype='float')
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')

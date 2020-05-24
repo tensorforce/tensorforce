@@ -133,7 +133,7 @@ agent.pretrain(
 agent = Agent.create(...
     saver=dict(
         directory='data/checkpoints',
-        frequency=600  # save checkpoint every 600 seconds (10 minutes)
+        frequency=100  # save checkpoint every 100 updates
     ), ...
 )
 ...
@@ -147,12 +147,7 @@ agent = Agent.load(directory='data/checkpoints')
 ##### NumPy / HDF5 (only weights)
 
 ```python
-agent = Agent.create(...
-    saver=dict(
-        directory='data/checkpoints',
-        frequency=600  # save checkpoint every 600 seconds (10 minutes)
-    ), ...
-)
+agent = Agent.create(...)
 ...
 agent.save(directory='data/checkpoints', format='numpy', append='episodes')
 

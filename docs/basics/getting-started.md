@@ -4,13 +4,13 @@ Getting started
 
 ### Initializing an environment
 
-It is recommended to initialize an environment via the `Environment.create(...)` interface.
+It is recommended to initialize an environment via the `Environment.create(...)` [interface](../environments/environment.html).
 
 ```python
 from tensorforce.environments import Environment
 ```
 
-For instance, the [OpenAI CartPole environment](../environments/openai_gym.html) can be initialized as follows:
+For instance, the [OpenAI CartPole environment](../environments/openai_gym.html) can be initialized as follows (see environment docs for available environments and arguments):
 
 ```python
 environment = Environment.create(
@@ -92,13 +92,13 @@ It is strongly recommended to specify the `max_episode_timesteps` argument of `E
 
 ### Initializing an agent
 
-Similarly to environments, it is recommended to initialize an agent via the `Agent.create(...)` interface.
+Similarly to environments, it is recommended to initialize an agent via the `Agent.create(...)` [interface](../agents/agent.html).
 
 ```python
 from tensorforce.agents import Agent
 ```
 
-For instance, the [generic Tensorforce agent](../agents/tensorforce.html) can be initialized as follows:
+For instance, the [generic Tensorforce agent](../agents/tensorforce.html) can be initialized as follows (see agent docs for available agents and arguments):
 
 ```python
 agent = Agent.create(

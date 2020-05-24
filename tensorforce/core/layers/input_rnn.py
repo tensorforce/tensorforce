@@ -41,8 +41,6 @@ class InputRnn(TransformationBase):
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
         vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): Layer name
@@ -54,16 +52,15 @@ class InputRnn(TransformationBase):
 
     def __init__(
         self, *, cell, size, return_final_state=True, bias=True, activation='tanh', dropout=0.0,
-        vars_trainable=True, summary_labels=None, l2_regularization=None, name=None,
-        input_spec=None, **kwargs
+        vars_trainable=True, l2_regularization=None, name=None, input_spec=None, **kwargs
     ):
         self.cell_type = cell
         self.return_final_state = return_final_state
 
         super().__init__(
             size=size, bias=bias, activation=activation, dropout=dropout,
-            vars_trainable=vars_trainable, summary_labels=summary_labels,
-            l2_regularization=l2_regularization, name=name, input_spec=input_spec
+            vars_trainable=vars_trainable, l2_regularization=l2_regularization, name=name,
+            input_spec=input_spec
         )
 
         if self.squeeze and self.return_final_state:
@@ -116,11 +113,7 @@ class InputRnn(TransformationBase):
     def initialize(self):
         super().initialize()
 
-        if self.device is not None:
-            self.device.__enter__()
         self.rnn.build(input_shape=((None,) + self.input_spec.shape))
-        if self.device is not None:
-            self.device.__exit__(None, None, None)
 
     @tf_function(num_args=0)
     def regularize(self):
@@ -165,8 +158,6 @@ class InputGru(InputRnn):
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
         vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): Layer name
@@ -178,14 +169,12 @@ class InputGru(InputRnn):
 
     def __init__(
         self, *, size, return_final_state=True, bias=False, activation=None, dropout=0.0,
-        vars_trainable=True, summary_labels=None, l2_regularization=None, name=None,
-        input_spec=None, **kwargs
+        vars_trainable=True, l2_regularization=None, name=None, input_spec=None, **kwargs
     ):
         super().__init__(
             cell='gru', size=size, return_final_state=return_final_state, bias=bias,
             activation=activation, dropout=dropout, vars_trainable=vars_trainable,
-            summary_labels=summary_labels, l2_regularization=l2_regularization, name=name,
-            input_spec=input_spec, **kwargs
+            l2_regularization=l2_regularization, name=name, input_spec=input_spec, **kwargs
         )
 
 
@@ -208,8 +197,6 @@ class InputLstm(InputRnn):
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
         vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): Layer name
@@ -221,12 +208,10 @@ class InputLstm(InputRnn):
 
     def __init__(
         self, *, size, return_final_state=True, bias=False, activation=None, dropout=0.0,
-        vars_trainable=True, summary_labels=None, l2_regularization=None, name=None,
-        input_spec=None, **kwargs
+        vars_trainable=True, l2_regularization=None, name=None, input_spec=None, **kwargs
     ):
         super().__init__(
             cell='lstm', size=size, return_final_state=return_final_state, bias=bias,
             activation=activation, dropout=dropout, vars_trainable=vars_trainable,
-            summary_labels=summary_labels, l2_regularization=l2_regularization, name=name,
-            input_spec=input_spec, **kwargs
+            l2_regularization=l2_regularization, name=name, input_spec=input_spec, **kwargs
         )

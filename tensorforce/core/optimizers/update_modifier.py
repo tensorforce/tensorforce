@@ -25,16 +25,14 @@ class UpdateModifier(Optimizer):
     Args:
         optimizer (specification): Optimizer configuration
             (<span style="color:#C00000"><b>required</b></span>).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
         arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(self, *, optimizer, summary_labels=None, name=None, arguments_spec=None):
-        super().__init__(summary_labels=summary_labels, name=name, arguments_spec=arguments_spec)
+    def __init__(self, *, optimizer, name=None, arguments_spec=None):
+        super().__init__(name=name, arguments_spec=arguments_spec)
 
-        self.optimizer = self.add_module(
+        self.optimizer = self.submodule(
             name='optimizer', module=optimizer, modules=tensorforce.core.optimizer_modules,
             arguments_spec=self.arguments_spec
         )

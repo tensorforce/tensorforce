@@ -1,7 +1,7 @@
 Parameters
 ==========
 
-Default parameter: ``Constant``
+Default parameter: ``Constant``, so e.g. ``parameter=0.1``
 
 
 .. autoclass:: tensorforce.core.parameters.Constant

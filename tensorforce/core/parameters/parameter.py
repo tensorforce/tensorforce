@@ -26,8 +26,6 @@ class Parameter(Module):
     Args:
         unit ("timesteps" | "episodes" | "updates"): Unit of parameter schedule
             (<span style="color:#00C000"><b>default</b></span>: timesteps).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
         dtype (type): <span style="color:#0000C0"><b>internal use</b></span>.
         shape (iter[int > 0]): <span style="color:#0000C0"><b>internal use</b></span>.
@@ -36,10 +34,9 @@ class Parameter(Module):
     """
 
     def __init__(
-        self, *, unit='timesteps', summary_labels=None, name=None, dtype=None, shape=(),
-        min_value=None, max_value=None
+        self, *, unit='timesteps', name=None, dtype=None, shape=(), min_value=None, max_value=None
     ):
-        super().__init__(name=name, summary_labels=summary_labels)
+        super().__init__(name=name)
 
         assert unit in (None, 'timesteps', 'episodes', 'updates')
         self.unit = unit
@@ -77,11 +74,21 @@ class Parameter(Module):
     def max_value(self):
         return None
 
+    def is_constant(self, *, value):
+        assert isinstance(value, self.spec.py_type())
+        if self.min_value() == value and self.max_value() == value:
+            assert self.final_value() == value
+            return True
+        else:
+            return False
+
     def final_value(self):
         raise NotImplementedError
 
-    def parameter_value(self, *, step):
-        raise NotImplementedError
+    def initialize(self):
+        super().initialize()
+
+        self.register_summary(label='parameters', name=self.name)
 
     def input_signature(self, *, function):
         if function == 'value':
@@ -90,19 +97,23 @@ class Parameter(Module):
         else:
             return super().input_signature(function=function)
 
+    def parameter_value(self, *, step):
+        raise NotImplementedError
+
     @tf_function(num_args=0)
     def value(self):
         if self.unit is None:
             step = None
-        elif self.unit == 'timesteps':
-            step = self.root.timesteps
-        elif self.unit == 'episodes':
-            step = self.root.episodes
-        elif self.unit == 'updates':
-            step = self.root.updates
+        else:
+            step = self.root.units[self.unit]
 
         parameter = self.parameter_value(step=step)
-        parameter = self.add_summary(label='parameters', name=self.name, tensor=parameter)
+
+        if self.unit is None:
+            unit = 'timesteps'
+        else:
+            unit = self.unit
+        self.summary(label='parameters', name=self.name, data=parameter, step=unit)
 
         assertions = self.spec.tf_assert(
             x=parameter, include_type_shape=True,

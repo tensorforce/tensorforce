@@ -32,19 +32,16 @@ class Evolutionary(Optimizer):
             (<span style="color:#00C000"><b>default</b></span>: 1).
         unroll_loop (bool): Whether to unroll the sampling loop
             (<span style="color:#00C000"><b>default</b></span>: false).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
         arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
-        self, *, learning_rate, num_samples=1, unroll_loop=False, summary_labels=None, name=None,
-        arguments_spec=None
+        self, *, learning_rate, num_samples=1, unroll_loop=False, name=None, arguments_spec=None
     ):
-        super().__init__(summary_labels=summary_labels, name=name, arguments_spec=arguments_spec)
+        super().__init__(name=name, arguments_spec=arguments_spec)
 
-        self.learning_rate = self.add_module(
+        self.learning_rate = self.submodule(
             name='learning_rate', module=learning_rate, modules=parameter_modules, dtype='float',
             min_value=0.0
         )
@@ -55,7 +52,7 @@ class Evolutionary(Optimizer):
         if self.unroll_loop:
             self.num_samples = num_samples
         else:
-            self.num_samples = self.add_module(
+            self.num_samples = self.submodule(
                 name='num_samples', module=num_samples, modules=parameter_modules, dtype='int',
                 min_value=0
             )

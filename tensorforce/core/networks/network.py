@@ -31,22 +31,14 @@ class Network(Module):
     Args:
         device (string): Device name
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
         inputs_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(
-        self, *, device=None, summary_labels=None, l2_regularization=None, name=None,
-        inputs_spec=None
-    ):
-        super().__init__(
-            name=name, device=device, summary_labels=summary_labels,
-            l2_regularization=l2_regularization
-        )
+    def __init__(self, *, device=None, l2_regularization=None, name=None, inputs_spec=None):
+        super().__init__(name=name, device=device,  l2_regularization=l2_regularization)
 
         self.inputs_spec = inputs_spec
 
@@ -91,12 +83,9 @@ class LayerbasedNetwork(Network):
     Base class for networks using Tensorforce layers.
     """
 
-    def __init__(
-        self, *, name, inputs_spec, device=None, summary_labels=None, l2_regularization=None
-    ):
+    def __init__(self, *, name, inputs_spec, device=None, l2_regularization=None):
         super().__init__(
-            name=name, inputs_spec=inputs_spec, device=device, summary_labels=summary_labels,
-            l2_regularization=l2_regularization
+            name=name, inputs_spec=inputs_spec, device=device, l2_regularization=l2_regularization
         )
 
         self.registered_tensors_spec = self.inputs_spec.copy()
@@ -144,7 +133,7 @@ class LayerbasedNetwork(Network):
 
         return tf.math.reduce_max(input_tensor=tf.stack(values=past_horizons, axis=0), axis=0)
 
-    def add_module(
+    def submodule(
         self, *, name, module=None, modules=None, default_module=None, is_trainable=True,
         is_saved=True, **kwargs
     ):
@@ -184,7 +173,7 @@ class LayerbasedNetwork(Network):
         elif module_cls is Retrieve:
             raise TensorforceError.invalid(name='retrieve layer', argument='input_spec')
 
-        layer = super().add_module(
+        layer = super().submodule(
             module=module_cls, modules=modules, default_module=default_module,
             is_trainable=is_trainable, is_saved=is_saved, **kwargs
         )
@@ -218,8 +207,6 @@ class LayeredNetwork(LayerbasedNetwork):
             (<span style="color:#C00000"><b>required</b></span>).
         device (string): Device name
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
@@ -227,13 +214,9 @@ class LayeredNetwork(LayerbasedNetwork):
     """
 
     # (requires layers as first argument)
-    def __init__(
-        self, layers, *, device=None, summary_labels=None, l2_regularization=None, name=None,
-        inputs_spec=None
-    ):
+    def __init__(self, layers, *, device=None, l2_regularization=None, name=None, inputs_spec=None):
         super().__init__(
-            device=device, summary_labels=summary_labels, l2_regularization=l2_regularization,
-            name=name, inputs_spec=inputs_spec
+            device=device, l2_regularization=l2_regularization, name=name, inputs_spec=inputs_spec
         )
 
         self.layers = list(self._parse_layers_spec(spec=layers, counter=Counter()))
@@ -244,6 +227,9 @@ class LayeredNetwork(LayerbasedNetwork):
                 yield from self._parse_layers_spec(spec=s, counter=counter)
 
         else:
+            if callable(spec):
+                spec = dict(type='function', function=spec)
+
             if 'name' in spec:
                 spec = dict(spec)
                 name = spec.pop('name')
@@ -255,7 +241,7 @@ class LayeredNetwork(LayerbasedNetwork):
                 name = layer_type + str(counter[layer_type])
                 counter[layer_type] += 1
 
-            yield self.add_module(name=name, module=spec)
+            yield self.submodule(name=name, module=spec)
 
     @tf_function(num_args=3)
     def apply(self, *, x, horizons, internals, return_internals):

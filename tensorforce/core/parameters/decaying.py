@@ -26,7 +26,7 @@ class Decaying(Parameter):
     Args:
         unit ("timesteps" | "episodes" | "updates"): Unit of decay schedule
             (<span style="color:#C00000"><b>required</b></span>).
-        decay ("cosine" | "cosine_restarts" | "exponential" | "inverse_time" | "linear_cosine" | "linear_cosine_noisy" | "polynomial"):
+        decay ("linear" | "exponential" | "polynomial" | "inverse_time" | "cosine" | "cosine_restarts" | "linear_cosine" | "linear_cosine_noisy"):
             Decay type, see
             `TensorFlow docs <https://www.tensorflow.org/api_docs/python/tf/train>`__
             (<span style="color:#C00000"><b>required</b></span>).
@@ -40,9 +40,37 @@ class Decaying(Parameter):
             (<span style="color:#00C000"><b>default</b></span>: false).
         scale (float): Scaling factor for (inverse) decayed value
             (<span style="color:#00C000"><b>default</b></span>: 1.0).
-        summary_labels ("all" | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         kwargs: Additional arguments depend on decay mechanism.<br>
+            Linear decay:
+            <ul>
+            <li><b>final_value</b> (<i>float</i>) &ndash; Final value
+            (<span style="color:#C00000"><b>required</b></span>).</li>
+            </ul>
+            Exponential decay:
+            <ul>
+            <li><b>decay_rate</b> (<i>float</i>) &ndash; Decay rate
+            (<span style="color:#C00000"><b>required</b></span>).</li>
+            <li><b>staircase</b> (<i>bool</i>) &ndash; Whether to apply decay in a discrete
+            staircase, as opposed to continuous, fashion.
+            (<span style="color:#00C000"><b>default</b></span>: false).</li>
+            </ul>
+            Polynomial decay:
+            <ul>
+            <li><b>final_value</b> (<i>float</i>) &ndash; Final value
+            (<span style="color:#C00000"><b>required</b></span>).</li>
+            <li><b>power</b> (<i>float</i>) &ndash; Power of polynomial
+            (<span style="color:#00C000"><b>default</b></span>: 1.0, thus linear).</li>
+            <li><b>cycle</b> (<i>bool</i>) &ndash; Whether to cycle beyond decay_steps
+            (<span style="color:#00C000"><b>default</b></span>: false).</li>
+            </ul>
+            Inverse time decay:
+            <ul>
+            <li><b>decay_rate</b> (<i>float</i>) &ndash; Decay rate
+            (<span style="color:#C00000"><b>required</b></span>).</li>
+            <li><b>staircase</b> (<i>bool</i>) &ndash; Whether to apply decay in a discrete
+            staircase, as opposed to continuous, fashion.
+            (<span style="color:#00C000"><b>default</b></span>: false).</li>
+            </ul>
             Cosine decay:
             <ul>
             <li><b>alpha</b> (<i>float</i>) &ndash; Minimum learning rate value as a fraction of
@@ -61,22 +89,6 @@ class Decaying(Parameter):
             the learning_rate
             (<span style="color:#00C000"><b>default</b></span>: 0.0).</li>
             </ul>
-            Exponential decay:
-            <ul>
-            <li><b>decay_rate</b> (<i>float</i>) &ndash; Decay rate
-            (<span style="color:#C00000"><b>required</b></span>).</li>
-            <li><b>staircase</b> (<i>bool</i>) &ndash; Whether to apply decay in a discrete
-            staircase, as opposed to continuous, fashion.
-            (<span style="color:#00C000"><b>default</b></span>: false).</li>
-            </ul>
-            Inverse time decay:
-            <ul>
-            <li><b>decay_rate</b> (<i>float</i>) &ndash; Decay rate
-            (<span style="color:#C00000"><b>required</b></span>).</li>
-            <li><b>staircase</b> (<i>bool</i>) &ndash; Whether to apply decay in a discrete
-            staircase, as opposed to continuous, fashion.
-            (<span style="color:#00C000"><b>default</b></span>: false).</li>
-            </ul>
             Linear cosine decay:
             <ul>
             <li><b>num_periods</b> (<i>float</i>) &ndash; Number of periods in the cosine part of
@@ -86,14 +98,6 @@ class Decaying(Parameter):
             (<span style="color:#00C000"><b>default</b></span>: 0.0).</li>
             <li><b>beta</b> (<i>float</i>) &ndash; Beta value
             (<span style="color:#00C000"><b>default</b></span>: 0.001).</li>
-            </ul>
-            Natural exponential decay:
-            <ul>
-            <li><b>decay_rate</b> (<i>float</i>) &ndash; Decay rate
-            (<span style="color:#C00000"><b>required</b></span>).</li>
-            <li><b>staircase</b> (<i>bool</i>) &ndash; Whether to apply decay in a discrete
-            staircase, as opposed to continuous, fashion.
-            (<span style="color:#00C000"><b>default</b></span>: false).</li>
             </ul>
             Noisy linear cosine decay:
             <ul>
@@ -109,15 +113,6 @@ class Decaying(Parameter):
             <li><b>beta</b> (<i>float</i>) &ndash; Beta value
             (<span style="color:#00C000"><b>default</b></span>: 0.001).</li>
             </ul>
-            Polynomial decay:
-            <ul>
-            <li><b>final_value</b> (<i>float</i>) &ndash; Final value
-            (<span style="color:#C00000"><b>required</b></span>).</li>
-            <li><b>power</b> (<i>float</i>) &ndash; Power of polynomial
-            (<span style="color:#00C000"><b>default</b></span>: 1.0, thus linear).</li>
-            <li><b>cycle</b> (<i>bool</i>) &ndash; Whether to cycle beyond decay_steps
-            (<span style="color:#00C000"><b>default</b></span>: false).</li>
-            </ul>
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
         dtype (type): <span style="color:#0000C0"><b>internal use</b></span>.
         min_value (dtype-compatible value): <span style="color:#0000C0"><b>internal use</b></span>.
@@ -126,16 +121,18 @@ class Decaying(Parameter):
 
     def __init__(
         self, *, unit, decay, initial_value, decay_steps, increasing=False, inverse=False,
-        scale=1.0, summary_labels=None, name=None, dtype=None, min_value=None, max_value=None,
-        **kwargs
+        scale=1.0, name=None, dtype=None, min_value=None, max_value=None, **kwargs
     ):
         assert unit in ('timesteps', 'episodes', 'updates')
         assert decay in (
-            'cosine', 'cosine_restarts', 'exponential', 'inverse_time', 'linear_cosine',
+            'cosine', 'cosine_restarts', 'exponential', 'inverse_time', 'linear', 'linear_cosine',
             'linear_cosine_noisy', 'polynomial'
         )
         assert isinstance(initial_value, float)
         assert isinstance(decay_steps, int) or decay_steps % 10.0 == 0.0
+
+        if decay == 'linear':
+            decay = 'polynomial'
 
         self.decay = decay
         self.initial_value = initial_value
@@ -146,8 +143,7 @@ class Decaying(Parameter):
         self.kwargs = kwargs
 
         super().__init__(
-            unit=unit, summary_labels=summary_labels, name=name, dtype=dtype, min_value=min_value,
-            max_value=max_value
+            unit=unit, name=name, dtype=dtype, min_value=min_value, max_value=max_value
         )
 
     def min_value(self):
@@ -365,7 +361,7 @@ class Decaying(Parameter):
             )(step=step)
 
         elif self.decay == 'polynomial':
-            assert self.kwargs['power'] >= 0.0
+            assert self.kwargs.get('power', 1.0) >= 0.0
             parameter = tf.keras.optimizers.schedules.PolynomialDecay(
                 initial_learning_rate=initial_value, decay_steps=self.decay_steps,
                 end_learning_rate=self.kwargs['final_value'], power=self.kwargs.get('power', 1.0),

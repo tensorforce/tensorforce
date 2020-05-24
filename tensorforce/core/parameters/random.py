@@ -25,8 +25,6 @@ class Random(Parameter):
     Args:
         distribution ("normal" | "uniform"): Distribution type for random hyperparameter value
             (<span style="color:#C00000"><b>required</b></span>).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         kwargs: Additional arguments dependent on distribution type.<br>
             Normal distribution:
             <ul>
@@ -51,8 +49,8 @@ class Random(Parameter):
         """
 
     def __init__(
-        self, *, distribution, summary_labels=None, name=None, dtype=None, shape=(), min_value=None,
-        max_value=None, **kwargs
+        self, *, distribution, name=None, dtype=None, shape=(), min_value=None, max_value=None,
+        **kwargs
     ):
         assert dtype in ('int', 'float')
         assert distribution in ('normal', 'uniform')
@@ -61,8 +59,7 @@ class Random(Parameter):
         self.kwargs = kwargs
 
         super().__init__(
-            summary_labels=summary_labels, name=name, dtype=dtype, shape=shape, min_value=min_value,
-            max_value=max_value
+            name=name, dtype=dtype, shape=shape, min_value=min_value, max_value=max_value
         )
 
     def min_value(self):

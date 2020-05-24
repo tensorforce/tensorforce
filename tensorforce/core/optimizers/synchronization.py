@@ -15,7 +15,7 @@
 
 import tensorflow as tf
 
-from tensorforce.core import parameter_modules, tf_function, tf_util
+from tensorforce.core import parameter_modules, TensorSpec, tf_function, tf_util
 from tensorforce.core.optimizers import Optimizer
 
 
@@ -31,24 +31,19 @@ class Synchronization(Optimizer):
             synchronization step (<span style="color:#00C000"><b>default</b></span>: every update).
         update_weight (parameter, 0.0 <= float <= 1.0): Update weight
             (<span style="color:#00C000"><b>default</b></span>: 1.0).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
         arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(
-        self, *, sync_frequency=1, update_weight=1.0, summary_labels=None, name=None,
-        arguments_spec=None
-    ):
-        super().__init__(summary_labels=summary_labels, name=name, arguments_spec=arguments_spec)
+    def __init__(self, *, sync_frequency=1, update_weight=1.0, name=None, arguments_spec=None):
+        super().__init__(name=name, arguments_spec=arguments_spec)
 
-        self.sync_frequency = self.add_module(
+        self.sync_frequency = self.submodule(
             name='sync_frequency', module=sync_frequency, modules=parameter_modules, dtype='int',
             min_value=1
         )
 
-        self.update_weight = self.add_module(
+        self.update_weight = self.submodule(
             name='update_weight', module=update_weight, modules=parameter_modules, dtype='float',
             min_value=0.0, max_value=1.0
         )
@@ -57,7 +52,7 @@ class Synchronization(Optimizer):
         super().initialize()
 
         self.next_sync = self.variable(
-            name='next-sync', dtype='int', shape=(), initializer='zeros', is_trainable=False,
+            name='next-sync', spec=TensorSpec(type='int'), initializer='zeros', is_trainable=False,
             is_saved=True
         )
 

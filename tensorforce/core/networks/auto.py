@@ -36,8 +36,6 @@ class AutoNetwork(LayeredNetwork):
             (<span style="color:#00C000"><b>default</b></span>: false).
         device (string): Device name
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
@@ -46,7 +44,7 @@ class AutoNetwork(LayeredNetwork):
 
     def __init__(
         self, *, size=64, depth=2, final_size=None, final_depth=1, rnn=False, device=None,
-        summary_labels=None, l2_regularization=None, name=None, inputs_spec=None
+        l2_regularization=None, name=None, inputs_spec=None
     ):
         if final_size is None:
             final_size = size
@@ -90,7 +88,7 @@ class AutoNetwork(LayeredNetwork):
                 ))
 
             # Max pool if rank greater than one
-            if len(spec.shape) > 1 - requires_embedding:
+            if spec.rank > 1 - requires_embedding:
                 state_layers.append(dict(
                     type='pooling', name=(input_name + '_pooling'), reduction='max'
                 ))
@@ -121,6 +119,6 @@ class AutoNetwork(LayeredNetwork):
             final_layers.append(dict(type='lstm', name='lstm', size=final_size, horizon=rnn))
 
         super().__init__(
-            layers=layers, device=device, summary_labels=summary_labels,
-            l2_regularization=l2_regularization, name=name, inputs_spec=inputs_spec
+            layers=layers, device=device, l2_regularization=l2_regularization, name=name,
+            inputs_spec=inputs_spec
         )

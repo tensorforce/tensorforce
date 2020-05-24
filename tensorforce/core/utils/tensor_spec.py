@@ -37,8 +37,7 @@ def _normalize_type(*, dtype):
 class TensorSpec(object):
 
     def __init__(
-        self, *, type='float', shape=(), min_value=None, max_value=None, num_values=None,
-        overwrite=False
+        self, *, type, shape=(), min_value=None, max_value=None, num_values=None, overwrite=False
     ):
         if num_values is not None and (min_value is not None or max_value is not None):
             raise TensorforceError.invalid(
@@ -78,6 +77,27 @@ class TensorSpec(object):
                 type=self.type, shape=self.shape, min_value=self.min_value,
                 max_value=self.max_value, overwrite=overwrite
             )
+
+    def json(self):
+        if self.type == 'bool':
+            return dict(type=self.type, shape=self.shape)
+
+        elif self.type == 'int' and self.num_values is not None:
+            return dict(type=self.type, shape=self.shape, num_values=self.num_values)
+
+        else:
+            spec = dict(type=self.type, shape=self.shape)
+            if self.min_value is not None:
+                spec['min_value'] = self.min_value
+            if self.max_value is not None:
+                spec['max_value'] = self.max_value
+            return spec
+
+    def empty(self, *, batched):
+        if batched:
+            return tf_util.zeros(shape=((0,) + self.shape), dtype=self.type)
+        else:
+            return tf_util.zeros(shape=self.shape, dtype=self.type)
 
     def py_type(self):
         if self.type == 'bool':

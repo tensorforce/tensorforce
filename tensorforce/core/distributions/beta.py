@@ -27,14 +27,12 @@ class Beta(Distribution):
     Beta distribution, for bounded continuous actions (specification key: `beta`).
 
     Args:
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
         action_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         input_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(self, *, summary_labels=None, name=None, action_spec=None, input_spec=None):
+    def __init__(self, *, name=None, action_spec=None, input_spec=None):
         assert action_spec.type == 'float' and action_spec.min_value is not None and \
             action_spec.max_value is not None
 
@@ -47,18 +45,18 @@ class Beta(Distribution):
         conditions_spec = TensorsSpec()
 
         super().__init__(
-            summary_labels=summary_labels, name=name, action_spec=action_spec,
-            input_spec=input_spec, parameters_spec=parameters_spec, conditions_spec=conditions_spec
+            name=name, action_spec=action_spec, input_spec=input_spec,
+            parameters_spec=parameters_spec, conditions_spec=conditions_spec
         )
 
         if len(self.input_spec.shape) == 1:
             # Single embedding
             action_size = util.product(xs=self.action_spec.shape, empty=0)
-            self.alpha = self.add_module(
+            self.alpha = self.submodule(
                 name='alpha', module='linear', modules=layer_modules, size=action_size,
                 input_spec=self.input_spec
             )
-            self.beta = self.add_module(
+            self.beta = self.submodule(
                 name='beta', module='linear', modules=layer_modules, size=action_size,
                 input_spec=self.input_spec
             )
@@ -79,14 +77,20 @@ class Beta(Distribution):
                     name=name, argument='input_spec.shape', value=self.input_spec.shape,
                     hint='not flattened and incompatible with action shape'
                 )
-            self.alpha = self.add_module(
+            self.alpha = self.submodule(
                 name='alpha', module='linear', modules=layer_modules, size=size,
                 input_spec=self.input_spec
             )
-            self.beta = self.add_module(
+            self.beta = self.submodule(
                 name='beta', module='linear', modules=layer_modules, size=size,
                 input_spec=self.input_spec
             )
+
+    def initialize(self):
+        super().initialize()
+
+        self.register_summary(label='distributions', name=('distributions/' + self.name + '-alpha'))
+        self.register_summary(label='distributions', name=('distributions/' + self.name + '-beta'))
 
     @tf_function(num_args=2)
     def parametrize(self, *, x, conditions):
@@ -124,20 +128,12 @@ class Beta(Distribution):
     def sample(self, *, parameters, temperature):
         alpha, beta, alpha_beta = parameters.get(('alpha', 'beta', 'alpha_beta'))
 
-        summary_alpha = alpha
-        summary_beta = beta
-        for _ in range(len(self.action_spec.shape)):
-            summary_alpha = tf.math.reduce_mean(input_tensor=summary_alpha, axis=1)
-            summary_beta = tf.math.reduce_mean(input_tensor=summary_beta, axis=1)
-
-        alpha, beta, alpha_beta = self.add_summary(
-            label=('distributions', 'beta'), name='alpha', tensor=summary_alpha,
-            pass_tensors=(alpha, beta, alpha_beta)
-        )
-        alpha, beta, alpha_beta = self.add_summary(
-            label=('distributions', 'beta'), name='beta', tensor=summary_beta,
-            pass_tensors=(alpha, beta, alpha_beta)
-        )
+        # Distribution parameter summaries
+        prefix = 'distributions/' + self.name
+        x = tf.math.reduce_mean(input_tensor=alpha, axis=range(self.action_spec.rank + 1))
+        self.summary(label='distributions', name=(prefix + '-alpha'), data=x, step='timesteps')
+        x = tf.math.reduce_mean(input_tensor=beta, axis=range(self.action_spec.rank + 1))
+        self.summary(label='distributions', name=(prefix + '-beta'), data=x, step='timesteps')
 
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')
 

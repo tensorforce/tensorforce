@@ -52,8 +52,6 @@ class ParametrizedDistributions(Stochastic, ActionValue):
             (<span style="color:#00C000"><b>default</b></span>: "independent").
         device (string): Device name
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
@@ -66,18 +64,16 @@ class ParametrizedDistributions(Stochastic, ActionValue):
     # Network first
     def __init__(
         self, network='auto', *, distributions=None, temperature=0.0, use_beta_distribution=True,
-        state_value_mode='independent', device=None, summary_labels=None,
-        l2_regularization=None, name=None, states_spec=None, auxiliaries_spec=None,
-        internals_spec=None, actions_spec=None
+        state_value_mode='independent', device=None,  l2_regularization=None, name=None,
+        states_spec=None, auxiliaries_spec=None, internals_spec=None, actions_spec=None
     ):
         super().__init__(
-            temperature=temperature, device=device, summary_labels=summary_labels,
-            l2_regularization=l2_regularization, name=name, states_spec=states_spec,
-            auxiliaries_spec=auxiliaries_spec, actions_spec=actions_spec
+            temperature=temperature, device=device, l2_regularization=l2_regularization, name=name,
+            states_spec=states_spec, auxiliaries_spec=auxiliaries_spec, actions_spec=actions_spec
         )
 
         # Network
-        self.network = self.add_module(
+        self.network = self.submodule(
             name='network', module=network, modules=network_modules, inputs_spec=self.states_spec
         )
         output_spec = self.network.output_spec()
@@ -128,14 +124,14 @@ class ParametrizedDistributions(Stochastic, ActionValue):
                         else:
                             module.update(distributions[name])
 
-                self.distributions[name] = self.add_module(
+                self.distributions[name] = self.submodule(
                     name=(name + '_distribution'), module=module, modules=distribution_modules,
                     default_module=default_module, action_spec=spec, input_spec=output_spec
                 )
 
         # State value
         if self.state_value_mode == 'independent' or self.state_value_mode == 'no-distributions':
-            self.value = self.add_module(
+            self.value = self.submodule(
                 name='states_value', module='linear', modules=layer_modules, size=0,
                 input_spec=output_spec
             )

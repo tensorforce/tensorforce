@@ -43,8 +43,6 @@ class Rnn(TemporalLayer, TransformationBase):
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
         vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): Layer name
@@ -56,14 +54,12 @@ class Rnn(TemporalLayer, TransformationBase):
 
     def __init__(
         self, *, cell, size, horizon, bias=True, activation='tanh', dropout=0.0,
-        vars_trainable=True,  summary_labels=None, l2_regularization=None, name=None,
-        input_spec=None, **kwargs
+        vars_trainable=True, l2_regularization=None, name=None, input_spec=None, **kwargs
     ):
         super().__init__(
             temporal_processing='iterative', horizon=horizon, size=size, bias=bias,
             activation=activation, dropout=dropout, vars_trainable=vars_trainable,
-            summary_labels=summary_labels, l2_regularization=l2_regularization,  name=name,
-            input_spec=input_spec
+            l2_regularization=l2_regularization, name=name, input_spec=input_spec
         )
 
         self.cell_type = cell
@@ -125,11 +121,7 @@ class Rnn(TemporalLayer, TransformationBase):
     def initialize(self):
         super().initialize()
 
-        if self.device is not None:
-            self.device.__enter__()
         self.cell.build(input_shape=self.input_spec.shape[0])
-        if self.device is not None:
-            self.device.__exit__(None, None, None)
 
     @tf_function(num_args=0)
     def regularize(self):
@@ -139,6 +131,12 @@ class Rnn(TemporalLayer, TransformationBase):
             regularization_loss += tf.math.add_n(inputs=self.cell.losses)
 
         return regularization_loss
+
+    @tf_function(num_args=3)
+    def apply(self, *, x, horizons, internals):
+        x, internals = TemporalLayer.apply(self=self, x=x, horizons=horizons, internals=internals)
+        x = TransformationBase.apply(self=self, x=x)
+        return x, internals
 
     @tf_function(num_args=2)
     def iterative_step(self, *, x, internals):
@@ -183,8 +181,6 @@ class Gru(Rnn):
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
         vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): Layer name
@@ -196,12 +192,12 @@ class Gru(Rnn):
 
     def __init__(
         self, *, size, horizon, bias=False, activation=None, dropout=0.0, vars_trainable=True,
-        summary_labels=None, l2_regularization=None, name=None, input_spec=None, **kwargs
+        l2_regularization=None, name=None, input_spec=None, **kwargs
     ):
         super().__init__(
             cell='gru', size=size, horizon=horizon, bias=bias, activation=activation,
-            dropout=dropout, vars_trainable=vars_trainable, summary_labels=summary_labels,
-            l2_regularization=l2_regularization, name=name, input_spec=input_spec, **kwargs
+            dropout=dropout, vars_trainable=vars_trainable, l2_regularization=l2_regularization,
+            name=name, input_spec=input_spec, **kwargs
         )
 
 
@@ -225,8 +221,6 @@ class Lstm(Rnn):
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
         vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): Layer name
@@ -238,10 +232,10 @@ class Lstm(Rnn):
 
     def __init__(
         self, *, size, horizon, bias=False, activation=None, dropout=0.0, vars_trainable=True,
-        summary_labels=None, l2_regularization=None, name=None, input_spec=None, **kwargs
+        l2_regularization=None, name=None, input_spec=None, **kwargs
     ):
         super().__init__(
             cell='lstm', size=size, horizon=horizon, bias=bias, activation=activation,
-            dropout=dropout, vars_trainable=vars_trainable, summary_labels=summary_labels,
-            l2_regularization=l2_regularization, name=name, input_spec=input_spec, **kwargs
+            dropout=dropout, vars_trainable=vars_trainable, l2_regularization=l2_regularization,
+            name=name, input_spec=input_spec, **kwargs
         )

@@ -47,7 +47,7 @@ class TensorforceModel(Model):
         # Return/advantage preprocessing
         if preprocessing is not None:
             if 'return' in preprocessing:
-                self.preprocessing['return'] = self.add_module(
+                self.preprocessing['return'] = self.submodule(
                     name=('return_preprocessing'), module=Preprocessor, is_trainable=False,
                     input_spec=self.reward_spec, layers=preprocessing['return']
                 )
@@ -58,7 +58,7 @@ class TensorforceModel(Model):
                         value2=self.reward_spec
                     )
             if 'advantage' in preprocessing:
-                self.preprocessing['advantage'] = self.add_module(
+                self.preprocessing['advantage'] = self.submodule(
                     name=('advantage_preprocessing'), module=Preprocessor, is_trainable=False,
                     input_spec=self.reward_spec, layers=preprocessing['advantage']
                 )
@@ -98,7 +98,7 @@ class TensorforceModel(Model):
             kwargs = dict(state_value_mode='no-state-value')
         else:
             kwargs = dict()
-        self.policy = self.add_module(
+        self.policy = self.submodule(
             name='policy', module=policy, modules=policy_modules, states_spec=self.states_spec,
             auxiliaries_spec=self.auxiliaries_spec, actions_spec=self.actions_spec, **kwargs
         )
@@ -124,19 +124,19 @@ class TensorforceModel(Model):
             raise TensorforceError.required(name='agent', argument='update[batch_size]')
 
         self.update_unit = update['unit']
-        self.update_batch_size = self.add_module(
+        self.update_batch_size = self.submodule(
             name='update_batch_size', module=update['batch_size'], modules=parameter_modules,
             is_trainable=False, dtype='int', min_value=1
         )
         if 'frequency' in update and update['frequency'] == 'never':
             self.update_frequency = None
         else:
-            self.update_frequency = self.add_module(
+            self.update_frequency = self.submodule(
                 name='update_frequency', module=update.get('frequency', update['batch_size']),
                 modules=parameter_modules, is_trainable=False, dtype='int', min_value=1,
                 max_value=max(2, self.update_batch_size.max_value())
             )
-            self.update_start = self.add_module(
+            self.update_start = self.submodule(
                 name='update_start', module=update.get('start', 0), modules=parameter_modules,
                 is_trainable=False, dtype='int', min_value=0
             )
@@ -213,7 +213,7 @@ class TensorforceModel(Model):
                     kwargs = dict()
             else:
                 kwargs = dict()
-            self.baseline = self.add_module(
+            self.baseline = self.submodule(
                 name='baseline', module=baseline_policy, modules=policy_modules,
                 is_trainable=baseline_is_trainable, states_spec=self.states_spec,
                 auxiliaries_spec=self.auxiliaries_spec, actions_spec=self.actions_spec, **kwargs
@@ -228,7 +228,7 @@ class TensorforceModel(Model):
             self.value_names.add(name)
 
         # Objectives
-        self.objective = self.add_module(
+        self.objective = self.submodule(
             name='objective', module=objective, modules=objective_modules,
             states_spec=self.states_spec, internals_spec=self.internals_spec['policy'],
             auxiliaries_spec=self.auxiliaries_spec, actions_spec=self.actions_spec,
@@ -241,7 +241,7 @@ class TensorforceModel(Model):
         if baseline_objective is None:
             self.baseline_objective = None
         else:
-            self.baseline_objective = self.add_module(
+            self.baseline_objective = self.submodule(
                 name='baseline_objective', module=baseline_objective, modules=objective_modules,
                 is_trainable=baseline_is_trainable, states_spec=self.states_spec,
                 internals_spec=internals_spec, auxiliaries_spec=self.auxiliaries_spec,
@@ -254,7 +254,7 @@ class TensorforceModel(Model):
             internals_spec = self.internals_spec
             self.baseline_optimizer = None
         elif isinstance(baseline_optimizer, float):
-            self.baseline_loss_weight = self.add_module(
+            self.baseline_loss_weight = self.submodule(
                 name='baseline_loss_weight', module=baseline_optimizer, modules=parameter_modules,
                 is_trainable=False, dtype='float', min_value=0.0
             )
@@ -274,7 +274,7 @@ class TensorforceModel(Model):
             )
             if self.baseline_objective is not None:
                 arguments_spec['reference'] = self.baseline_objective.reference_spec()
-            self.baseline_optimizer = self.add_module(
+            self.baseline_optimizer = self.submodule(
                 name='baseline_optimizer', module=baseline_optimizer, modules=optimizer_modules,
                 is_trainable=False, arguments_spec=arguments_spec
             )
@@ -290,7 +290,7 @@ class TensorforceModel(Model):
             )
         else:
             arguments_spec['reference'] = self.objective.reference_spec()
-        self.optimizer = self.add_module(
+        self.optimizer = self.submodule(
             name='optimizer', module=optimizer, modules=optimizer_modules,
             arguments_spec=arguments_spec
         )
@@ -302,7 +302,7 @@ class TensorforceModel(Model):
             auxiliaries=self.auxiliaries_spec, actions=self.actions_spec,
             terminal=self.terminal_spec, reward=self.reward_spec
         )
-        self.estimator = self.add_module(
+        self.estimator = self.submodule(
             name='estimator', module=Estimator, is_trainable=False,
             is_saved=False, values_spec=values_spec, horizon=reward_estimation['horizon'],
             discount=reward_estimation.get('discount', 1.0),
@@ -331,17 +331,50 @@ class TensorforceModel(Model):
         # Max enqueue: estimator content plus following batch if terminal
         min_capacity = max(min_capacity, 2 * self.estimator.capacity)
 
-        self.memory = self.add_module(
+        self.memory = self.submodule(
             name='memory', module=memory, modules=memory_modules, is_trainable=False,
             values_spec=values_spec, min_capacity=min_capacity
         )
 
         # Entropy regularization
         entropy_regularization = 0.0 if entropy_regularization is None else entropy_regularization
-        self.entropy_regularization = self.add_module(
+        self.entropy_regularization = self.submodule(
             name='entropy_regularization', module=entropy_regularization,
             modules=parameter_modules, is_trainable=False, dtype='float', min_value=0.0
         )
+
+    def initialize_variables(self):
+        super().initialize_variables()
+
+        # Last update
+        self.last_update = self.variable(
+            name='last-update', spec=TensorSpec(type='int'), initializer=-1, is_trainable=False,
+            is_saved=True
+        )
+
+        # Optimizer initialize given variables
+        if self.advantage_in_loss:
+            self.optimizer.initialize_given_variables(variables=self.trainable_variables)
+        else:
+            self.optimizer.initialize_given_variables(variables=self.policy.trainable_variables)
+        if self.baseline_optimizer is not None:
+            self.baseline_optimizer.initialize_given_variables(
+                variables=self.baseline.trainable_variables
+            )
+
+    def initialize_api(self):
+        super().initialize_api()
+
+        self.experience(
+            states=self.unprocessed_states_spec.empty(batched=True),
+            internals=self.internals_spec.empty(batched=True),
+            auxiliaries=self.auxiliaries_spec.empty(batched=True),
+            actions=self.actions_spec.empty(batched=True),
+            terminal=self.terminal_spec.empty(batched=True),
+            reward=self.reward_spec.empty(batched=True)
+        )
+        # TODO: Not possible as it tries to retrieve experiences from memory
+        # self.update()
 
     def input_signature(self, *, function):
         if function == 'baseline_loss':
@@ -431,12 +464,6 @@ class TensorforceModel(Model):
                     reference=self.objective.reference_spec().signature(batched=True)
                 )
 
-        elif function == 'optimize':
-            return SignatureDict(indices=TensorSpec(type='int', shape=()).signature(batched=True))
-
-        elif function == 'optimize_baseline':
-            return SignatureDict(indices=TensorSpec(type='int', shape=()).signature(batched=True))
-
         elif function == 'regularize':
             return SignatureDict(
                 states=self.states_spec.signature(batched=True),
@@ -451,14 +478,14 @@ class TensorforceModel(Model):
         else:
             return super().input_signature(function=function)
 
-    def initialize(self):
-        super().initialize()
+    @tf_function(num_args=0)
+    def reset(self):
+        reset = self.estimator.reset()
 
-        # Last update
-        self.last_update = self.variable(
-            name='last-update', dtype='int', shape=(), initializer=-1, is_trainable=False,
-            is_saved=True
-        )
+        with tf.control_dependencies(control_inputs=(reset,)):
+            timestep, episode, update = super().reset()
+
+        return timestep, episode, update
 
     @tf_function(num_args=6)
     def experience(self, *, states, internals, auxiliaries, actions, terminal, reward):
@@ -510,13 +537,15 @@ class TensorforceModel(Model):
         ))
         # Assertion: at most one terminal
         assertions.append(tf.debugging.assert_less_equal(
-            x=tf.math.count_nonzero(input=terminal), y=tf_util.constant(value=1, dtype='int'),
+            x=tf.math.count_nonzero(input=terminal, dtype=tf_util.get_dtype(type='int')),
+            y=tf_util.constant(value=1, dtype='int'),
             message="Agent.experience: input contains more than one terminal."
         ))
         # Assertion: if terminal, last timestep in batch
         assertions.append(tf.debugging.assert_equal(
-            x=tf.math.reduce_any(input_tensor=tf.math.greater(x=terminal, y=zero)),
-            y=tf.math.greater(x=terminal[-1], y=zero),
+            x=tf.math.reduce_any(
+                input_tensor=tf.math.greater(x=tf.concat(values=([zero], terminal), axis=0), y=zero)
+            ), y=tf.math.greater(x=tf.concat(values=([zero], terminal), axis=0)[-1], y=zero),
             message="Agent.experience: terminal is not the last input timestep."
         ))
 
@@ -544,10 +573,10 @@ class TensorforceModel(Model):
     @tf_function(num_args=0)
     def update(self):
         # Core update
-        is_updated = self.core_update()
+        updated = self.core_update()
 
         # Return
-        with tf.control_dependencies(control_inputs=(is_updated,)):
+        with tf.control_dependencies(control_inputs=(updated,)):
             timestep = tf_util.identity(input=self.timesteps)
             episode = tf_util.identity(input=self.episodes)
             update = tf_util.identity(input=self.updates)
@@ -609,12 +638,10 @@ class TensorforceModel(Model):
             if self.update_unit == 'timesteps':
                 # Timestep-based batch
                 past_horizon = tf.math.maximum(
-                    x=self.policy.past_horizon(on_policy=True),
-                    y=(self.baseline.past_horizon(on_policy=True) - self.estimator.future_horizon())
+                    x=self.policy.past_horizon(on_policy=False),
+                    y=self.baseline.past_horizon(on_policy=False)
                 )
-                future_horizon = tf_util.constant(
-                    value=self.estimator.max_future_horizon(), dtype='int'
-                )
+                future_horizon = self.estimator.future_horizon()
                 start = tf.math.maximum(
                     x=start, y=(frequency + past_horizon + future_horizon + one)
                 )
@@ -639,9 +666,9 @@ class TensorforceModel(Model):
             def no_update():
                 return tf_util.constant(value=False, dtype='bool')
 
-            is_updated = tf.cond(pred=is_frequency, true_fn=perform_update, false_fn=no_update)
+            updated = tf.cond(pred=is_frequency, true_fn=perform_update, false_fn=no_update)
 
-        return is_updated
+        return updated
 
     @tf_function(num_args=6)
     def core_experience(self, *, states, internals, auxiliaries, actions, terminal, reward):
@@ -656,7 +683,7 @@ class TensorforceModel(Model):
         # If terminal, store remaining values in memory
 
         def true_fn():
-            reset_values = self.estimator.reset(baseline=self.baseline)
+            reset_values = self.estimator.terminate(baseline=self.baseline)
             function = (lambda x, y: tf.concat(values=(x, y), axis=0))
             new_overwritten_values = overwritten_values.fmap(
                 function=function, zip_values=reset_values
@@ -667,7 +694,10 @@ class TensorforceModel(Model):
             return overwritten_values
 
         with tf.control_dependencies(control_inputs=overwritten_values.flatten()):
-            values = tf.cond(pred=(terminal[-1] > zero), true_fn=true_fn, false_fn=false_fn)
+            values = tf.cond(
+                pred=(tf.concat(values=([zero], terminal), axis=0)[-1] > zero),
+                true_fn=true_fn, false_fn=false_fn
+            )
 
         # If any, store overwritten values
         def store():
@@ -701,94 +731,135 @@ class TensorforceModel(Model):
             # Episode-based batch
             indices = self.memory.retrieve_episodes(n=batch_size)
 
-        # Optimization
-        optimized = self.optimize(indices=indices)
-
-        # Increment update
-        with tf.control_dependencies(control_inputs=(optimized,)):
-            assignment = self.updates.assign_add(delta=one, read_value=False)
-
-        with tf.control_dependencies(control_inputs=(assignment,)):
-            return tf_util.identity(input=optimized)
-
-    @tf_function(num_args=1)
-    def optimize(self, *, indices):
-        # Baseline optimization
-        if self.baseline_optimizer is not None:
-            optimized = self.optimize_baseline(indices=indices)
-            dependencies = (optimized,)
-        else:
-            dependencies = (indices,)
-
-        # Reward estimation
-        with tf.control_dependencies(control_inputs=dependencies):
-            (reward,) = self.memory.retrieve(indices=indices, values=('reward',))
-            reward = self.estimator.complete_return(
-                indices=indices, reward=reward, policy=self.policy, baseline=self.baseline,
-                memory=self.memory
-            )
-            reward = self.add_summary(label=('return', 'rewards'), name='return', tensor=reward)
-            if 'return' in self.preprocessing:
-                reward = self.preprocessing['return'].apply(x=reward)
-                reward = self.add_summary(
-                    label=('return', 'rewards'), name='preprocessed-return', tensor=reward
-                )
-
-            if not self.advantage_in_loss:
-                reward = self.estimator.advantage(
-                    indices=indices, reward=reward, baseline=self.baseline, memory=self.memory
-                )
-                reward = self.add_summary(
-                    label=('advantage', 'rewards'), name='advantage', tensor=reward
-                )
-                if 'advantage' in self.preprocessing:
-                    reward = self.preprocessing['advantage'].apply(x=reward)
-                    reward = self.add_summary(
-                        label=('advantage', 'rewards'), name='preprocessed-advantage', tensor=reward
-                    )
-
-        # Retrieve states, internals and actions
-        past_horizon = self.policy.past_horizon(on_policy=True)
+        # Retrieve states and internals
+        policy_horizon = self.policy.past_horizon(on_policy=True)
         if self.separate_baseline_policy and self.baseline_optimizer is None:
             assertion = tf.debugging.assert_equal(
-                x=past_horizon, y=self.baseline.past_horizon(on_policy=True),
+                x=policy_horizon, y=self.baseline.past_horizon(on_policy=True),
                 message="Policy and baseline depend on a different number of previous states."
             )
+            with tf.control_dependencies(control_inputs=(assertion,)):
+                policy_horizons, (policy_states,), (policy_internals,) = self.memory.predecessors(
+                    indices=indices, horizon=policy_horizon, sequence_values=('states',),
+                    initial_values=('internals',)
+                )
+                baseline_states = policy_states
+                baseline_horizons = policy_horizons
+                if self.separate_baseline_policy:
+                    baseline_internals = policy_internals['baseline']
+                else:
+                    baseline_internals = policy_internals
         else:
-            assertion = past_horizon
-
-        with tf.control_dependencies(control_inputs=(assertion,)):
-            # horizon change: see timestep-based batch sampling
             if self.baseline_optimizer is None:
-                internals = 'internals'
+                policy_horizons, (policy_states,), (policy_internals,) = self.memory.predecessors(
+                    indices=indices, horizon=policy_horizon, sequence_values=('states',),
+                    initial_values=('internals',)
+                )
             else:
-                internals = 'internals/policy'
-            horizons, (states,), (internals,) = self.memory.predecessors(
-                indices=indices, horizon=past_horizon, sequence_values=('states',),
-                initial_values=(internals,)
-            )
-            auxiliaries, actions = self.memory.retrieve(
-                indices=indices, values=('auxiliaries', 'actions')
-            )
+                policy_horizons, (policy_states,), (policy_internals,) = self.memory.predecessors(
+                    indices=indices, horizon=policy_horizon, sequence_values=('states',),
+                    initial_values=('internals/policy',)
+                )
+            # Optimize !!!!!
+            baseline_horizon = self.baseline.past_horizon(on_policy=True)
+            if self.separate_baseline_policy:
+                baseline_horizons, (baseline_states,), (baseline_internals,) = self.memory.predecessors(
+                    indices=indices, horizon=baseline_horizon, sequence_values=('states',),
+                    initial_values=('internals/baseline',)
+                )
+            else:
+                baseline_horizons, (baseline_states,), (baseline_internals,) = self.memory.predecessors(
+                    indices=indices, horizon=baseline_horizon, sequence_values=('states',),
+                    initial_values=('internals/policy',)
+                )
 
-        if self.baseline_optimizer is None:
-            policy_internals = internals['policy']
-        else:
-            policy_internals = internals
-        reference = self.objective.reference(
-            states=states, horizons=horizons, internals=policy_internals, auxiliaries=auxiliaries,
-            actions=actions, reward=reward, policy=self.policy
+        # Retrieve auxiliaries, actions, reward
+        auxiliaries, actions, reward = self.memory.retrieve(
+            indices=indices, values=('auxiliaries', 'actions', 'reward')
         )
-        if self.baseline_loss_weight is not None and self.separate_baseline_policy:
-            reference = TensorDict(policy=reference)
-            reference['baseline'] = self.baseline_objective.reference(
-                states=states, horizons=horizons, internals=internals['baseline'],
+
+        # Return estimation
+        reward = self.estimator.complete_return(
+            indices=indices, reward=reward, policy=self.policy, baseline=self.baseline,
+            memory=self.memory  # TODO: pass retrieved arguments!
+        )
+        # reward = self.add_summary(label=('return', 'rewards'), name='return', tensor=reward)  # TODO: need to be moved to episode?
+        if 'return' in self.preprocessing:
+            reward = self.preprocessing['return'].apply(x=reward)
+            # reward = self.add_summary(
+            #     label=('return', 'rewards'), name='preprocessed-return', tensor=reward
+            # )
+
+        baseline_arguments = TensorDict(
+            states=baseline_states, horizons=baseline_horizons, internals=baseline_internals,
+            auxiliaries=auxiliaries, actions=actions, reward=reward
+        )
+        if self.baseline_objective is not None:
+            baseline_arguments['reference'] = self.baseline_objective.reference(
+                states=baseline_states, horizons=baseline_horizons, internals=baseline_internals,
                 auxiliaries=auxiliaries, actions=actions, reward=reward, policy=self.baseline
             )
 
-        arguments = TensorDict(
-            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-            actions=actions, reward=reward, reference=reference
+        if self.baseline_optimizer is not None:
+            def fn_kl_divergence(
+                *, states, horizons, internals, auxiliaries, actions, reward, reference
+            ):
+                reference = self.baseline.kldiv_reference(
+                    states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries
+                )
+                return self.baseline.kl_divergence(
+                    states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+                    reference=reference, reduced=True, return_per_action=False
+                )
+
+            if self.baseline_objective is None:
+                kwargs = dict()
+            else:
+                kwargs = self.baseline_objective.optimizer_arguments(policy=self.baseline)
+            assert 'source_variables' not in kwargs
+            kwargs['source_variables'] = tuple(self.policy.trainable_variables)
+
+            # Optimization
+            optimized = self.baseline_optimizer.update(
+                arguments=baseline_arguments, variables=tuple(self.baseline.trainable_variables),
+                fn_loss=self.baseline_loss, fn_kl_divergence=fn_kl_divergence, **kwargs
+            )
+            dependencies = (optimized,)
+        else:
+            dependencies = (reward,)
+
+        with tf.control_dependencies(control_inputs=dependencies):
+            if not self.advantage_in_loss:
+                # TODO: No separate method? estimator.advantage_in_loss now same function?
+                reward = self.estimator.advantage(
+                    states=baseline_states, horizons=baseline_horizons,
+                    internals=baseline_internals, auxiliaries=auxiliaries, reward=reward,
+                    baseline=self.baseline
+                )
+                # reward = self.add_summary(
+                #     label=('advantage', 'rewards'), name='advantage', tensor=reward
+                # )
+                if 'advantage' in self.preprocessing:
+                    reward = self.preprocessing['advantage'].apply(x=reward)
+                    # reward = self.add_summary(
+                    #     label=('advantage', 'rewards'), name='preprocessed-advantage', tensor=reward
+                    # )
+
+        if self.baseline_optimizer is None:
+            policy_only_internals = policy_internals.get('policy', TensorDict())
+        else:
+            policy_only_internals = policy_internals
+        reference = self.objective.reference(
+            states=policy_states, horizons=policy_horizons, internals=policy_only_internals,
+            auxiliaries=auxiliaries, actions=actions, reward=reward, policy=self.policy
+        )
+        if self.separate_baseline_policy and self.baseline_loss_weight is not None and \
+                not self.baseline_loss_weight.is_constant(value=0.0):
+            reference = TensorDict(policy=reference, baseline=baseline_arguments['reference'])
+
+        policy_arguments = TensorDict(
+            states=policy_states, horizons=policy_horizons, internals=policy_internals,
+            auxiliaries=auxiliaries, actions=actions, reward=reward, reference=reference
         )
 
         if self.advantage_in_loss:
@@ -799,14 +870,14 @@ class TensorforceModel(Model):
                     states=states, horizons=horizons, internals=internals['baseline'],
                     auxiliaries=auxiliaries, reward=reward, baseline=self.baseline
                 )
-                reward = self.add_summary(
-                    label=('advantage', 'rewards'), name='advantage', tensor=reward
-                )
+                # reward = self.add_summary(
+                #     label=('advantage', 'rewards'), name='advantage', tensor=reward
+                # )
                 if 'advantage' in self.preprocessing:
                     reward = self.preprocessing['advantage'].apply(x=reward)
-                    reward = self.add_summary(
-                        label=('advantage', 'rewards'), name='preprocessed-advantage', tensor=reward
-                    )
+                    # reward = self.add_summary(
+                    #     label=('advantage', 'rewards'), name='preprocessed-advantage', tensor=reward
+                    # )
                 return self.loss(
                     states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
                     actions=actions, reward=reward, reference=reference
@@ -827,20 +898,36 @@ class TensorforceModel(Model):
                 states=states, horizons=horizons, internals=internals['policy'],
                 auxiliaries=auxiliaries, reference=reference, reduced=True, return_per_action=False
             )
-            if self.baseline_loss_weight is not None:
-                reference = self.policy.kldiv_reference(
-                    states=states, horizons=horizons, internals=internals['baseline'],
-                    auxiliaries=auxiliaries
-                )
-                kl_divergence += self.baseline_loss_weight.value() * self.baseline.kl_divergence(
-                    states=states, horizons=horizons, internals=internals['baseline'],
-                    auxiliaries=auxiliaries, reference=reference, reduced=True,
-                    return_per_action=False
+
+            if self.baseline_loss_weight is not None and \
+                    not self.baseline_loss_weight.is_constant(value=0.0):
+                zero = tf_util.constant(value=0.0, dtype='float')
+                baseline_loss_weight = self.baseline_loss_weight.value()
+
+                def no_baseline_kl_divergence():
+                    return zero
+
+                def apply_baseline_kl_divergence():
+                    reference = self.policy.kldiv_reference(
+                        states=states, horizons=horizons, internals=internals['baseline'],
+                        auxiliaries=auxiliaries
+                    )
+                    baseline_kl_divergence = self.baseline.kl_divergence(
+                        states=states, horizons=horizons, internals=internals['baseline'],
+                        auxiliaries=auxiliaries, reference=reference, reduced=True,
+                        return_per_action=False
+                    )
+                    return baseline_loss_weight * baseline_kl_divergence
+
+                kl_divergence += tf.cond(
+                    pred=tf.math.equal(x=baseline_loss_weight, y=zero),
+                    true_fn=no_baseline_kl_divergence, false_fn=apply_baseline_kl_divergence
                 )
             return kl_divergence
 
         kwargs = self.objective.optimizer_arguments(policy=self.policy, baseline=self.baseline)
-        if self.baseline_loss_weight is not None and self.baseline_objective is not None:
+        if self.baseline_objective is not None and self.baseline_loss_weight is not None and \
+                not self.baseline_loss_weight.is_constant(value=0.0):
             util.deep_disjoint_update(
                 target=kwargs,
                 source=self.baseline_objective.optimizer_arguments(policy=self.baseline)
@@ -853,136 +940,150 @@ class TensorforceModel(Model):
         #     assert 'global_variables' not in kwargs
         #     kwargs['global_variables'] = tuple(self.global_model.trainable_variables)
 
-        dependencies = arguments.flatten()
+        dependencies = policy_arguments.flatten()
 
-        # KL divergence before
-        if self.is_summary_logged(
-            label=('kl-divergence', 'action-kl-divergences', 'kl-divergences')
-        ):
-            with tf.control_dependencies(control_inputs=dependencies):
-                kldiv_reference = self.policy.kldiv_reference(
-                    states=states, horizons=horizons, internals=internals['policy'],
-                    auxiliaries=auxiliaries
-                )
-                dependencies = kldiv_reference.flatten()
+        # KL divergence summary: reference before update
+        if self.summary_labels == 'all' or \
+                not self.summary_labels.isdisjoint({'kl-divergence', 'kl-divergences'}):
+            kldiv_reference = self.policy.kldiv_reference(
+                states=policy_states, horizons=policy_horizons, internals=policy_internals,
+                auxiliaries=auxiliaries
+            )
+            dependencies += kldiv_reference.flatten()
+
+        # Updates summaries
+        if self.summarizer is not None:
+            for summary_fn in self.summaries['updates']:
+                summary_fn()
 
         # Optimization
         with tf.control_dependencies(control_inputs=dependencies):
             optimized = self.optimizer.update(
-                arguments=arguments, variables=variables, fn_loss=fn_loss,
+                arguments=policy_arguments, variables=variables, fn_loss=fn_loss,
                 fn_kl_divergence=fn_kl_divergence, **kwargs
             )
 
+        # Increment update
         with tf.control_dependencies(control_inputs=(optimized,)):
+            assignment = self.updates.assign_add(delta=one, read_value=False)
+
+        # Update summaries
+        with tf.control_dependencies(control_inputs=(assignment,)):
+
+            # TODO: remove general summaries argument, only high-level
+            # TODO: initial variables summary !!!  This has to come after updates increment!
+            if self.summarizer is not None:
+                default_summarizer = self.summarizer.as_default()
+                default_summarizer.__enter__()
+
+            # Variables summaries
+            if self.summary_labels == 'all' or 'variables' in self.summary_labels:
+                for variable in self.trainable_variables:
+                    assert variable.name.startswith(self.name + '/') and variable.name[-2:] == ':0'
+                    name = 'variables/' + variable.name[len(self.name) + 1: -2] + '-mean'
+                    x = tf.math.reduce_mean(input_tensor=variable)
+                    tf.summary.scalar(name=name, data=x, step=self.updates)
+
             # Loss summaries
-            if self.is_summary_logged(label=('loss', 'objective-loss', 'losses')):
-                objective_loss = self.objective.loss(**arguments.to_kwargs(), policy=self.policy)
-                objective_loss = tf.math.reduce_mean(input_tensor=objective_loss, axis=0)
-            if self.is_summary_logged(label=('objective-loss', 'losses')):
-                optimized = self.add_summary(
-                    label=('objective-loss', 'losses'), name='objective-loss',
-                    tensor=objective_loss, pass_tensors=optimized
-                )
-            if self.is_summary_logged(label=('loss', 'regularization-loss', 'losses')):
+            if self.summary_labels == 'all' or \
+                    not self.summary_labels.isdisjoint({'losses', 'loss'}):
+                objective_loss = self.objective.loss(**policy_arguments.to_kwargs(), policy=self.policy)
+                objective_loss = tf.math.reduce_mean(input_tensor=objective_loss)
                 regularization_loss = self.regularize(
-                    states=states, horizons=horizons, internals=internals['policy'],
+                    states=policy_states, horizons=policy_horizons, internals=policy_internals,
                     auxiliaries=auxiliaries
                 )
-            if self.is_summary_logged(label=('regularization-loss', 'losses')):
-                optimized = self.add_summary(
-                    label=('regularization-loss', 'losses'), name='regularization-loss',
-                    tensor=regularization_loss, pass_tensors=optimized
-                )
-            if self.is_summary_logged(label=('loss', 'losses')):
                 loss = objective_loss + regularization_loss
-            if self.baseline_loss_weight is not None:
-                if self.is_summary_logged(label=('loss', 'baseline-objective-loss', 'losses')):
+                if self.baseline_loss_weight is not None and \
+                        not self.baseline_loss_weight.is_constant(value=0.0):
                     baseline_objective_loss = self.baseline_objective.loss(
-                        **arguments.to_kwargs(), policy=self.baseline
+                        **baseline_arguments.to_kwargs(), policy=self.baseline
                     )
                     baseline_objective_loss = tf.math.reduce_mean(
-                        input_tensor=baseline_objective_loss, axis=0
+                        input_tensor=baseline_objective_loss
                     )
-                if self.is_summary_logged(label=('baseline-objective-loss', 'losses')):
-                    optimized = self.add_summary(
-                        label=('baseline-objective-loss', 'losses'),
-                        name='baseline-objective-loss', tensor=baseline_objective_loss,
-                        pass_tensors=optimized
+                    loss += self.baseline_loss_weight.value() * baseline_objective_loss
+                elif self.baseline_optimizer is not None:
+                    baseline_objective_loss = self.baseline_objective.loss(
+                        **baseline_arguments.to_kwargs(), policy=self.baseline
                     )
-                if self.separate_baseline_policy and self.is_summary_logged(
-                    label=('loss', 'baseline-regularization-loss', 'losses')
-                ):
-                    baseline_regularization_loss = self.baseline.regularize()
-                if self.is_summary_logged(label=('baseline-regularization-loss', 'losses')):
-                    optimized = self.add_summary(
-                        label=('baseline-regularization-loss', 'losses'),
-                        name='baseline-regularization-loss', tensor=baseline_regularization_loss,
-                        pass_tensors=optimized
+                    baseline_objective_loss = tf.math.reduce_mean(
+                        input_tensor=baseline_objective_loss
                     )
-                if self.is_summary_logged(label=('loss', 'baseline-loss', 'losses')):
-                    baseline_loss = baseline_objective_loss + baseline_regularization_loss
-                if self.is_summary_logged(label=('baseline-loss', 'losses')):
-                    optimized = self.add_summary(
-                        label=('baseline-loss', 'losses'), name='baseline-loss',
-                        tensor=baseline_loss, pass_tensors=optimized
-                    )
-                if self.is_summary_logged(label=('loss', 'losses')):
-                    loss += self.baseline_loss_weight.value() * baseline_loss
-            if self.is_summary_logged(label=('loss', 'losses')):
-                optimized = self.add_summary(
-                    label=('loss', 'losses'), name='loss', tensor=loss, pass_tensors=optimized
+                    if self.separate_baseline_policy:
+                        baseline_regularization_loss = self.baseline.regularize()
+                        baseline_loss = baseline_objective_loss + baseline_regularization_loss
+                    else:
+                        baseline_loss = baseline_objective_loss
+                    tf.summary.scalar(name='baseline-loss', data=baseline_loss, step=self.updates)
+                tf.summary.scalar(name='loss', data=loss, step=self.updates)
+            if self.summary_labels == 'all' or 'losses' in self.summary_labels:
+                tf.summary.scalar(name='losses/objective-loss', data=objective_loss, step=self.updates)
+                tf.summary.scalar(
+                    name='losses/regularization-loss', data=regularization_loss, step=self.updates
                 )
+                if self.baseline_optimizer is not None or (
+                    self.baseline_loss_weight is not None and
+                    not self.baseline_loss_weight.is_constant(value=0.0)
+                ):
+                    tf.summary.scalar(
+                        name='losses/baseline-objective-loss', data=baseline_loss, step=self.updates
+                    )
+                if self.baseline_optimizer is not None:
+                    tf.summary.scalar(
+                        name='losses/baseline-regularization-loss', data=baseline_regularization_loss,
+                        step=self.updates
+                    )
 
             # Entropy summaries
-            if self.is_summary_logged(label=('entropy', 'action-entropies', 'entropies')):
-                entropies = self.policy.entropy(
-                    states=states, horizons=horizons, internals=internals['policy'],
-                    auxiliaries=auxiliaries, reduced=True,
-                    return_per_action=(len(self.actions_spec) > 1)
-                )
-            if self.is_summary_logged(label=('entropy', 'entropies')):
-                if len(self.actions_spec) == 1:
-                    optimized = self.add_summary(
-                        label=('entropy', 'entropies'), name='entropy', tensor=entropies,
-                        pass_tensors=optimized
+            if self.summary_labels == 'all' or \
+                    not self.summary_labels.isdisjoint({'entropy', 'entropies'}):
+                if len(self.actions_spec) > 1 and (
+                    self.summary_labels == 'all' or 'entropies' in self.summary_labels
+                ):
+                    entropy, entropies = self.policy.entropy(
+                        states=policy_states, horizons=policy_horizons, internals=policy_internals,
+                        auxiliaries=auxiliaries, reduced=True, return_per_action=True
                     )
+                    for name, x in entropies.items():
+                        x = tf.math.reduce_mean(input_tensor=x)
+                        tf.summary.scalar(name=('entropies/' + name + '-entropy'), data=x, step=self.updates)
                 else:
-                    entropy, entropies = entropies
-                    optimized = self.add_summary(
-                        label=('entropy', 'entropies'), name='entropy', tensor=entropy,
-                        pass_tensors=optimized
+                    entropy = self.policy.entropy(
+                        states=policy_states, horizons=policy_horizons, internals=policy_internals,
+                        auxiliaries=auxiliaries, reduced=True, return_per_action=False
                     )
-                    if self.is_summary_logged(label=('action-entropies', 'entropies')):
-                        for name in self.actions_spec:
-                            optimized = self.add_summary(
-                                label=('action-entropies', 'entropies'), name=(name + '-entropy'),
-                                tensor=entropies[name], pass_tensors=optimized
-                            )
+                entropy = tf.math.reduce_mean(input_tensor=entropy)
+                tf.summary.scalar(name='entropy', data=entropy, step=self.updates)
 
             # KL divergence summaries
-            if self.is_summary_logged(
-                label=('kl-divergence', 'action-kl-divergences', 'kl-divergences')
-            ):
-                kl_divergence, kl_divergences = self.policy.kl_divergence(
-                    states=states, horizons=horizons, internals=internals['policy'],
-                    auxiliaries=auxiliaries, reference=kldiv_reference, reduced=True,
-                    return_per_action=True
-                )
-            if self.is_summary_logged(label=('kl-divergence', 'kl-divergences')):
-                optimized = self.add_summary(
-                    label=('kl-divergence', 'kl-divergences'), name='kl-divergence',
-                    tensor=kl_divergence, pass_tensors=optimized
-                )
-            if len(self.actions_spec) > 1 and \
-                    self.is_summary_logged(label=('action-kl-divergences', 'kl-divergences')):
-                for name in self.actions_spec:
-                    optimized = self.add_summary(
-                        label=('action-kl-divergences', 'kl-divergences'),
-                        name=(name + '-kl-divergence'), tensor=kl_divergences[name],
-                        pass_tensors=optimized
+            if self.summary_labels == 'all' or \
+                    not self.summary_labels.isdisjoint({'kl-divergence', 'kl-divergences'}):
+                if len(self.actions_spec) > 1 and (
+                    self.summary_labels == 'all' or 'kl-divergences' in self.summary_labels
+                ):
+                    kl_divergence, kl_divergences = self.policy.kl_divergence(
+                        states=policy_states, horizons=policy_horizons, internals=policy_internals,
+                        auxiliaries=auxiliaries, reference=kldiv_reference, reduced=True,
+                        return_per_action=True
                     )
+                    for name, x in kl_divergences.items():
+                        x = tf.math.reduce_mean(input_tensor=x)
+                        tf.summary.scalar(name=('kldivs/' + name + '-kldiv'), data=x, step=self.updates)
+                else:
+                    kl_divergence = self.policy.kl_divergence(
+                        states=policy_states, horizons=policy_horizons, internals=policy_internals,
+                        auxiliaries=auxiliaries, reference=kldiv_reference, reduced=True,
+                        return_per_action=False
+                    )
+                kl_divergence = tf.math.reduce_mean(input_tensor=kl_divergence)
+                tf.summary.scalar(name='kl-divergence', data=kl_divergence, step=self.updates)
 
-        return optimized
+            if self.summarizer is not None:
+                default_summarizer.__exit__(None, None, None)
+
+        with tf.control_dependencies(control_inputs=(assignment,)):
+            return tf_util.identity(input=optimized)
 
     @tf_function(num_args=7)
     def loss(self, *, states, horizons, internals, auxiliaries, actions, reward, reference):
@@ -990,7 +1091,8 @@ class TensorforceModel(Model):
             policy_internals = internals['policy']
         else:
             policy_internals = internals
-        if self.baseline_loss_weight is not None and self.separate_baseline_policy:
+        if self.separate_baseline_policy and self.baseline_loss_weight is not None and \
+                not self.baseline_loss_weight.is_constant(value=0.0):
             policy_reference = reference['policy']
         else:
             policy_reference = reference
@@ -1010,7 +1112,8 @@ class TensorforceModel(Model):
         )
 
         # Baseline loss
-        if self.baseline_loss_weight is not None:
+        if self.baseline_loss_weight is not None and \
+                not self.baseline_loss_weight.is_constant(value=0.0):
             if self.separate_baseline_policy:
                 baseline_internals = internals['baseline']
             else:
@@ -1019,10 +1122,24 @@ class TensorforceModel(Model):
                 baseline_reference = reference['baseline']
             else:
                 baseline_reference = reference
-            loss += self.baseline_loss_weight.value() * self.baseline_loss(
-                states=states, horizons=horizons, internals=baseline_internals,
-                auxiliaries=auxiliaries, actions=actions, reward=reward,
-                reference=baseline_reference
+
+            zero = tf_util.constant(value=0.0, dtype='float')
+            baseline_loss_weight = self.baseline_loss_weight.value()
+
+            def no_baseline_loss():
+                return zero
+
+            def apply_baseline_loss():
+                baseline_loss = self.baseline_loss(
+                    states=states, horizons=horizons, internals=baseline_internals,
+                    auxiliaries=auxiliaries, actions=actions, reward=reward,
+                    reference=baseline_reference
+                )
+                return baseline_loss_weight * baseline_loss
+
+            loss += tf.cond(
+                pred=tf.math.equal(x=baseline_loss_weight, y=zero),
+                true_fn=no_baseline_loss, false_fn=apply_baseline_loss
             )
 
         return loss
@@ -1032,122 +1149,27 @@ class TensorforceModel(Model):
         regularization_loss = super().regularize()
 
         # Entropy regularization
-        zero = tf_util.constant(value=0.0, dtype='float')
-        entropy_regularization = self.entropy_regularization.value()
+        if not self.entropy_regularization.is_constant(value=0.0):
+            zero = tf_util.constant(value=0.0, dtype='float')
+            entropy_regularization = self.entropy_regularization.value()
 
-        def no_entropy_regularization():
-            return zero
+            def no_entropy_regularization():
+                return zero
 
-        def apply_entropy_regularization():
-            entropy = self.policy.entropy(
-                states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-                reduced=True, return_per_action=False
+            def apply_entropy_regularization():
+                entropy = self.policy.entropy(
+                    states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+                    reduced=True, return_per_action=False
+                )
+                entropy = tf.math.reduce_mean(input_tensor=entropy, axis=0)
+                return -entropy_regularization * entropy
+
+            regularization_loss += tf.cond(
+                pred=tf.math.equal(x=entropy_regularization, y=zero),
+                true_fn=no_entropy_regularization, false_fn=apply_entropy_regularization
             )
-            entropy = tf.math.reduce_mean(input_tensor=entropy, axis=0)
-            return -entropy_regularization * entropy
-
-        skip_entropy_regularization = tf.math.equal(x=entropy_regularization, y=zero)
-        regularization_loss += tf.cond(
-            pred=skip_entropy_regularization, true_fn=no_entropy_regularization,
-            false_fn=apply_entropy_regularization
-        )
 
         return regularization_loss
-
-    @tf_function(num_args=1)
-    def optimize_baseline(self, *, indices):
-        # Retrieve states, internals, actions and reward
-        past_horizon = self.baseline.past_horizon(on_policy=True)
-        # horizon change: see timestep-based batch sampling
-        if self.separate_baseline_policy:
-            internals = 'internals/baseline'
-        else:
-            internals = 'internals/policy'
-        horizons, (states,), (internals,) = self.memory.predecessors(
-            indices=indices, horizon=past_horizon, sequence_values=('states',),
-            initial_values=(internals,)
-        )
-        auxiliaries, actions, reward = self.memory.retrieve(
-            indices=indices, values=('auxiliaries', 'actions', 'reward')
-        )
-
-        # Reward estimation (separate from main policy, so updated baseline is used there)
-        (reward,) = self.memory.retrieve(indices=indices, values=('reward',))
-        reward = self.estimator.complete_return(
-            indices=indices, reward=reward, policy=self.policy, baseline=self.baseline,
-            memory=self.memory
-        )
-
-        arguments = TensorDict(
-            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-            actions=actions, reward=reward
-        )
-        if self.baseline_objective is not None:
-            arguments['reference'] = self.baseline_objective.reference(
-                states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-                actions=actions, reward=reward, policy=self.baseline
-            )
-
-        def fn_kl_divergence(
-            *, states, horizons, internals, auxiliaries, actions, reward, reference
-        ):
-            reference = self.baseline.kldiv_reference(
-                states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries
-            )
-            return self.baseline.kl_divergence(
-                states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-                reference=reference, reduced=True, return_per_action=False
-            )
-
-        if self.baseline_objective is None:
-            kwargs = dict()
-        else:
-            kwargs = self.baseline_objective.optimizer_arguments(policy=self.baseline)
-        assert 'source_variables' not in kwargs
-        kwargs['source_variables'] = tuple(self.policy.trainable_variables)
-        # if self.global_model is not None:
-        #     assert 'global_variables' not in kwargs
-        #     kwargs['global_variables'] = tuple(self.global_model.baseline_policy.trainable_variables)
-
-        # Optimization
-        optimized = self.baseline_optimizer.update(
-            arguments=arguments, variables=tuple(self.baseline.trainable_variables),
-            fn_loss=self.baseline_loss, fn_kl_divergence=fn_kl_divergence, **kwargs
-        )
-
-        with tf.control_dependencies(control_inputs=(optimized,)):
-            # Loss summaries
-            if self.is_summary_logged(
-                label=('baseline-loss', 'baseline-objective-loss', 'losses')
-            ):
-                objective_loss = self.baseline_objective.loss(
-                    states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-                    actions=actions, reward=reward, policy=self.baseline
-                )
-                objective_loss = tf.math.reduce_mean(input_tensor=objective_loss, axis=0)
-            if self.is_summary_logged(label=('baseline-objective-loss', 'losses')):
-                optimized = self.add_summary(
-                    label=('baseline-objective-loss', 'losses'), name='baseline-objective-loss',
-                    tensor=objective_loss, pass_tensors=optimized
-                )
-            if self.is_summary_logged(
-                label=('baseline-loss', 'baseline-regularization-loss', 'losses')
-            ):
-                regularization_loss = self.baseline.regularize()
-            if self.is_summary_logged(label=('baseline-regularization-loss', 'losses')):
-                optimized = self.add_summary(
-                    label=('baseline-regularization-loss', 'losses'),
-                    name='baseline-regularization-loss', tensor=regularization_loss,
-                    pass_tensors=optimized
-                )
-            if self.is_summary_logged(label=('baseline-loss', 'losses')):
-                loss = objective_loss + regularization_loss
-                optimized = self.add_summary(
-                    label=('baseline-loss', 'losses'), name='baseline-loss', tensor=loss,
-                    pass_tensors=optimized
-                )
-
-        return optimized
 
     @tf_function(num_args=7)
     def baseline_loss(
@@ -1160,7 +1182,7 @@ class TensorforceModel(Model):
         )
 
         # Objective loss
-        loss = tf.math.reduce_mean(input_tensor=loss, axis=0)
+        loss = tf.math.reduce_mean(input_tensor=loss)
 
         # Regularization losses
         if self.separate_baseline_policy:

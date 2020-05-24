@@ -1,7 +1,7 @@
 Optimizers
 ==========
 
-Default optimizer: ``MetaOptimizerWrapper``
+Default optimizer: ``UpdateModifierWrapper``, so e.g. ``optimizer=dict(optimizer='adam', learning_rate=1e-3, multi_step=5,  clipping_threshold=1e-2)``
 
 
 .. autoclass:: tensorforce.core.optimizers.ClippingStep
@@ -9,8 +9,6 @@ Default optimizer: ``MetaOptimizerWrapper``
 .. autoclass:: tensorforce.core.optimizers.Evolutionary
 
 .. autoclass:: tensorforce.core.optimizers.GlobalOptimizer
-
-.. autoclass:: tensorforce.core.optimizers.MetaOptimizerWrapper
 
 .. autoclass:: tensorforce.core.optimizers.MultiStep
 
@@ -25,3 +23,5 @@ Default optimizer: ``MetaOptimizerWrapper``
 .. autoclass:: tensorforce.core.optimizers.Synchronization
 
 .. autoclass:: tensorforce.core.optimizers.TFOptimizer
+
+.. automethod:: tensorforce.core.optimizers.UpdateModifierWrapper

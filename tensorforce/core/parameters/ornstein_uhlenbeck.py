@@ -15,7 +15,7 @@
 
 import tensorflow as tf
 
-from tensorforce.core import tf_util
+from tensorforce.core import TensorSpec, tf_util
 from tensorforce.core.parameters import Parameter
 
 
@@ -32,8 +32,6 @@ class OrnsteinUhlenbeck(Parameter):
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
         absolute (bool): Absolute value
             (<span style="color:#00C000"><b>default</b></span>: false).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
         dtype (type): <span style="color:#0000C0"><b>internal use</b></span>.
         min_value (dtype-compatible value): <span style="color:#0000C0"><b>internal use</b></span>.
@@ -41,18 +39,15 @@ class OrnsteinUhlenbeck(Parameter):
     """
 
     def __init__(
-        self, *, theta=0.15, sigma=0.3, mu=0.0, absolute=False, summary_labels=None, name=None,
-        dtype=None, min_value=None, max_value=None
+        self, *, theta=0.15, sigma=0.3, mu=0.0, absolute=False, name=None, dtype=None,
+        min_value=None, max_value=None
     ):
         self.theta = theta
         self.mu = mu
         self.sigma = sigma
         self.absolute = absolute
 
-        super().__init__(
-            summary_labels=summary_labels, name=name, dtype=dtype, min_value=min_value,
-            max_value=max_value
-        )
+        super().__init__(name=name, dtype=dtype, min_value=min_value, max_value=max_value)
 
     def min_value(self):
         if self.absolute:
@@ -67,7 +62,7 @@ class OrnsteinUhlenbeck(Parameter):
         super().initialize()
 
         self.process = self.variable(
-            name='process', dtype='float', shape=(), initializer=self.mu, is_trainable=False,
+            name='process', spec=TensorSpec(type='float'), initializer=self.mu, is_trainable=False,
             is_saved=True
         )
 

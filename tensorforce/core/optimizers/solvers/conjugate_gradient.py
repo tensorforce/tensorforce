@@ -63,7 +63,7 @@ class ConjugateGradient(Iterative):
         """
         super().__init__(name=name, max_iterations=max_iterations, unroll_loop=unroll_loop)
 
-        self.damping = self.add_module(
+        self.damping = self.submodule(
             name='damping', module=damping, modules=parameter_modules, dtype='float', min_value=0.0,
             max_value=1.0
         )

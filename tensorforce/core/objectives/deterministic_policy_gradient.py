@@ -24,8 +24,6 @@ class DeterministicPolicyGradient(Objective):
     Deterministic policy gradient objective (specification key: `det_policy_gradient`).
 
     Args:
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
         states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
@@ -43,9 +41,8 @@ class DeterministicPolicyGradient(Objective):
 
         summed_actions = list()
         for name, spec, action in policy.actions_spec.zip_items(policy_actions):
-            rank = len(spec.shape)
-            for n in range(rank):
-                action = tf.math.reduce_sum(input_tensor=action, axis=(rank - n))
+            for n in range(spec.rank):
+                action = tf.math.reduce_sum(input_tensor=action, axis=(spec.rank - n))
             summed_actions.append(action)
         summed_actions = tf.math.add_n(inputs=summed_actions)
         # mean? (will be mean later)

@@ -39,22 +39,17 @@ class OptimizingStep(UpdateModifier):
             (<span style="color:#00C000"><b>default</b></span>: 0.5).
         ls_unroll_loop (bool): Whether to unroll the line search loop
             (<span style="color:#00C000"><b>default</b></span>: false).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
         arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
         self, *, optimizer, ls_max_iterations=10, ls_accept_ratio=0.9, ls_mode='exponential',
-        ls_parameter=0.5, ls_unroll_loop=False, summary_labels=None, name=None, arguments_spec=None
+        ls_parameter=0.5, ls_unroll_loop=False, name=None, arguments_spec=None
     ):
-        super().__init__(
-            optimizer=optimizer, summary_labels=summary_labels, name=name,
-            arguments_spec=arguments_spec
-        )
+        super().__init__(optimizer=optimizer, name=name, arguments_spec=arguments_spec)
 
-        self.line_search = self.add_module(
+        self.line_search = self.submodule(
             name='line_search', module='line_search', modules=solver_modules,
             max_iterations=ls_max_iterations, accept_ratio=ls_accept_ratio, mode=ls_mode,
             parameter=ls_parameter, unroll_loop=ls_unroll_loop

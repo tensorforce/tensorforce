@@ -31,8 +31,6 @@ class Linear(Layer):
             (<span style="color:#00C000"><b>default</b></span>: true).
         vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): Layer name
@@ -41,26 +39,23 @@ class Linear(Layer):
     """
 
     def __init__(
-        self, *, size, bias=True, vars_trainable=True, summary_labels=None, l2_regularization=None,
-        name=None, input_spec=None
+        self, *, size, bias=True, vars_trainable=True, l2_regularization=None, name=None,
+        input_spec=None
     ):
-        super().__init__(
-            summary_labels=summary_labels, l2_regularization=l2_regularization, name=name,
-            input_spec=input_spec
-        )
+        super().__init__(l2_regularization=l2_regularization, name=name, input_spec=input_spec)
 
         if len(self.input_spec.shape) <= 1:
-            self.linear = self.add_module(
+            self.linear = self.submodule(
                 name='linear', module=Dense, size=size, bias=bias, activation=None, dropout=0.0,
                 vars_trainable=vars_trainable, input_spec=self.input_spec
             )
         elif len(self.input_spec.shape) == 2:
-            self.linear = self.add_module(
+            self.linear = self.submodule(
                 name='linear', module=Conv1d, size=size, window=1, bias=bias, activation=None,
                 dropout=0.0, vars_trainable=vars_trainable, input_spec=self.input_spec
             )
         elif len(self.input_spec.shape) == 3:
-            self.linear = self.add_module(
+            self.linear = self.submodule(
                 name='linear', module=Conv2d, size=size, window=1, bias=bias, activation=None,
                 dropout=0.0, vars_trainable=vars_trainable, input_spec=self.input_spec
             )

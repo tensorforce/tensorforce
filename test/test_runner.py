@@ -21,12 +21,6 @@ from test.unittest_base import UnittestBase
 
 class TestRunner(UnittestBase, unittest.TestCase):
 
-    agent = dict(
-        policy=dict(network=dict(type='auto', size=8, depth=1, rnn=2)),
-        update=dict(unit='episodes', batch_size=12),
-        objective='policy_gradient', reward_estimation=dict(horizon=3)
-    )
-
     def test_single(self):
         self.start_tests(name='single')
 

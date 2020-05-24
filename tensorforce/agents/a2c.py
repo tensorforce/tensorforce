@@ -123,30 +123,35 @@ class AdvantageActorCritic(TensorforceAgent):
             controlled) agents within an environment
             (<span style="color:#00C000"><b>default</b></span>: 1).
         config (specification): Various additional configuration options:
-            buffer_observe (int > 0): Maximum number of timesteps within an episode to buffer before
-                executing internal observe operations, to reduce calls to TensorFlow for improved
-                performance
-                (<span style="color:#00C000"><b>default</b></span>: simple rules to infer maximum
-                number which can be buffered without affecting performance).
-            seed (int): Random seed to set for Python, NumPy (both set globally!) and TensorFlow,
-                environment seed may have to be set separately for fully deterministic execution
-                (<span style="color:#00C000"><b>default</b></span>: none).
-        saver (specification): TensorFlow saver configuration for periodic implicit saving, as
-            alternative to explicit saving via agent.save(...), with the following attributes
-            (<span style="color:#00C000"><b>default</b></span>: no saver):
+            <ul>
+            <li><b>directory</b> (<i>int > 0</i>) &ndash; Maximum number of timesteps within an
+            episode to buffer before executing internal observe operations, to reduce calls to
+            TensorFlow for improved performance
+            (<span style="color:#00C000"><b>default</b></span>: simple rules to infer maximum number
+            which can be buffered without affecting performance).</li>
+            <li><b>seed</b> (<i>int</i>) &ndash; Random seed to set for Python, NumPy (both set
+            globally!) and TensorFlow, environment seed may have to be set separately for fully
+            deterministic execution
+            (<span style="color:#00C000"><b>default</b></span>: none).</li>
+            </ul>
+        saver (specification): TensorFlow checkpoint manager configuration for periodic implicit
+            saving, as alternative to explicit saving via agent.save(...), with the following
+            attributes (<span style="color:#00C000"><b>default</b></span>: no saver):
             <ul>
             <li><b>directory</b> (<i>path</i>) &ndash; saver directory
             (<span style="color:#C00000"><b>required</b></span>).</li>
             <li><b>filename</b> (<i>string</i>) &ndash; model filename
             (<span style="color:#00C000"><b>default</b></span>: agent name).</li>
-            <li><b>frequency</b> (<i>int > 0</i>) &ndash; how frequently in seconds to save the
-            model (<span style="color:#00C000"><b>default</b></span>: 600 seconds).</li>
-            <li><b>load</b> (<i>bool | str</i>) &ndash; whether to load the existing model, or
-            which model filename to load
-            (<span style="color:#00C000"><b>default</b></span>: true).</li>
-            </ul>
+            <li><b>frequency</b> (<i>int > 0</i>) &ndash; how frequently to save the model
+            (<span style="color:#C00000"><b>required</b></span>).</li>
+            <li><b>unit</b> (<i>"timesteps" | "episodes" | "updates"</i>) &ndash; frequency unit
+            (<span style="color:#00C000"><b>default</b></span>: updates).</li>
             <li><b>max-checkpoints</b> (<i>int > 0</i>) &ndash; maximum number of checkpoints to
             keep (<span style="color:#00C000"><b>default</b></span>: 5).</li>
+            <li><b>max-hour-frequency</b> (<i>int > 0</i>) &ndash; ignoring max-checkpoints,
+            definitely keep a checkpoint in given hour frequency
+            (<span style="color:#00C000"><b>default</b></span>: none).</li>
+            </ul>
         summarizer (specification): TensorBoard summarizer configuration with the following
             attributes (<span style="color:#00C000"><b>default</b></span>: no summarizer):
             <ul>
@@ -164,7 +169,7 @@ class AdvantageActorCritic(TensorforceAgent):
             <li><b>max-summaries</b> (<i>int > 0</i>) &ndash; maximum number of summaries to keep
             (<span style="color:#00C000"><b>default</b></span>: 5).</li>
             <li><b>custom</b> (<i>dict[spec]</i>) &ndash; custom summaries which are recorded via
-            `agent.summarize(...)`, specification with either type "scalar", type "histogram" with
+            agent.summarize(...), specification with either type "scalar", type "histogram" with
             optional "buckets", type "image" with optional "max_outputs"
             (<span style="color:#00C000"><b>default</b></span>: 3), or type "audio"
             (<span style="color:#00C000"><b>default</b></span>: no custom summaries).</li>
@@ -202,6 +207,7 @@ class AdvantageActorCritic(TensorforceAgent):
             record traces (<span style="color:#00C000"><b>default</b></span>: 0).</li>
             <li><b>max-traces</b> (<i>int > 0</i>) &ndash; maximum number of traces to keep
             (<span style="color:#00C000"><b>default</b></span>: all).</li>
+            </ul>
     """
 
     def __init__(

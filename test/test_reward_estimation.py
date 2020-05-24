@@ -20,12 +20,6 @@ from test.unittest_base import UnittestBase
 
 class TestRewardEstimation(UnittestBase, unittest.TestCase):
 
-    agent = dict(
-        policy=dict(network=dict(type='auto', size=8, depth=1, rnn=2)),
-        update=dict(unit='episodes', batch_size=1),
-        objective='policy_gradient'
-    )
-
     def test_no_horizon_estimate(self):
         self.start_tests(name='no horizon estimate')
 

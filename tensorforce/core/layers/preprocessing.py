@@ -24,15 +24,13 @@ class PreprocessingLayer(Layer):
     Base class for preprocessing layers which require to be reset.
 
     Args:
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): Layer name
             (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(self, *, summary_labels=None, name=None, input_spec=None):
-        super().__init__(summary_labels=summary_labels, name=name, input_spec=input_spec)
+    def __init__(self, *, name=None, input_spec=None):
+        super().__init__(name=name, input_spec=input_spec)
 
     def input_signature(self, *, function):
         if function == 'reset':
@@ -55,26 +53,24 @@ class Clipping(Layer):
             (<span style="color:#C00000"><b>required</b></span>).
         lower (parameter, float): Lower clipping value
             (<span style="color:#00C000"><b>default</b></span>: negative upper value).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): Layer name
             (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(self, *, upper, lower=None, summary_labels=None, name=None, input_spec=None):
-        super().__init__(summary_labels=summary_labels, name=name, input_spec=input_spec)
+    def __init__(self, *, upper, lower=None, name=None, input_spec=None):
+        super().__init__(name=name, input_spec=input_spec)
 
         if lower is None:
             self.lower = None
-            self.upper = self.add_module(
-                name='upper', module=lower, modules=parameter_modules, dtype='float', min_value=0.0
+            self.upper = self.submodule(
+                name='upper', module=upper, modules=parameter_modules, dtype='float', min_value=0.0
             )
         else:
-            self.lower = self.add_module(
+            self.lower = self.submodule(
                 name='lower', module=lower, modules=parameter_modules, dtype='float'
             )
-            self.upper = self.add_module(
+            self.upper = self.submodule(
                 name='upper', module=upper, modules=parameter_modules, dtype='float'
             )
 
@@ -106,17 +102,15 @@ class Deltafier(PreprocessingLayer):
         concatenate (False | int >= 0): Whether to concatenate instead of replace deltas with
             input, and if so, concatenation axis
             (<span style="color:#00C000"><b>default</b></span>: false).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): Layer name
             (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(self, *, concatenate=False, summary_labels=None, name=None, input_spec=None):
+    def __init__(self, *, concatenate=False, name=None, input_spec=None):
         self.concatenate = concatenate
 
-        super().__init__(summary_labels=summary_labels, name=name, input_spec=input_spec)
+        super().__init__(name=name, input_spec=input_spec)
 
     def default_input_spec(self):
         return TensorSpec(type='float', shape=None)
@@ -136,12 +130,12 @@ class Deltafier(PreprocessingLayer):
         super().initialize()
 
         self.has_previous = self.variable(
-            name='has-previous', dtype='bool', shape=(), initializer='zeros', is_trainable=False,
-            is_saved=False
+            name='has-previous', spec=TensorSpec(type='bool'), initializer='zeros',
+            is_trainable=False, is_saved=False
         )
 
         self.previous = self.variable(
-            name='previous', dtype='float', shape=((1,) + self.input_spec.shape),
+            name='previous', spec=TensorSpec(type='float', shape=((1,) + self.input_spec.shape)),
             initializer='zeros', is_trainable=False, is_saved=False
         )
 
@@ -189,22 +183,17 @@ class Image(Layer):
             (<span style="color:#00C000"><b>default</b></span>: no resizing or relative to height).
         grayscale (bool | iter[float]): Turn into grayscale image, optionally using given weights
             (<span style="color:#00C000"><b>default</b></span>: false).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): Layer name
             (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(
-        self, *, height=None, width=None, grayscale=False, summary_labels=None, name=None,
-        input_spec=None
-    ):
+    def __init__(self, *, height=None, width=None, grayscale=False, name=None, input_spec=None):
         self.height = height
         self.width = width
         self.grayscale = grayscale
 
-        super().__init__(summary_labels=summary_labels, name=name, input_spec=input_spec)
+        super().__init__(name=name, input_spec=input_spec)
 
     def default_input_spec(self):
         return TensorSpec(type='float', shape=(0, 0, 0))
@@ -254,22 +243,18 @@ class Sequence(PreprocessingLayer):
         concatenate (bool): Whether to concatenate inputs at given axis, otherwise introduce new
             sequence axis
             (<span style="color:#00C000"><b>default</b></span>: true).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): Layer name
             (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(
-        self, *, length, axis=-1, concatenate=True, summary_labels=None, name=None, input_spec=None
-    ):
+    def __init__(self, *, length, axis=-1, concatenate=True, name=None, input_spec=None):
         assert length > 1
         self.length = length
         self.axis = axis
         self.concatenate = concatenate
 
-        super().__init__(summary_labels=summary_labels, name=name, input_spec=input_spec)
+        super().__init__(name=name, input_spec=input_spec)
 
     def output_spec(self):
         output_spec = super().output_spec()
@@ -294,8 +279,8 @@ class Sequence(PreprocessingLayer):
         super().initialize()
 
         self.has_previous = self.variable(
-            name='has-previous', dtype='bool', shape=(), initializer='zeros', is_trainable=False,
-            is_saved=False
+            name='has-previous', spec=TensorSpec(type='bool'), initializer='zeros',
+            is_trainable=False, is_saved=False
         )
 
         shape = self.input_spec.shape
@@ -305,8 +290,8 @@ class Sequence(PreprocessingLayer):
         else:
             shape = (1,) + shape[:self.axis] + (self.length - 1,) + shape[self.axis:]
         self.previous = self.variable(
-            name='previous', dtype='float', shape=shape, initializer='zeros', is_trainable=False,
-            is_saved=False
+            name='previous', spec=TensorSpec(type='float', shape=shape), initializer='zeros',
+            is_trainable=False, is_saved=False
         )
 
     @tf_function(num_args=0)
@@ -315,7 +300,7 @@ class Sequence(PreprocessingLayer):
 
     @tf_function(num_args=1)
     def apply(self, *, x):
-        assertion = tf.debugging.assert_equal(
+        assertion = tf.debugging.assert_less_equal(
             x=tf.shape(input=x)[0], y=1,
             message="Sequence preprocessor currently not compatible with batched Agent.act."
         )

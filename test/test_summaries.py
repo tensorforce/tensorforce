@@ -17,6 +17,7 @@ import os
 import unittest
 
 import numpy as np
+import tensorflow as tf
 
 from test.unittest_base import UnittestBase
 
@@ -24,6 +25,10 @@ from test.unittest_base import UnittestBase
 class TestSummaries(UnittestBase, unittest.TestCase):
 
     directory = 'test/test-summaries'
+
+    # def setUp(self):
+    #     super().setUp()
+    #     tf.config.experimental_run_functions_eagerly(run_eagerly=False)
 
     def test_summaries(self):
         # FEATURES.MD
@@ -39,16 +44,20 @@ class TestSummaries(UnittestBase, unittest.TestCase):
             os.rmdir(path=self.__class__.directory)
 
         # TODO: 'dropout'
-        reward_estimation = dict(horizon=2, estimate_horizon='late')
+        reward_estimation = dict(horizon=dict(
+            type='decaying', unit='timesteps', decay='linear', initial_value=2.0, decay_steps=3,
+            final_value=4.0
+        ))
         baseline_policy = dict(network=dict(type='auto', size=8, depth=1, rnn=1))
-        baseline_objective = 'policy_gradient'
+        baseline_objective = 'value'
         baseline_optimizer = 'adam'
+        preprocessing = dict(reward=dict(type='clipping', upper=0.25))
 
-        #  "parameters"
         agent, environment = self.prepare(
             summarizer=dict(
                 directory=self.__class__.directory, labels=[
-                    "distributions", "dropout", "entropies", "graph", "kl-divergences", "losses", "relu", "rewards", "update-norm", "updates", "variables"
+                    'distributions', 'entropies', 'graph', 'kl-divergences', 'losses', 'parameters',
+                    'rewards', 'update-norm', 'updates', 'variables'
                 ], frequency=2,
                 # custom=dict(
                 #     audio=dict(type='audio', sample_rate=44100, max_outputs=1),
@@ -57,17 +66,20 @@ class TestSummaries(UnittestBase, unittest.TestCase):
                 #     scalar=dict(type='scalar')
                 # )
             ), reward_estimation=reward_estimation, baseline_policy=baseline_policy,
-            baseline_objective=baseline_objective, baseline_optimizer=baseline_optimizer
+            baseline_objective=baseline_objective, baseline_optimizer=baseline_optimizer,
+            preprocessing=preprocessing
         )
 
-        updated = False
-        while not updated:
+        updates = 0
+        episodes = 0
+        while episodes < 3 or updates < 3:
             states = environment.reset()
             terminal = False
             while not terminal:
                 actions = agent.act(states=states)
                 states, terminal, reward = environment.execute(actions=actions)
-                updated = agent.observe(terminal=terminal, reward=reward) or updated
+                updates += int(agent.observe(terminal=terminal, reward=reward))
+            episodes += 1
 
         agent.summarize(summary='image', value=np.zeros(shape=(2, 4, 2, 3)))
         agent.summarize(summary='scalar', value=1.0, step=0)

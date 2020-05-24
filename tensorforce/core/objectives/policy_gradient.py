@@ -32,8 +32,6 @@ class PolicyGradient(Objective):
             (<span style="color:#00C000"><b>default</b></span>: no clipping).
         early_reduce (bool): Whether to compute objective for reduced likelihoods instead of per
             likelihood (<span style="color:#00C000"><b>default</b></span>: true).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
         states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
@@ -43,20 +41,19 @@ class PolicyGradient(Objective):
     """
 
     def __init__(
-        self, *, ratio_based=False, clipping_value=0.0, early_reduce=False, summary_labels=None,
-        name=None, states_spec=None, internals_spec=None, auxiliaries_spec=None, actions_spec=None,
+        self, *, ratio_based=False, clipping_value=0.0, early_reduce=False, name=None,
+        states_spec=None, internals_spec=None, auxiliaries_spec=None, actions_spec=None,
         reward_spec=None
     ):
         super().__init__(
-            summary_labels=summary_labels, name=name, states_spec=states_spec,
-            internals_spec=internals_spec, auxiliaries_spec=auxiliaries_spec,
-            actions_spec=actions_spec, reward_spec=reward_spec
+            name=name, states_spec=states_spec, internals_spec=internals_spec,
+            auxiliaries_spec=auxiliaries_spec, actions_spec=actions_spec, reward_spec=reward_spec
         )
 
         self.ratio_based = ratio_based
 
         clipping_value = 0.0 if clipping_value is None else clipping_value
-        self.clipping_value = self.add_module(
+        self.clipping_value = self.submodule(
             name='clipping_value', module=clipping_value, modules=parameter_modules, dtype='float',
             min_value=0.0
         )

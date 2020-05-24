@@ -26,8 +26,6 @@ class Policy(Module):
     Args:
         device (string): Device name
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
@@ -37,13 +35,10 @@ class Policy(Module):
     """
 
     def __init__(
-        self, *, device=None, summary_labels=None, l2_regularization=None, name=None,
-        states_spec=None, auxiliaries_spec=None, actions_spec=None
+        self, *, device=None, l2_regularization=None, name=None, states_spec=None,
+        auxiliaries_spec=None, actions_spec=None
     ):
-        super().__init__(
-            device=device, summary_labels=summary_labels, l2_regularization=l2_regularization,
-            name=name
-        )
+        super().__init__(device=device, l2_regularization=l2_regularization, name=name)
 
         self.states_spec = states_spec
         self.auxiliaries_spec = auxiliaries_spec

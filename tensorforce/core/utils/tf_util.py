@@ -21,6 +21,11 @@ from tensorforce import TensorforceError
 DTYPE_MAPPING = dict(bool=tf.bool, int=tf.int64, float=tf.float32)
 
 
+
+def is_tensor(*, x):
+    return isinstance(x, (tf.IndexedSlices, tf.Tensor, tf.Variable))
+
+
 def get_dtype(*, type):
     if type not in DTYPE_MAPPING:
         raise TensorforceError.value(

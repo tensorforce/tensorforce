@@ -27,8 +27,6 @@ class Stochastic(Policy):
             per action (<span style="color:#00C000"><b>default</b></span>: 0.0).
         device (string): Device name
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
@@ -38,13 +36,12 @@ class Stochastic(Policy):
     """
 
     def __init__(
-        self, *, temperature=0.0, device=None, summary_labels=None, l2_regularization=None,
-        name=None, states_spec=None, auxiliaries_spec=None, internals_spec=None, actions_spec=None
+        self, *, temperature=0.0, device=None, l2_regularization=None, name=None, states_spec=None,
+        auxiliaries_spec=None, internals_spec=None, actions_spec=None
     ):
         super().__init__(
-            device=device, summary_labels=summary_labels, l2_regularization=l2_regularization,
-            name=name, states_spec=states_spec, auxiliaries_spec=auxiliaries_spec,
-            actions_spec=actions_spec
+            device=device, l2_regularization=l2_regularization, name=name, states_spec=states_spec,
+            auxiliaries_spec=auxiliaries_spec, actions_spec=actions_spec
         )
 
         # Sampling temperature
@@ -53,7 +50,7 @@ class Stochastic(Policy):
 
             def function(name, spec):
                 if name in temperature:
-                    return self.add_module(
+                    return self.submodule(
                         name=(name + '_temperature'), module=temperature[name],
                         modules=parameter_modules, is_trainable=False, dtype='float', min_value=0.0
                     )
@@ -66,7 +63,7 @@ class Stochastic(Policy):
 
         else:
             # Same temperature for all actions
-            self.temperature = self.add_module(
+            self.temperature = self.submodule(
                 name='temperature', module=temperature, modules=parameter_modules,
                 is_trainable=False, dtype='float', min_value=0.0
             )

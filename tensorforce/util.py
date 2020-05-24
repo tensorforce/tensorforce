@@ -34,6 +34,31 @@ log_levels = dict(
 )
 
 
+class NullContext(object):
+
+    singleton = None
+
+    def __new__(cls):
+        if cls.singleton is None:
+            cls.singleton = super().__new__(cls)
+        return cls.singleton
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, etype, exception, traceback):
+        pass
+
+    def __getattr__(self, name):
+        raise NotImplementedError
+
+    def __setattr__(self, name, value):
+        raise NotImplementedError
+
+    def __delattr__(self, name):
+        raise NotImplementedError
+
+
 def debug(message):
     logging.warning('{}: {}'.format(datetime.now().strftime('%H:%M:%S-%f')[:-3], message))
 

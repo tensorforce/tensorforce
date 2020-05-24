@@ -17,7 +17,7 @@ import numpy as np
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core import TensorDict, tf_function, tf_util, VariableDict
+from tensorforce.core import TensorDict, TensorSpec, tf_function, tf_util, VariableDict
 from tensorforce.core.memories import Memory
 
 
@@ -30,8 +30,6 @@ class Queue(Memory):
             (<span style="color:#00C000"><b>default</b></span>: minimum capacity).
         device (string): Device name
             (<span style="color:#00C000"><b>default</b></span>: CPU:0).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
         values_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         min_capacity (int >= 0): <span style="color:#0000C0"><b>internal use</b></span>.
@@ -39,12 +37,10 @@ class Queue(Memory):
 
     # (requires capacity as first argument)
     def __init__(
-        self, capacity=None, *, device='CPU:0', summary_labels=None, name=None, values_spec=None,
-        min_capacity=None
+        self, capacity=None, *, device='CPU:0', name=None, values_spec=None, min_capacity=None
     ):
         super().__init__(
-            device=device, summary_labels=summary_labels, name=name, values_spec=values_spec,
-            min_capacity=min_capacity
+            device=device, name=name, values_spec=values_spec, min_capacity=min_capacity
         )
 
         if capacity is None:
@@ -67,25 +63,23 @@ class Queue(Memory):
 
         # Value buffers
         def function(name, spec):
+            spec = TensorSpec(type=spec.type, shape=((self.capacity,) + spec.shape))
             if name == 'terminal':
-                initializer = np.zeros(
-                    shape=(self.capacity,), dtype=util.np_dtype(dtype='int')
-                )
+                initializer = np.zeros(shape=(self.capacity,), dtype=spec.np_type())
                 initializer[-1] = 1
             else:
                 initializer = 'zeros'
             return self.variable(
-                name=(name.replace('/', '_') + '-buffer'), dtype=spec.type,
-                shape=((self.capacity,) + spec.shape), initializer=initializer, is_trainable=False,
-                is_saved=True
+                name=(name.replace('/', '_') + '-buffer'), spec=spec, initializer=initializer,
+                is_trainable=False, is_saved=True
             )
 
         self.buffers = self.values_spec.fmap(function=function, cls=VariableDict, with_names=True)
 
         # Buffer index (modulo capacity, next index to write to)
         self.buffer_index = self.variable(
-            name='buffer-index', dtype='int', shape=(), initializer='zeros', is_trainable=False,
-            is_saved=True
+            name='buffer-index', spec=TensorSpec(type='int'), initializer='zeros',
+            is_trainable=False, is_saved=True
         )
 
         # Terminal indices
@@ -93,14 +87,14 @@ class Queue(Memory):
         initializer = np.zeros(shape=(self.capacity + 1,), dtype=util.np_dtype(dtype='int'))
         initializer[0] = self.capacity - 1
         self.terminal_indices = self.variable(
-            name='terminal-indices', dtype='int', shape=(self.capacity + 1,),
+            name='terminal-indices', spec=TensorSpec(type='int', shape=(self.capacity + 1,)),
             initializer=initializer, is_trainable=False, is_saved=True
         )
 
         # Episode count
         self.episode_count = self.variable(
-            name='episode-count', dtype='int', shape=(), initializer='zeros', is_trainable=False,
-            is_saved=True
+            name='episode-count', spec=TensorSpec(type='int'), initializer='zeros',
+            is_trainable=False, is_saved=True
         )
 
     @tf_function(num_args=6)

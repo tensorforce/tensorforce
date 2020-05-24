@@ -78,7 +78,7 @@ class ConstantAgent(Agent):
             <li><b>max-summaries</b> (<i>int > 0</i>) &ndash; maximum number of summaries to keep
             (<span style="color:#00C000"><b>default</b></span>: 5).</li>
             <li><b>custom</b> (<i>dict[spec]</i>) &ndash; custom summaries which are recorded via
-            `agent.summarize(...)`, specification with either type "scalar", type "histogram" with
+            agent.summarize(...), specification with either type "scalar", type "histogram" with
             optional "buckets", type "image" with optional "max_outputs"
             (<span style="color:#00C000"><b>default</b></span>: 3), or type "audio"
             (<span style="color:#00C000"><b>default</b></span>: no custom summaries).</li>

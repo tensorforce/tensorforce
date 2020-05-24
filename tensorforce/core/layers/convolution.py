@@ -46,8 +46,6 @@ class Conv1d(TransformationBase):
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
         vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): Layer name
@@ -57,8 +55,7 @@ class Conv1d(TransformationBase):
 
     def __init__(
         self, *, size, window=3, stride=1, padding='same', dilation=1, bias=True, activation='relu',
-        dropout=0.0, vars_trainable=True, summary_labels=None, l2_regularization=None, name=None,
-        input_spec=None
+        dropout=0.0, vars_trainable=True, l2_regularization=None, name=None, input_spec=None
     ):
         self.window = window
         self.stride = stride
@@ -67,8 +64,8 @@ class Conv1d(TransformationBase):
 
         super().__init__(
             size=size, bias=bias, activation=activation, dropout=dropout,
-            vars_trainable=vars_trainable, summary_labels=summary_labels,
-            l2_regularization=l2_regularization, name=name, input_spec=input_spec
+            vars_trainable=vars_trainable,  l2_regularization=l2_regularization, name=name,
+            input_spec=input_spec
         )
 
     def default_input_spec(self):
@@ -102,7 +99,7 @@ class Conv1d(TransformationBase):
             initializer += '-relu'
 
         self.weights = self.variable(
-            name='weights', dtype='float', shape=(self.window, in_size, self.size),
+            name='weights', spec=TensorSpec(type='float', shape=(self.window, in_size, self.size)),
             initializer=initializer, is_trainable=self.vars_trainable, is_saved=True
         )
 
@@ -141,8 +138,6 @@ class Conv2d(TransformationBase):
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
         vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): Layer name
@@ -152,8 +147,7 @@ class Conv2d(TransformationBase):
 
     def __init__(
         self, *, size, window=3, stride=1, padding='same', dilation=1, bias=True, activation='relu',
-        dropout=0.0, vars_trainable=True, summary_labels=None, l2_regularization=None, name=None,
-        input_spec=None
+        dropout=0.0, vars_trainable=True, l2_regularization=None, name=None, input_spec=None
     ):
         if isinstance(window, int):
             self.window = (window, window)
@@ -180,7 +174,7 @@ class Conv2d(TransformationBase):
 
         super().__init__(
             name=name, size=size, bias=bias, activation=activation, dropout=dropout,
-            vars_trainable=vars_trainable, input_spec=input_spec, summary_labels=summary_labels,
+            vars_trainable=vars_trainable, input_spec=input_spec,
             l2_regularization=l2_regularization
         )
 
@@ -219,7 +213,8 @@ class Conv2d(TransformationBase):
             initializer += '-relu'
 
         self.weights = self.variable(
-            name='weights', dtype='float', shape=(self.window + (in_size, self.size)),
+            name='weights',
+            spec=TensorSpec(type='float', shape=(self.window + (in_size, self.size))),
             initializer=initializer, is_trainable=self.vars_trainable, is_saved=True
         )
 
@@ -261,8 +256,6 @@ class Conv1dTranspose(TransformationBase):
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
         vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): Layer name
@@ -272,8 +265,8 @@ class Conv1dTranspose(TransformationBase):
 
     def __init__(
         self, *, size, window=3, output_width=None, stride=1, padding='same', dilation=1, bias=True,
-        activation='relu', dropout=0.0, vars_trainable=True, summary_labels=None,
-        l2_regularization=None, name=None, input_spec=None
+        activation='relu', dropout=0.0, vars_trainable=True,  l2_regularization=None, name=None,
+        input_spec=None
     ):
         self.window = window
         if output_width is None:
@@ -286,7 +279,7 @@ class Conv1dTranspose(TransformationBase):
 
         super().__init__(
             name=name, size=size, bias=bias, activation=activation, dropout=dropout,
-            vars_trainable=vars_trainable, input_spec=input_spec, summary_labels=summary_labels,
+            vars_trainable=vars_trainable, input_spec=input_spec, 
             l2_regularization=l2_regularization
         )
 
@@ -325,7 +318,7 @@ class Conv1dTranspose(TransformationBase):
             initializer += '-relu'
 
         self.weights = self.variable(
-            name='weights', dtype='float', shape=(self.window, in_size, self.size),
+            name='weights', spec=TensorSpec(type='float', shape=(self.window, in_size, self.size)),
             initializer=initializer, is_trainable=self.vars_trainable, is_saved=True
         )
 
@@ -371,8 +364,6 @@ class Conv2dTranspose(TransformationBase):
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
         vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): Layer name
@@ -382,8 +373,8 @@ class Conv2dTranspose(TransformationBase):
 
     def __init__(
         self, *, size, window=3, output_shape=None, stride=1, padding='same', dilation=1, bias=True,
-        activation='relu', dropout=0.0, vars_trainable=True, summary_labels=None,
-        l2_regularization=None, name=None, input_spec=None
+        activation='relu', dropout=0.0, vars_trainable=True, l2_regularization=None, name=None,
+        input_spec=None
     ):
         if isinstance(window, int):
             self.window = (window, window)
@@ -427,7 +418,7 @@ class Conv2dTranspose(TransformationBase):
 
         super().__init__(
             name=name, size=size, bias=bias, activation=activation, dropout=dropout,
-            vars_trainable=vars_trainable, input_spec=input_spec, summary_labels=summary_labels,
+            vars_trainable=vars_trainable, input_spec=input_spec, 
             l2_regularization=l2_regularization
         )
 
@@ -469,7 +460,8 @@ class Conv2dTranspose(TransformationBase):
             initializer += '-relu'
 
         self.weights = self.variable(
-            name='weights', dtype='float', shape=(self.window + (in_size, self.size)),
+            name='weights',
+            spec=TensorSpec(type='float', shape=(self.window + (in_size, self.size))),
             initializer=initializer, is_trainable=self.vars_trainable, is_saved=True
         )
 

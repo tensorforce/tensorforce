@@ -21,8 +21,6 @@ class Distribution(Module):
     Base class for policy distributions.
 
     Args:
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
         action_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         input_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
@@ -31,11 +29,11 @@ class Distribution(Module):
     """
 
     def __init__(
-        self, *, summary_labels=None, name=None, action_spec=None, input_spec=None,
-        parameters_spec=None, conditions_spec=None
+        self, *, name=None, action_spec=None, input_spec=None, parameters_spec=None,
+        conditions_spec=None
     ):
         assert input_spec.type == 'float'
-        super().__init__(summary_labels=summary_labels, l2_regularization=0.0, name=name)
+        super().__init__(l2_regularization=0.0, name=name)
 
         self.action_spec = action_spec
         self.input_spec = input_spec

@@ -63,8 +63,6 @@ class TFOptimizer(Optimizer):
             (<span style="color:#00C000"><b>default</b></span>: 3e-4).
         gradient_norm_clipping (parameter, float >= 0.0): Clip gradients by the ratio of the sum
             of their norms (<span style="color:#00C000"><b>default</b></span>: 1.0).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
         arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         kwargs: Arguments for the TensorFlow optimizer, special values "decoupled_weight_decay",
@@ -75,18 +73,18 @@ class TFOptimizer(Optimizer):
     """
 
     def __init__(
-        self, *, optimizer, learning_rate=3e-4, gradient_norm_clipping=1.0, summary_labels=None,
-        name=None, arguments_spec=None, **kwargs
+        self, *, optimizer, learning_rate=3e-4, gradient_norm_clipping=1.0, name=None,
+        arguments_spec=None, **kwargs
     ):
-        super().__init__(summary_labels=summary_labels, name=name, arguments_spec=arguments_spec)
+        super().__init__(name=name, arguments_spec=arguments_spec)
 
         assert optimizer in tensorflow_optimizers
         self.optimizer = tensorflow_optimizers[optimizer]
-        self.learning_rate = self.add_module(
+        self.learning_rate = self.submodule(
             name='learning_rate', module=learning_rate, modules=parameter_modules, dtype='float',
             min_value=0.0
         )
-        self.gradient_norm_clipping = self.add_module(
+        self.gradient_norm_clipping = self.submodule(
             name='gradient_norm_clipping', module=gradient_norm_clipping,
             modules=parameter_modules, dtype='float', min_value=0.0
         )
@@ -129,6 +127,13 @@ class TFOptimizer(Optimizer):
             learning_rate=self.learning_rate.value, name=self.name, **self.optimizer_kwargs
         )
 
+        self.register_summary(label='update-norm', name='update-gradient-norm-unclipped')
+
+    def initialize_given_variables(self, variables):
+        super().initialize_given_variables(variables=variables)
+
+        self.optimizer._create_all_weights(var_list=variables)
+
     @tf_function(num_args=1)
     def step(self, *, arguments, variables, fn_loss, fn_initial_gradients=None, **kwargs):
         # Trivial operation to enforce control dependency
@@ -163,12 +168,12 @@ class TFOptimizer(Optimizer):
 
         with tf.control_dependencies(control_inputs=assertions):
             clip_norm = self.gradient_norm_clipping.value()
-            gradients, gradient_norm = tf.clip_by_global_norm(
+            gradients, grads_norm = tf.clip_by_global_norm(
                 t_list=[tf_util.cast(x=g, dtype='float') for g in gradients], clip_norm=clip_norm
             )
-            gradients = self.add_summary(
-                label='update-norm', name='gradient-norm-unclipped', tensor=gradient_norm,
-                pass_tensors=gradients
+            self.summary(
+                label='update-norm', name='update-gradient-norm-unclipped', data=grads_norm,
+                step='updates'
             )
 
             applied = self.optimizer.apply_gradients(grads_and_vars=grads_and_vars)

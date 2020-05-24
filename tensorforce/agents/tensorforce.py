@@ -164,72 +164,62 @@ class TensorforceAgent(Agent):
             controlled) agents within an environment
             (<span style="color:#00C000"><b>default</b></span>: 1).
         config (specification): Various additional configuration options:
-            buffer_observe (int > 0): Maximum number of timesteps within an episode to buffer before
-                executing internal observe operations, to reduce calls to TensorFlow for improved
-                performance
-                (<span style="color:#00C000"><b>default</b></span>: simple rules to infer maximum
-                number which can be buffered without affecting performance).
-            seed (int): Random seed to set for Python, NumPy (both set globally!) and TensorFlow,
-                environment seed may have to be set separately for fully deterministic execution
-                (<span style="color:#00C000"><b>default</b></span>: none).
-        saver (specification): TensorFlow saver configuration for periodic implicit saving, as
-            alternative to explicit saving via agent.save(...), with the following attributes
-            (<span style="color:#00C000"><b>default</b></span>: no saver):
+            <ul>
+            <li><b>directory</b> (<i>int > 0</i>) &ndash; Maximum number of timesteps within an
+            episode to buffer before executing internal observe operations, to reduce calls to
+            TensorFlow for improved performance
+            (<span style="color:#00C000"><b>default</b></span>: simple rules to infer maximum number
+            which can be buffered without affecting performance).</li>
+            <li><b>seed</b> (<i>int</i>) &ndash; Random seed to set for Python, NumPy (both set
+            globally!) and TensorFlow, environment seed may have to be set separately for fully
+            deterministic execution
+            (<span style="color:#00C000"><b>default</b></span>: none).</li>
+            </ul>
+        saver (specification): TensorFlow checkpoint manager configuration for periodic implicit
+            saving, as alternative to explicit saving via agent.save(...), with the following
+            attributes (<span style="color:#00C000"><b>default</b></span>: no saver):
             <ul>
             <li><b>directory</b> (<i>path</i>) &ndash; saver directory
             (<span style="color:#C00000"><b>required</b></span>).</li>
             <li><b>filename</b> (<i>string</i>) &ndash; model filename
             (<span style="color:#00C000"><b>default</b></span>: agent name).</li>
-            <li><b>frequency</b> (<i>int > 0</i>) &ndash; how frequently in seconds to save the
-            model (<span style="color:#00C000"><b>default</b></span>: 600 seconds).</li>
-            <li><b>load</b> (<i>bool | str</i>) &ndash; whether to load the existing model, or
-            which model filename to load
-            (<span style="color:#00C000"><b>default</b></span>: true).</li>
-            </ul>
+            <li><b>frequency</b> (<i>int > 0</i>) &ndash; how frequently to save the model
+            (<span style="color:#C00000"><b>required</b></span>).</li>
+            <li><b>unit</b> (<i>"timesteps" | "episodes" | "updates"</i>) &ndash; frequency unit
+            (<span style="color:#00C000"><b>default</b></span>: updates).</li>
             <li><b>max-checkpoints</b> (<i>int > 0</i>) &ndash; maximum number of checkpoints to
             keep (<span style="color:#00C000"><b>default</b></span>: 5).</li>
+            <li><b>max-hour-frequency</b> (<i>int > 0</i>) &ndash; ignoring max-checkpoints,
+            definitely keep a checkpoint in given hour frequency
+            (<span style="color:#00C000"><b>default</b></span>: none).</li>
+            </ul>
         summarizer (specification): TensorBoard summarizer configuration with the following
             attributes (<span style="color:#00C000"><b>default</b></span>: no summarizer):
             <ul>
             <li><b>directory</b> (<i>path</i>) &ndash; summarizer directory
             (<span style="color:#C00000"><b>required</b></span>).</li>
-            <li><b>frequency</b> (<i>int > 0, dict[int > 0]</i>) &ndash; how frequently in
-            timesteps to record summaries for act-summaries if specified globally
-            (<span style="color:#00C000"><b>default</b></span>: always),
-            otherwise specified for act-summaries via "act" in timesteps, for
-            observe/experience-summaries via "observe"/"experience" in episodes, and for
-            update/variables-summaries via "update"/"variables" in updates
-            (<span style="color:#00C000"><b>default</b></span>: never).</li>
             <li><b>flush</b> (<i>int > 0</i>) &ndash; how frequently in seconds to flush the
             summary writer (<span style="color:#00C000"><b>default</b></span>: 10).</li>
             <li><b>max-summaries</b> (<i>int > 0</i>) &ndash; maximum number of summaries to keep
             (<span style="color:#00C000"><b>default</b></span>: 5).</li>
-            <li><b>custom</b> (<i>dict[spec]</i>) &ndash; custom summaries which are recorded via
-            `agent.summarize(...)`, specification with either type "scalar", type "histogram" with
-            optional "buckets", type "image" with optional "max_outputs"
-            (<span style="color:#00C000"><b>default</b></span>: 3), or type "audio"
-            (<span style="color:#00C000"><b>default</b></span>: no custom summaries).</li>
-            <li><b>labels</b> (<i>"all" | iter[string]</i>) &ndash; all excluding "*-histogram"
-            labels, or list of summaries to record, from the following labels
+            <li><b>labels</b> (<i>"all" | iter[string]</i>) &ndash; all or list of summaries to
+            record, from the following labels
             (<span style="color:#00C000"><b>default</b></span>: only "graph"):</li>
-            <li>"distributions" or "bernoulli", "categorical", "gaussian", "beta":
-            distribution-specific parameters</li>
-            <li>"dropout": dropout zero fraction</li>
-            <li>"entropies" or "entropy", "action-entropies": entropy of policy
-            distribution(s)</li>
-            <li>"graph": graph summary</li>
-            <li>"kl-divergences" or "kl-divergence", "action-kl-divergences": KL-divergence of
-            previous and updated polidcy distribution(s)</li>
-            <li>"losses" or "loss", "objective-loss", "regularization-loss", "baseline-loss",
-            "baseline-objective-loss", "baseline-regularization-loss": loss scalars</li>
-            <li>"parameters": parameter scalars</li>
-            <li>"relu": ReLU activation zero fraction</li>
-            <li>"rewards" or "episode-reward", "reward", "return", "advantage": reward scalar</li>
-            <li>"update-norm": update norm</li>
-            <li>"updates": update mean and variance scalars</li>
-            <li>"updates-histogram": update histograms</li>
-            <li>"variables": variable mean and variance scalars</li>
-            <li>"variables-histogram": variable histograms</li>
+            <li>"distributions": distribution parameters like probabilities or mean and stddev
+            (timestep-based)</li>
+            <li>"entropy" or "entropies": overall/per-action entropy of policy distribution(s)
+            (update-based)</li>
+            <li>"graph": computation graph</li>
+            <li>"kl-divergence" or "kl-divergences": overall/per-action KL-divergence of previous
+            and updated polidcy distribution(s) (update-based)</li>
+            <li>"loss" or "losses": policy and baseline loss, plus optionally loss components
+            (update-based)</li>
+            <li>"parameters": parameter values (according to parameter unit)</li>
+            <li>"reward" or "rewards": timestep and episode reward, plus optionally additional
+            reward/return values (timestep/episode/update-based)</li>
+            <li>"update-norm": global norm of update (update-based)</li>
+            <li>"updates": mean and variance of update tensors per variable (update-based)</li>
+            <li>"variables": mean of trainable variables tensors (update-based)</li>
             </ul>
         recorder (specification): Experience traces recorder configuration, currently not including
             internal states, with the following attributes
@@ -529,7 +519,10 @@ class TensorforceAgent(Agent):
             )
             self.timesteps = timesteps.numpy().item()
             self.episodes = episodes.numpy().item()
-            self.updates = updates.numpy().item()
+            self.updates = updates.numpy().item
+
+        if self.model.saver is not None:
+            self.model.save()
 
     def update(self, query=None, **kwargs):
         """
@@ -539,6 +532,9 @@ class TensorforceAgent(Agent):
         self.timesteps = timesteps.numpy().item()
         self.episodes = episodes.numpy().item()
         self.updates = updates.numpy().item()
+
+        if self.model.saver is not None:
+            self.model.save()
 
     def pretrain(self, directory, num_iterations, num_traces=1, num_updates=1):
         """

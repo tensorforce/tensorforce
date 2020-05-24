@@ -40,8 +40,6 @@ class Embedding(TransformationBase):
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
         vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): Layer name
@@ -51,13 +49,13 @@ class Embedding(TransformationBase):
 
     def __init__(
         self, *, size, num_embeddings=None, max_norm=None, bias=True, activation='tanh',
-        dropout=0.0, vars_trainable=True, summary_labels=None, l2_regularization=None, name=None,
+        dropout=0.0, vars_trainable=True, l2_regularization=None, name=None,
         input_spec=None
     ):
         super().__init__(
             size=size, bias=bias, activation=activation, dropout=dropout,
-            vars_trainable=vars_trainable, summary_labels=summary_labels,
-            l2_regularization=l2_regularization, name=name, input_spec=input_spec
+            vars_trainable=vars_trainable, l2_regularization=l2_regularization, name=name,
+            input_spec=input_spec
         )
 
         self.num_embeddings = num_embeddings
@@ -107,7 +105,8 @@ class Embedding(TransformationBase):
             initializer += '-relu'
 
         self.weights = self.variable(
-            name='embeddings', dtype='float', shape=(self.num_embeddings, self.size),
+            name='embeddings',
+            spec=TensorSpec(type='float', shape=(self.num_embeddings, self.size)),
             initializer=initializer, is_trainable=self.vars_trainable, is_saved=True
         )
 

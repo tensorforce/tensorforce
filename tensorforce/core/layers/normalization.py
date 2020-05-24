@@ -30,8 +30,6 @@ class ExponentialNormalization(Layer):
             (<span style="color:#00C000"><b>default</b></span>: 0.999).
         axes (iter[int >= 0]): Normalization axes, excluding batch axis
             (<span style="color:#00C000"><b>default</b></span>: all but last axis).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): Layer name
@@ -39,10 +37,10 @@ class ExponentialNormalization(Layer):
         input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(self, *, decay=0.999, axes=None, summary_labels=None, name=None, input_spec=None):
-        super().__init__(summary_labels=summary_labels, name=name, input_spec=input_spec)
+    def __init__(self, *, decay=0.999, axes=None, name=None, input_spec=None):
+        super().__init__(name=name, input_spec=input_spec)
 
-        self.decay = self.add_module(
+        self.decay = self.submodule(
             name='decay', module=decay, modules=parameter_modules, dtype='float', min_value=0.0,
             max_value=1.0
         )
@@ -67,17 +65,17 @@ class ExponentialNormalization(Layer):
         shape = (1,) + shape
 
         self.moving_mean = self.variable(
-            name='mean', dtype='float', shape=shape, initializer='zeros', is_trainable=False,
-            is_saved=True
+            name='mean', spec=TensorSpec(type='float', shape=shape), initializer='zeros',
+            is_trainable=False, is_saved=True
         )
 
         self.moving_variance = self.variable(
-            name='variance', dtype='float', shape=shape, initializer='zeros', is_trainable=False,
-            is_saved=True
+            name='variance', spec=TensorSpec(type='float', shape=shape), initializer='zeros',
+            is_trainable=False, is_saved=True
         )
 
         self.after_first_call = self.variable(
-            name='after-first-call', dtype='bool', shape=(), initializer='zeros',
+            name='after-first-call', spec=TensorSpec(type='bool'), initializer='zeros',
             is_trainable=False, is_saved=True
         )
 
@@ -139,15 +137,13 @@ class InstanceNormalization(Layer):
     Args:
         axes (iter[int >= 0]): Normalization axes, excluding batch axis
             (<span style="color:#00C000"><b>default</b></span>: all).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): Layer name
             (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(self, *, axes=None, summary_labels=None, name=None, input_spec=None):
-        super().__init__(summary_labels=summary_labels, name=name, input_spec=input_spec)
+    def __init__(self, *, axes=None, name=None, input_spec=None):
+        super().__init__(name=name, input_spec=input_spec)
 
         self.axes = axes if axes is None else tuple(axes)
 

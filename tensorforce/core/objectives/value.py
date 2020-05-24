@@ -31,8 +31,6 @@ class Value(Objective):
             (<span style="color:#00C000"><b>default</b></span>: no huber loss).
         early_reduce (bool): Whether to compute objective for reduced values instead of value per
             action (<span style="color:#00C000"><b>default</b></span>: true).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
         states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
@@ -42,21 +40,19 @@ class Value(Objective):
     """
 
     def __init__(
-        self, *, value='state', huber_loss=0.0, early_reduce=True, summary_labels=None, name=None,
-        states_spec=None, internals_spec=None, auxiliaries_spec=None, actions_spec=None,
-        reward_spec=None
+        self, *, value='state', huber_loss=0.0, early_reduce=True, name=None, states_spec=None,
+        internals_spec=None, auxiliaries_spec=None, actions_spec=None, reward_spec=None
     ):
         super().__init__(
-            summary_labels=summary_labels, name=name, states_spec=states_spec,
-            internals_spec=internals_spec, auxiliaries_spec=auxiliaries_spec,
-            actions_spec=actions_spec, reward_spec=reward_spec
+            name=name, states_spec=states_spec, internals_spec=internals_spec,
+            auxiliaries_spec=auxiliaries_spec, actions_spec=actions_spec, reward_spec=reward_spec
         )
 
         assert value in ('state', 'action')
         self.value = value
 
         huber_loss = 0.0 if huber_loss is None else huber_loss
-        self.huber_loss = self.add_module(
+        self.huber_loss = self.submodule(
             name='huber_loss', module=huber_loss, modules=parameter_modules, dtype='float',
             min_value=0.0
         )

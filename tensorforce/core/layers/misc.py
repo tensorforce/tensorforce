@@ -31,15 +31,13 @@ class Activation(Layer):
         nonlinearity ('crelu' | 'elu' | 'leaky-relu' | 'none' | 'relu' | 'selu' | 'sigmoid' |
             'softmax' | 'softplus' | 'softsign' | 'swish' | 'tanh'): Nonlinearity
             (<span style="color:#C00000"><b>required</b></span>).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): Layer name
             (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(self, *, nonlinearity, summary_labels=None, name=None, input_spec=None):
-        super().__init__(summary_labels=summary_labels, name=name, input_spec=input_spec)
+    def __init__(self, *, nonlinearity, name=None, input_spec=None):
+        super().__init__(name=name, input_spec=input_spec)
 
         # Nonlinearity
         if nonlinearity not in (
@@ -71,9 +69,6 @@ class Activation(Layer):
 
         elif self.nonlinearity == 'relu':
             x = tf.nn.relu(features=x)
-            x = self.add_summary(
-                label='relu', name='relu', tensor=tf.math.zero_fraction(value=x), pass_tensors=x
-            )
 
         elif self.nonlinearity == 'selu':
             x = tf.nn.selu(features=x)
@@ -139,7 +134,7 @@ class Block(Layer):
                 layer_counter[layer_type] += 1
 
             # layer_name = self.name + '-' + layer_name
-            self.layers[n] = self.add_module(
+            self.layers[n] = self.submodule(
                 name=layer_name, module=layer_spec, modules=tensorforce.core.layer_modules,
                 input_spec=self._input_spec
             )
@@ -165,18 +160,16 @@ class Dropout(Layer):
     Args:
         rate (parameter, 0.0 <= float < 1.0): Dropout rate
             (<span style="color:#C00000"><b>required</b></span>).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): Layer name
             (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(self, *, rate, summary_labels=None, name=None, input_spec=None):
-        super().__init__(summary_labels=summary_labels, name=name, input_spec=input_spec)
+    def __init__(self, *, rate, name=None, input_spec=None):
+        super().__init__(name=name, input_spec=input_spec)
 
         # Rate
-        self.rate = self.add_module(
+        self.rate = self.submodule(
             name='rate', module=rate, modules=parameter_modules, dtype='float', min_value=0.0,
             max_value=1.0
         )
@@ -192,11 +185,7 @@ class Dropout(Layer):
             return x
 
         def apply_dropout():
-            dropout = tf.nn.dropout(x=x, rate=rate)
-            return self.add_summary(
-                label='dropout', name='dropout', tensor=tf.math.zero_fraction(value=dropout),
-                pass_tensors=dropout
-            )
+            return tf.nn.dropout(x=x, rate=rate)
 
         skip_dropout = tf.math.logical_not(x=self.global_tensor(name='deterministic'))
         zero = tf_util.constant(value=0.0, dtype='float')
@@ -213,8 +202,6 @@ class Function(Layer):
             (<span style="color:#C00000"><b>required</b></span>).
         output_spec (specification): Output tensor specification containing type and/or shape
             information (<span style="color:#00C000"><b>default</b></span>: same as input).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): Layer name
@@ -224,13 +211,9 @@ class Function(Layer):
 
     # (requires function as first argument)
     def __init__(
-        self, function, output_spec=None, summary_labels=None, l2_regularization=None, name=None,
-        input_spec=None
+        self, function, output_spec=None, l2_regularization=None, name=None, input_spec=None
     ):
-        super().__init__(
-            summary_labels=summary_labels, l2_regularization=l2_regularization, name=name,
-            input_spec=input_spec
-        )
+        super().__init__(l2_regularization=l2_regularization, name=name, input_spec=input_spec)
 
         self.function = function
         if output_spec is None:
@@ -238,7 +221,7 @@ class Function(Layer):
         else:
             self._output_spec = TensorSpec(**output_spec)
 
-    def output_spec(self):
+    def unify(self, *, other):
         if self._output_spec is None:
             return super().output_spec()
         else:
@@ -258,15 +241,13 @@ class Reshape(Layer):
     Args:
         shape (<i>int | iter[int]</i>): New shape
             (<span style="color:#C00000"><b>required</b></span>).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): Layer name
             (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(self, *, shape, summary_labels=None, name=None, input_spec=None):
-        super().__init__(summary_labels=summary_labels, name=name, input_spec=input_spec)
+    def __init__(self, *, shape, name=None, input_spec=None):
+        super().__init__(name=name, input_spec=input_spec)
 
         if isinstance(shape, int):
             self.shape = (shape,)

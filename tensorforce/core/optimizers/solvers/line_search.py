@@ -45,7 +45,7 @@ class LineSearch(Iterative):
         super().__init__(name=name, max_iterations=max_iterations, unroll_loop=unroll_loop)
 
         assert accept_ratio >= 0.0
-        self.accept_ratio = self.add_module(
+        self.accept_ratio = self.submodule(
             name='accept_ratio', module=accept_ratio, modules=parameter_modules, dtype='float',
             min_value=0.0, max_value=1.0
         )
@@ -57,7 +57,7 @@ class LineSearch(Iterative):
             )
         self.mode = mode
 
-        self.parameter = self.add_module(
+        self.parameter = self.submodule(
             name='parameter', module=parameter, modules=parameter_modules, dtype='float',
             min_value=0.0, max_value=1.0
         )

@@ -25,7 +25,7 @@ import tensorflow as tf
 
 import tensorforce.agents
 from tensorforce import util, TensorforceError
-from tensorforce.core import ArrayDict, ListDict, NestedDict, TensorforceConfig
+from tensorforce.core import ArrayDict, ListDict, TensorforceConfig, TensorSpec
 
 
 class Agent(object):
@@ -45,15 +45,17 @@ class Agent(object):
             environment (Environment object): Environment which the agent is supposed to be trained
                 on, environment-related arguments like state/action space specifications and
                 maximum episode length will be extract if given
-                (<span style="color:#00C000"><b>recommended</b></span>).
-            kwargs: Additional arguments.
+                (<span style="color:#C00000"><b>recommended</b></span>).
+            kwargs: Additional agent arguments.
         """
         if isinstance(agent, Agent):
             if environment is not None:
-                assert agent.spec['states'] == environment.states()
-                assert agent.spec['actions'] == environment.actions()
-                assert environment.max_episode_timesteps() is None or \
-                    agent.spec['max_episode_timesteps'] >= environment.max_episode_timesteps()
+                # TODO:
+                # assert agent.spec['states'] == environment.states()
+                # assert agent.spec['actions'] == environment.actions()
+                # assert environment.max_episode_timesteps() is None or \
+                #     agent.spec['max_episode_timesteps'] >= environment.max_episode_timesteps()
+                pass
 
             for key, value in kwargs.items():
                 if key == 'parallel_interactions':
@@ -71,17 +73,21 @@ class Agent(object):
         elif isinstance(agent, type) and issubclass(agent, Agent):
             if environment is not None:
                 if 'states' in kwargs:
-                    assert kwargs['states'] == environment.states()
+                    # TODO:
+                    # assert kwargs['states'] == environment.states()
+                    pass
                 else:
                     kwargs['states'] = environment.states()
                 if 'actions' in kwargs:
-                    assert kwargs['actions'] == environment.actions()
+                    # assert kwargs['actions'] == environment.actions()
+                    pass
                 else:
                     kwargs['actions'] = environment.actions()
                 if environment.max_episode_timesteps() is None:
                     pass
                 elif 'max_episode_timesteps' in kwargs:
-                    assert kwargs['max_episode_timesteps'] >= environment.max_episode_timesteps()
+                    # assert kwargs['max_episode_timesteps'] >= environment.max_episode_timesteps()
+                    pass
                 else:
                     kwargs['max_episode_timesteps'] = environment.max_episode_timesteps()
 
@@ -125,43 +131,41 @@ class Agent(object):
     @staticmethod
     def load(directory=None, filename=None, format=None, environment=None, **kwargs):
         """
-        Restores an agent from a specification directory/file.
+        Restores an agent from a directory/file.
 
         Args:
             directory (str): Checkpoint directory
-                (<span style="color:#00C000"><b>default</b></span>: current directory ".").
+                (<span style="color:#C00000"><b>required</b></span>, unless saver is specified).
             filename (str): Checkpoint filename, with or without append and extension
                 (<span style="color:#00C000"><b>default</b></span>: "agent").
-            format ("tensorflow" | "numpy" | "hdf5" | "pb-actonly"): File format, "pb-actonly" loads
+            format ("checkpoint" | "saved-model" | "numpy" | "hdf5"): File format, "saved-model" loads
                 an act-only agent based on a Protobuf model
                 (<span style="color:#00C000"><b>default</b></span>: format matching directory and
                 filename, required to be unambiguous).
             environment (Environment object): Environment which the agent is supposed to be trained
                 on, environment-related arguments like state/action space specifications and
                 maximum episode length will be extract if given
-                (<span style="color:#00C000"><b>recommended</b></span> unless "pb-actonly" format).
-            kwargs: Additional arguments, invalid for "pb-actonly" format.
+                (<span style="color:#C00000"><b>recommended</b></span>, unless "pb-actonly" format).
+            kwargs: Additional agent arguments, invalid for "pb-actonly" format.
         """
-        if directory is None:
-            # default directory: current directory "."
-            directory = '.'
-
-        if filename is None:
-            # default filename: "agent"
-            filename = 'agent'
-
-        agent = os.path.join(directory, os.path.splitext(filename)[0] + '.json')
-        if not os.path.isfile(agent) and agent[agent.rfind('-') + 1: -5].isdigit():
-            agent = agent[:agent.rindex('-')] + '.json'
-        if os.path.isfile(agent):
-            with open(agent, 'r') as fp:
-                agent = json.load(fp=fp)
-            if 'agent' in kwargs:
-                if 'agent' in agent and agent['agent'] != kwargs['agent']:
-                    raise TensorforceError.value(
-                        name='Agent.load', argument='agent', value=kwargs['agent']
-                    )
-                agent['agent'] = kwargs.pop('agent')
+        if directory is not None:
+            if filename is None:
+                filename = 'agent'
+            agent = os.path.join(directory, os.path.splitext(filename)[0] + '.json')
+            if not os.path.isfile(agent) and agent[agent.rfind('-') + 1: -5].isdigit():
+                agent = agent[:agent.rindex('-')] + '.json'
+            if os.path.isfile(agent):
+                with open(agent, 'r') as fp:
+                    agent = json.load(fp=fp)
+                if 'agent' in kwargs:
+                    if 'agent' in agent and agent['agent'] != kwargs['agent']:
+                        raise TensorforceError.value(
+                            name='Agent.load', argument='agent', value=kwargs['agent']
+                        )
+                    agent['agent'] = kwargs.pop('agent')
+            else:
+                agent = kwargs
+                kwargs = dict()
         else:
             agent = kwargs
             kwargs = dict()
@@ -188,6 +192,20 @@ class Agent(object):
         else:
             agent.pop('internals', None)
             agent.pop('initial_internals', None)
+            if 'saver' in agent and isinstance(agent['saver'], dict):
+                if not agent.get('load', True):
+                    raise TensorforceError.value(
+                        name='Agent.load', argument='saver[load]', value=agent['saver']['load']
+                    )
+                agent['saver'] = dict(agent['saver'])
+                agent['saver']['load'] = True
+            elif 'saver' in kwargs and isinstance(kwargs['saver'], dict):
+                if not kwargs.get('load', True):
+                    raise TensorforceError.value(
+                        name='Agent.load', argument='saver[load]', value=kwargs['saver']['load']
+                    )
+                kwargs['saver'] = dict(kwargs['saver'])
+                kwargs['saver']['load'] = True
             agent = Agent.create(agent=agent, environment=environment, **kwargs)
             agent.restore(directory=directory, filename=filename, format=format)
 
@@ -274,7 +292,7 @@ class Agent(object):
         # Initialize model
         if not hasattr(self, 'model'):
             raise TensorforceError.required_attribute(name='Agent', attribute='model')
-        self.model.root_initialize()
+        self.model.initialize()
 
         # Value space specifications
         self.states_spec = self.model.unprocessed_states_spec
@@ -327,7 +345,7 @@ class Agent(object):
             self.recorded['terminal'] = list()
             self.recorded['reward'] = list()
 
-        if self.model.saver_directory is not None:
+        if self.model.saver is not None:
             path = os.path.join(self.model.saver_directory, self.model.saver_filename + '.json')
             try:
                 with open(path, 'w') as fp:
@@ -378,6 +396,9 @@ class Agent(object):
         self.timesteps = timesteps.numpy().item()
         self.episodes = episodes.numpy().item()
         self.updates = updates.numpy().item()
+
+        if self.model.saver is not None:
+            self.model.save()
 
     def initial_internals(self):
         """
@@ -591,6 +612,9 @@ class Agent(object):
             if independent:
                 internals = internals.fmap(function=function, cls=OrderedDict)
 
+        if self.model.saver is not None:
+            self.model.save()
+
         if independent and not is_internals_none:
             return actions, internals
         else:
@@ -775,12 +799,15 @@ class Agent(object):
             parallel_tensor = self.parallel_spec.to_tensor(value=p, batched=False)
 
             # Model.observe()
-            is_updated, episodes, updates = self.model.observe(
+            updated, episodes, updates = self.model.observe(
                 terminal=terminal_tensor, reward=reward_tensor, parallel=parallel_tensor
             )
-            num_updates += int(is_updated.numpy().item())
+            num_updates += int(updated.numpy().item())
             self.episodes = episodes.numpy().item()
             self.updates = updates.numpy().item()
+
+        if self.model.saver is not None:
+            self.model.save()
 
         return num_updates
 
@@ -876,22 +903,21 @@ class Agent(object):
 
         return states, batched, num_instances, is_iter_of_dicts, input_type
 
-    def save(self, directory=None, filename=None, format='tensorflow', append=None):
+    def save(self, directory, filename=None, format='checkpoint', append=None):
         """
         Saves the agent to a checkpoint.
 
         Args:
             directory (str): Checkpoint directory
-                (<span style="color:#00C000"><b>default</b></span>: directory specified for
-                TensorFlow saver, otherwise current directory).
+                (<span style="color:#C00000"><b>required</b></span>).
             filename (str): Checkpoint filename, without extension
-                (<span style="color:#00C000"><b>default</b></span>: filename specified for
-                TensorFlow saver, otherwise name of agent).
-            format ("tensorflow" | "numpy" | "hdf5"): File format, "tensorflow" uses TensorFlow
-                saver to store variables, graph meta information and an optimized Protobuf model
-                with an act-only graph, whereas the others only store variables as NumPy/HDF5 file
-                (<span style="color:#00C000"><b>default</b></span>: TensorFlow format).
-            append ("timesteps" | "episodes" | "updates"): Append current timestep/episode/update to
+                (<span style="color:#C00000"><b>required</b></span>, unless "saved-model" format).
+            format ("checkpoint" | "saved-model" | "numpy" | "hdf5"): File format, "checkpoint" uses
+                TensorFlow Checkpoint to save model, "saved-model" uses TensorFlow SavedModel to
+                save an optimized act-only model, whereas the others store only variables as
+                NumPy/HDF5 file
+                (<span style="color:#00C000"><b>default</b></span>: TensorFlow Checkpoint).
+            append ("timesteps" | "episodes" | "updates"): Append timestep/episode/update to
                 checkpoint filename
                 (<span style="color:#00C000"><b>default</b></span>: none).
 
@@ -901,23 +927,14 @@ class Agent(object):
         # TODO: Messes with required parallel disentangling, better to remove unfinished episodes
         # from memory, but currently entire episode buffered anyway...
         # Empty buffers before saving
-        for parallel in range(self.parallel_interactions):
-            if self.buffer_indices[parallel] > 0:
-                self.model_observe(parallel=parallel)
-
-        if directory is None:
-            # default directory: saver if given, otherwise current directory "."
-            if self.model.saver_directory is None:
-                directory = '.'
-            else:
-                directory = self.model.saver_directory
-
-        if filename is None:
-            # default filename: saver which defaults to agent name
-            filename = self.model.saver_filename
+        # for parallel in range(self.parallel_interactions):
+        #     if self.buffer_indices[parallel] > 0:
+        #         self.model_observe(parallel=parallel)
 
         path = self.model.save(directory=directory, filename=filename, format=format, append=append)
 
+        if filename is None:
+            filename = self.model.name
         spec_path = os.path.join(directory, filename + '.json')
         try:
             with open(spec_path, 'w') as fp:
@@ -945,12 +962,12 @@ class Agent(object):
 
         Args:
             directory (str): Checkpoint directory
-                (<span style="color:#00C000"><b>default</b></span>: directory specified for
-                TensorFlow saver, otherwise current directory).
+                (<span style="color:#C00000"><b>required</b></span>, unless "saved-model" format and
+                saver specified).
             filename (str): Checkpoint filename, with or without append and extension
-                (<span style="color:#00C000"><b>default</b></span>: filename specified for
-                TensorFlow saver, otherwise name of agent or latest checkpoint in directory).
-            format ("tensorflow" | "numpy" | "hdf5"): File format
+                (<span style="color:#C00000"><b>required</b></span>, unless "saved-model" format and
+                saver specified).
+            format ("checkpoint" | "numpy" | "hdf5"): File format
                 (<span style="color:#00C000"><b>default</b></span>: format matching directory and
                 filename, required to be unambiguous).
         """
@@ -960,22 +977,11 @@ class Agent(object):
         if not self.is_initialized:
             self.initialize()
 
-        if directory is None:
-            # default directory: saver if given, otherwise current directory "."
-            if self.model.saver_directory is None:
-                directory = '.'
-            else:
-                directory = self.model.saver_directory
-
-        if filename is None:
-            # default filename: saver which defaults to agent name
-            filename = self.model.saver_filename
-
         # format implicitly given if file exists
         if format is None and os.path.isfile(os.path.join(directory, filename)):
             if '.data-' in filename:
                 filename = filename[:filename.index('.data-')]
-                format = 'tensorflow'
+                format = 'checkpoint'
             elif filename.endswith('.npz'):
                 filename = filename[:-4]
                 format = 'numpy'
@@ -984,8 +990,8 @@ class Agent(object):
                 format = 'hdf5'
             else:
                 assert False
-        elif format is None and os.path.isfile(os.path.join(directory, filename + '.meta')):
-            format = 'tensorflow'
+        elif format is None and os.path.isfile(os.path.join(directory, filename + '.index')):
+            format = 'checkpoint'
         elif format is None and os.path.isfile(os.path.join(directory, filename + '.npz')):
             format = 'numpy'
         elif format is None and (
@@ -1011,7 +1017,7 @@ class Agent(object):
                     if n > latest:
                         latest = n
                 elif format in (None, 'hdf5') and \
-                        (name == filename + '.hdf5' or  name == filename + '.h5'):
+                        (name == filename + '.hdf5' or name == filename + '.h5'):
                     assert found is None
                     found = 'hdf5'
                     latest = None
@@ -1025,11 +1031,12 @@ class Agent(object):
 
             if latest == -1:
                 if format is None:
-                    format = 'tensorflow'
+                    format = 'checkpoint'
                 else:
-                    assert format == 'tensorflow'
-                if filename is None or not os.path.isfile(os.path.join(directory, filename + '.meta')):
-                    path = tf.compat.v1.train.latest_checkpoint(checkpoint_dir=directory, latest_filename=None)
+                    assert format == 'checkpoint'
+                if filename is None or not os.path.isfile(os.path.join(directory, filename + '.index')):
+                    path = tf.train.latest_checkpoint(checkpoint_dir=directory)
+                    # TODO: path or filename returned?
                     if '/' in path:
                         filename = path[path.rindex('/') + 1:]
                     else:
@@ -1043,7 +1050,7 @@ class Agent(object):
                 if latest is not None:
                     filename = filename + '-' + str(latest)
 
-        self.timesteps, self.episodes, self.updates, _ = self.model.restore(
+        self.timesteps, self.episodes, self.updates = self.model.restore(
             directory=directory, filename=filename, format=format
         )
 
@@ -1288,5 +1295,7 @@ class TensorforceJSONEncoder(json.JSONEncoder):
             return float(obj)
         elif isinstance(obj, np.ndarray):
             return obj.tolist()
+        elif isinstance(obj, TensorSpec):
+            return obj.json()
         else:
             return super().default(obj)

@@ -1,7 +1,7 @@
 Layers
 ======
 
-Default layer: ``Function`` with default argument ``function``
+Default layer: ``Function`` with default argument ``function``, so e.g. ``[..., (lambda x: x + 1.0), ...]``
 
 
 Convolutional layers
@@ -34,6 +34,16 @@ Recurrent layers
 .. autoclass:: tensorforce.core.layers.Lstm
 
 .. autoclass:: tensorforce.core.layers.Rnn
+
+
+Input recurrent layers
+---------------------------
+
+.. autoclass:: tensorforce.core.layers.InputGru
+
+.. autoclass:: tensorforce.core.layers.InputLstm
+
+.. autoclass:: tensorforce.core.layers.InputRnn
 
 
 Pooling layers
@@ -72,16 +82,6 @@ Misc layers
 .. autoclass:: tensorforce.core.layers.Reshape
 
 .. autoclass:: tensorforce.core.layers.Sequence
-
-
-Layers with internal states
----------------------------
-
-.. autoclass:: tensorforce.core.layers.InternalGru
-
-.. autoclass:: tensorforce.core.layers.InternalLstm
-
-.. autoclass:: tensorforce.core.layers.InternalRnn
 
 
 Special layers

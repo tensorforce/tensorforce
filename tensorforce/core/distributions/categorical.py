@@ -28,17 +28,12 @@ class Categorical(Distribution):
     Args:
         advantage_based (bool): Whether to compute action values as state value plus advantage
             (<span style="color:#00C000"><b>default</b></span>: false).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
         action_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         input_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(
-        self, *, advantage_based=False, summary_labels=None, name=None, action_spec=None,
-        input_spec=None
-    ):
+    def __init__( self, *, advantage_based=False, name=None, action_spec=None, input_spec=None):
         assert action_spec.type == 'int' and action_spec.num_values is not None
 
         parameters_spec = TensorsSpec(
@@ -54,8 +49,8 @@ class Categorical(Distribution):
         conditions_spec = TensorsSpec()
 
         super().__init__(
-            summary_labels=summary_labels, name=name, action_spec=action_spec,
-            input_spec=input_spec, parameters_spec=parameters_spec, conditions_spec=conditions_spec
+            name=name, action_spec=action_spec, input_spec=input_spec,
+            parameters_spec=parameters_spec, conditions_spec=conditions_spec
         )
 
         if self.root.config.enable_int_action_masking:
@@ -68,12 +63,12 @@ class Categorical(Distribution):
         if len(self.input_spec.shape) == 1:
             # Single embedding
             action_size = util.product(xs=self.action_spec.shape)
-            self.action_values = self.add_module(
+            self.action_values = self.submodule(
                 name='action_values', module='linear', modules=layer_modules,
                 size=(action_size * num_values), input_spec=input_spec
             )
             if advantage_based:
-                self.state_value = self.add_module(
+                self.state_value = self.submodule(
                     name='states_value', module='linear', modules=layer_modules, size=action_size,
                     input_spec=input_spec
                 )
@@ -98,9 +93,17 @@ class Categorical(Distribution):
                     name=name, argument='input_spec.shape', value=self.input_spec.shape,
                     hint='not flattened and incompatible with action shape'
                 )
-            self.action_values = self.add_module(
+            self.action_values = self.submodule(
                 name='action_values', module='linear', modules=layer_modules,
                 size=(size * num_values), input_spec=input_spec
+            )
+
+    def initialize(self):
+        super().initialize()
+
+        for n in range(self.action_spec.num_values):
+            self.register_summary(
+                label='distributions', name=('distributions/' + self.name + '-probability' + str(n))
             )
 
     @tf_function(num_args=2)
@@ -152,10 +155,11 @@ class Categorical(Distribution):
         for _ in range(len(self.action_spec.shape)):
             summary_probs = tf.math.reduce_mean(input_tensor=summary_probs, axis=1)
 
-        logits, probabilities = self.add_summary(
-            label=('distributions', 'categorical'), name='probabilities', tensor=summary_probs,
-            pass_tensors=(logits, probabilities), enumerate_last_rank=True
-        )
+        # Distribution parameter summaries
+        prefix = 'distributions/' + self.name + '-probability'
+        x = tf.math.reduce_mean(input_tensor=probabilities, axis=range(self.action_spec.rank + 1))
+        for n in range(self.action_spec.num_values):
+            self.summary(label='distributions', name=(prefix + str(n)), data=x[n], step='timesteps')
 
         one = tf_util.constant(value=1.0, dtype='float')
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')

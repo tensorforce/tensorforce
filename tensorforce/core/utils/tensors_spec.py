@@ -29,6 +29,9 @@ class TensorsSpec(NestedDict):
             for name, spec in super(NestedDict, self).items()
         ))
 
+    def empty(self, *, batched):
+        return self.fmap(function=(lambda spec: spec.empty(batched=batched)), cls=TensorDict)
+
     def tf_assert(self, *, x, batch_size=None, include_type_shape=False, message=None):
         if not isinstance(x, TensorDict):
             raise TensorforceError.type(name='TensorsSpec.tf_assert', argument='x', dtype=type(x))

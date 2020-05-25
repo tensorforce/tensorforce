@@ -376,7 +376,7 @@ class TemporalLayer(Layer):
     Args:
         temporal_processing ('cumulative' | 'iterative'): Temporal processing type
             (<span style="color:#C00000"><b>required</b></span>).
-        horizon (parameter, long >= 0): Past horizon
+        horizon (parameter, int >= 0): Past horizon
             (<span style="color:#C00000"><b>required</b></span>).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).

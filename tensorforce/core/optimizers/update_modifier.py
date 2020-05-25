@@ -33,6 +33,6 @@ class UpdateModifier(Optimizer):
         super().__init__(name=name, arguments_spec=arguments_spec)
 
         self.optimizer = self.submodule(
-            name='optimizer', module=optimizer, modules=tensorforce.core.optimizer_modules,
+            name=name, module=optimizer, modules=tensorforce.core.optimizer_modules,
             arguments_spec=self.arguments_spec
         )

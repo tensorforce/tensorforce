@@ -22,7 +22,7 @@ from tensorforce.core.parameters import Parameter
 
 class PiecewiseConstant(Parameter):
     """
-    Piecewise-constant hyperparameter.
+    Piecewise-constant hyperparameter (specification key: `piecewise_constant`).
 
     Args:
         unit ("timesteps" | "episodes" | "updates"): Unit of interval boundaries
@@ -54,6 +54,7 @@ class PiecewiseConstant(Parameter):
 
         assert unit in ('timesteps', 'episodes', 'updates')
         assert len(values) == len(boundaries) + 1
+        assert boundaries == sorted(boundaries) and boundaries[0] > 0
         assert all(isinstance(value, type(values[0])) for value in values)
 
         self.boundaries = boundaries

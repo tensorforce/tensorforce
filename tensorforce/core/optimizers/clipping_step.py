@@ -49,7 +49,8 @@ class ClippingStep(UpdateModifier):
     def initialize(self):
         super().initialize()
 
-        self.register_summary(label='update-norm', name='update-norm-unclipped')
+        name = self.name[:self.name.index('_')] + '-update/unclipped-norm'
+        self.register_summary(label='update-norm', name=name)
 
     @tf_function(num_args=1)
     def step(self, *, arguments, variables, **kwargs):
@@ -62,7 +63,6 @@ class ClippingStep(UpdateModifier):
                     t_list=deltas, clip_norm=threshold
                 )
             else:
-                update_norm = tf.linalg.global_norm(t_list=deltas)
                 clipped_deltas = list()
                 for delta in deltas:
                     if self.mode == 'norm':
@@ -73,15 +73,18 @@ class ClippingStep(UpdateModifier):
                         )
                     clipped_deltas.append(clipped_delta)
 
-            self.summary(
-                label='update-norm', name='update-norm-unclipped', data=update_norm, step='updates'
+                def update_norm():
+                    return tf.linalg.global_norm(t_list=deltas)
+
+            name = self.name[:self.name.index('_')] + '-update/unclipped-norm'
+            dependencies = self.summary(
+                label='update-norm', name=name, data=update_norm, step='updates'
             )
 
-            assignments = list()
             for variable, delta, clipped_delta in zip(variables, deltas, clipped_deltas):
-                assignments.append(
+                dependencies.append(
                     variable.assign_add(delta=(clipped_delta - delta), read_value=False)
                 )
 
-        with tf.control_dependencies(control_inputs=assignments):
+        with tf.control_dependencies(control_inputs=dependencies):
             return [tf_util.identity(input=delta) for delta in clipped_deltas]

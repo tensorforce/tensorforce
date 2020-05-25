@@ -202,20 +202,19 @@ class TensorforceAgent(Agent):
             summary writer (<span style="color:#00C000"><b>default</b></span>: 10).</li>
             <li><b>max-summaries</b> (<i>int > 0</i>) &ndash; maximum number of summaries to keep
             (<span style="color:#00C000"><b>default</b></span>: 5).</li>
-            <li><b>labels</b> (<i>"all" | iter[string]</i>) &ndash; all or list of summaries to
-            record, from the following labels
+            <li><b>labels</b> (<i>"all" | iter[string]</i>) &ndash; which summaries to record
             (<span style="color:#00C000"><b>default</b></span>: only "graph"):</li>
-            <li>"distributions": distribution parameters like probabilities or mean and stddev
-            (timestep-based)</li>
-            <li>"entropy" or "entropies": overall/per-action entropy of policy distribution(s)
-            (update-based)</li>
+            <li>"distribution": distribution parameters like probabilities or mean and stddev
+            (timestep-based, interpretation not obvious in case of value-based algorithms)</li>
+            <li>"entropy": entropy of (per-action) policy distribution(s) (timestep-based,
+            interpretation not obvious in case of value-based algorithms)</li>
             <li>"graph": computation graph</li>
-            <li>"kl-divergence" or "kl-divergences": overall/per-action KL-divergence of previous
-            and updated polidcy distribution(s) (update-based)</li>
-            <li>"loss" or "losses": policy and baseline loss, plus optionally loss components
-            (update-based)</li>
+            <li>"kl-divergence": KL-divergence of previous and updated (per-action) policy
+            distribution(s) (update-based, interpretation not obvious in case of value-based
+            algorithms)</li>
+            <li>"loss": policy and baseline loss plus loss components (update-based)</li>
             <li>"parameters": parameter values (according to parameter unit)</li>
-            <li>"reward" or "rewards": timestep and episode reward, plus optionally additional
+            <li>"reward": timestep and episode reward, plus optionally additional
             reward/return values (timestep/episode/update-based)</li>
             <li>"update-norm": global norm of update (update-based)</li>
             <li>"updates": mean and variance of update tensors per variable (update-based)</li>

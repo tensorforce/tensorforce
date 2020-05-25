@@ -88,7 +88,7 @@ class Parameter(Module):
     def initialize(self):
         super().initialize()
 
-        self.register_summary(label='parameters', name=self.name)
+        self.register_summary(label='parameters', name=('parameters/' + self.name))
 
     def input_signature(self, *, function):
         if function == 'value':
@@ -109,15 +109,17 @@ class Parameter(Module):
 
         parameter = self.parameter_value(step=step)
 
-        if self.unit is None:
-            unit = 'timesteps'
-        else:
-            unit = self.unit
-        self.summary(label='parameters', name=self.name, data=parameter, step=unit)
-
-        assertions = self.spec.tf_assert(
+        dependencies = self.spec.tf_assert(
             x=parameter, include_type_shape=True,
             message='Parameter.value: invalid {{issue}} for {name} value.'.format(name=self.name)
         )
-        with tf.control_dependencies(control_inputs=assertions):
+
+        name = 'parameters/' + self.name
+        if self.unit is None:
+            step = 'timesteps'
+        else:
+            step = self.unit
+        dependencies.extend(self.summary(label='parameters', name=name, data=parameter, step=step))
+
+        with tf.control_dependencies(control_inputs=dependencies):
             return tf_util.identity(input=parameter)

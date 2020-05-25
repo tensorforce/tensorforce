@@ -20,7 +20,7 @@ from tensorforce.core.parameters import Parameter
 
 class Random(Parameter):
     """
-    Random hyperparameter.
+    Random hyperparameter (specification key: `random`).
 
     Args:
         distribution ("normal" | "uniform"): Distribution type for random hyperparameter value
@@ -46,7 +46,7 @@ class Random(Parameter):
         shape (iter[int > 0]): <span style="color:#0000C0"><b>internal use</b></span>.
         min_value (dtype-compatible value): <span style="color:#0000C0"><b>internal use</b></span>.
         max_value (dtype-compatible value): <span style="color:#0000C0"><b>internal use</b></span>.
-        """
+    """
 
     def __init__(
         self, *, distribution, name=None, dtype=None, shape=(), min_value=None, max_value=None,

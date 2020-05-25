@@ -15,7 +15,6 @@
 
 import tensorflow as tf
 
-from tensorforce import TensorforceError
 from tensorforce.core import Module, SignatureDict, tf_function, tf_util
 
 
@@ -38,7 +37,8 @@ class Optimizer(Module):
     def initialize(self):
         super().initialize()
 
-        self.register_summary(label='update-norm', name='update-norm')
+        name = self.name[:self.name.index('_')] + '-update/norm'
+        self.register_summary(label='update-norm', name=name)
 
     def initialize_given_variables(self, variables):
         assert not self.root.is_initialized and not self.is_initialized_given_variables
@@ -46,11 +46,13 @@ class Optimizer(Module):
 
         assert self.is_initialized
         self.is_initialized = False
+        prefix = self.name[:self.name.index('_')] + '-updates/'
+        names = list()
         for variable in variables:
             assert variable.name.startswith(self.root.name + '/') and variable.name[-2:] == ':0'
-            prefix = 'updates/' + variable.name[len(self.root.name) + 1: -2]
-            self.register_summary(label='updates', name=(prefix + '-mean'))
-            self.register_summary(label='updates', name=(prefix + '-variance'))
+            names.append(prefix + variable.name[len(self.root.name) + 1: -2] + '-mean')
+            names.append(prefix + variable.name[len(self.root.name) + 1: -2] + '-variance')
+        self.register_summary(label='updates', name=names)
         self.is_initialized = True
 
     def input_signature(self, *, function):
@@ -70,18 +72,35 @@ class Optimizer(Module):
         assert all(variable.dtype.is_floating for variable in variables)
 
         deltas = self.step(arguments=arguments, variables=variables, **kwargs)
+        dependencies = list(deltas)
 
-        update_norm = tf.linalg.global_norm(
-            t_list=[tf_util.cast(x=delta, dtype='float') for delta in deltas]
+        def fn_summary():
+            return tf.linalg.global_norm(
+                t_list=[tf_util.cast(x=delta, dtype='float') for delta in deltas]
+            )
+
+        name = self.name[:self.name.index('_')] + '-update/norm'
+        dependencies.extend(
+            self.summary(label='update-norm', name=name, data=fn_summary, step='updates')
         )
-        self.summary(label='update-norm', name='update-norm', data=update_norm, step='updates')
-
-        for variable in variables:
-            assert variable.name.startswith(self.root.name + '/') and variable.name[-2:] == ':0'
-            mean, var = tf.nn.moments(x=variable, axes=tuple(range(tf_util.rank(x=variable))))
-            prefix = 'updates/' + variable.name[len(self.root.name) + 1: -2]
-            self.summary(label='updates', name=(prefix + '-mean'), data=mean, step='updates')
-            self.summary(label='updates', name=(prefix + '-variance'), data=var, step='updates')
 
         with tf.control_dependencies(control_inputs=deltas):
+
+            def fn_summary():
+                xs = list()
+                for variable in variables:
+                    xs.extend(tf.nn.moments(x=variable, axes=list(range(tf_util.rank(x=variable)))))
+                return xs
+
+            prefix = self.name[:self.name.index('_')] + '-updates/'
+            names = list()
+            for variable in variables:
+                assert variable.name.startswith(self.root.name + '/') and variable.name[-2:] == ':0'
+                names.append(prefix + variable.name[len(self.root.name) + 1: -2] + '-mean')
+                names.append(prefix + variable.name[len(self.root.name) + 1: -2] + '-variance')
+            dependencies.extend(
+                self.summary(label='updates', name=names, data=fn_summary, step='updates')
+            )
+
+        with tf.control_dependencies(control_inputs=dependencies):
             return tf_util.identity(input=tf_util.constant(value=True, dtype='bool'))

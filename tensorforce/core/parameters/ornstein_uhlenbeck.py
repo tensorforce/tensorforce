@@ -21,7 +21,7 @@ from tensorforce.core.parameters import Parameter
 
 class OrnsteinUhlenbeck(Parameter):
     """
-    Ornstein-Uhlenbeck process.
+    Ornstein-Uhlenbeck process (specification key: `ornstein_uhlenbeck`).
 
     Args:
         theta (float > 0.0): Theta value

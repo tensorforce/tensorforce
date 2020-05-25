@@ -229,7 +229,7 @@ class TensorforceModel(Model):
 
         # Objectives
         self.objective = self.submodule(
-            name='objective', module=objective, modules=objective_modules,
+            name='policy_objective', module=objective, modules=objective_modules,
             states_spec=self.states_spec, internals_spec=self.internals_spec['policy'],
             auxiliaries_spec=self.auxiliaries_spec, actions_spec=self.actions_spec,
             reward_spec=self.reward_spec
@@ -291,7 +291,7 @@ class TensorforceModel(Model):
         else:
             arguments_spec['reference'] = self.objective.reference_spec()
         self.optimizer = self.submodule(
-            name='optimizer', module=optimizer, modules=optimizer_modules,
+            name='policy_optimizer', module=optimizer, modules=optimizer_modules,
             arguments_spec=arguments_spec
         )
 
@@ -343,8 +343,8 @@ class TensorforceModel(Model):
             modules=parameter_modules, is_trainable=False, dtype='float', min_value=0.0
         )
 
-    def initialize_variables(self):
-        super().initialize_variables()
+    def core_initialize(self):
+        super().core_initialize()
 
         # Last update
         self.last_update = self.variable(
@@ -361,6 +361,19 @@ class TensorforceModel(Model):
             self.baseline_optimizer.initialize_given_variables(
                 variables=self.baseline.trainable_variables
             )
+
+        # Summaries
+        self.register_summary(label='loss', name='losses/policy-objective-loss')
+        self.register_summary(label='loss', name='losses/policy-regularization-loss')
+        self.register_summary(label='loss', name='losses/policy-loss')
+        if self.baseline_optimizer is not None or (
+            self.baseline_loss_weight is not None and
+            not self.baseline_loss_weight.is_constant(value=0.0)
+        ):
+            self.register_summary(label='loss', name='losses/baseline-loss')
+            if self.separate_baseline_policy:
+                self.register_summary(label='loss', name='losses/baseline-objective-loss')
+                self.register_summary(label='loss', name='losses/baseline-regularization-loss')
 
     def initialize_api(self):
         super().initialize_api()
@@ -785,6 +798,7 @@ class TensorforceModel(Model):
         )
         # reward = self.add_summary(label=('return', 'rewards'), name='return', tensor=reward)  # TODO: need to be moved to episode?
         if 'return' in self.preprocessing:
+            # TODO: Can't require state, reset!
             reward = self.preprocessing['return'].apply(x=reward)
             # reward = self.add_summary(
             #     label=('return', 'rewards'), name='preprocessed-return', tensor=reward
@@ -840,6 +854,7 @@ class TensorforceModel(Model):
                 #     label=('advantage', 'rewards'), name='advantage', tensor=reward
                 # )
                 if 'advantage' in self.preprocessing:
+                    # TODO: Can't require state, reset!
                     reward = self.preprocessing['advantage'].apply(x=reward)
                     # reward = self.add_summary(
                     #     label=('advantage', 'rewards'), name='preprocessed-advantage', tensor=reward
@@ -874,6 +889,7 @@ class TensorforceModel(Model):
                 #     label=('advantage', 'rewards'), name='advantage', tensor=reward
                 # )
                 if 'advantage' in self.preprocessing:
+                    # TODO: Can't require state, reset!
                     reward = self.preprocessing['advantage'].apply(x=reward)
                     # reward = self.add_summary(
                     #     label=('advantage', 'rewards'), name='preprocessed-advantage', tensor=reward
@@ -942,19 +958,27 @@ class TensorforceModel(Model):
 
         dependencies = policy_arguments.flatten()
 
-        # KL divergence summary: reference before update
-        if self.summary_labels == 'all' or \
-                not self.summary_labels.isdisjoint({'kl-divergence', 'kl-divergences'}):
+        # Variables summaries
+        def fn_summary():
+            return [
+                tf.math.reduce_mean(input_tensor=variable) for variable in self.trainable_variables
+            ]
+
+        names = list()
+        for variable in self.trainable_variables:
+            assert variable.name.startswith(self.name + '/') and variable.name[-2:] == ':0'
+            names.append('variables/' + variable.name[len(self.name) + 1: -2] + '-mean')
+        dependencies.extend(self.summary(
+            label='variables', name=names, data=fn_summary, step='updates', unconditional=True
+        ))
+
+        # Hack: KL divergence summary: reference before update
+        if self.summary_labels == 'all' or 'kl-divergence' in self.summary_labels:
             kldiv_reference = self.policy.kldiv_reference(
                 states=policy_states, horizons=policy_horizons, internals=policy_internals,
                 auxiliaries=auxiliaries
             )
             dependencies += kldiv_reference.flatten()
-
-        # Updates summaries
-        if self.summarizer is not None:
-            for summary_fn in self.summaries['updates']:
-                summary_fn()
 
         # Optimization
         with tf.control_dependencies(control_inputs=dependencies):
@@ -963,124 +987,45 @@ class TensorforceModel(Model):
                 fn_kl_divergence=fn_kl_divergence, **kwargs
             )
 
-        # Increment update
-        with tf.control_dependencies(control_inputs=(optimized,)):
-            assignment = self.updates.assign_add(delta=one, read_value=False)
-
         # Update summaries
-        with tf.control_dependencies(control_inputs=(assignment,)):
-
-            # TODO: remove general summaries argument, only high-level
-            # TODO: initial variables summary !!!  This has to come after updates increment!
-            if self.summarizer is not None:
-                default_summarizer = self.summarizer.as_default()
-                default_summarizer.__enter__()
-
-            # Variables summaries
-            if self.summary_labels == 'all' or 'variables' in self.summary_labels:
-                for variable in self.trainable_variables:
-                    assert variable.name.startswith(self.name + '/') and variable.name[-2:] == ':0'
-                    name = 'variables/' + variable.name[len(self.name) + 1: -2] + '-mean'
-                    x = tf.math.reduce_mean(input_tensor=variable)
-                    tf.summary.scalar(name=name, data=x, step=self.updates)
-
-            # Loss summaries
-            if self.summary_labels == 'all' or \
-                    not self.summary_labels.isdisjoint({'losses', 'loss'}):
-                objective_loss = self.objective.loss(**policy_arguments.to_kwargs(), policy=self.policy)
-                objective_loss = tf.math.reduce_mean(input_tensor=objective_loss)
-                regularization_loss = self.regularize(
-                    states=policy_states, horizons=policy_horizons, internals=policy_internals,
-                    auxiliaries=auxiliaries
-                )
-                loss = objective_loss + regularization_loss
-                if self.baseline_loss_weight is not None and \
-                        not self.baseline_loss_weight.is_constant(value=0.0):
-                    baseline_objective_loss = self.baseline_objective.loss(
-                        **baseline_arguments.to_kwargs(), policy=self.baseline
-                    )
-                    baseline_objective_loss = tf.math.reduce_mean(
-                        input_tensor=baseline_objective_loss
-                    )
-                    loss += self.baseline_loss_weight.value() * baseline_objective_loss
-                elif self.baseline_optimizer is not None:
-                    baseline_objective_loss = self.baseline_objective.loss(
-                        **baseline_arguments.to_kwargs(), policy=self.baseline
-                    )
-                    baseline_objective_loss = tf.math.reduce_mean(
-                        input_tensor=baseline_objective_loss
-                    )
-                    if self.separate_baseline_policy:
-                        baseline_regularization_loss = self.baseline.regularize()
-                        baseline_loss = baseline_objective_loss + baseline_regularization_loss
-                    else:
-                        baseline_loss = baseline_objective_loss
-                    tf.summary.scalar(name='baseline-loss', data=baseline_loss, step=self.updates)
-                tf.summary.scalar(name='loss', data=loss, step=self.updates)
-            if self.summary_labels == 'all' or 'losses' in self.summary_labels:
-                tf.summary.scalar(name='losses/objective-loss', data=objective_loss, step=self.updates)
-                tf.summary.scalar(
-                    name='losses/regularization-loss', data=regularization_loss, step=self.updates
-                )
-                if self.baseline_optimizer is not None or (
-                    self.baseline_loss_weight is not None and
-                    not self.baseline_loss_weight.is_constant(value=0.0)
-                ):
-                    tf.summary.scalar(
-                        name='losses/baseline-objective-loss', data=baseline_loss, step=self.updates
-                    )
-                if self.baseline_optimizer is not None:
-                    tf.summary.scalar(
-                        name='losses/baseline-regularization-loss', data=baseline_regularization_loss,
-                        step=self.updates
-                    )
-
-            # Entropy summaries
-            if self.summary_labels == 'all' or \
-                    not self.summary_labels.isdisjoint({'entropy', 'entropies'}):
-                if len(self.actions_spec) > 1 and (
-                    self.summary_labels == 'all' or 'entropies' in self.summary_labels
-                ):
-                    entropy, entropies = self.policy.entropy(
-                        states=policy_states, horizons=policy_horizons, internals=policy_internals,
-                        auxiliaries=auxiliaries, reduced=True, return_per_action=True
-                    )
-                    for name, x in entropies.items():
-                        x = tf.math.reduce_mean(input_tensor=x)
-                        tf.summary.scalar(name=('entropies/' + name + '-entropy'), data=x, step=self.updates)
-                else:
-                    entropy = self.policy.entropy(
-                        states=policy_states, horizons=policy_horizons, internals=policy_internals,
-                        auxiliaries=auxiliaries, reduced=True, return_per_action=False
-                    )
-                entropy = tf.math.reduce_mean(input_tensor=entropy)
-                tf.summary.scalar(name='entropy', data=entropy, step=self.updates)
+        with tf.control_dependencies(control_inputs=(optimized,)):
 
             # KL divergence summaries
-            if self.summary_labels == 'all' or \
-                    not self.summary_labels.isdisjoint({'kl-divergence', 'kl-divergences'}):
-                if len(self.actions_spec) > 1 and (
-                    self.summary_labels == 'all' or 'kl-divergences' in self.summary_labels
-                ):
+            if len(self.actions_spec) > 1:
+
+                def fn_summary():
                     kl_divergence, kl_divergences = self.policy.kl_divergence(
                         states=policy_states, horizons=policy_horizons, internals=policy_internals,
                         auxiliaries=auxiliaries, reference=kldiv_reference, reduced=True,
                         return_per_action=True
                     )
-                    for name, x in kl_divergences.items():
-                        x = tf.math.reduce_mean(input_tensor=x)
-                        tf.summary.scalar(name=('kldivs/' + name + '-kldiv'), data=x, step=self.updates)
-                else:
+                    kl_divergences = [
+                        tf.math.reduce_mean(input_tensor=x) for x in kl_divergences.values()
+                    ]
+                    kl_divergences.append(tf.math.reduce_mean(input_tensor=kl_divergence))
+                    return kl_divergences
+
+                names = ['kl-divergences/' + name for name in self.actions_spec]
+                names.append('kl-divergences/overall')
+
+            else:
+
+                def fn_summary():
                     kl_divergence = self.policy.kl_divergence(
                         states=policy_states, horizons=policy_horizons, internals=policy_internals,
                         auxiliaries=auxiliaries, reference=kldiv_reference, reduced=True,
                         return_per_action=False
                     )
-                kl_divergence = tf.math.reduce_mean(input_tensor=kl_divergence)
-                tf.summary.scalar(name='kl-divergence', data=kl_divergence, step=self.updates)
+                    return tf.math.reduce_mean(input_tensor=kl_divergence)
 
-            if self.summarizer is not None:
-                default_summarizer.__exit__(None, None, None)
+            self.summary(
+                label='kl-divergence', name=names, data=fn_summary, step='updates',
+                unconditional=True
+            )
+
+        # Increment update
+        with tf.control_dependencies(control_inputs=dependencies):
+            assignment = self.updates.assign_add(delta=one, read_value=False)
 
         with tf.control_dependencies(control_inputs=(assignment,)):
             return tf_util.identity(input=optimized)
@@ -1105,11 +1050,17 @@ class TensorforceModel(Model):
 
         # Objective loss
         loss = tf.math.reduce_mean(input_tensor=loss, axis=0)
+        self.summary(label='loss', name='losses/policy-objective-loss', data=loss, step='updates')
 
         # Regularization losses
-        loss += self.regularize(
+        regularization_loss = self.regularize(
             states=states, horizons=horizons, internals=policy_internals, auxiliaries=auxiliaries
         )
+        self.summary(
+            label='loss', name='losses/policy-regularization-loss', data=regularization_loss,
+            step='updates'
+        )
+        loss += regularization_loss
 
         # Baseline loss
         if self.baseline_loss_weight is not None and \
@@ -1141,6 +1092,8 @@ class TensorforceModel(Model):
                 pred=tf.math.equal(x=baseline_loss_weight, y=zero),
                 true_fn=no_baseline_loss, false_fn=apply_baseline_loss
             )
+
+        self.summary(label='loss', name='losses/policy-loss', data=loss, step='updates')
 
         return loss
 
@@ -1184,8 +1137,19 @@ class TensorforceModel(Model):
         # Objective loss
         loss = tf.math.reduce_mean(input_tensor=loss)
 
-        # Regularization losses
         if self.separate_baseline_policy:
-            loss += self.baseline.regularize()
+            self.summary(
+                label='loss', name='losses/baseline-objective-loss', data=loss, step='updates'
+            )
+
+            # Regularization losses
+            regularization_loss = self.baseline.regularize()
+            self.summary(
+                label='loss', name='losses/baseline-regularization-loss',
+                data=regularization_loss, step='updates'
+            )
+            loss += regularization_loss
+
+        self.summary(label='loss', name='losses/baseline-loss', data=loss, step='updates')
 
         return loss

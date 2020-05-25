@@ -563,10 +563,12 @@ class Module(tf.Module):
         if not isinstance(label, str):
             raise TensorforceError.type(name='Module.summary', argument='label', dtype=type(label))
         # name
-        if not isinstance(name, str):
+        if not isinstance(name, (str, list, tuple)):
             raise TensorforceError.type(name='Module.summary', argument='name', dtype=type(name))
         if len(name) == 0:
             raise TensorforceError.required(name='Module.summary', argument='name')
+        if not isinstance(name, str):
+            name = name[0]
         if name in self.summary_steps:
             raise TensorforceError.value(
                 name='Module.summary', argument='name', hint='already exists'
@@ -574,41 +576,63 @@ class Module(tf.Module):
 
         if self.root.summary_labels == 'all' or label in self.root.summary_labels:
             self.summary_steps[name] = self.variable(
-                name=(name + '-summary'), spec=TensorSpec(type='int'), initializer=True,
+                name=(name + '-summary'), spec=TensorSpec(type='int'), initializer=-1,
                 is_trainable=False, is_saved=False
             )
 
-    def summary(self, *, label, name, data, step):
+    def summary(self, *, label, name, data, step, unconditional=False):
         # label
         if not isinstance(label, str):
             raise TensorforceError.type(name='Module.summary', argument='label', dtype=type(label))
         # name
-        if not isinstance(name, str):
+        if not isinstance(name, (str, list, tuple)):
             raise TensorforceError.type(name='Module.summary', argument='name', dtype=type(name))
         if len(name) == 0:
             raise TensorforceError.required(name='Module.summary', argument='name')
-        if name not in self.summary_steps:
-            raise TensorforceError.value(
-                name='Module.summary', argument='name', value=name, hint='is not registered'
-            )
-        # tensor
-        if not tf_util.is_tensor(x=data):
-            raise TensorforceError.type(name='Module.summary', argument='tensor', dtype=type(data))
-        # unit
+        if isinstance(name, str):
+            name = (name,)
+        # data
+        if not tf_util.is_tensor(x=data) and not callable(data):
+            raise TensorforceError.type(name='Module.summary', argument='data', dtype=type(data))
+        # step
         if step not in self.root.units:
-            raise TensorforceError.value(name='Module.summary', argument='unit', value=step)
+            raise TensorforceError.value(name='Module.summary', argument='step', value=step)
+        # unconditional
+        if not isinstance(unconditional, bool):
+            raise TensorforceError.type(
+                name='Module.summary', argument='unconditional', dtype=type(unconditional)
+            )
 
         if self.root.summary_labels == 'all' or label in self.root.summary_labels:
+            if not unconditional and name[0] not in self.summary_steps:
+                raise TensorforceError.value(
+                    name='Module.summary', argument='name', value=name, hint='is not registered'
+                )
 
-            previous = self.summary_steps[name]
             unit = self.root.units[step]
 
             def write_summary():
-                assignment = previous.assign(value=unit, read_value=False)
-                with tf.control_dependencies(control_inputs=(assignment,)):
-                    with self.root.summarizer.as_default():
-                        return tf.summary.scalar(name=name, data=data, step=unit)
+                if callable(data):
+                    d = data()
+                else:
+                    d = data
+                if tf_util.is_tensor(x=d):
+                    d = (d,)
+                dependencies = list()
+                with self.root.summarizer.as_default():
+                    for n, d in zip(name, d):
+                        dependencies.append(tf.summary.scalar(name=n, data=d, step=unit))
+                if not unconditional:
+                    previous = self.summary_steps[name[0]]
+                    dependencies.append(previous.assign(value=unit, read_value=False))
+                return tf.group(*dependencies)
 
-            self.root.summaries[step].append(
-                (lambda: tf.cond(pred=(unit > previous), true_fn=write_summary, false_fn=tf.no_op))
-            )
+            if unconditional:
+                pred = tf_util.constant(value=True, dtype='bool')
+            else:
+                pred = unit > self.summary_steps[name[0]]
+
+            return [tf.cond(pred=pred, true_fn=write_summary, false_fn=tf.no_op)]
+
+        else:
+            return list()

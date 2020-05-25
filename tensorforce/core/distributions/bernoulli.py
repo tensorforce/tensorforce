@@ -79,9 +79,10 @@ class Bernoulli(Distribution):
     def initialize(self):
         super().initialize()
 
-        self.register_summary(
-            label='distributions', name=('distributions/' + self.name + '-probability')
-        )
+        name = 'distributions/' + self.name + '-probability'
+        self.register_summary(label='distribution', name=name)
+        name = 'entropies/' + self.name
+        self.register_summary(label='entropy', name=name)
 
     @tf_function(num_args=2)
     def parametrize(self, *, x, conditions):
@@ -121,9 +122,25 @@ class Bernoulli(Distribution):
         )
 
         # Distribution parameter summaries
+        def fn_summary():
+            axis = range(self.action_spec.rank + 1)
+            return tf.math.reduce_mean(input_tensor=probability, axis=axis)
+
         name = 'distributions/' + self.name + '-probability'
-        x = tf.math.reduce_mean(input_tensor=probability, axis=range(self.action_spec.rank + 1))
-        self.summary(label='distributions', name=name, data=x, step='timesteps')
+        dependencies = self.summary(
+            label='distribution', name=name, data=fn_summary, step='timesteps'
+        )
+
+        # Entropy summary
+        def fn_summary():
+            one = tf_util.constant(value=1.0, dtype='float')
+            entropy = -probability * true_logit - (one - probability) * false_logit
+            return tf.math.reduce_mean(input_tensor=entropy)
+
+        name = 'entropies/' + self.name
+        dependencies.extend(
+            self.summary(label='entropy', name=name, data=fn_summary, step='timesteps')
+        )
 
         half = tf_util.constant(value=0.5, dtype='float')
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')
@@ -140,7 +157,8 @@ class Bernoulli(Distribution):
         )
         sampled = tf.greater_equal(x=probability, y=uniform)
 
-        return tf.where(condition=(temperature < epsilon), x=definite, y=sampled)
+        with tf.control_dependencies(control_inputs=dependencies):
+            return tf.where(condition=(temperature < epsilon), x=definite, y=sampled)
 
     @tf_function(num_args=2)
     def log_probability(self, *, parameters, action):

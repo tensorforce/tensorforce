@@ -15,24 +15,26 @@
 
 import tensorflow as tf
 
+from tensorforce import TensorforceError
 from tensorforce.core import tf_util
 from tensorforce.core.parameters import Parameter
 
 
 class Decaying(Parameter):
     """
-    Decaying hyperparameter.
+    Decaying hyperparameter (specification key: `tf_optimizer`, `adadelta`, `adagrad`, `adam`,
+    `adamax`, `adamw`, `ftrl`, `lazyadam`, `nadam`, `radam`, `ranger`, `rmsprop`, `sgd`, `sgdw`).
 
     Args:
-        unit ("timesteps" | "episodes" | "updates"): Unit of decay schedule
-            (<span style="color:#C00000"><b>required</b></span>).
         decay ("linear" | "exponential" | "polynomial" | "inverse_time" | "cosine" | "cosine_restarts" | "linear_cosine" | "linear_cosine_noisy"):
-            Decay type, see
+            Decay type, see also
             `TensorFlow docs <https://www.tensorflow.org/api_docs/python/tf/train>`__
             (<span style="color:#C00000"><b>required</b></span>).
-        initial_value (float): Initial value
+        unit ("timesteps" | "episodes" | "updates"): Unit of decay schedule
             (<span style="color:#C00000"><b>required</b></span>).
-        decay_steps (long): Number of decay steps
+        num_steps (int): Number of decay steps
+            (<span style="color:#C00000"><b>required</b></span>).
+        initial_value (float | int): Initial value
             (<span style="color:#C00000"><b>required</b></span>).
         increasing (bool): Whether to subtract the decayed value from 1.0
             (<span style="color:#00C000"><b>default</b></span>: false).
@@ -43,7 +45,7 @@ class Decaying(Parameter):
         kwargs: Additional arguments depend on decay mechanism.<br>
             Linear decay:
             <ul>
-            <li><b>final_value</b> (<i>float</i>) &ndash; Final value
+            <li><b>final_value</b> (<i>float | int</i>) &ndash; Final value
             (<span style="color:#C00000"><b>required</b></span>).</li>
             </ul>
             Exponential decay:
@@ -56,11 +58,11 @@ class Decaying(Parameter):
             </ul>
             Polynomial decay:
             <ul>
-            <li><b>final_value</b> (<i>float</i>) &ndash; Final value
+            <li><b>final_value</b> (<i>float | int</i>) &ndash; Final value
             (<span style="color:#C00000"><b>required</b></span>).</li>
-            <li><b>power</b> (<i>float</i>) &ndash; Power of polynomial
-            (<span style="color:#00C000"><b>default</b></span>: 1.0, thus linear).</li>
-            <li><b>cycle</b> (<i>bool</i>) &ndash; Whether to cycle beyond decay_steps
+            <li><b>power</b> (<i>float | int</i>) &ndash; Power of polynomial
+            (<span style="color:#00C000"><b>default</b></span>: 1, thus linear).</li>
+            <li><b>cycle</b> (<i>bool</i>) &ndash; Whether to cycle beyond num_steps
             (<span style="color:#00C000"><b>default</b></span>: false).</li>
             </ul>
             Inverse time decay:
@@ -120,23 +122,37 @@ class Decaying(Parameter):
     """
 
     def __init__(
-        self, *, unit, decay, initial_value, decay_steps, increasing=False, inverse=False,
-        scale=1.0, name=None, dtype=None, min_value=None, max_value=None, **kwargs
+        self, *, decay, unit, num_steps, initial_value, increasing=False, inverse=False, scale=1.0,
+        name=None, dtype=None, min_value=None, max_value=None, **kwargs
     ):
-        assert unit in ('timesteps', 'episodes', 'updates')
         assert decay in (
             'cosine', 'cosine_restarts', 'exponential', 'inverse_time', 'linear', 'linear_cosine',
             'linear_cosine_noisy', 'polynomial'
         )
-        assert isinstance(initial_value, float)
-        assert isinstance(decay_steps, int) or decay_steps % 10.0 == 0.0
+        assert unit in ('timesteps', 'episodes', 'updates')
+        assert (isinstance(num_steps, int) or num_steps % 10.0 == 0.0) and num_steps > 0
+        assert isinstance(initial_value, (float, int))
+
+        if isinstance(initial_value, int):
+            if dtype != 'int':
+                raise TensorforceError.dtype(
+                    name='Decaying', argument='initial_value', dtype=type(initial_value)
+                )
+        elif isinstance(initial_value, float):
+            if dtype != 'float':
+                raise TensorforceError.dtype(
+                    name='Decaying', argument='initial_value', dtype=type(initial_value)
+                )
+        else:
+            raise TensorforceError.unexpected()
 
         if decay == 'linear':
+            assert len(kwargs) == 1 and 'final_value' in kwargs
             decay = 'polynomial'
 
         self.decay = decay
+        self.num_steps = int(num_steps)
         self.initial_value = initial_value
-        self.decay_steps = int(decay_steps)
         self.increasing = increasing
         self.inverse = inverse
         self.scale = scale
@@ -316,14 +332,14 @@ class Decaying(Parameter):
         if self.decay == 'cosine':
             assert 0.0 <= self.kwargs.get('alpha', 0.0) <= 1.0
             parameter = tf.keras.experimental.CosineDecay(
-                initial_learning_rate=initial_value, decay_steps=self.decay_steps,
+                initial_learning_rate=initial_value, decay_steps=(self.num_steps + 1),
                 alpha=self.kwargs.get('alpha', 0.0)
             )(step=step)
 
         elif self.decay == 'cosine_restarts':
             assert 0.0 <= self.kwargs.get('alpha', 0.0) <= 1.0
             parameter = tf.keras.experimental.CosineDecayRestarts(
-                initial_learning_rate=initial_value, first_decay_steps=self.decay_steps,
+                initial_learning_rate=initial_value, first_decay_steps=(self.num_steps + 1),
                 t_mul=self.kwargs.get('t_mul', 2.0), m_mul=self.kwargs.get('m_mul', 1.0),
                 alpha=self.kwargs.get('alpha', 0.0)
             )(step=step)
@@ -331,21 +347,21 @@ class Decaying(Parameter):
         elif self.decay == 'exponential':
             assert self.kwargs['decay_rate'] >= 0.0
             parameter = tf.keras.optimizers.schedules.ExponentialDecay(
-                initial_learning_rate=initial_value, decay_steps=self.decay_steps,
+                initial_learning_rate=initial_value, decay_steps=(self.num_steps + 1),
                 decay_rate=self.kwargs['decay_rate'], staircase=self.kwargs.get('staircase', False)
             )(step=step)
 
         elif self.decay == 'inverse_time':
             assert self.kwargs['decay_rate'] >= 0.0
             parameter = tf.keras.optimizers.schedules.InverseTimeDecay(
-                initial_learning_rate=initial_value, decay_steps=self.decay_steps,
+                initial_learning_rate=initial_value, decay_steps=(self.num_steps + 1),
                 decay_rate=self.kwargs['decay_rate'], staircase=self.kwargs.get('staircase', False)
             )(step=step)
 
         elif self.decay == 'linear_cosine':
             assert self.kwargs.get('beta', 0.001) >= 0.0
             parameter = tf.keras.experimental.LinearCosineDecay(
-                initial_learning_rate=initial_value, decay_steps=self.decay_steps,
+                initial_learning_rate=initial_value, decay_steps=(self.num_steps + 1),
                 num_periods=self.kwargs.get('num_periods', 0.5),
                 alpha=self.kwargs.get('alpha', 0.0), beta=self.kwargs.get('beta', 0.001)
             )(step=step)
@@ -353,7 +369,7 @@ class Decaying(Parameter):
         elif self.decay == 'linear_cosine_noisy':
             assert self.kwargs.get('beta', 0.001) >= 0.0
             parameter = tf.keras.experimental.NoisyLinearCosineDecay(
-                initial_learning_rate=initial_value, decay_steps=self.decay_steps,
+                initial_learning_rate=initial_value, decay_steps=(self.num_steps + 1),
                 initial_variance=self.kwargs.get('initial_variance', 1.0),
                 variance_decay=self.kwargs.get('variance_decay', 0.55),
                 num_periods=self.kwargs.get('num_periods', 0.5),
@@ -363,7 +379,7 @@ class Decaying(Parameter):
         elif self.decay == 'polynomial':
             assert self.kwargs.get('power', 1.0) >= 0.0
             parameter = tf.keras.optimizers.schedules.PolynomialDecay(
-                initial_learning_rate=initial_value, decay_steps=self.decay_steps,
+                initial_learning_rate=initial_value, decay_steps=(self.num_steps + 1),
                 end_learning_rate=self.kwargs['final_value'], power=self.kwargs.get('power', 1.0),
                 cycle=self.kwargs.get('cycle', False)
             )(step=step)

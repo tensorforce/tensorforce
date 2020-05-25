@@ -76,19 +76,30 @@ class TestParameters(UnittestBase, unittest.TestCase):
         self.int_unittest(horizon=horizon)
 
     def test_decaying(self):
-        # SPECIFICATION.MD
         self.start_tests(name='decaying')
 
+        # SPECIFICATION.MD
         exploration = dict(
-            type='decaying', unit='timesteps', decay='exponential', initial_value=0.1,
-            decay_steps=1, decay_rate=0.5
+            type='exponential', unit='timesteps', num_steps=5, initial_value=0.1, decay_rate=0.5
         )
         self.float_unittest(exploration=exploration)
 
         horizon = dict(
-            type='decaying', dtype='int', unit='timesteps', decay='polynomial',
-            initial_value=2.0, decay_steps=2, final_value=4.0, power=1.0
+            type='decaying', decay='polynomial', unit='timesteps', num_steps=1, initial_value=2,
+            final_value=4, power=2
         )
+        self.int_unittest(horizon=horizon)
+
+    def test_linear(self):
+        self.start_tests(name='linear')
+
+        exploration = dict(
+            type='linear', unit='timesteps', num_steps=5, initial_value=0.1, final_value=0.5
+        )
+        self.float_unittest(exploration=exploration)
+
+        # SPECIFICATION.MD
+        horizon = dict(type='linear', unit='timesteps', num_steps=1, initial_value=2, final_value=4)
         self.int_unittest(horizon=horizon)
 
     def test_ornstein_uhlenbeck(self):

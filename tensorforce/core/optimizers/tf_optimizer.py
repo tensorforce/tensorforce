@@ -127,7 +127,8 @@ class TFOptimizer(Optimizer):
             learning_rate=self.learning_rate.value, name=self.name, **self.optimizer_kwargs
         )
 
-        self.register_summary(label='update-norm', name='update-gradient-norm-unclipped')
+        name = self.name[:self.name.index('_')] + '-update/unclipped-gradient-norm'
+        self.register_summary(label='update-norm', name=name)
 
     def initialize_given_variables(self, variables):
         super().initialize_given_variables(variables=variables)
@@ -171,13 +172,14 @@ class TFOptimizer(Optimizer):
             gradients, grads_norm = tf.clip_by_global_norm(
                 t_list=[tf_util.cast(x=g, dtype='float') for g in gradients], clip_norm=clip_norm
             )
-            self.summary(
-                label='update-norm', name='update-gradient-norm-unclipped', data=grads_norm,
-                step='updates'
+            name = self.name[:self.name.index('_')] + '-update/unclipped-gradient-norm'
+            dependencies = self.summary(
+                label='update-norm', name=name, data=grads_norm, step='updates'
             )
 
             applied = self.optimizer.apply_gradients(grads_and_vars=grads_and_vars)
+            dependencies.append(applied)
 
         # Return deltas after actually having change the variables.
-        with tf.control_dependencies(control_inputs=(applied,)):
+        with tf.control_dependencies(control_inputs=dependencies):
             return [variable - previous for variable, previous in zip(variables, previous_values)]

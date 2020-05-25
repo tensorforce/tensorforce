@@ -26,9 +26,9 @@ class TestSummaries(UnittestBase, unittest.TestCase):
 
     directory = 'test/test-summaries'
 
-    # def setUp(self):
-    #     super().setUp()
-    #     tf.config.experimental_run_functions_eagerly(run_eagerly=False)
+    def setUp(self):
+        super().setUp()
+        tf.config.experimental_run_functions_eagerly(run_eagerly=False)
 
     def test_summaries(self):
         # FEATURES.MD
@@ -44,30 +44,30 @@ class TestSummaries(UnittestBase, unittest.TestCase):
             os.rmdir(path=self.__class__.directory)
 
         # TODO: 'dropout'
-        reward_estimation = dict(horizon=dict(
-            type='decaying', unit='timesteps', decay='linear', initial_value=2.0, decay_steps=3,
-            final_value=4.0
-        ))
+        horizon = dict(type='linear', unit='updates', num_steps=2, initial_value=2,  final_value=4)
         baseline_policy = dict(network=dict(type='auto', size=8, depth=1, rnn=1))
         baseline_objective = 'value'
         baseline_optimizer = 'adam'
         preprocessing = dict(reward=dict(type='clipping', upper=0.25))
+        exploration = dict(
+            type='exponential', unit='episodes', num_steps=3, initial_value=2.0, decay_rate=0.5
+        )
 
         agent, environment = self.prepare(
             summarizer=dict(
                 directory=self.__class__.directory, labels=[
-                    'distributions', 'entropies', 'graph', 'kl-divergences', 'losses', 'parameters',
-                    'rewards', 'update-norm', 'updates', 'variables'
-                ], frequency=2,
+                    'distribution', 'entropy', 'graph', 'kl-divergence', 'loss', 'parameters',
+                    'reward', 'update-norm', 'updates', 'variables'
+                ]
                 # custom=dict(
                 #     audio=dict(type='audio', sample_rate=44100, max_outputs=1),
                 #     histogram=dict(type='histogram'),
                 #     image=dict(type='image', max_outputs=1),
                 #     scalar=dict(type='scalar')
                 # )
-            ), reward_estimation=reward_estimation, baseline_policy=baseline_policy,
+            ), reward_estimation=dict(horizon=horizon), baseline_policy=baseline_policy,
             baseline_objective=baseline_objective, baseline_optimizer=baseline_optimizer,
-            preprocessing=preprocessing
+            preprocessing=preprocessing, exploration=exploration
         )
 
         updates = 0

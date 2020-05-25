@@ -11,7 +11,7 @@ This file records all major updates and new features, starting from version 0.5.
 - Removed agent function arguments: `query` (functionality removed)
 - New agent argument `config` with values: `buffer_observe`, `enable_int_action_masking`, `seed`
 - Agent saver functionality changed (Checkpoint/SavedModel instead of Saver/Protobuf): `save`/`load` functions and `saver` argument changed
-- Agent summarizer functionality changed: `summarizer` argument changed, some `labels` and other options removed
+- Agent summarizer functionality changed: `summarizer` argument changed, some summary labels and other options removed
 - Default behavior when specifying `saver` is not to load agent, unless agent is created via `Agent.load`
 - Renamed PPO/TRPO argument: `critic_network/optimizer` to `baseline_network/optimizer`
 - Renamed RNN layers: `internal_{rnn/lstm/gru}` to `rnn/lstm/gru`, `rnn/lstm/gru` --> `input_{rnn/lstm/gru}`

@@ -205,7 +205,6 @@ class Model(Module):
             raise TensorforceError.required(name='agent', argument='summarizer[directory]')
         else:
             self.summarizer = dict(summarizer)
-            self.summaries = dict(timesteps=list(), episodes=list(), updates=list())
 
             # Summary labels
             summary_labels = summarizer.get('labels', ('graph',))
@@ -285,7 +284,7 @@ class Model(Module):
 
             super().initialize()
 
-            self.initialize_variables()
+            self.core_initialize()
 
             # Units, used in: Parameter, Model.save(), Model.summarizer????
             self.units = dict(
@@ -317,7 +316,7 @@ class Model(Module):
             else:
                 self.save()
 
-    def initialize_variables(self):
+    def core_initialize(self):
         # Timestep counter
         self.timesteps = self.variable(
             name='timesteps', spec=TensorSpec(type='int'), initializer='zeros', is_trainable=False,
@@ -342,6 +341,14 @@ class Model(Module):
             spec=TensorSpec(type=self.reward_spec.type, shape=(self.parallel_interactions,)),
             initializer='zeros', is_trainable=False, is_saved=False
         )
+
+        # Preprocessed episode reward
+        if 'reward' in self.preprocessing:
+            self.preprocessed_episode_reward = self.variable(
+                name='preprocessed-episode-reward',
+                spec=TensorSpec(type=self.reward_spec.type, shape=(self.parallel_interactions,)),
+                initializer='zeros', is_trainable=False, is_saved=False
+            )
 
         # Buffer index
         self.buffer_index = self.variable(
@@ -382,26 +389,31 @@ class Model(Module):
         )
 
     def initialize_api(self):
-        if self.summary_labels == 'all' or 'graph' in self.summary_labels:
-            tf.summary.trace_on(graph=True, profiler=False)
-        # with self.summarizer.as_default():
-        self.act(
-            states=self.unprocessed_states_spec.empty(batched=True),
-            auxiliaries=self.auxiliaries_spec.empty(batched=True),
-            parallel=self.parallel_spec.empty(batched=True)
-        )
-        self.independent_act(
-            states=self.unprocessed_states_spec.empty(batched=True),
-            internals=self.internals_spec.empty(batched=True),
-            auxiliaries=self.auxiliaries_spec.empty(batched=True)
-        )
-        self.observe(
-            terminal=self.terminal_spec.empty(batched=True),
-            reward=self.reward_spec.empty(batched=True),
-            parallel=self.parallel_spec.empty(batched=False)
-        )
-        if self.summary_labels == 'all' or 'graph' in self.summary_labels:
-            tf.summary.trace_export(name='graph', step=self.timesteps, profiler_outdir=None)
+        if self.summarizer is not None:
+            default_summarizer = self.summarizer.as_default()
+        else:
+            default_summarizer = util.NullContext()
+
+        with default_summarizer:
+            if self.summary_labels == 'all' or 'graph' in self.summary_labels:
+                tf.summary.trace_on(graph=True, profiler=False)
+            self.act(
+                states=self.unprocessed_states_spec.empty(batched=True),
+                auxiliaries=self.auxiliaries_spec.empty(batched=True),
+                parallel=self.parallel_spec.empty(batched=True)
+            )
+            self.independent_act(
+                states=self.unprocessed_states_spec.empty(batched=True),
+                internals=self.internals_spec.empty(batched=True),
+                auxiliaries=self.auxiliaries_spec.empty(batched=True)
+            )
+            self.observe(
+                terminal=self.terminal_spec.empty(batched=True),
+                reward=self.reward_spec.empty(batched=True),
+                parallel=self.parallel_spec.empty(batched=False)
+            )
+            if self.summary_labels == 'all' or 'graph' in self.summary_labels:
+                tf.summary.trace_export(name='graph', step=self.timesteps, profiler_outdir=None)
 
     def input_signature(self, *, function):
         if function == 'act':
@@ -723,11 +735,6 @@ class Model(Module):
         for name, buffer, internal in self.internals_buffer.zip_items(internals):
             dependencies.append(buffer.scatter_nd_update(indices=indices, updates=internal))
 
-        # Timesteps summaries
-        if self.summarizer is not None:
-            for summary_fn in self.summaries['timesteps']:
-                summary_fn()
-
         # Increment timesteps and buffer index 
         with tf.control_dependencies(control_inputs=dependencies):
             dependencies = list()
@@ -749,8 +756,9 @@ class Model(Module):
     def observe(self, *, terminal, reward, parallel):
         zero = tf_util.constant(value=0, dtype='int')
         one = tf_util.constant(value=1, dtype='int')
-        buffer_index = tf.gather(params=self.buffer_index, indices=parallel)
         batch_size = tf_util.cast(x=tf.shape(input=terminal)[0], dtype='int')
+        expanded_parallel = tf.expand_dims(input=tf.expand_dims(input=parallel, axis=0), axis=1)
+        buffer_index = tf.gather(params=self.buffer_index, indices=parallel)
         is_terminal = tf.concat(values=([zero], terminal), axis=0)[-1] > zero
 
         # Input assertions
@@ -784,28 +792,75 @@ class Model(Module):
 
         with tf.control_dependencies(control_inputs=dependencies):
             # Reward summary
-            if self.summary_labels == 'all' or \
-                    not self.summary_labels.isdisjoint({'reward', 'rewards'}):
+            if self.summary_labels == 'all' or 'reward' in self.summary_labels:
                 with self.summarizer.as_default():
                     x = tf.math.reduce_mean(input_tensor=reward)
                     tf.summary.scalar(name='reward', data=x, step=self.timesteps)
 
             # Update episode reward
+            episode_reward = tf.math.reduce_sum(input_tensor=reward, keepdims=True)
             assignment = self.episode_reward.scatter_nd_add(
-                indices=tf.expand_dims(input=tf.expand_dims(input=parallel, axis=0), axis=1),
-                updates=tf.math.reduce_sum(input_tensor=reward, keepdims=True)
+                indices=expanded_parallel, updates=episode_reward
             )
+            dependencies = [assignment]
 
-        with tf.control_dependencies(control_inputs=(assignment,)):
-            # Reward preprocessing (after episode_reward update)
-            if 'reward' in self.preprocessing:
+        # Reward preprocessing (after episode_reward update)
+        if 'reward' in self.preprocessing:
+            with tf.control_dependencies(control_inputs=dependencies):
                 reward = self.preprocessing['reward'].apply(x=reward)
+
                 # Preprocessed reward summary
-                if self.summary_labels == 'all' or 'rewards' in self.summary_labels:
+                if self.summary_labels == 'all' or 'reward' in self.summary_labels:
                     with self.summarizer.as_default():
                         x = tf.math.reduce_mean(input_tensor=reward)
                         tf.summary.scalar(name='preprocessed-reward', data=x, step=self.timesteps)
 
+                # Update preprocessed episode reward
+                episode_reward = tf.math.reduce_sum(input_tensor=reward, keepdims=True)
+                assignment = self.preprocessed_episode_reward.scatter_nd_add(
+                    indices=expanded_parallel, updates=episode_reward
+                )
+                dependencies = [assignment]
+
+        # Handle terminal (after preprocessed_episode_reward update)
+        with tf.control_dependencies(control_inputs=dependencies):
+
+            def fn_is_terminal():
+                operations = list()
+
+                # Episode reward summaries (before episode reward reset / episodes increment)
+                if self.summary_labels == 'all' or 'reward' in self.summary_labels:
+                    with self.summarizer.as_default():
+                        x = tf.gather(params=self.episode_reward, indices=parallel)
+                        tf.summary.scalar(name='episode-reward', data=x, step=self.episodes)
+                        if 'reward' in self.preprocessing:
+                            x = tf.gather(params=self.preprocessed_episode_reward, indices=parallel)
+                            tf.summary.scalar(
+                                name='preprocessed-episode-reward', data=x, step=self.episodes
+                            )
+
+                # Reset episode reward
+                zero_float = tf_util.constant(value=0.0, dtype='float', shape=(1,))
+                operations.append(self.episode_reward.scatter_nd_update(
+                    indices=expanded_parallel, updates=zero_float
+                ))
+                if 'reward' in self.preprocessing:
+                    operations.append(self.preprocessed_episode_reward.scatter_nd_update(
+                        indices=expanded_parallel, updates=zero_float
+                    ))
+
+                # Increment episodes counter
+                operations.append(self.episodes.assign_add(delta=one, read_value=False))
+
+                # Reset preprocessors
+                for preprocessor in self.preprocessing.values():
+                    operations.append(preprocessor.reset())
+
+                return tf.group(*operations)
+
+            handle_terminal = tf.cond(pred=is_terminal, true_fn=fn_is_terminal, false_fn=tf.no_op)
+
+        with tf.control_dependencies(control_inputs=(handle_terminal,)):
             # Values from buffers
             function = (lambda x: x[parallel, :buffer_index])
             states = self.states_buffer.fmap(function=function, cls=TensorDict)
@@ -819,48 +874,14 @@ class Model(Module):
                 terminal=terminal, reward=reward
             )
 
-        with tf.control_dependencies(control_inputs=(updated,)):
-            # Reset buffer index
+        # Reset buffer index (independent of rest)
+        with tf.control_dependencies(control_inputs=(buffer_index,)):
             reset_buffer_index = self.buffer_index.scatter_nd_update(
-                indices=tf.expand_dims(input=tf.expand_dims(input=parallel, axis=0), axis=1),
-                updates=tf.expand_dims(input=zero, axis=0)
+                indices=expanded_parallel, updates=tf.expand_dims(input=zero, axis=0)
             )
 
-            # Handle terminal
-            def fn_is_terminal():
-                operations = list()
-
-                # Episode reward summary (before episode reward reset and episodes increment)
-                if self.summary_labels == 'all' or \
-                        not self.summary_labels.isdisjoint({'reward', 'rewards'}):
-                    with self.summarizer.as_default():
-                        x = tf.gather(params=self.episode_reward, indices=parallel)
-                        tf.summary.scalar(name='episode-reward', data=x, step=self.episodes)
-
-                # Reset episode reward
-                operations.append(self.episode_reward.scatter_nd_update(
-                    indices=tf.expand_dims(input=tf.expand_dims(input=parallel, axis=0), axis=1),
-                    updates=tf_util.constant(value=0.0, dtype='float', shape=(1,))
-                ))
-
-                # Episodes summaries
-                if self.summarizer is not None:
-                    for summary_fn in self.summaries['episodes']:
-                        summary_fn()
-
-                # Increment episodes counter
-                operations.append(self.episodes.assign_add(delta=one, read_value=False))
-
-                # Reset preprocessors
-                for preprocessor in self.preprocessing.values():
-                    operations.append(preprocessor.reset())
-
-                return tf.group(*operations)
-
-            handle_terminal = tf.cond(pred=is_terminal, true_fn=fn_is_terminal, false_fn=tf.no_op)
-
         # Return
-        with tf.control_dependencies(control_inputs=(reset_buffer_index, handle_terminal)):
+        with tf.control_dependencies(control_inputs=(updated, reset_buffer_index)):
             updated = tf_util.identity(input=updated)
             episodes = tf_util.identity(input=self.episodes)
             updates = tf_util.identity(input=self.updates)

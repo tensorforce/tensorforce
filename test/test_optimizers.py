@@ -66,8 +66,8 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
             import tensorflow_addons as tfa
 
             self.unittest(optimizer=dict(
-                type='radam', learning_rate=1e-3, decoupled_weight_decay=0.01, lookahead=True,
-                moving_average=True
+                type='tf_optimizer', optimizer='radam', learning_rate=1e-3,
+                decoupled_weight_decay=0.01, lookahead=True, moving_average=True
             ))
 
         except ModuleNotFoundError:

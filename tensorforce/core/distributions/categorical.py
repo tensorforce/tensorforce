@@ -101,10 +101,11 @@ class Categorical(Distribution):
     def initialize(self):
         super().initialize()
 
-        for n in range(self.action_spec.num_values):
-            self.register_summary(
-                label='distributions', name=('distributions/' + self.name + '-probability' + str(n))
-            )
+        prefix = 'distributions/' + self.name + '-probability'
+        names = [prefix + str(n) for n in range(self.action_spec.num_values)]
+        self.register_summary(label='distribution', name=names)
+        name = 'entropies/' + self.name
+        self.register_summary(label='entropy', name=name)
 
     @tf_function(num_args=2)
     def parametrize(self, *, x, conditions):
@@ -151,15 +152,27 @@ class Categorical(Distribution):
             ('logits', 'probabilities', 'action_values')
         )
 
-        summary_probs = probabilities
-        for _ in range(len(self.action_spec.shape)):
-            summary_probs = tf.math.reduce_mean(input_tensor=summary_probs, axis=1)
-
         # Distribution parameter summaries
+        def fn_summary():
+            axis = range(self.action_spec.rank + 1)
+            probs = tf.math.reduce_mean(input_tensor=probabilities, axis=axis)
+            return [probs[n] for n in range(self.action_spec.num_values)]
+
         prefix = 'distributions/' + self.name + '-probability'
-        x = tf.math.reduce_mean(input_tensor=probabilities, axis=range(self.action_spec.rank + 1))
-        for n in range(self.action_spec.num_values):
-            self.summary(label='distributions', name=(prefix + str(n)), data=x[n], step='timesteps')
+        names = [prefix + str(n) for n in range(self.action_spec.num_values)]
+        dependencies = self.summary(
+            label='distribution', name=names, data=fn_summary, step='timesteps'
+        )
+
+        # Entropy summary
+        def fn_summary():
+            entropy = -tf.reduce_sum(input_tensor=(probabilities * logits), axis=-1)
+            return tf.math.reduce_mean(input_tensor=entropy)
+
+        name = 'entropies/' + self.name
+        dependencies.extend(
+            self.summary(label='entropy', name=name, data=fn_summary, step='timesteps')
+        )
 
         one = tf_util.constant(value=1.0, dtype='float')
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')
@@ -182,7 +195,8 @@ class Categorical(Distribution):
         sampled = tf.argmax(input=(logits + gumbel_distribution), axis=-1)
         sampled = tf_util.cast(x=sampled, dtype='int')
 
-        return tf.where(condition=(temperature < epsilon), x=definite, y=sampled)
+        with tf.control_dependencies(control_inputs=dependencies):
+            return tf.where(condition=(temperature < epsilon), x=definite, y=sampled)
 
     @tf_function(num_args=2)
     def log_probability(self, *, parameters, action):

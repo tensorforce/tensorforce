@@ -87,10 +87,10 @@ class Gaussian(Distribution):
     def initialize(self):
         super().initialize()
 
-        self.register_summary(label='distributions', name=('distributions/' + self.name + '-mean'))
-        self.register_summary(
-            label='distributions', name=('distributions/' + self.name + '-stddev')
-        )
+        prefix = 'distributions/' + self.name
+        self.register_summary(label='distribution', name=(prefix + '-mean', prefix + '-stddev'))
+        name = 'entropies/' + self.name
+        self.register_summary(label='entropy', name=name)
 
     @tf_function(num_args=2)
     def parametrize(self, *, x, conditions):
@@ -119,24 +119,45 @@ class Gaussian(Distribution):
 
     @tf_function(num_args=2)
     def sample(self, *, parameters, temperature):
-        mean, stddev = parameters.get(('mean', 'stddev'))
+        mean, stddev, log_stddev = parameters.get(('mean', 'stddev', 'log_stddev'))
 
-        # Distribution parameter summaries
-        x = tf.math.reduce_mean(input_tensor=mean, axis=range(self.action_spec.rank + 1))
-        self.summary(label='distributions', name=('distributions/' + self.name + '-mean'), data=x, step='timesteps')
-        x = tf.math.reduce_mean(input_tensor=stddev, axis=range(self.action_spec.rank + 1))
-        self.summary(label='distributions', name=('distributions/' + self.name + '-stddev'), data=x, step='timesteps')
+        # Distribution parameter and entropy summaries
+        def fn_summary():
+            return tf.math.reduce_mean(input_tensor=mean, axis=range(self.action_spec.rank + 1)), \
+                tf.math.reduce_mean(input_tensor=stddev, axis=range(self.action_spec.rank + 1))
+
+        prefix = 'distributions/' + self.name
+        dependencies = self.summary(
+            label='distribution', name=(prefix + '-mean', prefix + '-stddev'), data=fn_summary,
+            step='timesteps'
+        )
+
+        # Entropy summary
+        def fn_summary():
+            half = tf_util.constant(value=0.5, dtype='float')
+            two = tf_util.constant(value=2.0, dtype='float')
+            e_const = tf_util.constant(value=np.e, dtype='float')
+            pi_const = tf_util.constant(value=np.pi, dtype='float')
+            entropy = log_stddev + half * tf.math.log(x=(two * pi_const * e_const))
+            return tf.math.reduce_mean(input_tensor=entropy)
+
+        name = 'entropies/' + self.name
+        dependencies.extend(
+            self.summary(label='entropy', name=name, data=fn_summary, step='timesteps')
+        )
 
         normal_distribution = tf.random.normal(
             shape=tf.shape(input=mean), dtype=tf_util.get_dtype(type='float')
         )
-        action = mean + stddev * temperature * normal_distribution
 
-        # Clip if bounded action
-        if self.action_spec.min_value is not None:
-            action = tf.maximum(x=self.action_spec.min_value, y=action)
-        if self.action_spec.max_value is not None:
-            action = tf.minimum(x=self.action_spec.max_value, y=action)
+        with tf.control_dependencies(control_inputs=dependencies):
+            action = mean + stddev * temperature * normal_distribution
+
+            # Clip if bounded action
+            if self.action_spec.min_value is not None:
+                action = tf.maximum(x=self.action_spec.min_value, y=action)
+            if self.action_spec.max_value is not None:
+                action = tf.minimum(x=self.action_spec.max_value, y=action)
 
         return action
 

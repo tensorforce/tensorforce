@@ -37,11 +37,11 @@ class Plus(Optimizer):
         super().__init__(name=name, arguments_spec=arguments_spec)
 
         self.optimizer1 = self.submodule(
-            name='optimizer1', module=optimizer1, modules=tensorforce.core.optimizer_modules,
+            name=(name + '1'), module=optimizer1, modules=tensorforce.core.optimizer_modules,
             arguments_spec=self.arguments_spec
         )
         self.optimizer2 = self.submodule(
-            name='optimizer2', module=optimizer2, modules=tensorforce.core.optimizer_modules,
+            name=(name + '2'), module=optimizer2, modules=tensorforce.core.optimizer_modules,
             arguments_spec=self.arguments_spec
         )
 

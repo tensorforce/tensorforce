@@ -78,8 +78,8 @@ Tensorforce distinguishes between agent/module arguments (primitive types: bool/
 ```python
 Agent.create(...
     exploration=dict(
-        type='decaying', unit='timesteps', decay='exponential',
-        initial_value=0.1, decay_steps=1000, decay_rate=0.5
+        decay='exponential', unit='timesteps', num_steps=1000,
+        initial_value=0.1, decay_rate=0.5
     ), ...
 )
 ```
@@ -89,8 +89,8 @@ Agent.create(...
 ```python
 Agent.create(...
     reward_estimation=dict(horizon=dict(
-        type='decaying', dtype='long', unit='episodes', decay='polynomial',
-        initial_value=10.0, decay_steps=1000, final_value=50.0, power=1.0
+        type='linear', unit='episodes', num_steps=1000, initial_value=10,
+        final_value=50
     ), ...
 )
 ```

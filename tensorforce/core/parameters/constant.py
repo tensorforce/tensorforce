@@ -20,10 +20,10 @@ from tensorforce.core.parameters import Parameter
 
 class Constant(Parameter):
     """
-    Constant hyperparameter.
+    Constant hyperparameter  (specification key: `constant`).
 
     Args:
-        value (dtype-dependent): Constant hyperparameter value
+        value (float | int | bool): Constant hyperparameter value
             (<span style="color:#C00000"><b>required</b></span>).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
         dtype (type): <span style="color:#0000C0"><b>internal use</b></span>.

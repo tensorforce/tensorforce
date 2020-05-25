@@ -32,7 +32,7 @@ class Rnn(TemporalLayer, TransformationBase):
             (<span style="color:#C00000"><b>required</b></span>).
         size (int >= 0): Layer output size, 0 implies additionally removing the axis
             (<span style="color:#C00000"><b>required</b></span>).
-        horizon (parameter, long >= 0): Past horizon, for truncated backpropagation through time
+        horizon (parameter, int >= 0): Past horizon, for truncated backpropagation through time
             (<span style="color:#C00000"><b>required</b></span>).
         bias (bool): Whether to add a trainable bias variable
             (<span style="color:#00C000"><b>default</b></span>: true).
@@ -170,7 +170,7 @@ class Gru(Rnn):
     Args:
         size (int >= 0): Layer output size, 0 implies additionally removing the axis
             (<span style="color:#C00000"><b>required</b></span>).
-        horizon (parameter, long >= 0): Past horizon, for truncated backpropagation through time
+        horizon (parameter, int >= 0): Past horizon, for truncated backpropagation through time
             (<span style="color:#C00000"><b>required</b></span>).
         bias (bool): Whether to add a trainable bias variable
             (<span style="color:#00C000"><b>default</b></span>: true).
@@ -210,7 +210,7 @@ class Lstm(Rnn):
     Args:
         size (int >= 0): Layer output size, 0 implies additionally removing the axis
             (<span style="color:#C00000"><b>required</b></span>).
-        horizon (parameter, long >= 0): Past horizon, for truncated backpropagation through time
+        horizon (parameter, int >= 0): Past horizon, for truncated backpropagation through time
             (<span style="color:#C00000"><b>required</b></span>).
         bias (bool): Whether to add a trainable bias variable
             (<span style="color:#00C000"><b>default</b></span>: true).

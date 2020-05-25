@@ -24,7 +24,7 @@ class Estimator(Module):
     Return and value estimator.
 
     Args:
-        horizon (parameter, long >= 0): Horizon of discounted-sum reward estimation
+        horizon (parameter, int >= 0): Horizon of discounted-sum reward estimation
             (<span style="color:#C00000"><b>required</b></span>).
         discount (parameter, 0.0 <= float <= 1.0): Discount factor for future rewards of
             discounted-sum reward estimation

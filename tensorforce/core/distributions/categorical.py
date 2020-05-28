@@ -90,6 +90,11 @@ class Categorical(Distribution):
             spec=dict(type='float', shape=(self.action_spec['shape'] + (num_values,))),
             batched=True
         )
+        Module.register_tensor(
+            name=(self.name + '-values'),
+            spec=dict(type='float', shape=(self.action_spec['shape'] + (num_values,))),
+            batched=True
+        )
 
     def tf_parametrize(self, x, mask):
         epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
@@ -123,6 +128,7 @@ class Categorical(Distribution):
         logits = tf.math.log(x=tf.maximum(x=probabilities, y=epsilon))
 
         Module.update_tensor(name=(self.name + '-probabilities'), tensor=probabilities)
+        Module.update_tensor(name=(self.name + '-values'), tensor=action_values)
 
         return logits, probabilities, states_value, action_values
 

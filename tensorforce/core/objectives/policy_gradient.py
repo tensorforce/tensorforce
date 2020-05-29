@@ -70,7 +70,7 @@ class PolicyGradient(Objective):
         else:
             num_actions = 0
             for spec in self.parent.actions_spec.values():
-                num_actions += util.product(xs=spec.shape)
+                num_actions += spec.size
             return TensorSpec(type='float', shape=(num_actions,))
 
     @tf_function(num_args=6)

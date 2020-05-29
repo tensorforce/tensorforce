@@ -13,9 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 
+import tensorflow as tf
+
 from tensorforce import util
 import tensorforce.core
-from tensorforce.core import tf_function
+from tensorforce.core import TensorSpec, tf_function, tf_util
 from tensorforce.core.objectives import Objective
 
 
@@ -58,7 +60,11 @@ class Plus(Objective):
         )
 
     def reference_spec(self):
-        return [self.objective1.reference_spec(), self.objective2.reference_spec()]
+        reference_spec1 = self.objective1.reference_spec()
+        reference_spec2 = self.objective2.reference_spec()
+        assert reference_spec1.type + reference_spec2.type
+        shape = (reference_spec1.size + reference_spec2.size,)
+        return TensorSpec(type=reference_spec1.type, shape=shape)
 
     def optimizer_arguments(self, **kwargs):
         arguments = super().optimizer_arguments()
@@ -82,18 +88,32 @@ class Plus(Objective):
             actions=actions, reward=reward, policy=policy
         )
 
-        return (reference1, reference2)
+        shape = (-1, self.objective1.reference_spec().size)
+        reference1 = tf.reshape(tensor=reference1, shape=shape)
+        shape = (-1, self.objective2.reference_spec().size)
+        reference2 = tf.reshape(tensor=reference2, shape=shape)
+
+        return tf.concat(values=(reference1, reference2), axis=1)
 
     @tf_function(num_args=7)
     def loss(self, *, states, horizons, internals, auxiliaries, actions, reward, reference, policy):
-        loss1 = self.objective1.comparative_loss(
+        reference_spec1 = self.objective1.reference_spec()
+        reference_spec2 = self.objective2.reference_spec()
+        assert tf_util.shape(x=reference)[1] == reference_spec1.size + reference_spec2.size
+
+        reference1 = reference[:, :reference_spec1.size]
+        reference1 = tf.reshape(tensor=reference1, shape=((-1,) + reference_spec1.shape))
+        reference2 = reference[:, reference_spec1.size:]
+        reference2 = tf.reshape(tensor=reference2, shape=((-1,) + reference_spec2.shape))
+
+        loss1 = self.objective1.loss(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-            actions=actions, reward=reward, reference=reference[0], policy=policy
+            actions=actions, reward=reward, reference=reference1, policy=policy
         )
 
-        loss2 = self.objective2.comparative_loss(
+        loss2 = self.objective2.loss(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-            actions=actions, reward=reward, reference=reference[1], policy=policy
+            actions=actions, reward=reward, reference=reference2, policy=policy
         )
 
         return loss1 + loss2

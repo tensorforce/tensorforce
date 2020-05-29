@@ -60,6 +60,10 @@ class TensorSpec(object):
     def rank(self):
         return len(self.shape)
 
+    @property
+    def size(self):
+        return util.product(xs=self.shape)
+
     def copy(self, *, overwrite=None):
         if overwrite is None:
             overwrite = self.overwrite

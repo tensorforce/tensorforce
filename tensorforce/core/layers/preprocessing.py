@@ -145,10 +145,13 @@ class Deltafier(PreprocessingLayer):
 
     @tf_function(num_args=1)
     def apply(self, *, x):
-        assertion = tf.debugging.assert_equal(
+        assertion = tf.debugging.assert_less_equal(
             x=tf.shape(input=x)[0], y=1,
             message="Deltafier preprocessor currently not compatible with batched Agent.act."
         )
+
+        # TODO: hack for empty batch (for self.previous.assign below)
+        extended = tf.concat(values=(self.previous, x), axis=0)
 
         def first_delta():
             assignment = self.has_previous.assign(
@@ -158,12 +161,14 @@ class Deltafier(PreprocessingLayer):
                 return tf.concat(values=(tf.zeros_like(input=x[:1]), x[1:] - x[:-1]), axis=0)
 
         def later_delta():
-            return x - tf.concat(values=(self.previous, x[:-1]), axis=0)
+            return x - extended[:-1]
 
         with tf.control_dependencies(control_inputs=(assertion,)):
-            delta = tf.cond(pred=self.has_previous, true_fn=later_delta, false_fn=first_delta)
+            empty_batch = tf.math.equal(x=tf.shape(input=x)[0], y=0)
+            pred = tf.math.logical_or(x=self.has_previous, y=empty_batch)
+            delta = tf.cond(pred=pred, true_fn=later_delta, false_fn=first_delta)
 
-            assignment = self.previous.assign(value=x[-1:], read_value=False)
+            assignment = self.previous.assign(value=extended[-1:], read_value=False)
 
         with tf.control_dependencies(control_inputs=(assignment,)):
             if self.concatenate is False:
@@ -316,7 +321,7 @@ class Sequence(PreprocessingLayer):
                     current = tf.expand_dims(input=x, axis=(self.axis + 1))
                 multiples = tuple(
                     self.length if dims == self.axis + 1 else 1
-                    for dims in range(tf_util.rank(x=current))
+                    for dims in range(self.output_spec().rank + 1)
                 )
                 return tf.tile(input=current, multiples=multiples)
 
@@ -328,21 +333,28 @@ class Sequence(PreprocessingLayer):
             return tf.concat(values=(self.previous, current), axis=(self.axis + 1))
 
         with tf.control_dependencies(control_inputs=(assertion,)):
-            xs = tf.cond(pred=self.has_previous, true_fn=other_timesteps, false_fn=first_timestep)
+            empty_batch = tf.math.equal(x=tf.shape(input=x)[0], y=0)
+            pred = tf.math.logical_or(x=self.has_previous, y=empty_batch)
+            xs = tf.cond(pred=pred, true_fn=other_timesteps, false_fn=first_timestep)
 
             if self.concatenate:
                 begin = tuple(
                     self.input_spec.shape[dims - 1] if dims == self.axis + 1 else 0
-                    for dims in range(tf_util.rank(x=xs))
+                    for dims in range(self.output_spec().rank + 1)
                 )
             else:
                 begin = tuple(
-                    1 if dims == self.axis + 1 else 0 for dims in range(tf_util.rank(x=xs))
+                    1 if dims == self.axis + 1 else 0 for dims in range(self.output_spec().rank + 1)
                 )
 
-            assignment = self.previous.assign(
-                value=tf.slice(input_=xs, begin=begin, size=self.previous.shape), read_value=False
-            )
+            # TODO: hack for empty batch
+            def assignment():
+                return self.previous.assign(
+                    value=tf.slice(input_=xs, begin=begin, size=self.previous.shape),
+                    read_value=False
+                )
+
+            assignment = tf.cond(pred=empty_batch, true_fn=tf.no_op, false_fn=assignment)
 
         with tf.control_dependencies(control_inputs=(assignment,)):
             return tf_util.identity(input=xs)

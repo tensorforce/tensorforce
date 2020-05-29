@@ -257,7 +257,7 @@ class Reshape(Layer):
     def output_spec(self):
         output_spec = super().output_spec()
 
-        if util.product(xs=output_spec.shape) != util.product(xs=self.shape):
+        if output_spec.size != util.product(xs=self.shape):
             raise TensorforceError.value(name='Reshape', argument='shape', value=self.shape)
         output_spec.shape = self.shape
 

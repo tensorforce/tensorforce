@@ -20,7 +20,6 @@ from tensorforce.environments.multiprocessing_environment import Multiprocessing
 from tensorforce.environments.socket_environment import SocketEnvironment
 
 from tensorforce.environments.arcade_learning_environment import ArcadeLearningEnvironment
-from tensorforce.environments.maze_explorer import MazeExplorer
 from tensorforce.environments.openai_gym import OpenAIGym
 from tensorforce.environments.openai_retro import OpenAIRetro
 from tensorforce.environments.open_sim import OpenSim
@@ -32,7 +31,6 @@ from tensorforce.environments.carla_environment import CARLAEnvironment
 environments = dict(
     default=OpenAIGym,
     ale=ArcadeLearningEnvironment, arcade_learning_environment=ArcadeLearningEnvironment,
-    mazeexp=MazeExplorer, maze_explorer=MazeExplorer,
     gym=OpenAIGym, openai_gym=OpenAIGym,
     retro=OpenAIRetro, openai_retro=OpenAIRetro,
     osim=OpenSim, open_sim=OpenSim,

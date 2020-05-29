@@ -43,7 +43,6 @@ class TestSummaries(UnittestBase, unittest.TestCase):
                 os.rmdir(path=directory)
             os.rmdir(path=self.__class__.directory)
 
-        # TODO: 'dropout'
         horizon = dict(type='linear', unit='updates', num_steps=2, initial_value=2,  final_value=4)
         baseline_policy = dict(network=dict(type='auto', size=8, depth=1, rnn=1))
         baseline_objective = 'value'
@@ -81,9 +80,9 @@ class TestSummaries(UnittestBase, unittest.TestCase):
                 updates += int(agent.observe(terminal=terminal, reward=reward))
             episodes += 1
 
-        agent.summarize(summary='image', value=np.zeros(shape=(2, 4, 2, 3)))
-        agent.summarize(summary='scalar', value=1.0, step=0)
-        agent.summarize(summary='scalar', value=2.0, step=1)
+        # agent.summarize(summary='image', value=np.zeros(shape=(2, 4, 2, 3)))
+        # agent.summarize(summary='scalar', value=1.0, step=0)
+        # agent.summarize(summary='scalar', value=2.0, step=1)
         agent.close()
         environment.close()
         self.finished_test()

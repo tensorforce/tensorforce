@@ -89,7 +89,7 @@ class Policy(Module):
         assert not return_per_action or reduced
 
         def function(value, spec):
-            return tf.reshape(tensor=value, shape=(-1, util.product(xs=spec.shape)))
+            return tf.reshape(tensor=value, shape=(-1, spec.size))
 
         values = values.fmap(function=function, zip_values=self.actions_spec)
 

@@ -164,15 +164,7 @@ Agent.create(...
     summarizer=dict(
         directory='data/summaries',
         # list of labels, or 'all'
-        labels=['graph', 'entropy', 'kl-divergence', 'losses', 'rewards'],
-        frequency=100,  # store values every 100 timesteps
-        # (infrequent update summaries every update; other configurations possible)
-        custom=dict(  # custom summaries which need to be recorded explicitly
-            custom_summary1=dict(type='image', max_outputs=10), ...
-        )
+        labels=['entropy', 'graph', 'kl-divergence', 'loss', 'reward', 'update-norm']
     ), ...
 )
-...
-# custom summary recording
-agent.summarize(summary='custom_summary1', value=image)
 ```

@@ -31,14 +31,12 @@ class TestEnvironments(UnittestBase, unittest.TestCase):
     #     )
 
     @pytest.mark.skip(reason='not installed as part of travis')
-    def test_maze_explorer(self):
-        self.start_tests(name='maze-explorer')
-        self.unittest(environment=dict(environment='mazeexp', level=0), num_episodes=2)
-
-    @pytest.mark.skip(reason='not installed as part of travis')
     def test_open_sim(self):
         self.start_tests(name='open-sim')
         self.unittest(environment=dict(environment='osim', level='Arm2D'), num_episodes=2)
+        self.unittest(environment=dict(environment='osim', level='L2M2019'), num_episodes=2)
+        self.unittest(environment=dict(environment='osim', level='LegacyArm'), num_episodes=2)
+        self.unittest(environment=dict(environment='osim', level='LegacyRun'), num_episodes=2)
 
     def test_openai_gym(self):
         self.start_tests(name='openai-gym')

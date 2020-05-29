@@ -47,7 +47,7 @@ class Pooling(Layer):
         output_spec = super().output_spec()
 
         if self.reduction == 'concat':
-            output_spec.shape = (util.product(xs=output_spec.shape),)
+            output_spec.shape = (output_spec.size,)
         elif self.reduction in ('max', 'mean', 'product', 'sum'):
             output_spec.shape = (output_spec.shape[-1],)
 
@@ -59,7 +59,7 @@ class Pooling(Layer):
     @tf_function(num_args=1)
     def apply(self, *, x):
         if self.reduction == 'concat':
-            return tf.reshape(tensor=x, shape=(-1, util.product(xs=tf_util.shape(x=x)[1:])))
+            return tf.reshape(tensor=x, shape=(-1, self.output_spec().size))
 
         elif self.reduction == 'max':
             for _ in range(tf_util.rank(x=x) - 2):

@@ -62,15 +62,14 @@ class Categorical(Distribution):
         self.state_value = None
         if len(self.input_spec.shape) == 1:
             # Single embedding
-            action_size = util.product(xs=self.action_spec.shape)
             self.action_values = self.submodule(
                 name='action_values', module='linear', modules=layer_modules,
-                size=(action_size * num_values), input_spec=input_spec
+                size=(self.action_spec.size * num_values), input_spec=input_spec
             )
             if advantage_based:
                 self.state_value = self.submodule(
-                    name='states_value', module='linear', modules=layer_modules, size=action_size,
-                    input_spec=input_spec
+                    name='states_value', module='linear', modules=layer_modules,
+                    size=self.action_spec.size, input_spec=input_spec
                 )
 
         else:

@@ -34,7 +34,8 @@ class TestObjectives(UnittestBase, unittest.TestCase):
     def test_plus(self):
         self.start_tests(name='plus')
 
-        objective = dict(type='plus', objective1='value', objective2='policy_gradient')
+        # TODO: should be objective1='value'
+        objective = dict(type='plus', objective1='policy_gradient', objective2='policy_gradient')
         self.unittest(objective=objective)
 
     def test_policy_gradient(self):

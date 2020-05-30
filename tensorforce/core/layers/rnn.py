@@ -16,7 +16,7 @@
 import numpy as np
 import tensorflow as tf
 
-from tensorforce import TensorforceError
+from tensorforce import TensorforceError, util
 from tensorforce.core import TensorSpec, tf_function, tf_util
 from tensorforce.core.layers import TemporalLayer, TransformationBase
 
@@ -114,7 +114,9 @@ class Rnn(TemporalLayer, TransformationBase):
             shape = (2, self.size)
 
         stddev = min(0.1, np.sqrt(2.0 / self.size))
-        internals_init['state'] = np.random.normal(scale=stddev, size=shape)
+        internals_init['state'] = np.random.normal(scale=stddev, size=shape).astype(
+            util.np_dtype(dtype='float')
+        )
 
         return internals_init
 

@@ -216,11 +216,13 @@ class NestedDict(OrderedDict):
                 value = self.__class__()
                 super(NestedDict, value).__setattr__('value_type', self.value_type)
                 super(NestedDict, value).__setattr__('overwrite', self.overwrite)
-                super().__setitem__(key, value)
             if isinstance(value, self.__class__):
                 value[subkey] = subvalue
             else:
                 raise TensorforceError.unexpected()
+            if not super().__contains__(key):
+                # After setting subkey since setitem may modify value (TrackableNestedDict)
+                self[key] = value
 
         else:
             if _is_keyword(x=key):

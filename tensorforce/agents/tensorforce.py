@@ -135,25 +135,24 @@ class TensorforceAgent(Agent):
             specified
             (<span style="color:#00C000"><b>default</b></span>: none).
 
+        l2_regularization (parameter, float >= 0.0): L2 regularization loss weight
+            (<span style="color:#00C000"><b>default</b></span>: no L2 regularization).
+        entropy_regularization (parameter, float >= 0.0): Entropy regularization loss weight, to
+            discourage the policy distribution from being "too certain"
+            (<span style="color:#00C000"><b>default</b></span>: no entropy regularization).
+
         preprocessing (dict[specification]): Preprocessing as layer or list of layers, see
-            [preprocessing](../modules/preprocessing.html), specified per state-name or -type, and
+            [preprocessing](../modules/preprocessing.html), specified per state-type or -name, and
             for reward/return/advantage
             (<span style="color:#00C000"><b>default</b></span>: none).
-
-        exploration (parameter | dict[parameter], float >= 0.0): Exploration, global or per
-            action-name or -type, defined as the probability for uniformly random output in case of
-            `bool` and `int` actions, and the standard deviation of Gaussian noise added to every
-            output in case of `float` actions
-            (<span style="color:#00C000"><b>default</b></span>: 0.0).
-        variable_noise (parameter, float >= 0.0): Standard deviation of Gaussian noise added to all
-            trainable float variables (<span style="color:#00C000"><b>default</b></span>: 0.0).
-
-        l2_regularization (parameter, float >= 0.0): Scalar controlling L2 regularization
-            (<span style="color:#00C000"><b>default</b></span>:
-            0.0).
-        entropy_regularization (parameter, float >= 0.0): Scalar controlling entropy
-            regularization, to discourage the policy distribution being too "certain" / spiked
-            (<span style="color:#00C000"><b>default</b></span>: 0.0).
+        exploration (parameter | dict[parameter], float >= 0.0): Exploration, defined as the
+            probability for uniformly random output in case of `bool` and `int` actions, and the
+            standard deviation of Gaussian noise added to every output in case of `float` actions,
+            specified globally or per action-type or -name
+            (<span style="color:#00C000"><b>default</b></span>: no exploration).
+        variable_noise (parameter, float >= 0.0): Add Gaussian noise with given standard deviation
+            to all trainable variables, as alternative exploration mechanism
+            (<span style="color:#00C000"><b>default</b></span>: no variable noise).
 
         name (string): Agent name, used e.g. for TensorFlow scopes and saver default filename
             (<span style="color:#00C000"><b>default</b></span>: "agent").
@@ -243,12 +242,12 @@ class TensorforceAgent(Agent):
         policy='default', memory=None, optimizer='adam',
         # Baseline
         baseline_policy=None, baseline_optimizer=None, baseline_objective=None,
+        # Regularization
+        l2_regularization=0.0, entropy_regularization=0.0,
         # Preprocessing
         preprocessing=None,
         # Exploration
         exploration=0.0, variable_noise=0.0,
-        # Regularization
-        l2_regularization=0.0, entropy_regularization=0.0,
         # TensorFlow etc
         name='agent', device=None, parallel_interactions=1, config=None, saver=None,
         summarizer=None, recorder=None
@@ -264,12 +263,12 @@ class TensorforceAgent(Agent):
                 # Baseline
                 baseline_policy=baseline_policy, baseline_optimizer=baseline_optimizer,
                 baseline_objective=baseline_objective,
+                # Regularization
+                l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
                 # Preprocessing
                 preprocessing=preprocessing,
                 # Exploration
                 exploration=exploration, variable_noise=variable_noise,
-                # Regularization
-                l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
                 # TensorFlow etc
                 name=name, device=device, parallel_interactions=parallel_interactions,
                 config=config, saver=saver, summarizer=summarizer, recorder=recorder
@@ -332,18 +331,16 @@ class TensorforceAgent(Agent):
         )
 
         self.model = TensorforceModel(
-            # Model
-            states=self.states_spec, actions=self.actions_spec, preprocessing=preprocessing,
-            exploration=exploration, variable_noise=variable_noise,
-            l2_regularization=l2_regularization, name=name, device=device,
-            parallel_interactions=self.parallel_interactions, config=self.config, saver=saver,
-            summarizer=summarizer,
-            # TensorforceModel
+            states=self.states_spec, actions=self.actions_spec,
+            max_episode_timesteps=self.max_episode_timesteps,
             policy=policy, memory=memory, update=update, optimizer=optimizer, objective=objective,
-            reward_estimation=reward_estimation, baseline_policy=baseline_policy,
-            baseline_optimizer=baseline_optimizer, baseline_objective=baseline_objective,
-            entropy_regularization=entropy_regularization,
-            max_episode_timesteps=self.max_episode_timesteps
+            reward_estimation=reward_estimation,
+            baseline_policy=baseline_policy, baseline_optimizer=baseline_optimizer,
+            baseline_objective=baseline_objective,
+            l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
+            preprocessing=preprocessing, exploration=exploration, variable_noise=variable_noise,
+            name=name, device=device, parallel_interactions=self.parallel_interactions,
+            config=self.config, saver=saver, summarizer=summarizer
         )
 
         self.experience_size = self.model.estimator.capacity

@@ -18,7 +18,7 @@ import unittest
 
 import tensorflow as tf
 
-from tensorforce import Agent, Environment
+from tensorforce import Agent, Environment, Runner
 from test.unittest_base import UnittestBase
 
 
@@ -151,7 +151,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
         while not terminal:
             actions = agent.act(states=states)
             states, terminal, reward = environment.execute(actions=actions)
-            print(agent.observe(terminal=terminal, reward=reward))
+            agent.observe(terminal=terminal, reward=reward)
 
         # save: hdf5 format, filename, append episodes
         weights1 = agent.model.policy.network.layers[1].weights.numpy()
@@ -318,4 +318,42 @@ class TestSaving(UnittestBase, unittest.TestCase):
         os.remove(path=os.path.join(self.__class__.directory, 'checkpoint'))
         os.rmdir(path=self.__class__.directory)
 
+        self.finished_test()
+
+    def test_load_performance(self):
+        self.start_tests(name='load-performance')
+
+        environment = Environment.create(environment='CartPole-v1')
+
+        agent = Agent.load(
+            directory='test/data', filename='ppo-checkpoint', format='checkpoint',
+            environment=environment
+        )
+        runner = Runner(agent=agent, environment=environment, evaluation=True)
+        runner.run(num_episodes=10, use_tqdm=False)
+        self.assertTrue(all(episode_reward == 500 for episode_reward in runner.episode_rewards))
+        runner.close()
+        agent.close()
+        self.finished_test()
+
+        agent = Agent.load(
+            directory='test/data', filename='ppo-checkpoint', format='numpy',
+            environment=environment
+        )
+        runner = Runner(agent=agent, environment=environment, evaluation=True)
+        runner.run(num_episodes=10, use_tqdm=False)
+        self.assertTrue(all(episode_reward == 500 for episode_reward in runner.episode_rewards))
+        runner.close()
+        agent.close()
+        self.finished_test()
+
+        agent = Agent.load(
+            directory='test/data', filename='ppo-checkpoint', format='hdf5',
+            environment=environment
+        )
+        runner = Runner(agent=agent, environment=environment, evaluation=True)
+        runner.run(num_episodes=10, use_tqdm=False)
+        self.assertTrue(all(episode_reward == 500 for episode_reward in runner.episode_rewards))
+        runner.close()
+        agent.close()
         self.finished_test()

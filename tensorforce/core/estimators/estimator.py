@@ -300,9 +300,6 @@ class Estimator(Module):
             return tf.math.greater_equal(x=horizon, y=zero)
 
         def body(discounted_sum, horizon):
-            # discounted_sum = tf.compat.v1.Print(
-            #     discounted_sum, (horizon, discounted_sum, rewards[horizon:]), summarize=10
-            # )
             discounted_sum = discount * discounted_sum
             discounted_sum = discounted_sum + rewards[horizon: horizon + num_values]
             return discounted_sum, horizon - one
@@ -420,9 +417,6 @@ class Estimator(Module):
                 return tf.math.greater_equal(x=horizon, y=zero)
 
             def body(discounted_sum, horizon):
-                # discounted_sum = tf.compat.v1.Print(
-                #     discounted_sum, (horizon, discounted_sum, rewards[horizon:]), summarize=10
-                # )
                 discounted_sum = discount * discounted_sum
                 discounted_sum = discounted_sum + rewards[horizon: horizon + num_overwritten]
                 return discounted_sum, horizon - one
@@ -450,6 +444,7 @@ class Estimator(Module):
                 indices = tf.math.mod(x=indices, y=capacity)
                 indices = tf.expand_dims(input=indices, axis=1)
 
+            # no _nd_
             assignment = self.buffers['reward'].scatter_nd_update(
                 indices=indices, updates=discounted_sum
             )
@@ -484,6 +479,7 @@ class Estimator(Module):
                 states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
                 terminal=terminal, reward=reward
             )
+            # no _nd_
             function = (lambda value, buffer: buffer.scatter_nd_update(
                 indices=indices, updates=value
             ))

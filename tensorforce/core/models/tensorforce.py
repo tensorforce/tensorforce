@@ -13,11 +13,12 @@
 # limitations under the License.
 # ==============================================================================
 
+import numpy as np
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core import memory_modules, optimizer_modules, parameter_modules, SignatureDict, \
-    TensorDict, TensorSpec, TensorsSpec, tf_function, tf_util
+from tensorforce.core import ModuleDict, memory_modules, optimizer_modules, parameter_modules, \
+    SignatureDict, TensorDict, TensorSpec, TensorsSpec, tf_function, tf_util, VariableDict
 from tensorforce.core.estimators import Estimator
 from tensorforce.core.models import Model
 from tensorforce.core.networks import Preprocessor
@@ -29,23 +30,54 @@ class TensorforceModel(Model):
 
     def __init__(
         self, *,
-        # Model
-        states, actions, preprocessing, exploration, variable_noise, l2_regularization, name,
-        device, parallel_interactions, config, saver, summarizer,
-        # TensorforceModel
-        policy, memory, update, optimizer, objective, reward_estimation, baseline_policy,
-        baseline_optimizer, baseline_objective, entropy_regularization, max_episode_timesteps
+        states, actions, max_episode_timesteps,
+        policy, memory, update, optimizer, objective, reward_estimation,
+        baseline_policy, baseline_optimizer, baseline_objective,
+        l2_regularization, entropy_regularization,
+        preprocessing, exploration, variable_noise,
+        name, device, parallel_interactions, config, saver, summarizer
     ):
         super().__init__(
-            # Model
-            states=states, actions=actions, preprocessing=preprocessing, exploration=exploration,
-            variable_noise=variable_noise, l2_regularization=l2_regularization, name=name,
+            states=states, actions=actions, l2_regularization=l2_regularization, name=name,
             device=device, parallel_interactions=parallel_interactions, config=config, saver=saver,
             summarizer=summarizer
         )
 
-        # Return/advantage preprocessing
+        # States preprocessing
+        self.processed_states_spec = TensorsSpec()
+        self.preprocessing = ModuleDict()
+        for name, spec in self.states_spec.items():
+            if preprocessing is None:
+                layers = None
+            elif name in preprocessing:
+                # TODO: recursive lookup
+                layers = preprocessing[name]
+            elif spec.type in preprocessing:
+                layers = preprocessing[spec.type]
+            else:
+                layers = None
+            if layers is None:
+                self.processed_states_spec[name] = self.states_spec[name]
+            else:
+                self.preprocessing[name] = self.submodule(
+                    name=(name + '_preprocessing'), module=Preprocessor, is_trainable=False,
+                    input_spec=spec, layers=layers
+                )
+                self.processed_states_spec[name] = self.preprocessing[name].output_spec()
+
+        # Reward preprocessing
         if preprocessing is not None:
+            if 'reward' in preprocessing:
+                self.preprocessing['reward'] = self.submodule(
+                    name=('reward_preprocessing'), module=Preprocessor, is_trainable=False,
+                    input_spec=self.reward_spec, layers=preprocessing['reward']
+                )
+                if self.preprocessing['reward'].output_spec() != self.reward_spec:
+                    raise TensorforceError.mismatch(
+                        name='preprocessing', argument='reward output spec',
+                        value1=self.preprocessing['reward'].output_spec(),
+                        value2=self.reward_spec
+                    )
             if 'return' in preprocessing:
                 self.preprocessing['return'] = self.submodule(
                     name=('return_preprocessing'), module=Preprocessor, is_trainable=False,
@@ -68,6 +100,45 @@ class TensorforceModel(Model):
                         value1=self.preprocessing['advantage'].get_output_spec(),
                         value2=self.reward_spec
                     )
+
+        # Exploration
+        # TODO: recursive lookup?
+        if isinstance(exploration, dict) and all(name in self.actions_spec for name in exploration):
+            # Different exploration per action
+            self.exploration = ModuleDict()
+            for name, spec in self.actions_spec.items():
+                # TODO: recursive lookup
+                if name in exploration:
+                    # TODO: recursive lookup
+                    module = exploration[name]
+                elif spec.type in exploration:
+                    module = exploration[spec.type]
+                else:
+                    module = None
+                if module is None:
+                    pass
+                elif spec.type in ('bool', 'int'):
+                    self.exploration[name] = self.submodule(
+                        name=(name + '_exploration'), module=module, modules=parameter_modules,
+                        is_trainable=False, dtype='float', min_value=0.0, max_value=1.0
+                    )
+                else:
+                    self.exploration[name] = self.submodule(
+                        name=(name + '_exploration'), module=module, modules=parameter_modules,
+                        is_trainable=False, dtype='float', min_value=0.0
+                    )
+        else:
+            # Same exploration for all actions
+            self.exploration = self.submodule(
+                name='exploration', module=exploration, modules=parameter_modules,
+                is_trainable=False, dtype='float', min_value=0.0
+            )
+
+        # Variable noise
+        self.variable_noise = self.submodule(
+            name='variable_noise', module=variable_noise, modules=parameter_modules,
+            is_trainable=False, dtype='float', min_value=0.0
+        )
 
         # Estimator argument check
         if not all(key in (
@@ -99,8 +170,9 @@ class TensorforceModel(Model):
         else:
             kwargs = dict()
         self.policy = self.submodule(
-            name='policy', module=policy, modules=policy_modules, states_spec=self.states_spec,
-            auxiliaries_spec=self.auxiliaries_spec, actions_spec=self.actions_spec, **kwargs
+            name='policy', module=policy, modules=policy_modules,
+            states_spec=self.processed_states_spec, auxiliaries_spec=self.auxiliaries_spec,
+            actions_spec=self.actions_spec, **kwargs
         )
         self.internals_spec['policy'] = self.policy.internals_spec
         self.internals_init['policy'] = self.policy.internals_init()
@@ -215,7 +287,7 @@ class TensorforceModel(Model):
                 kwargs = dict()
             self.baseline = self.submodule(
                 name='baseline', module=baseline_policy, modules=policy_modules,
-                is_trainable=baseline_is_trainable, states_spec=self.states_spec,
+                is_trainable=baseline_is_trainable, states_spec=self.processed_states_spec,
                 auxiliaries_spec=self.auxiliaries_spec, actions_spec=self.actions_spec, **kwargs
             )
             self.internals_spec['baseline'] = self.baseline.internals_spec
@@ -230,7 +302,7 @@ class TensorforceModel(Model):
         # Objectives
         self.objective = self.submodule(
             name='policy_objective', module=objective, modules=objective_modules,
-            states_spec=self.states_spec, internals_spec=self.internals_spec['policy'],
+            states_spec=self.processed_states_spec, internals_spec=self.internals_spec['policy'],
             auxiliaries_spec=self.auxiliaries_spec, actions_spec=self.actions_spec,
             reward_spec=self.reward_spec
         )
@@ -243,7 +315,7 @@ class TensorforceModel(Model):
         else:
             self.baseline_objective = self.submodule(
                 name='baseline_objective', module=baseline_objective, modules=objective_modules,
-                is_trainable=baseline_is_trainable, states_spec=self.states_spec,
+                is_trainable=baseline_is_trainable, states_spec=self.processed_states_spec,
                 internals_spec=internals_spec, auxiliaries_spec=self.auxiliaries_spec,
                 actions_spec=self.actions_spec, reward_spec=self.reward_spec
             )
@@ -268,7 +340,7 @@ class TensorforceModel(Model):
             else:
                 baseline_internals = self.internals_spec['policy']
             arguments_spec = TensorsSpec(
-                states=self.states_spec, horizons=TensorSpec(type='int', shape=(2,)),
+                states=self.processed_states_spec, horizons=TensorSpec(type='int', shape=(2,)),
                 internals=baseline_internals, auxiliaries=self.auxiliaries_spec,
                 actions=self.actions_spec, reward=self.reward_spec
             )
@@ -279,7 +351,7 @@ class TensorforceModel(Model):
                 is_trainable=False, arguments_spec=arguments_spec
             )
         arguments_spec = TensorsSpec(
-            states=self.states_spec, horizons=TensorSpec(type='int', shape=(2,)),
+            states=self.processed_states_spec, horizons=TensorSpec(type='int', shape=(2,)),
             internals=internals_spec, auxiliaries=self.auxiliaries_spec, actions=self.actions_spec,
             reward=self.reward_spec
         )
@@ -298,7 +370,7 @@ class TensorforceModel(Model):
         # Estimator
         max_past_horizon = self.baseline.max_past_horizon(on_policy=True)
         values_spec = TensorsSpec(
-            states=self.states_spec, internals=self.internals_spec,
+            states=self.processed_states_spec, internals=self.internals_spec,
             auxiliaries=self.auxiliaries_spec, actions=self.actions_spec,
             terminal=self.terminal_spec, reward=self.reward_spec
         )
@@ -346,6 +418,34 @@ class TensorforceModel(Model):
     def core_initialize(self):
         super().core_initialize()
 
+        # Buffer index
+        self.buffer_index = self.variable(
+            name='buffer-index', spec=TensorSpec(type='int', shape=(self.parallel_interactions,)),
+            initializer='zeros', is_trainable=False, is_saved=False
+        )
+
+        # States/auxiliaries/actions buffers
+        def function(name, spec):
+            shape = (self.parallel_interactions, self.config.buffer_observe) + spec.shape
+            return self.variable(
+                name=(name.replace('/', '_') + '-buffer'),
+                spec=TensorSpec(type=spec.type, shape=shape),
+                initializer='zeros', is_trainable=False, is_saved=False
+            )
+
+        self.states_buffer = self.processed_states_spec.fmap(
+            function=function, cls=VariableDict, with_names=True
+        )
+        self.auxiliaries_buffer = self.auxiliaries_spec.fmap(
+            function=function, cls=VariableDict, with_names=True
+        )
+        self.actions_buffer = self.actions_spec.fmap(
+            function=function, cls=VariableDict, with_names=True
+        )
+        self.internals_buffer = self.internals_spec.fmap(
+            function=function, cls=VariableDict, with_names=True
+        )
+
         # Last update
         self.last_update = self.variable(
             name='last-update', spec=TensorSpec(type='int'), initializer=-1, is_trainable=False,
@@ -379,7 +479,7 @@ class TensorforceModel(Model):
         super().initialize_api()
 
         self.experience(
-            states=self.unprocessed_states_spec.empty(batched=True),
+            states=self.states_spec.empty(batched=True),
             internals=self.internals_spec.empty(batched=True),
             auxiliaries=self.auxiliaries_spec.empty(batched=True),
             actions=self.actions_spec.empty(batched=True),
@@ -393,7 +493,7 @@ class TensorforceModel(Model):
         if function == 'baseline_loss':
             if self.baseline_objective is None:
                 return SignatureDict(
-                    states=self.states_spec.signature(batched=True),
+                    states=self.processed_states_spec.signature(batched=True),
                     horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
                     internals=(
                         self.internals_spec['baseline'].signature(batched=True)
@@ -406,7 +506,7 @@ class TensorforceModel(Model):
                 )
             else:
                 return SignatureDict(
-                    states=self.states_spec.signature(batched=True),
+                    states=self.processed_states_spec.signature(batched=True),
                     horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
                     internals=(
                         self.internals_spec['baseline'].signature(batched=True)
@@ -421,7 +521,7 @@ class TensorforceModel(Model):
 
         elif function == 'core_experience':
             return SignatureDict(
-                states=self.states_spec.signature(batched=True),
+                states=self.processed_states_spec.signature(batched=True),
                 internals=self.internals_spec.signature(batched=True),
                 auxiliaries=self.auxiliaries_spec.signature(batched=True),
                 actions=self.actions_spec.signature(batched=True),
@@ -434,7 +534,7 @@ class TensorforceModel(Model):
 
         elif function == 'experience':
             return SignatureDict(
-                states=self.unprocessed_states_spec.signature(batched=True),
+                states=self.states_spec.signature(batched=True),
                 internals=self.internals_spec.signature(batched=True),
                 auxiliaries=self.auxiliaries_spec.signature(batched=True),
                 actions=self.actions_spec.signature(batched=True),
@@ -445,7 +545,7 @@ class TensorforceModel(Model):
         elif function == 'loss':
             if self.baseline_loss_weight is not None and self.separate_baseline_policy:
                 return SignatureDict(
-                    states=self.states_spec.signature(batched=True),
+                    states=self.processed_states_spec.signature(batched=True),
                     horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
                     internals=self.internals_spec.signature(batched=True),
                     auxiliaries=self.auxiliaries_spec.signature(batched=True),
@@ -458,7 +558,7 @@ class TensorforceModel(Model):
                 )
             elif self.baseline_optimizer is None:
                 return SignatureDict(
-                    states=self.states_spec.signature(batched=True),
+                    states=self.processed_states_spec.signature(batched=True),
                     horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
                     internals=self.internals_spec.signature(batched=True),
                     auxiliaries=self.auxiliaries_spec.signature(batched=True),
@@ -468,7 +568,7 @@ class TensorforceModel(Model):
                 )
             else:
                 return SignatureDict(
-                    states=self.states_spec.signature(batched=True),
+                    states=self.processed_states_spec.signature(batched=True),
                     horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
                     internals=self.internals_spec['policy'].signature(batched=True),
                     auxiliaries=self.auxiliaries_spec.signature(batched=True),
@@ -479,7 +579,7 @@ class TensorforceModel(Model):
 
         elif function == 'regularize':
             return SignatureDict(
-                states=self.states_spec.signature(batched=True),
+                states=self.processed_states_spec.signature(batched=True),
                 horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
                 internals=self.internals_spec['policy'].signature(batched=True),
                 auxiliaries=self.auxiliaries_spec.signature(batched=True)
@@ -493,12 +593,16 @@ class TensorforceModel(Model):
 
     @tf_function(num_args=0)
     def reset(self):
-        reset = self.estimator.reset()
+        operations = list()
+        zeros = tf_util.zeros(shape=(self.parallel_interactions,), dtype='int')
+        operations.append(self.buffer_index.assign(value=zeros, read_value=False))
+        operations.append(self.estimator.reset())
+        operations.append(self.memory.reset())
 
-        with tf.control_dependencies(control_inputs=(reset,)):
-            timestep, episode, update = super().reset()
+        # TODO: Synchronization optimizer initial sync?
 
-        return timestep, episode, update
+        with tf.control_dependencies(control_inputs=operations):
+            return super().reset()
 
     @tf_function(num_args=6)
     def experience(self, *, states, internals, auxiliaries, actions, terminal, reward):
@@ -507,7 +611,7 @@ class TensorforceModel(Model):
         batch_size = tf_util.cast(x=tf.shape(input=terminal)[0], dtype='int')
 
         # Input assertions
-        assertions = self.unprocessed_states_spec.tf_assert(
+        assertions = self.states_spec.tf_assert(
             x=states, batch_size=batch_size,
             message='Agent.experience: invalid {issue} for {name} state input.'
         )
@@ -564,7 +668,7 @@ class TensorforceModel(Model):
 
         with tf.control_dependencies(control_inputs=assertions):
             # Preprocessing
-            for name in self.states_spec:
+            for name in states:
                 if name in self.preprocessing:
                     states[name] = self.preprocessing[name].apply(x=states[name])
             if 'reward' in self.preprocessing:
@@ -576,112 +680,351 @@ class TensorforceModel(Model):
                 terminal=terminal, reward=reward
             )
 
-        # Return
         with tf.control_dependencies(control_inputs=(experienced,)):
             timestep = tf_util.identity(input=self.timesteps)
             episode = tf_util.identity(input=self.episodes)
             update = tf_util.identity(input=self.updates)
-        return timestep, episode, update
+            return timestep, episode, update
 
     @tf_function(num_args=0)
     def update(self):
         # Core update
         updated = self.core_update()
 
-        # Return
         with tf.control_dependencies(control_inputs=(updated,)):
             timestep = tf_util.identity(input=self.timesteps)
             episode = tf_util.identity(input=self.episodes)
             update = tf_util.identity(input=self.updates)
-        return timestep, episode, update
+            return timestep, episode, update
 
-    @tf_function(num_args=3)
-    def core_act(self, *, states, internals, auxiliaries, deterministic):
+    @tf_function(num_args=4)
+    def core_act(self, *, states, internals, auxiliaries, parallel, independent):
         zero = tf_util.constant(value=0, dtype='int')
+        zero_float = tf_util.constant(value=0.0, dtype='float')
+        dependencies = list()
+
+        # On-policy policy/baseline horizon (TODO: retrieve from buffer!)
         past_horizon = tf.math.maximum(
             x=self.policy.past_horizon(on_policy=True),
             y=self.baseline.past_horizon(on_policy=True)
         )
-        assertion = tf.debugging.assert_equal(x=past_horizon, y=zero)
+        dependencies.append(tf.debugging.assert_equal(x=past_horizon, y=zero))
 
-        with tf.control_dependencies(control_inputs=(assertion,)):
+        # Variable noise
+        if len(self.trainable_variables) > 0 and (
+            (not independent and not self.variable_noise.is_constant(value=0.0)) or
+            (independent and self.config.apply_final_variable_noise and
+                self.variable_noise.final_value() != 0.0)
+        ):
+            if independent:
+                variable_noise = tf_util.constant(
+                    value=self.variable_noise.final_value(), dtype=self.variable_noise.spec.type
+                )
+            else:
+                variable_noise = self.variable_noise.value()
+
+            def no_variable_noise():
+                return [tf.zeros_like(input=variable) for variable in self.trainable_variables]
+
+            def apply_variable_noise():
+                variable_noise_tensors = list()
+                for variable in self.trainable_variables:
+                    noise = tf.random.normal(
+                        shape=tf_util.shape(x=variable), mean=0.0, stddev=variable_noise,
+                        dtype=self.variable_noise.spec.tf_type()
+                    )
+                    if variable.dtype != tf_util.get_dtype(type='float'):
+                        noise = tf.cast(x=noise, dtype=variable.dtype)
+                    assignment = variable.assign_add(delta=noise, read_value=False)
+                    with tf.control_dependencies(control_inputs=assignment):
+                        variable_noise_tensors.append(tf_util.identity(input=noise))
+                return variable_noise_tensors
+
+            variable_noise_tensors = tf.cond(
+                pred=tf.math.equal(x=variable_noise, y=zero_float),
+                true_fn=no_variable_noise, false_fn=apply_variable_noise
+            )
+
+        else:
+            variable_noise_tensors = list()
+
+        with tf.control_dependencies(control_inputs=variable_noise_tensors):
+            dependencies = list()
+
+            # State preprocessing (after variable noise)
+            for name in self.states_spec:
+                if name in self.preprocessing:
+                    states[name] = self.preprocessing[name].apply(x=states[name])
+
+            # Policy act (after variable noise)
             batch_size = tf_util.cast(x=tf.shape(input=states.value())[0], dtype='int')
             starts = tf.range(start=batch_size, dtype=tf_util.get_dtype(type='int'))
             lengths = tf_util.ones(shape=(batch_size,), dtype='int')
             horizons = tf.stack(values=(starts, lengths), axis=1)
-
-            # Policy act
-            actions, internals['policy'] = self.policy.act(
+            next_internals = TensorDict()
+            actions, next_internals['policy'] = self.policy.act(
                 states=states, horizons=horizons, internals=internals['policy'],
-                auxiliaries=auxiliaries, deterministic=deterministic, return_internals=True
+                auxiliaries=auxiliaries, deterministic=independent, return_internals=True
             )
+            dependencies.extend(actions.flatten())
 
-        if self.separate_baseline_policy:
-            if len(self.internals_spec['baseline']) > 0:
-                # TODO: Baseline policy network apply to retrieve next internals
-                _, internals['baseline'] = self.baseline.network.apply(
-                    x=states, horizons=horizons, internals=internals['baseline'],
-                    return_internals=True
+            # Baseline internals (after variable noise)
+            if self.separate_baseline_policy:
+                if len(self.internals_spec['baseline']) > 0:
+                    # TODO: Baseline policy network apply to retrieve next internals
+                    _, next_internals['baseline'] = self.baseline.network.apply(
+                        x=states, horizons=horizons, internals=internals['baseline'],
+                        return_internals=True
+                    )
+                else:
+                    next_internals['baseline'] = TensorDict()
+            dependencies.extend(next_internals.flatten())
+
+        # Reverse variable noise (after policy act)
+        if len(variable_noise_tensors) > 0:
+            with tf.control_dependencies(control_inputs=dependencies):
+                dependencies = list()
+
+                def apply_variable_noise():
+                    assignments = list()
+                    for variable, noise in zip(self.trainable_variables, variable_noise_tensors):
+                        assignments.append(variable.assign_sub(delta=noise, read_value=False))
+                    return tf.group(*assignments)
+
+                dependencies.append(tf.cond(
+                    pred=tf.math.equal(x=variable_noise, y=zero_float),
+                    true_fn=tf.no_op, false_fn=apply_variable_noise
+                ))
+
+        # Exploration
+        if (not independent and (
+            isinstance(self.exploration, dict) or not self.exploration.is_constant(value=0.0)
+        )) or (independent and self.config.apply_final_exploration and (
+            isinstance(self.exploration, dict) or self.exploration.final_value() != 0.0
+        )):
+
+            # Global exploration
+            if not isinstance(self.exploration, dict):
+                # exploration_fns = dict()
+                if not independent and not self.exploration.is_constant(value=0.0):
+                    exploration = self.exploration.value()
+                elif independent and self.exploration.final_value() != 0.0:
+                    exploration = tf_util.constant(
+                        value=self.exploration[name].final_value(),
+                        dtype=self.exploration[name].spec.type
+                    )
+                else:
+                    assert False
+
+            float_dtype = tf_util.get_dtype(type='float')
+            for name, spec, action in self.actions_spec.zip_items(actions):
+
+                # Per-action exploration
+                if isinstance(self.exploration, dict):
+                    if name not in self.exploration:
+                        exploration = None
+                    elif not independent and not self.exploration[name].is_constant(value=0.0):
+                        exploration = self.exploration.value()
+                    elif independent and self.exploration[name].final_value() != 0.0:
+                        exploration = tf_util.constant(
+                            value=self.exploration[name].final_value(),
+                            dtype=self.exploration[name].spec.type
+                        )
+                    else:
+                        continue
+
+                # Apply exploration
+                if spec.type == 'bool':
+                    # Bool action: if uniform[0, 1] < exploration, then uniform[True, False]
+
+                    def apply_exploration():
+                        shape = tf_util.cast(x=tf.shape(input=action), dtype='int')
+                        half = tf_util.constant(value=0.5, dtype='float')
+                        random_action = tf.random.uniform(shape=shape, dtype=float_dtype) < half
+                        is_random = tf.random.uniform(shape=shape, dtype=float_dtype) < exploration
+                        return tf.where(condition=is_random, x=random_action, y=action)
+
+                elif spec.type == 'int' and spec.num_values is not None:
+                    if self.config.enable_int_action_masking:
+                        # Masked action: if uniform[0, 1] < exploration, then uniform[unmasked]
+                        # (Similar code as for RandomModel.core_act)
+
+                        def apply_exploration():
+                            shape = tf_util.cast(x=tf.shape(input=action), dtype='int')
+                            mask = auxiliaries[name]['mask']
+                            choices = tf_util.constant(
+                                value=list(range(spec.num_values)), dtype=spec.type,
+                                shape=(tuple(1 for _ in spec.shape) + (1, spec.num_values))
+                            )
+                            one = tf_util.constant(value=1, dtype='int', shape=(1,))
+                            multiples = tf.concat(values=(shape, one), axis=0)
+                            choices = tf.tile(input=choices, multiples=multiples)
+                            choices = tf.boolean_mask(tensor=choices, mask=mask)
+                            mask = tf_util.cast(x=mask, dtype='int')
+                            num_valid = tf.math.reduce_sum(input_tensor=mask, axis=(spec.rank + 1))
+                            masked_offset = tf.math.cumsum(
+                                x=num_valid, axis=spec.rank, exclusive=True
+                            )
+                            uniform = tf.random.uniform(shape=shape, dtype=float_dtype)
+                            num_valid = tf_util.cast(x=num_valid, dtype='float')
+                            random_offset = tf_util.cast(x=(uniform * num_valid), dtype='int')
+                            random_action = tf.gather(
+                                params=choices, indices=(masked_offset + random_offset)
+                            )
+                            is_random = tf.random.uniform(shape=shape, dtype=float_dtype)
+                            is_random = is_random < exploration
+                            return tf.where(condition=is_random, x=random_action, y=action)
+
+                    else:
+                        # Int action: if uniform[0, 1] < exploration, then uniform[num_values]
+
+                        def apply_exploration():
+                            shape = tf_util.cast(x=tf.shape(input=action), dtype='int')
+                            random_action = tf.random.uniform(
+                                shape=shape, maxval=spec.num_values, dtype=spec.tf_type()
+                            )
+                            is_random = tf.random.uniform(shape=shape, dtype=float_dtype)
+                            is_random = is_random < exploration
+                            return tf.where(condition=is_random, x=random_action, y=action)
+
+                else:
+                    # Int/float action: action + normal[0, exploration]
+
+                    def apply_exploration():
+                        shape = tf_util.cast(x=tf.shape(input=action), dtype='int')
+                        noise = tf.random.normal(shape=shape, dtype=spec.tf_type())
+                        x = action + noise * exploration
+
+                        # Clip action if left-/right-bounded
+                        if spec.min_value is not None:
+                            x = tf.math.maximum(x=x, y=spec.min_value)
+                        if spec.max_value is not None:
+                            x = tf.math.minimum(x=x, y=spec.max_value)
+                        return x
+
+                # if isinstance(self.exploration, dict):
+                # Per-action exploration
+                actions[name] = tf.cond(
+                    pred=tf.math.equal(x=exploration, y=zero_float),
+                    true_fn=(lambda: action), false_fn=apply_exploration
                 )
-            else:
-                internals['baseline'] = TensorDict()
 
-        return actions, internals
+                # else:
+                #     exploration_fns[name] = apply_exploration
 
-    @tf_function(num_args=6)
-    def core_observe(self, *, states, internals, auxiliaries, actions, terminal, reward):
+            # if not isinstance(self.exploration, dict):
+            #     # Global exploration
+
+            #     def apply_exploration():
+            #         for name in self.actions_spec:
+            #             actions[name] = exploration_fns[name]()
+            #         return actions
+
+            #     actions = tf.cond(
+            #         pred=tf.math.equal(x=exploration, y=zero_float),
+            #         true_fn=(lambda: actions), false_fn=apply_exploration
+            #     )
+
+        # Update states/internals/auxiliaries/actions buffers
+        if not independent:
+            assignments = list()
+            buffer_index = tf.gather(params=self.buffer_index, indices=parallel)
+            indices = tf.stack(values=(parallel, buffer_index), axis=1)
+            for name, buffer, state in self.states_buffer.zip_items(states):
+                assignments.append(buffer.scatter_nd_update(indices=indices, updates=state))
+            for name, buffer, internal in self.internals_buffer.zip_items(internals):  # not next_*
+                assignments.append(buffer.scatter_nd_update(indices=indices, updates=internal))
+            for name, buffer, auxiliary in self.auxiliaries_buffer.zip_items(auxiliaries):
+                assignments.append(buffer.scatter_nd_update(indices=indices, updates=auxiliary))
+            for name, buffer, action in self.actions_buffer.zip_items(actions):
+                assignments.append(buffer.scatter_nd_update(indices=indices, updates=action))
+
+            # Increment buffer index (after buffer assignments)
+            with tf.control_dependencies(control_inputs=assignments):
+                ones = tf.ones_like(input=parallel)
+                sparse_delta = tf.IndexedSlices(values=ones, indices=parallel)
+                dependencies.append(self.buffer_index.scatter_add(sparse_delta=sparse_delta))
+
+        with tf.control_dependencies(control_inputs=dependencies):
+            actions = actions.fmap(function=tf_util.identity)
+            next_internals = next_internals.fmap(function=tf_util.identity)
+            return actions, next_internals
+
+    @tf_function(num_args=3)
+    def core_observe(self, *, terminal, reward, parallel):
         zero = tf_util.constant(value=0, dtype='int')
         one = tf_util.constant(value=1, dtype='int')
+        buffer_index = tf.gather(params=self.buffer_index, indices=parallel)
 
-        # Experience
-        experienced = self.core_experience(
-            states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
-            terminal=terminal, reward=reward
+        # Assertion: size of terminal equals buffer index
+        assertion = tf.debugging.assert_equal(
+            x=tf_util.cast(x=tf.shape(input=terminal)[0], dtype='int'), y=buffer_index,
+            message="Agent.observe: number of observe-timesteps has to be equal to number of "
+                    "buffered act-timesteps."
         )
 
-        # If no periodic update
-        if self.update_frequency is None:
-            return tf.math.logical_and(x=experienced, y=tf_util.constant(value=False, dtype='bool'))
+        with tf.control_dependencies(control_inputs=(assertion,)):
+            # Values from buffers
+            function = (lambda x: x[parallel, :buffer_index])
+            states = self.states_buffer.fmap(function=function, cls=TensorDict)
+            internals = self.internals_buffer.fmap(function=function, cls=TensorDict)
+            auxiliaries = self.auxiliaries_buffer.fmap(function=function, cls=TensorDict)
+            actions = self.actions_buffer.fmap(function=function, cls=TensorDict)
 
-        # Periodic update
+            # Experience
+            experienced = self.core_experience(
+                states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
+                terminal=terminal, reward=reward
+            )
+
         with tf.control_dependencies(control_inputs=(experienced,)):
-            frequency = self.update_frequency.value()
-            start = self.update_start.value()
+            # Reset buffer index
+            sparse_delta = tf.IndexedSlices(values=zero, indices=parallel)
+            reset_buffer_index = self.buffer_index.scatter_update(sparse_delta=sparse_delta)
 
-            if self.update_unit == 'timesteps':
-                # Timestep-based batch
-                past_horizon = tf.math.maximum(
-                    x=self.policy.past_horizon(on_policy=False),
-                    y=self.baseline.past_horizon(on_policy=False)
-                )
-                future_horizon = self.estimator.future_horizon()
-                start = tf.math.maximum(
-                    x=start, y=(frequency + past_horizon + future_horizon + one)
-                )
-                buffer_observe = tf_util.constant(value=self.config.buffer_observe, dtype='int')
-                start = tf.math.maximum(x=start, y=buffer_observe)
-                unit = self.timesteps
+            if self.update_frequency is None:
+                updated = tf_util.constant(value=False, dtype='bool')
 
-            elif self.update_unit == 'episodes':
-                # Episode-based batch
-                start = tf.math.maximum(x=start, y=frequency)
-                unit = self.episodes
+            else:
+                # Periodic update
+                frequency = self.update_frequency.value()
+                start = self.update_start.value()
 
-            unit = unit - start
-            is_frequency = tf.math.equal(x=tf.math.mod(x=unit, y=frequency), y=zero)
-            is_frequency = tf.math.logical_and(x=is_frequency, y=(unit > self.last_update))
+                if self.update_unit == 'timesteps':
+                    # Timestep-based batch
+                    past_horizon = tf.math.maximum(
+                        x=self.policy.past_horizon(on_policy=False),
+                        y=self.baseline.past_horizon(on_policy=False)
+                    )
+                    future_horizon = self.estimator.future_horizon()
+                    start = tf.math.maximum(
+                        x=start, y=(frequency + past_horizon + future_horizon + one)
+                    )
+                    buffer_observe = tf_util.constant(value=self.config.buffer_observe, dtype='int')
+                    start = tf.math.maximum(x=start, y=buffer_observe)
+                    unit = self.timesteps
 
-            def perform_update():
-                assignment = self.last_update.assign(value=unit, read_value=False)
-                with tf.control_dependencies(control_inputs=(assignment,)):
-                    return self.core_update()
+                elif self.update_unit == 'episodes':
+                    # Episode-based batch
+                    start = tf.math.maximum(x=start, y=frequency)
+                    unit = self.episodes
 
-            def no_update():
-                return tf_util.constant(value=False, dtype='bool')
+                unit = unit - start
+                is_frequency = tf.math.equal(x=tf.math.mod(x=unit, y=frequency), y=zero)
+                is_frequency = tf.math.logical_and(x=is_frequency, y=(unit > self.last_update))
 
-            updated = tf.cond(pred=is_frequency, true_fn=perform_update, false_fn=no_update)
+                def perform_update():
+                    assignment = self.last_update.assign(value=unit, read_value=False)
+                    with tf.control_dependencies(control_inputs=(assignment,)):
+                        return self.core_update()
 
-        return updated
+                def no_update():
+                    return tf_util.constant(value=False, dtype='bool')
+
+                updated = tf.cond(pred=is_frequency, true_fn=perform_update, false_fn=no_update)
+
+        with tf.control_dependencies(control_inputs=(reset_buffer_index,)):
+            return tf_util.identity(input=updated)
 
     @tf_function(num_args=6)
     def core_experience(self, *, states, internals, auxiliaries, actions, terminal, reward):
@@ -843,13 +1186,13 @@ class TensorforceModel(Model):
             dependencies = (reward,)
 
         with tf.control_dependencies(control_inputs=dependencies):
-            if not self.advantage_in_loss:
-                # TODO: No separate method? estimator.advantage_in_loss now same function?
-                reward = self.estimator.advantage(
+            if self.estimator.estimate_advantage and not self.advantage_in_loss:
+                baseline_estimate = self.baseline.states_value(
                     states=baseline_states, horizons=baseline_horizons,
-                    internals=baseline_internals, auxiliaries=auxiliaries, reward=reward,
-                    baseline=self.baseline
+                    internals=baseline_internals, auxiliaries=auxiliaries, reduced=True,
+                    return_per_action=False
                 )
+                reward = reward - baseline_estimate
                 # reward = self.add_summary(
                 #     label=('advantage', 'rewards'), name='advantage', tensor=reward
                 # )
@@ -877,23 +1220,31 @@ class TensorforceModel(Model):
             auxiliaries=auxiliaries, actions=actions, reward=reward, reference=reference
         )
 
-        if self.advantage_in_loss:
+        if self.estimator.estimate_advantage and self.advantage_in_loss:
             variables = tuple(self.trainable_variables)
 
             def fn_loss(*, states, horizons, internals, auxiliaries, actions, reward, reference):
-                reward = self.estimator.advantage_in_loss(
-                    states=states, horizons=horizons, internals=internals['baseline'],
-                    auxiliaries=auxiliaries, reward=reward, baseline=self.baseline
+                past_horizon = self.baseline.past_horizon(on_policy=False)
+                # TODO: remove restriction
+                assertion = tf.debugging.assert_less_equal(
+                    x=horizons[:, 1], y=past_horizon,
+                    message="Baseline horizon cannot be greater than policy horizon."
                 )
-                # reward = self.add_summary(
-                #     label=('advantage', 'rewards'), name='advantage', tensor=reward
-                # )
-                if 'advantage' in self.preprocessing:
-                    # TODO: Can't require state, reset!
-                    reward = self.preprocessing['advantage'].apply(x=reward)
+                with tf.control_dependencies(control_inputs=(assertion,)):
+                    baseline_estimate = self.baseline.states_value(
+                        states=states, horizons=horizons, internals=internals['baseline'],
+                        auxiliaries=auxiliaries, reduced=True, return_per_action=False
+                    )
+                    reward = reward - baseline_estimate
                     # reward = self.add_summary(
-                    #     label=('advantage', 'rewards'), name='preprocessed-advantage', tensor=reward
+                    #     label=('advantage', 'rewards'), name='advantage', tensor=reward
                     # )
+                    if 'advantage' in self.preprocessing:
+                        # TODO: Can't require state, reset!
+                        reward = self.preprocessing['advantage'].apply(x=reward)
+                        # reward = self.add_summary(
+                        #     label=('advantage', 'rewards'), name='preprocessed-advantage', tensor=reward
+                        # )
                 return self.loss(
                     states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
                     actions=actions, reward=reward, reference=reference

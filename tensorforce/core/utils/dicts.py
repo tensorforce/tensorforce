@@ -21,6 +21,25 @@ import tensorflow as tf
 from tensorforce.core.utils import NestedDict
 
 
+class TrackableNestedDict(NestedDict, tf.python.training.tracking.tracking.AutoTrackable):
+
+    def __init__(self, arg=None, *, value_type=None, overwrite=None, **kwargs):
+        self._maybe_initialize_trackable()
+        super().__init__(arg=arg, value_type=value_type, overwrite=overwrite, **kwargs)
+
+    def __setattr__(self, name, value):
+        if name.startswith('_self_'):
+            super(NestedDict, self).__setattr__(name, value)
+        else:
+            super().__setattr__(name, value)
+
+    def __setitem__(self, key, value):
+        value = tf.python.training.tracking.data_structures.sticky_attribute_assignment(
+            trackable=self, value=value, name=key
+        )
+        super().__setitem__(key, value)
+
+
 class ArrayDict(NestedDict):
 
     def __init__(self, *args, **kwargs):
@@ -38,7 +57,7 @@ class ListDict(NestedDict):
         super().__init__(*args, value_type=list, overwrite=False, **kwargs)
 
 
-class ModuleDict(NestedDict):
+class ModuleDict(TrackableNestedDict):
 
     def __init__(self, *args, **kwargs):
         from tensorforce.core import Module
@@ -107,7 +126,7 @@ class TensorDict(NestedDict):
         return OrderedDict(((name, arg) for name, arg in super(NestedDict, self).items()))
 
 
-class VariableDict(NestedDict):
+class VariableDict(TrackableNestedDict):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, value_type=tf.Variable, overwrite=False, **kwargs)

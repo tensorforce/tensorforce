@@ -48,6 +48,9 @@ class Memory(Module):
                 horizon=TensorSpec(type='int', shape=()).signature(batched=False)
             )
 
+        elif function == 'reset':
+            return SignatureDict()
+
         elif function == 'retrieve':
             return SignatureDict(indices=TensorSpec(type='int', shape=()).signature(batched=True))
 

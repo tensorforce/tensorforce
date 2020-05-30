@@ -26,16 +26,11 @@ class ConstantModel(Model):
     """
 
     def __init__(
-        self, *,
-        # Model
-        states, actions, name, device, parallel_interactions, summarizer, config,
-        # ConstantModel
+        self, *, states, actions, name, device, parallel_interactions, summarizer, config,
         action_values
     ):
         super().__init__(
-            # Model
-            states=states, actions=actions, preprocessing=None, exploration=0.0, variable_noise=0.0,
-            l2_regularization=0.0, name=name, device=None,
+            states=states, actions=actions, l2_regularization=0.0, name=name, device=None,
             parallel_interactions=parallel_interactions, saver=None, summarizer=summarizer,
             config=config
         )
@@ -58,8 +53,8 @@ class ConstantModel(Model):
                     )
                 self.action_values[name] = value
 
-    @tf_function(num_args=3)
-    def core_act(self, *, states, internals, auxiliaries, deterministic):
+    @tf_function(num_args=4)
+    def core_act(self, *, states, internals, auxiliaries, parallel, independent):
         assert len(internals) == 0
 
         actions = TensorDict()
@@ -113,7 +108,3 @@ class ConstantModel(Model):
                 actions[name] = tf_util.zeros(shape=shape, dtype=spec.type)
 
         return actions, TensorDict()
-
-    @tf_function(num_args=6)
-    def core_observe(self, *, states, internals, auxiliaries, actions, terminal, reward):
-        return tf_util.constant(value=False, dtype='bool')

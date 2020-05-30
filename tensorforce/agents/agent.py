@@ -192,6 +192,7 @@ class Agent(object):
         else:
             agent.pop('internals', None)
             agent.pop('initial_internals', None)
+            saver_restore = False
             if 'saver' in agent and isinstance(agent['saver'], dict):
                 if not agent.get('load', True):
                     raise TensorforceError.value(
@@ -199,6 +200,7 @@ class Agent(object):
                     )
                 agent['saver'] = dict(agent['saver'])
                 agent['saver']['load'] = True
+                saver_restore = True
             elif 'saver' in kwargs and isinstance(kwargs['saver'], dict):
                 if not kwargs.get('load', True):
                     raise TensorforceError.value(
@@ -206,8 +208,10 @@ class Agent(object):
                     )
                 kwargs['saver'] = dict(kwargs['saver'])
                 kwargs['saver']['load'] = True
+                saver_restore = True
             agent = Agent.create(agent=agent, environment=environment, **kwargs)
-            agent.restore(directory=directory, filename=filename, format=format)
+            if not saver_restore:
+                agent.restore(directory=directory, filename=filename, format=format)
 
         return agent
 
@@ -280,7 +284,7 @@ class Agent(object):
 
     def initialize(self):
         """
-        Initializes the agent, usually done as part of Agent.create() / Agent.load().
+        Initializes the agent. Automatically triggered as part of Agent.create/load.
         """
         # Check whether already initialized
         if self.is_initialized:
@@ -295,7 +299,7 @@ class Agent(object):
         self.model.initialize()
 
         # Value space specifications
-        self.states_spec = self.model.unprocessed_states_spec
+        self.states_spec = self.model.states_spec
         self.internals_spec = self.model.internals_spec
         self.auxiliaries_spec = self.model.auxiliaries_spec
         self.actions_spec = self.model.actions_spec
@@ -381,7 +385,8 @@ class Agent(object):
 
     def reset(self):
         """
-        Resets all agent buffers and discards unfinished episodes.
+        Resets possibly inconsistent internal values, for instance, after saving and restoring an
+        agent. Automatically triggered as part of Agent.create/load/initialize/restore.
         """
         # Reset parallel buffer indices
         self.buffer_indices = np.zeros(

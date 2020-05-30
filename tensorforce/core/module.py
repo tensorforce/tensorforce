@@ -110,9 +110,7 @@ def tf_function(*, num_args):
             return function_graphs[graph_params](*graph_args)
 
         # TensorFlow make_decorator
-        return tf.compat.v1.flags.tf_decorator.make_decorator(
-            target=function, decorator_func=decorated
-        )
+        return decorated
 
     return decorator
 
@@ -251,16 +249,19 @@ class Module(tf.Module):
             self.checkpoint = tf.train.Checkpoint(**{self.name: self})
         try:
             self.checkpoint.restore(save_path=os.path.join(directory, filename)).assert_consumed()
-            # expect_partial()
-            # assert_existing_objects_matched()
         except AssertionError as exc:
             # TODO: regex pattern for exception with repeatable list content and arbitrary numpy value
+            # if len(exc.args) != 1 or not exc.args[0].startswith(
+            #     "Some Python objects were not bound to checkpointed values, likely due to changes "
+            #     "in the Python program: [<tf.Variable 'save_counter:0' shape=() dtype=int64, "
+            #     "numpy=0>"
+            # ) or not exc.args[0].endswith(
+            #     "<tf.Variable 'save_counter:0' shape=() dtype=int64, numpy=0>]"
+            # ):
             if len(exc.args) != 1 or not exc.args[0].startswith(
                 "Some Python objects were not bound to checkpointed values, likely due to changes "
                 "in the Python program: [<tf.Variable 'save_counter:0' shape=() dtype=int64, "
-                "numpy=0>"
-            ) or not exc.args[0].endswith(
-                "<tf.Variable 'save_counter:0' shape=() dtype=int64, numpy=0>]"
+                "numpy=0>]"
             ):
                 raise exc
 
@@ -477,11 +478,11 @@ class Module(tf.Module):
             raise TensorforceError.value(name='variable', argument='initializer', value=initializer)
         elif isinstance(initializer, np.ndarray) and initializer.dtype != spec.np_type():
             raise TensorforceError.type(
-                name='variable', argument='initializer', dtype=type(initializer)
+                name='variable', argument='initializer', dtype=initializer.dtype
             )
         elif isinstance(initializer, tf.Tensor) and tf_util.dtype(x=initializer) != spec.tf_type():
             raise TensorforceError.type(
-                name='variable', argument='initializer', dtype=type(initializer)
+                name='variable', argument='initializer', dtype=tf_util.dtype(x=initializer)
             )
         # is_trainable
         if not isinstance(is_trainable, bool):

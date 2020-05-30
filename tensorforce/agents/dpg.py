@@ -96,11 +96,17 @@ class DeterministicPolicyGradient(TensorforceAgent):
             the critic loss
             (<span style="color:#00C000"><b>default</b></span>: 1.0).
 
+        l2_regularization (parameter, float >= 0.0): Scalar controlling L2 regularization
+            (<span style="color:#00C000"><b>default</b></span>:
+            0.0).
+        entropy_regularization (parameter, float >= 0.0): Scalar controlling entropy
+            regularization, to discourage the policy distribution being too "certain" / spiked
+            (<span style="color:#00C000"><b>default</b></span>: 0.0).
+
         preprocessing (dict[specification]): Preprocessing as layer or list of layers, see
-            [preprocessing](../modules/preprocessing.html), specified per state-type or -name, and
+            [preprocessing](../modules/preprocessing.html), specified per state-name or -type, and
             for reward/return/advantage
             (<span style="color:#00C000"><b>default</b></span>: none).
-
         exploration (parameter | dict[parameter], float >= 0.0): Exploration, global or per
             action-name or -type, defined as the probability for uniformly random output in case of
             `bool` and `int` actions, and the standard deviation of Gaussian noise added to every
@@ -108,13 +114,6 @@ class DeterministicPolicyGradient(TensorforceAgent):
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
         variable_noise (parameter, float >= 0.0): Standard deviation of Gaussian noise added to all
             trainable float variables (<span style="color:#00C000"><b>default</b></span>: 0.0).
-
-        l2_regularization (parameter, float >= 0.0): Scalar controlling L2 regularization
-            (<span style="color:#00C000"><b>default</b></span>:
-            0.0).
-        entropy_regularization (parameter, float >= 0.0): Scalar controlling entropy
-            regularization, to discourage the policy distribution being too "certain" / spiked
-            (<span style="color:#00C000"><b>default</b></span>: 0.0).
 
         name (string): Agent name, used e.g. for TensorFlow scopes and saver default filename
             (<span style="color:#00C000"><b>default</b></span>: "agent").

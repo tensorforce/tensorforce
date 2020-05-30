@@ -21,7 +21,7 @@ import os
 import matplotlib
 import numpy as np
 
-from tensorforce import Agent, Environment, Runner
+from tensorforce import Environment, Runner
 
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt

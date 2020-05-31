@@ -21,7 +21,6 @@ from tensorforce import TensorforceError
 DTYPE_MAPPING = dict(bool=tf.bool, int=tf.int64, float=tf.float32)
 
 
-
 def is_tensor(*, x):
     return isinstance(x, (tf.IndexedSlices, tf.Tensor, tf.Variable))
 
@@ -118,3 +117,15 @@ def cast(*, x, dtype):
 
 def always_true(*args, **kwargs):
     return constant(value=True, dtype='bool')
+
+
+def lift_indexedslices(binary_op, x, y):
+    if isinstance(x, tf.IndexedSlices):
+        assert isinstance(y, tf.IndexedSlices)
+        assertion = tf.debugging.assert_equal(x=x.indices, y=y.indices)
+        with tf.control_dependencies(control_inputs=(assertion,)):
+            return tf.IndexedSlices(
+                values=binary_op(x.values, y.values), indices=x.indices, dense_shape=x.dense_shape
+            )
+    else:
+        return binary_op(x, y)

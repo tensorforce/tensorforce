@@ -36,7 +36,7 @@ class DeterministicPolicyGradient(Objective):
     def loss(self, *, states, horizons, internals, auxiliaries, actions, reward, policy, reference):
         policy_actions = policy.act(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-            deterministic=True, return_internals=False
+            independent=True, return_internals=False
         )
 
         summed_actions = list()
@@ -69,7 +69,7 @@ class DeterministicPolicyGradient(Objective):
 
             actions = policy.act(
                 states=states, horizons=horizons, internals=policy_internals,
-                auxiliaries=auxiliaries, deterministic=True, return_internals=False
+                auxiliaries=auxiliaries, independent=True, return_internals=False
             )
             assert len(actions) == 1
             action = actions.value()

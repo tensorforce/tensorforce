@@ -13,7 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-import numpy as np
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
@@ -418,6 +417,14 @@ class TensorforceModel(Model):
     def core_initialize(self):
         super().core_initialize()
 
+        # Preprocessed episode reward
+        if 'reward' in self.preprocessing:
+            self.preprocessed_episode_reward = self.variable(
+                name='preprocessed-episode-reward',
+                spec=TensorSpec(type=self.reward_spec.type, shape=(self.parallel_interactions,)),
+                initializer='zeros', is_trainable=False, is_saved=False
+            )
+
         # Buffer index
         self.buffer_index = self.variable(
             name='buffer-index', spec=TensorSpec(type='int', shape=(self.parallel_interactions,)),
@@ -454,12 +461,16 @@ class TensorforceModel(Model):
 
         # Optimizer initialize given variables
         if self.advantage_in_loss:
-            self.optimizer.initialize_given_variables(variables=self.trainable_variables)
+            self.optimizer.initialize_given_variables(
+                variables=self.trainable_variables, register_summaries=True
+            )
         else:
-            self.optimizer.initialize_given_variables(variables=self.policy.trainable_variables)
+            self.optimizer.initialize_given_variables(
+                variables=self.policy.trainable_variables, register_summaries=True
+            )
         if self.baseline_optimizer is not None:
             self.baseline_optimizer.initialize_given_variables(
-                variables=self.baseline.trainable_variables
+                variables=self.baseline.trainable_variables, register_summaries=True
             )
 
         # Summaries
@@ -764,7 +775,7 @@ class TensorforceModel(Model):
             next_internals = TensorDict()
             actions, next_internals['policy'] = self.policy.act(
                 states=states, horizons=horizons, internals=internals['policy'],
-                auxiliaries=auxiliaries, deterministic=independent, return_internals=True
+                auxiliaries=auxiliaries, independent=independent, return_internals=True
             )
             dependencies.extend(actions.flatten())
 
@@ -772,9 +783,10 @@ class TensorforceModel(Model):
             if self.separate_baseline_policy:
                 if len(self.internals_spec['baseline']) > 0:
                     # TODO: Baseline policy network apply to retrieve next internals
+                    # TODO: Also important
                     _, next_internals['baseline'] = self.baseline.network.apply(
                         x=states, horizons=horizons, internals=internals['baseline'],
-                        return_internals=True
+                        independent=independent, return_internals=True
                     )
                 else:
                     next_internals['baseline'] = TensorDict()
@@ -955,6 +967,7 @@ class TensorforceModel(Model):
         zero = tf_util.constant(value=0, dtype='int')
         one = tf_util.constant(value=1, dtype='int')
         buffer_index = tf.gather(params=self.buffer_index, indices=parallel)
+        is_terminal = tf.concat(values=([zero], terminal), axis=0)[-1] > zero
 
         # Assertion: size of terminal equals buffer index
         assertion = tf.debugging.assert_equal(
@@ -964,6 +977,25 @@ class TensorforceModel(Model):
         )
 
         with tf.control_dependencies(control_inputs=(assertion,)):
+            dependencies = list()
+
+            # Reward preprocessing
+            if 'reward' in self.preprocessing:
+                reward = self.preprocessing['reward'].apply(x=reward)
+
+                # Preprocessed reward summary
+                if self.summary_labels == 'all' or 'reward' in self.summary_labels:
+                    with self.summarizer.as_default():
+                        x = tf.math.reduce_mean(input_tensor=reward)
+                        tf.summary.scalar(name='preprocessed-reward', data=x, step=self.timesteps)
+
+                # Update preprocessed episode reward
+                sum_reward = tf.math.reduce_sum(input_tensor=reward)
+                sparse_delta = tf.IndexedSlices(values=sum_reward, indices=parallel)
+                dependencies.append(
+                    self.preprocessed_episode_reward.scatter_add(sparse_delta=sparse_delta)
+                )
+
             # Values from buffers
             function = (lambda x: x[parallel, :buffer_index])
             states = self.states_buffer.fmap(function=function, cls=TensorDict)
@@ -980,7 +1012,7 @@ class TensorforceModel(Model):
         with tf.control_dependencies(control_inputs=(experienced,)):
             # Reset buffer index
             sparse_delta = tf.IndexedSlices(values=zero, indices=parallel)
-            reset_buffer_index = self.buffer_index.scatter_update(sparse_delta=sparse_delta)
+            dependencies.append(self.buffer_index.scatter_update(sparse_delta=sparse_delta))
 
             if self.update_frequency is None:
                 updated = tf_util.constant(value=False, dtype='bool')
@@ -1007,7 +1039,8 @@ class TensorforceModel(Model):
                 elif self.update_unit == 'episodes':
                     # Episode-based batch
                     start = tf.math.maximum(x=start, y=frequency)
-                    unit = self.episodes
+                    # (Episode counter is only incremented at the end of observe)
+                    unit = self.episodes + tf.where(condition=is_terminal, x=one, y=zero)
 
                 unit = unit - start
                 is_frequency = tf.math.equal(x=tf.math.mod(x=unit, y=frequency), y=zero)
@@ -1023,7 +1056,39 @@ class TensorforceModel(Model):
 
                 updated = tf.cond(pred=is_frequency, true_fn=perform_update, false_fn=no_update)
 
-        with tf.control_dependencies(control_inputs=(reset_buffer_index,)):
+            dependencies.append(updated)
+
+        # Handle terminal (after core observe and preprocessed episode reward)
+        with tf.control_dependencies(control_inputs=dependencies):
+
+            def fn_terminal():
+                operations = list()
+
+                # Preprocessed episode reward summaries (before preprocessed episode reward reset)
+                if 'reward' in self.preprocessing:
+                    if self.summary_labels == 'all' or 'reward' in self.summary_labels:
+                        with self.summarizer.as_default():
+                            x = tf.gather(params=self.preprocessed_episode_reward, indices=parallel)
+                            tf.summary.scalar(
+                                name='preprocessed-episode-reward', data=x, step=self.episodes
+                            )
+
+                    # Reset preprocessed episode reward
+                    zero_float = tf_util.constant(value=0.0, dtype='float')
+                    sparse_delta = tf.IndexedSlices(values=zero_float, indices=parallel)
+                    operations.append(
+                        self.preprocessed_episode_reward.scatter_update(sparse_delta=sparse_delta)
+                    )
+
+                # Reset preprocessors
+                for preprocessor in self.preprocessing.values():
+                    operations.append(preprocessor.reset())
+
+                return tf.group(*operations)
+
+            handle_terminal = tf.cond(pred=is_terminal, true_fn=fn_terminal, false_fn=tf.no_op)
+
+        with tf.control_dependencies(control_inputs=(handle_terminal,)):
             return tf_util.identity(input=updated)
 
     @tf_function(num_args=6)

@@ -55,6 +55,19 @@ class OptimizingStep(UpdateModifier):
             parameter=ls_parameter, unroll_loop=ls_unroll_loop
         )
 
+    def initialize_given_variables(self, *, variables, register_summaries):
+        super().initialize_given_variables(
+            variables=variables, register_summaries=register_summaries
+        )
+
+        values_spec = TensorsSpec((
+            (var.name, TensorSpec(type=tf_util.dtype(x=var), shape=tf_util.shape(x=var)))
+            for var in variables
+        ))
+        self.line_search.complete_initialize(
+            arguments_spec=self.arguments_spec, values_spec=values_spec
+        )
+
     @tf_function(num_args=1)
     def step(self, *, arguments, variables, fn_loss, **kwargs):
         # Negative value since line search maximizes
@@ -83,7 +96,8 @@ class OptimizingStep(UpdateModifier):
 
         with tf.control_dependencies(control_inputs=(loss_step,)):
 
-            def evaluate_step(deltas):
+            # TODO: should be moved to initialize_given_variables, but fn_loss...
+            def evaluate_step(arguments, deltas):
                 with tf.control_dependencies(control_inputs=list(deltas.values())):
                     assignments = list()
                     for variable, delta in zip(variables, deltas.values()):
@@ -92,15 +106,9 @@ class OptimizingStep(UpdateModifier):
                     # Negative value since line search maximizes.
                     return -fn_loss(**arguments.to_kwargs())
 
-            values_spec = TensorsSpec((
-                (var.name, TensorSpec(type=tf_util.dtype(x=var), shape=tf_util.shape(x=var)))
-                for var in variables
-            ))
-            self.line_search.prepare_solve_call(values_spec=values_spec)
-
             deltas = TensorDict(((var.name, delta) for var, delta in zip(variables, deltas)))
             deltas = self.line_search.solve(
-                x_init=deltas, base_value=loss_before, target_value=loss_step,
+                arguments=arguments, x_init=deltas, base_value=loss_before, target_value=loss_step,
                 estimated_improvement=estimated_improvement, fn_x=evaluate_step
             )
 

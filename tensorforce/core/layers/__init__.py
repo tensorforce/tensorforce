@@ -13,8 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce.core.layers.layer import Layer, Register, Retrieve, Reuse, TemporalLayer, \
-    TransformationBase
+from tensorforce.core.layers.layer import Layer, MultiInputLayer, Register, Retrieve, Reuse, \
+    StatefulLayer, TemporalLayer, TransformationBase
 
 # Require Layer
 from tensorforce.core.layers.convolution import Conv1d, Conv2d, Conv1dTranspose, Conv2dTranspose
@@ -49,7 +49,7 @@ __all__ = [
     'Activation', 'Block', 'Clipping', 'Conv1d', 'Conv2d', 'Conv1dTranspose', 'Conv2dTranspose',
     'Deltafier', 'Dense', 'Dropout', 'Embedding', 'ExponentialNormalization', 'Flatten',
     'Function', 'GRU', 'Image', 'InputGru', 'InputLstm', 'InputRnn', 'InstanceNormalization',
-    'Keras', 'Layer', 'layer_modules', 'Linear', 'Lstm', 'Pooling', 'Pool1d', 'Pool2d',
-    'PreprocessingLayer', 'Register', 'Reshape', 'Retrieve', 'Reuse', 'Rnn', 'Sequence',
-    'TemporalLayer', 'TransformationBase'
+    'Keras', 'Layer', 'layer_modules', 'Linear', 'Lstm', 'MultiInputLayer', 'Pooling', 'Pool1d',
+    'Pool2d', 'PreprocessingLayer', 'Register', 'Reshape', 'Retrieve', 'Reuse', 'Rnn', 'Sequence',
+    'StatefulLayer', 'TemporalLayer', 'TransformationBase'
 ]

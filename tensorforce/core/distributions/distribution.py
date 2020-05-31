@@ -65,6 +65,9 @@ class Distribution(Module):
                 action=self.action_spec.signature(batched=True)
             )
 
+        elif function == 'mode':
+            return SignatureDict(parameters=self.parameters_spec.signature(batched=True))
+
         elif function == 'parametrize':
             return SignatureDict(
                 x=self.input_spec.signature(batched=True),
@@ -85,6 +88,10 @@ class Distribution(Module):
 
     @tf_function(num_args=2)
     def parametrize(self, *, x, conditions):
+        raise NotImplementedError
+
+    @tf_function(num_args=1)
+    def mode(self, *, parameters):
         raise NotImplementedError
 
     @tf_function(num_args=2)

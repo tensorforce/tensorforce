@@ -20,7 +20,7 @@ import tensorflow as tf
 from tensorforce import TensorforceError, util
 import tensorforce.core
 from tensorforce.core import parameter_modules, TensorSpec, tf_function, tf_util
-from tensorforce.core.layers import Layer
+from tensorforce.core.layers import Layer, StatefulLayer
 
 
 class Activation(Layer):
@@ -153,7 +153,7 @@ class Block(Layer):
         return x
 
 
-class Dropout(Layer):
+class Dropout(StatefulLayer):
     """
     Dropout layer (specification key: `dropout`).
 
@@ -178,7 +178,10 @@ class Dropout(Layer):
         return TensorSpec(type='float', shape=None)
 
     @tf_function(num_args=1)
-    def apply(self, *, x):
+    def apply(self, *, x, independent):
+        if independent:
+            return x
+
         rate = self.rate.value()
 
         def no_dropout():
@@ -187,10 +190,9 @@ class Dropout(Layer):
         def apply_dropout():
             return tf.nn.dropout(x=x, rate=rate)
 
-        skip_dropout = tf.math.logical_not(x=self.global_tensor(name='deterministic'))
         zero = tf_util.constant(value=0.0, dtype='float')
-        skip_dropout = tf.math.logical_or(x=skip_dropout, y=tf.math.equal(x=rate, y=zero))
-        return self.cond(pred=skip_dropout, true_fn=no_dropout, false_fn=apply_dropout)
+        skip_dropout = tf.math.equal(x=rate, y=zero)
+        return tf.cond(pred=skip_dropout, true_fn=no_dropout, false_fn=apply_dropout)
 
 
 class Function(Layer):
@@ -221,7 +223,7 @@ class Function(Layer):
         else:
             self._output_spec = TensorSpec(**output_spec)
 
-    def unify(self, *, other):
+    def output_spec(self):
         if self._output_spec is None:
             return super().output_spec()
         else:

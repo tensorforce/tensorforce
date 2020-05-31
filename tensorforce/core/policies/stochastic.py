@@ -148,11 +148,16 @@ class Stochastic(Policy):
             return super().input_signature(function=function)
 
     @tf_function(num_args=4)
-    def act(self, *, states, horizons, internals, auxiliaries, deterministic, return_internals):
-        if deterministic:
-            zero = tf_util.constant(value=0.0, dtype='float')
-            temperatures = self.actions_spec.fmap(function=(lambda _: zero), cls=TensorDict)
-        elif isinstance(self.temperature, dict):
+    def act(self, *, states, horizons, internals, auxiliaries, independent, return_internals):
+        if independent:
+            return super().act(
+                states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+                independent=independent, return_internals=return_internals
+            )
+            # zero = tf_util.constant(value=0.0, dtype='float')
+            # temperatures = self.actions_spec.fmap(function=(lambda _: zero), cls=TensorDict)
+
+        if isinstance(self.temperature, dict):
             zero = tf_util.constant(value=0.0, dtype='float')
             temperatures = self.temperature.fmap(
                 function=(lambda temp: zero if temp is None else temp.value()), cls=TensorDict
@@ -163,7 +168,7 @@ class Stochastic(Policy):
 
         return self.sample_actions(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-            temperatures=temperatures, return_internals=return_internals
+            temperatures=temperatures, independent=independent, return_internals=return_internals
         )
 
     @tf_function(num_args=5)

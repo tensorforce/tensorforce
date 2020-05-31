@@ -13,8 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 
+import functools
+
 import tensorflow as tf
 
+from tensorforce import util
 from tensorforce.core import parameter_modules, TensorDict, TensorSpec, TensorsSpec, tf_function, \
     tf_util
 from tensorforce.core.optimizers import Optimizer
@@ -54,6 +57,19 @@ class NaturalGradient(Optimizer):
             max_iterations=cg_max_iterations, damping=cg_damping, unroll_loop=cg_unroll_loop
         )
 
+    def initialize_given_variables(self, *, variables, register_summaries):
+        super().initialize_given_variables(
+            variables=variables, register_summaries=register_summaries
+        )
+
+        values_spec = TensorsSpec((
+            (var.name, TensorSpec(type=tf_util.dtype(x=var), shape=tf_util.shape(x=var)))
+            for var in variables
+        ))
+        self.conjugate_gradient.complete_initialize(
+            arguments_spec=self.arguments_spec, values_spec=values_spec
+        )
+
     @tf_function(num_args=1)
     def step(self, *, arguments, variables, fn_loss, **kwargs):
         # Optimize: argmin(w) loss(w + delta) such that kldiv(P(w) || P(w + delta)) = learning_rate
@@ -63,9 +79,10 @@ class NaturalGradient(Optimizer):
         fn_kl_divergence = kwargs['fn_kl_divergence']
         return_estimated_improvement = kwargs.get('return_estimated_improvement', False)
 
+        # TODO: should be moved to initialize_given_variables, but fn_kl_divergence...
         # Calculates the product x * F of a given vector x with the fisher matrix F.
         # Incorporating the product prevents having to calculate the entire matrix explicitly.
-        def fisher_matrix_product(deltas):
+        def fisher_matrix_product(arguments, deltas):
             # Second-order gradients
             with tf.GradientTape(persistent=False, watch_accessed_variables=False) as tape1:
                 for variable in variables:
@@ -85,8 +102,9 @@ class NaturalGradient(Optimizer):
                 ]
 
                 # delta' * grad(kldiv)
+                multiply = functools.partial(tf_util.lift_indexedslices, tf.math.multiply)
                 delta_kldiv_grads = tf.math.add_n(inputs=[
-                    tf.math.reduce_sum(input_tensor=(delta * grad))
+                    tf.math.reduce_sum(input_tensor=multiply(delta, grad))
                     for delta, grad in zip(deltas.values(), kldiv_grads)
                 ])
 
@@ -113,19 +131,15 @@ class NaturalGradient(Optimizer):
         # Solve the following system for delta' via the conjugate gradient solver.
         # [delta' * F] * delta' = -grad(loss)
         # --> delta'  (= lambda * delta)
-        values_spec = TensorsSpec((
-            (var.name, TensorSpec(type=tf_util.dtype(x=var), shape=tf_util.shape(x=var)))
-            for var in variables
-        ))
-        self.conjugate_gradient.prepare_solve_call(values_spec=values_spec)
         deltas = self.conjugate_gradient.solve(
+            arguments=arguments,
             x_init=TensorDict(((var.name, tf.zeros_like(input=var)) for var in variables)),
             b=TensorDict(((var.name, -x) for var, x in zip(variables, loss_gradients))),
             fn_x=fisher_matrix_product
         )
 
         # delta' * F
-        delta_fisher_matrix_product = fisher_matrix_product(deltas=deltas)
+        delta_fisher_matrix_product = fisher_matrix_product(arguments=arguments, deltas=deltas)
 
         # c' = 0.5 * delta' * F * delta'  (= lambda * c)
         # TODO: Why constant and hence KL-divergence sometimes negative?
@@ -152,7 +166,7 @@ class NaturalGradient(Optimizer):
             # lambda = sqrt(c' / c)
             lagrange_multiplier = tf.math.sqrt(x=(constant / learning_rate))
 
-            # delta = delta' / lambda
+            # delta = delta' / lambda  (zero prevented via tf.cond pred below)
             estimated_deltas = deltas.fmap(function=(lambda delta: delta / lagrange_multiplier))
 
             # improvement = grad(loss) * delta  (= loss_new - loss_old)
@@ -176,6 +190,6 @@ class NaturalGradient(Optimizer):
                 else:
                     return estimated_deltas
 
-        # Natural gradient step only works if constant > 0
-        skip_step = constant > tf_util.constant(value=0.0, dtype='float')
+        # Natural gradient step only works if constant > 0  (epsilon to avoid zero division)
+        skip_step = constant < (tf_util.constant(value=util.epsilon, dtype='float') * learning_rate)
         return tf.cond(pred=skip_step, true_fn=no_step, false_fn=apply_step)

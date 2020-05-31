@@ -46,12 +46,10 @@ class Layer(Module):
         Layer.registered_layers[self.name] = self
 
         self.input_spec = self.default_input_spec()
+        if not isinstance(self.input_spec, TensorSpec):
+            raise TensorforceError.unexpected()
 
-        if self.input_spec is not None:
-            self.input_spec = self.input_spec.unify(other=input_spec)
-        else:
-            assert not input_spec.overwrite
-            self.input_spec = input_spec
+        self.input_spec = self.input_spec.unify(other=input_spec)
 
     def default_input_spec(self):
         return TensorSpec(type=None, shape=None, overwrite=True)
@@ -79,6 +77,56 @@ class Layer(Module):
         return x
 
 
+class MultiInputLayer(Layer):
+    """
+    Base class for multi-input layers.
+
+    Args:
+        tensors (iter[string]): Names of tensors to retrieve, either state names or previously
+            registered tensors
+            (<span style="color:#C00000"><b>required</b></span>).
+        l2_regularization (float >= 0.0): Scalar controlling L2 regularization
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): Layer name
+            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
+        input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
+    """
+
+    def __init__(self, *, tensors, l2_regularization=None, name=None, input_spec=None):
+        super(Layer, self).__init__(l2_regularization=l2_regularization, name=name)
+
+        Layer.registered_layers[self.name] = self
+
+        if not util.is_iterable(x=tensors):
+            raise TensorforceError.type(
+                name='MultiInputLayer', argument='tensors', dtype=type(tensors)
+            )
+        elif len(tensors) == 0:
+            raise TensorforceError.value(
+                name='MultiInputLayer', argument='tensors', value=tensors, hint='zero length'
+            )
+
+        self.tensors = tuple(tensors)
+
+        self.input_spec = self.default_input_spec()
+        if not isinstance(self.input_spec, TensorsSpec):
+            raise TensorforceError.unexpected()
+
+        self.input_spec = self.input_spec.unify(other=input_spec)
+
+    def default_input_spec(self):
+        return TensorsSpec(
+            ((tensor, TensorSpec(type=None, shape=None, overwrite=True)) for tensor in self.tensors)
+        )
+
+    def output_spec(self):
+        return TensorSpec(type=None, shape=None, overwrite=True)
+
+    @tf_function(num_args=1)
+    def apply(self, *, x):
+        raise NotImplementedError
+
+
 class Register(Layer):
     """
     Tensor retrieval layer, which is useful when defining more complex network architectures which
@@ -102,15 +150,15 @@ class Register(Layer):
         self.tensor = tensor
 
 
-class Retrieve(Layer):
+class Retrieve(MultiInputLayer):
     """
     Tensor retrieval layer, which is useful when defining more complex network architectures which
     do not follow the sequential layer-stack pattern, for instance, when handling multiple inputs
     (specification key: `retrieve`).
 
     Args:
-        tensors (iter[string]): Names of global tensors to retrieve, for instance, state names or
-            previously registered global tensor names
+        tensors (iter[string]): Names of tensors to retrieve, either state names or previously
+            registered tensors
             (<span style="color:#C00000"><b>required</b></span>).
         aggregation ('concat' | 'product' | 'stack' | 'sum'): Aggregation type in case of multiple
             tensors
@@ -123,32 +171,16 @@ class Retrieve(Layer):
     """
 
     def __init__(self, *, tensors, aggregation='concat', axis=0, name=None, input_spec=None):
-        super().__init__(name=name, input_spec=input_spec)
+        super().__init__(tensors=tensors, name=name, input_spec=input_spec)
 
-        if not util.is_iterable(x=tensors):
-            raise TensorforceError.type(name='retrieve', argument='tensors', dtype=type(tensors))
-        elif util.is_iterable(x=tensors):
-            if len(tensors) == 0:
-                raise TensorforceError.value(
-                    name='retrieve', argument='tensors', value=tensors, hint='zero length'
-                )
-            elif len(tensors) != len(input_spec):
-                raise TensorforceError.value(
-                    name='retrieve', argument='tensors', value=tensors,
-                    condition=('input-spec length ' + str(len(input_spec)))
-                )
         if aggregation not in ('concat', 'product', 'stack', 'sum'):
             raise TensorforceError.value(
                 name='retrieve', argument='aggregation', value=aggregation,
                 hint='not in {concat,product,stack,sum}'
             )
 
-        self.tensors = tuple(tensors)
         self.aggregation = aggregation
         self.axis = axis
-
-    def default_input_spec(self):
-        return None
 
     def output_spec(self):
         if len(self.tensors) == 1:
@@ -219,26 +251,26 @@ class Retrieve(Layer):
         if len(self.tensors) == 1:
             return x[self.tensors[0]]
 
-        tensors = list(x.values())
+        x = list(x.values())
 
         shape = self.output_spec().shape
-        for n, tensor in enumerate(tensors):
+        for n, tensor in enumerate(x):
             for axis in range(tf_util.rank(x=tensor), len(shape)):
                 tensor = tf.expand_dims(input=tensor, axis=axis)
-            tensors[n] = tensor
+            x[n] = tensor
 
         if self.aggregation == 'concat':
-            x = tf.concat(values=tensors, axis=(self.axis + 1))
+            x = tf.concat(values=x, axis=(self.axis + 1))
 
         elif self.aggregation == 'product':
-            x = tf.stack(values=tensors, axis=(self.axis + 1))
+            x = tf.stack(values=x, axis=(self.axis + 1))
             x = tf.reduce_prod(input_tensor=x, axis=(self.axis + 1))
 
         elif self.aggregation == 'stack':
-            x = tf.stack(values=tensors, axis=(self.axis + 1))
+            x = tf.stack(values=x, axis=(self.axis + 1))
 
         elif self.aggregation == 'sum':
-            x = tf.stack(values=tensors, axis=(self.axis + 1))
+            x = tf.stack(values=x, axis=(self.axis + 1))
             x = tf.reduce_sum(input_tensor=x, axis=(self.axis + 1))
 
         return x
@@ -287,86 +319,21 @@ class Reuse(Layer):
         return sorted(summaries)
 
 
-class TransformationBase(Layer):
+class StatefulLayer(Layer):  # TODO: WeaklyStatefulLayer ?
     """
-    Base class for transformation layers.
+    Base class for stateful layers, i.e. layers which update an internal state for on-policy calls.
 
     Args:
-        size (int >= 0): Layer output size, 0 implies additionally removing the axis
-            (<span style="color:#C00000"><b>required</b></span>).
-        bias (bool): Whether to add a trainable bias variable
-            (<span style="color:#00C000"><b>default</b></span>: false).
-        activation ('crelu' | 'elu' | 'leaky-relu' | 'none' | 'relu' | 'selu' | 'sigmoid' |
-            'softmax' | 'softplus' | 'softsign' | 'swish' | 'tanh'): Activation nonlinearity
-            (<span style="color:#00C000"><b>default</b></span>: none).
-        dropout (parameter, 0.0 <= float < 1.0): Dropout rate
-            (<span style="color:#00C000"><b>default</b></span>: 0.0).
-        vars_trainable (bool): Whether layer variables are trainable
-            (<span style="color:#00C000"><b>default</b></span>: true).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): Layer name
             (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
-        kwargs: Additional arguments for potential parent class.
     """
 
-    def __init__(
-        self, *, size, bias=False, activation=None, dropout=0.0, vars_trainable=True,
-        l2_regularization=None, name=None, input_spec=None, **kwargs
-    ):
-        super().__init__(
-            l2_regularization=l2_regularization, name=name, input_spec=input_spec, **kwargs
-        )
-
-        self.squeeze = (size == 0)
-        self.size = max(size, 1)
-        self.bias = bias
-
-        if activation is None:
-            self.activation = None
-        else:
-            self.activation = self.submodule(
-                name='activation', module='activation', modules=tensorforce.core.layer_modules,
-                nonlinearity=activation, input_spec=self.output_spec()
-            )
-
-        if dropout == 0.0:
-            self.dropout = None
-        else:
-            self.dropout = self.submodule(
-                name='dropout', module='dropout', modules=tensorforce.core.layer_modules,
-                rate=dropout, input_spec=self.output_spec()
-            )
-
-        self.vars_trainable = vars_trainable
-
-    def initialize(self):
-        super().initialize()
-
-        if self.bias:
-            self.bias = self.variable(
-                name='bias', spec=TensorSpec(type='float', shape=(self.size,)), initializer='zeros',
-                is_trainable=self.vars_trainable, is_saved=True
-            )
-        else:
-            self.bias = None
-
     @tf_function(num_args=1)
-    def apply(self, *, x):
-        if self.bias is not None:
-            x = tf.nn.bias_add(value=x, bias=self.bias)
-
-        if self.squeeze:
-            x = tf.squeeze(input=x, axis=-1)
-
-        if self.activation is not None:
-            x = self.activation.apply(x=x)
-
-        if self.dropout is not None:
-            x = self.dropout.apply(x=x)
-
-        return x
+    def apply(self, *, x, independent):
+        raise NotImplementedError
 
 
 class TemporalLayer(Layer):
@@ -570,3 +537,85 @@ class TemporalLayer(Layer):
     @tf_function(num_args=2)
     def iterative_step(self, *, x, internals):
         raise NotImplementedError
+
+
+class TransformationBase(Layer):
+    """
+    Base class for transformation layers.
+
+    Args:
+        size (int >= 0): Layer output size, 0 implies additionally removing the axis
+            (<span style="color:#C00000"><b>required</b></span>).
+        bias (bool): Whether to add a trainable bias variable
+            (<span style="color:#00C000"><b>default</b></span>: false).
+        activation ('crelu' | 'elu' | 'leaky-relu' | 'none' | 'relu' | 'selu' | 'sigmoid' |
+            'softmax' | 'softplus' | 'softsign' | 'swish' | 'tanh'): Activation nonlinearity
+            (<span style="color:#00C000"><b>default</b></span>: none).
+        dropout (parameter, 0.0 <= float < 1.0): Dropout rate
+            (<span style="color:#00C000"><b>default</b></span>: 0.0).
+        vars_trainable (bool): Whether layer variables are trainable
+            (<span style="color:#00C000"><b>default</b></span>: true).
+        l2_regularization (float >= 0.0): Scalar controlling L2 regularization
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): Layer name
+            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
+        input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
+        kwargs: Additional arguments for potential parent class.
+    """
+
+    def __init__(
+        self, *, size, bias=False, activation=None, dropout=0.0, vars_trainable=True,
+        l2_regularization=None, name=None, input_spec=None, **kwargs
+    ):
+        super().__init__(
+            l2_regularization=l2_regularization, name=name, input_spec=input_spec, **kwargs
+        )
+
+        self.squeeze = (size == 0)
+        self.size = max(size, 1)
+        self.bias = bias
+
+        if activation is None:
+            self.activation = None
+        else:
+            self.activation = self.submodule(
+                name='activation', module='activation', modules=tensorforce.core.layer_modules,
+                nonlinearity=activation, input_spec=self.output_spec()
+            )
+
+        if dropout == 0.0:
+            self.dropout = None
+        else:
+            self.dropout = self.submodule(
+                name='dropout', module='dropout', modules=tensorforce.core.layer_modules,
+                rate=dropout, input_spec=self.output_spec()
+            )
+
+        self.vars_trainable = vars_trainable
+
+    def initialize(self):
+        super().initialize()
+
+        if self.bias:
+            self.bias = self.variable(
+                name='bias', spec=TensorSpec(type='float', shape=(self.size,)), initializer='zeros',
+                is_trainable=self.vars_trainable, is_saved=True
+            )
+        else:
+            self.bias = None
+
+    @tf_function(num_args=1)
+    def apply(self, *, x):
+        if self.bias is not None:
+            x = tf.nn.bias_add(value=x, bias=self.bias)
+
+        if self.squeeze:
+            x = tf.squeeze(input=x, axis=-1)
+
+        if self.activation is not None:
+            x = self.activation.apply(x=x)
+
+        if self.dropout is not None:
+            x = self.dropout.apply(x=x)
+
+        return x

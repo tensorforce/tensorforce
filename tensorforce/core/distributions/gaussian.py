@@ -117,6 +117,18 @@ class Gaussian(Distribution):
 
         return TensorDict(mean=mean, stddev=stddev, log_stddev=log_stddev)
 
+    @tf_function(num_args=1)
+    def mode(self, *, parameters):
+        action = parameters['mean']
+
+        # Clip if bounded action
+        if self.action_spec.min_value is not None:
+            action = tf.maximum(x=self.action_spec.min_value, y=action)
+        if self.action_spec.max_value is not None:
+            action = tf.minimum(x=self.action_spec.max_value, y=action)
+
+        return action
+
     @tf_function(num_args=2)
     def sample(self, *, parameters, temperature):
         mean, stddev, log_stddev = parameters.get(('mean', 'stddev', 'log_stddev'))
@@ -159,7 +171,7 @@ class Gaussian(Distribution):
             if self.action_spec.max_value is not None:
                 action = tf.minimum(x=self.action_spec.max_value, y=action)
 
-        return action
+            return action
 
     @tf_function(num_args=2)
     def log_probability(self, *, parameters, action):

@@ -46,14 +46,16 @@ class Iterative(Solver):
                 dtype='int', min_value=0
             )
 
-    def prepare_solve_call(self, values_spec):
+    def complete_initialize(self, arguments_spec, values_spec):
+        self.arguments_spec = arguments_spec
         self.values_spec = values_spec
 
-    def solve(self, *, x_init, fn_x=None, **kwargs):
+    def solve(self, *, arguments, x_init, fn_x=None, **kwargs):
         """
         Iteratively solves an equation/optimization for $x$ involving an expression $f(x)$.
 
         Args:
+            arguments: ???
             x_init: Initial solution guess $x_0$.
             fn_x: A callable returning an expression $f(x)$ given $x$.
             **values: Additional solver-specific arguments.
@@ -65,7 +67,7 @@ class Iterative(Solver):
         signature = self.input_signature(function='step')
 
         # Initialization step
-        values = self.start(x_init=x_init, **kwargs)
+        values = self.start(arguments=arguments, x_init=x_init, **kwargs)
 
         # Iteration loop with termination condition
         if self.unroll_loop:
@@ -88,28 +90,28 @@ class Iterative(Solver):
             values = signature.args_to_kwargs(args=values)
             solution = self.end(**values.to_kwargs())
 
-        self.values_spec = None
-
         return solution
 
-    def start(self, *, x_init, **kwargs):
+    def start(self, *, arguments, x_init, **kwargs):
         """
         Initialization step preparing the arguments for the first iteration of the loop body.
 
         Args:
+            arguments: ???
             x_init: Initial solution guess $x_0$.
             *args: Additional solver-specific arguments.
 
         Returns:
             Initial arguments for step.
         """
-        return [x_init] + list(kwargs.values())
+        return (arguments, x_init) + tuple(kwargs.values())
 
-    def step(self, *, x, **kwargs):
+    def step(self, *, arguments, x, **kwargs):
         """
         Iteration loop body of the iterative solver.
 
         Args:
+            arguments: ???
             x: Current solution estimate.
             *args: Additional solver-specific arguments.
 
@@ -118,11 +120,12 @@ class Iterative(Solver):
         """
         raise NotImplementedError
 
-    def next_step(self, *, x, **kwargs):
+    def next_step(self, *, arguments, x, **kwargs):
         """
         Termination condition (default: max number of iterations).
 
         Args:
+            arguments: ???
             x: Current solution estimate.
             *args: Additional solver-specific arguments.
 
@@ -131,11 +134,12 @@ class Iterative(Solver):
         """
         return tf_util.constant(value=True, dtype='bool')
 
-    def end(self, *, x, **kwargs):
+    def end(self, *, arguments, x, **kwargs):
         """
         Termination step preparing the return value.
 
         Args:
+            arguments: ???
             x: Final solution estimate.
             *args: Additional solver-specific arguments.
 

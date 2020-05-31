@@ -130,8 +130,10 @@ class TFOptimizer(Optimizer):
         name = self.name[:self.name.index('_')] + '-update/unclipped-gradient-norm'
         self.register_summary(label='update-norm', name=name)
 
-    def initialize_given_variables(self, variables):
-        super().initialize_given_variables(variables=variables)
+    def initialize_given_variables(self, *, variables, register_summaries):
+        super().initialize_given_variables(
+            variables=variables, register_summaries=register_summaries
+        )
 
         self.optimizer._create_all_weights(var_list=variables)
 

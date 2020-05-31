@@ -17,6 +17,7 @@ import functools
 import importlib
 import json
 import os
+import re
 
 import numpy as np
 import tensorflow as tf
@@ -250,18 +251,12 @@ class Module(tf.Module):
         try:
             self.checkpoint.restore(save_path=os.path.join(directory, filename)).assert_consumed()
         except AssertionError as exc:
-            # TODO: regex pattern for exception with repeatable list content and arbitrary numpy value
-            # if len(exc.args) != 1 or not exc.args[0].startswith(
-            #     "Some Python objects were not bound to checkpointed values, likely due to changes "
-            #     "in the Python program: [<tf.Variable 'save_counter:0' shape=() dtype=int64, "
-            #     "numpy=0>"
-            # ) or not exc.args[0].endswith(
-            #     "<tf.Variable 'save_counter:0' shape=() dtype=int64, numpy=0>]"
-            # ):
-            if len(exc.args) != 1 or not exc.args[0].startswith(
-                "Some Python objects were not bound to checkpointed values, likely due to changes "
-                "in the Python program: [<tf.Variable 'save_counter:0' shape=() dtype=int64, "
-                "numpy=0>]"
+            if len(exc.args) != 1 or not re.match(
+                pattern=r"Some Python objects were not bound to checkpointed values, likely due to "
+                        r"changes in the Python program: \[<tf\.Variable 'save_counter:0' "
+                        r"shape=\(\) dtype=int64, numpy=[0-9]*>(, <tf\.Variable 'save_counter:0' "
+                        r"shape=\(\) dtype=int64, numpy=[0-9]*>)*\]",
+                string=exc.args[0]
             ):
                 raise exc
 

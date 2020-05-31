@@ -40,20 +40,26 @@ class Optimizer(Module):
         name = self.name[:self.name.index('_')] + '-update/norm'
         self.register_summary(label='update-norm', name=name)
 
-    def initialize_given_variables(self, variables):
+    def initialize_given_variables(self, *, variables, register_summaries):
         assert not self.root.is_initialized and not self.is_initialized_given_variables
-        self.is_initialized_given_variables = True
 
-        assert self.is_initialized
-        self.is_initialized = False
-        prefix = self.name[:self.name.index('_')] + '-updates/'
-        names = list()
-        for variable in variables:
-            assert variable.name.startswith(self.root.name + '/') and variable.name[-2:] == ':0'
-            names.append(prefix + variable.name[len(self.root.name) + 1: -2] + '-mean')
-            names.append(prefix + variable.name[len(self.root.name) + 1: -2] + '-variance')
-        self.register_summary(label='updates', name=names)
-        self.is_initialized = True
+        for module in self.this_submodules:
+            if isinstance(module, Optimizer):
+                module.initialize_given_variables(variables=variables, register_summaries=False)
+
+        if register_summaries:
+            assert self.is_initialized
+            self.is_initialized = False
+            prefix = self.name[:self.name.index('_')] + '-updates/'
+            names = list()
+            for variable in variables:
+                assert variable.name.startswith(self.root.name + '/') and variable.name[-2:] == ':0'
+                names.append(prefix + variable.name[len(self.root.name) + 1: -2] + '-mean')
+                names.append(prefix + variable.name[len(self.root.name) + 1: -2] + '-variance')
+            self.register_summary(label='updates', name=names)
+            self.is_initialized = True
+
+        self.is_initialized_given_variables = True
 
     def input_signature(self, *, function):
         if function == 'step' or function == 'update':

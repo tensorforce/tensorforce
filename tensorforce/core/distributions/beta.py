@@ -126,6 +126,17 @@ class Beta(Distribution):
 
         return TensorDict(alpha=alpha, beta=beta, alpha_beta=alpha_beta, log_norm=log_norm)
 
+    @tf_function(num_args=1)
+    def mode(self, *, parameters):
+        beta, alpha_beta = parameters.get(('beta', 'alpha_beta'))
+
+        action = beta / alpha_beta
+
+        min_value = tf_util.constant(value=self.action_spec.min_value, dtype='float')
+        max_value = tf_util.constant(value=self.action_spec.max_value, dtype='float')
+
+        return min_value + (max_value - min_value) * action
+
     @tf_function(num_args=2)
     def sample(self, *, parameters, temperature):
         alpha, beta, alpha_beta, log_norm = parameters.get(
@@ -173,13 +184,13 @@ class Beta(Distribution):
 
         sampled = beta_sample / tf.maximum(x=(alpha_sample + beta_sample), y=epsilon)
 
-        sampled = tf.where(condition=(temperature < epsilon), x=definite, y=sampled)
+        action = tf.where(condition=(temperature < epsilon), x=definite, y=sampled)
 
         min_value = tf_util.constant(value=self.action_spec.min_value, dtype='float')
         max_value = tf_util.constant(value=self.action_spec.max_value, dtype='float')
 
         with tf.control_dependencies(control_inputs=dependencies):
-            return min_value + (max_value - min_value) * sampled
+            return min_value + (max_value - min_value) * action
 
     @tf_function(num_args=2)
     def log_probability(self, *, parameters, action):

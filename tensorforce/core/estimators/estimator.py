@@ -578,7 +578,7 @@ class Estimator(Module):
         if self.estimate_action_values:
             actions = policy.act(
                 states=states, horizons=horizons, internals=policy_internals,
-                auxiliaries=auxiliaries, deterministic=True, return_internals=False
+                auxiliaries=auxiliaries, independent=True, return_internals=False
             )
             horizon_estimate = baseline.actions_value(
                 states=states, horizons=horizons, internals=baseline_internals,

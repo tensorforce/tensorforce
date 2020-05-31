@@ -19,7 +19,8 @@ import tensorflow as tf
 
 from tensorforce import TensorforceError
 from tensorforce.core import Module, SignatureDict, TensorSpec, TensorsSpec, tf_function, tf_util
-from tensorforce.core.layers import Layer, layer_modules, Register, Retrieve, TemporalLayer
+from tensorforce.core.layers import Layer, layer_modules, MultiInputLayer, Register, \
+    StatefulLayer, TemporalLayer
 from tensorforce.core.parameters import Parameter
 from tensorforce.core.utils import ArrayDict
 
@@ -74,7 +75,7 @@ class Network(Module):
         return tf_util.constant(value=0, dtype='int')
 
     @tf_function(num_args=3)
-    def apply(self, *, x, horizons, internals, return_internals):
+    def apply(self, *, x, horizons, internals, independent, return_internals):
         raise NotImplementedError
 
 
@@ -152,14 +153,14 @@ class LayerbasedNetwork(Network):
             pass
 
         elif kwargs.get('input_spec') is None:
-            if module_cls is Retrieve:
+            if issubclass(module_cls, MultiInputLayer):
                 if 'tensors' not in kwargs:
-                    raise TensorforceError.required(name='retrieve layer', argument='tensors')
+                    raise TensorforceError.required(name='MultiInputLayer', argument='tensors')
                 if tuple(kwargs['tensors']) not in self.registered_tensors_spec:
                     raise TensorforceError.exists_not(
                         name='registered tensor', value=kwargs['tensors']
                     )
-                kwargs['input_spec'] = self.registered_tensors_spec[kwargs['tensors']]
+                kwargs['input_spec'] = self.registered_tensors_spec[tuple(kwargs['tensors'])]
 
             elif self._output_spec is None:
                 raise TensorforceError.required(
@@ -170,8 +171,8 @@ class LayerbasedNetwork(Network):
             else:
                 kwargs['input_spec'] = self._output_spec
 
-        elif module_cls is Retrieve:
-            raise TensorforceError.invalid(name='retrieve layer', argument='input_spec')
+        elif issubclass(module_cls, MultiInputLayer):
+            raise TensorforceError.invalid(name='MultiInputLayer', argument='input_spec')
 
         layer = super().submodule(
             module=module_cls, modules=modules, default_module=default_module,
@@ -244,7 +245,7 @@ class LayeredNetwork(LayerbasedNetwork):
             yield self.submodule(name=name, module=spec)
 
     @tf_function(num_args=3)
-    def apply(self, *, x, horizons, internals, return_internals):
+    def apply(self, *, x, horizons, internals, independent, return_internals):
         registered_tensors = x.copy()
         x = x.value()
 
@@ -255,10 +256,13 @@ class LayeredNetwork(LayerbasedNetwork):
                 x = layer.apply(x=x)
                 registered_tensors[layer.tensor] = x
 
-            elif isinstance(layer, Retrieve):
+            elif isinstance(layer, MultiInputLayer):
                 if layer.tensors not in registered_tensors:
                     raise TensorforceError.exists_not(name='registered tensor', value=layer.tensors)
                 x = layer.apply(x=registered_tensors[layer.tensors])
+
+            elif isinstance(layer, StatefulLayer):
+                x = layer.apply(x=x, independent=independent)
 
             elif isinstance(layer, TemporalLayer):
                 x, internals[layer.name] = layer.apply(

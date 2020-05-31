@@ -145,6 +145,12 @@ class Categorical(Distribution):
             action_values=action_values
         )
 
+    @tf_function(num_args=1)
+    def mode(self, *, parameters):
+        action_values = parameters['action_values']
+
+        return tf.argmax(input=action_values, axis=-1)
+
     @tf_function(num_args=2)
     def sample(self, *, parameters, temperature):
         logits, probabilities, action_values = parameters.get(

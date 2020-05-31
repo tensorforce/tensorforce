@@ -31,7 +31,7 @@ class RandomModel(Model):
             config=config
         )
 
-    @tf_function(num_args=3)
+    @tf_function(num_args=4)
     def core_act(self, *, states, internals, auxiliaries, parallel, independent):
         assert len(internals) == 0
 

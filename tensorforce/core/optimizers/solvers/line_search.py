@@ -73,6 +73,7 @@ class LineSearch(Iterative):
     def input_signature(self, *, function):
         if function == 'end' or function == 'next_step' or function == 'step':
             return SignatureDict(
+                arguments=self.arguments_spec.signature(batched=True),
                 x=self.values_spec.signature(batched=False),
                 deltas=self.values_spec.signature(batched=False),
                 improvement=TensorSpec(type='float', shape=()).signature(batched=False),
@@ -83,6 +84,7 @@ class LineSearch(Iterative):
 
         elif function == 'solve' or function == 'start':
             return SignatureDict(
+                arguments=self.arguments_spec.signature(batched=True),
                 x_init=self.values_spec.signature(batched=False),
                 base_value=TensorSpec(type='float', shape=()).signature(batched=False),
                 target_value=TensorSpec(type='float', shape=()).signature(batched=False),
@@ -92,8 +94,8 @@ class LineSearch(Iterative):
         else:
             return super().input_signature(function=function)
 
-    @tf_function(num_args=4)
-    def solve(self, *, x_init, base_value, target_value, estimated_improvement, fn_x):
+    @tf_function(num_args=5)
+    def solve(self, *, arguments, x_init, base_value, target_value, estimated_improvement, fn_x):
         """
         Iteratively optimizes $f(x)$ for $x$ on the line between $x'$ and $x_0$.
 
@@ -108,12 +110,12 @@ class LineSearch(Iterative):
             A solution $x$ to the problem as given by the solver.
         """
         return super().solve(
-            x_init=x_init, base_value=base_value, target_value=target_value,
+            arguments=arguments, x_init=x_init, base_value=base_value, target_value=target_value,
             estimated_improvement=estimated_improvement, fn_x=fn_x
         )
 
-    @tf_function(num_args=4)
-    def start(self, *, x_init, base_value, target_value, estimated_improvement):
+    @tf_function(num_args=5)
+    def start(self, *, arguments, x_init, base_value, target_value, estimated_improvement):
         """
         Initialization step preparing the arguments for the first iteration of the loop body.
 
@@ -142,10 +144,11 @@ class LineSearch(Iterative):
             deltas = x_init.fmap(function=(lambda t: -t * parameter))
             additional = base_value
 
-        return x_init, deltas, improvement, last_improvement, estimated_improvement, additional
+        return arguments, x_init, deltas, improvement, last_improvement, estimated_improvement, \
+            additional
 
-    @tf_function(num_args=6)
-    def step(self, *, x, deltas, improvement, last_improvement, estimated, additional):
+    @tf_function(num_args=7)
+    def step(self, *, arguments, x, deltas, improvement, last_improvement, estimated, additional):
         """
         Iteration loop body of the line search algorithm.
 
@@ -173,21 +176,25 @@ class LineSearch(Iterative):
             next_deltas = deltas.fmap(function=(lambda delta: delta * parameter))
             next_estimated = estimated * parameter
 
-        target_value = self.fn_x(next_deltas)
+        target_value = self.fn_x(arguments, next_deltas)
 
         difference = target_value - base_value
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')
         next_improvement = difference / tf.math.maximum(x=next_estimated, y=epsilon)
 
+        arguments = self.arguments_spec.signature(batched=True).kwargs_to_args(kwargs=arguments)
         values_signature = self.values_spec.signature(batched=False)
         next_x = values_signature.kwargs_to_args(kwargs=next_x)
         next_deltas = values_signature.kwargs_to_args(kwargs=next_deltas)
         if isinstance(self.additional_signature, SignatureDict):
             additional = self.additional_signature.kwargs_to_args(kwargs=additional)
-        return next_x, next_deltas, next_improvement, improvement, next_estimated, additional
+        return arguments, next_x, next_deltas, next_improvement, improvement, next_estimated, \
+            additional
 
-    @tf_function(num_args=6)
-    def next_step(self, *, x, deltas, improvement, last_improvement, estimated, additional):
+    @tf_function(num_args=7)
+    def next_step(
+        self, *, arguments, x, deltas, improvement, last_improvement, estimated, additional
+    ):
         """
         Termination condition: max number of iterations, or no improvement for last step, or
         improvement less than acceptable ratio, or estimated value not positive.
@@ -209,8 +216,8 @@ class LineSearch(Iterative):
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')
         return tf.math.logical_and(x=next_step, y=(estimated > epsilon))
 
-    @tf_function(num_args=6)
-    def end(self, *, x, deltas, improvement, last_improvement, estimated, additional):
+    @tf_function(num_args=7)
+    def end(self, *, arguments, x, deltas, improvement, last_improvement, estimated, additional):
         """
         Termination step preparing the return value.
 
@@ -229,7 +236,7 @@ class LineSearch(Iterative):
             return x.fmap(function=(lambda t, delta: t + delta), zip_values=deltas)
 
         def undo_deltas():
-            value = self.fn_x(deltas.fmap(function=(lambda delta: -delta)))
+            value = self.fn_x(arguments, deltas.fmap(function=(lambda delta: -delta)))
             with tf.control_dependencies(control_inputs=(value,)):
                 return x.fmap(function=tf_util.identity)
 

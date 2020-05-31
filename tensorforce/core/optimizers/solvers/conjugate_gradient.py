@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
+import functools
+
 import tensorflow as tf
 
 from tensorforce import util
@@ -71,6 +73,7 @@ class ConjugateGradient(Iterative):
     def input_signature(self, *, function):
         if function == 'end' or function == 'next_step' or function == 'step':
             return SignatureDict(
+                arguments=self.arguments_spec.signature(batched=True),
                 x=self.values_spec.signature(batched=False),
                 conjugate=self.values_spec.signature(batched=False),
                 residual=self.values_spec.signature(batched=False),
@@ -79,6 +82,7 @@ class ConjugateGradient(Iterative):
 
         elif function == 'solve' or function == 'start':
             return SignatureDict(
+                arguments=self.arguments_spec.signature(batched=True),
                 x_init=self.values_spec.signature(batched=False),
                 b=self.values_spec.signature(batched=False)
             )
@@ -86,12 +90,13 @@ class ConjugateGradient(Iterative):
         else:
             return super().input_signature(function=function)
 
-    @tf_function(num_args=2)
-    def solve(self, *, x_init, b, fn_x):
+    @tf_function(num_args=3)
+    def solve(self, *, arguments, x_init, b, fn_x):
         """
         Iteratively solves the system of linear equations $A x = b$.
 
         Args:
+            arguments: ???
             x_init: Initial solution guess $x_0$, zero vector if None.
             b: The right-hand side $b$ of the system of linear equations.
             fn_x: A callable returning the left-hand side $A x$ of the system of linear equations.
@@ -99,14 +104,43 @@ class ConjugateGradient(Iterative):
         Returns:
             A solution $x$ to the problem as given by the solver.
         """
-        return super().solve(x_init=x_init, b=b, fn_x=fn_x)
+        return super().solve(arguments=arguments, x_init=x_init, b=b, fn_x=fn_x)
 
-    @tf_function(num_args=4)
-    def step(self, *, x, conjugate, residual, squared_residual):
+    @tf_function(num_args=3)
+    def start(self, *, arguments, x_init, b):
+        """
+        Initialization step preparing the arguments for the first iteration of the loop body:
+        $x_0, 0, p_0, r_0, r_0^2$.
+
+        Args:
+            arguments: ???
+            x_init: Initial solution guess $x_0$, zero vector if None.
+            b: The right-hand side $b$ of the system of linear equations.
+
+        Returns:
+            Initial arguments for step.
+        """
+        # r_0 := b - A * x_0
+        # c_0 := r_0
+        fx = self.fn_x(arguments, x_init)
+        subtract = functools.partial(tf_util.lift_indexedslices, tf.math.subtract)
+        conjugate = residual = b.fmap(function=subtract, zip_values=fx)
+
+        # r_0^2 := r^T * r
+        multiply = functools.partial(tf_util.lift_indexedslices, tf.math.multiply)
+        squared_residual = tf.math.add_n(inputs=[
+            tf.math.reduce_sum(input_tensor=multiply(res, res)) for res in residual.values()
+        ])
+
+        return arguments, x_init, conjugate, residual, squared_residual
+
+    @tf_function(num_args=5)
+    def step(self, *, arguments, x, conjugate, residual, squared_residual):
         """
         Iteration loop body of the conjugate gradient algorithm.
 
         Args:
+            arguments: ???
             x: Current solution estimate $x_t$.
             conjugate: Current conjugate $c_t$.
             residual: Current residual $r_t$.
@@ -117,7 +151,7 @@ class ConjugateGradient(Iterative):
         """
 
         # Ac := A * c_t
-        A_conjugate = self.fn_x(conjugate)
+        A_conjugate = self.fn_x(arguments, conjugate)
 
         # TODO: reference?
         damping = self.damping.value()
@@ -135,7 +169,9 @@ class ConjugateGradient(Iterative):
         A_conjugate = tf.cond(pred=skip_damping, true_fn=no_damping, false_fn=apply_damping)
 
         # cAc := c_t^T * Ac
-        conjugate_A_conjugate = conjugate.fmap(function=(lambda conj, A_conj: conj * A_conj))
+        conjugate_A_conjugate = conjugate.fmap(
+            function=(lambda conj, A_conj: conj * A_conj), zip_values=A_conjugate
+        )
         conjugate_A_conjugate = tf.math.add_n(inputs=[
             tf.math.reduce_sum(input_tensor=conj_A_conj)
             for conj_A_conj in conjugate_A_conjugate.values()
@@ -166,18 +202,20 @@ class ConjugateGradient(Iterative):
             function=(lambda res, conj: res + beta * conj), zip_values=conjugate
         )
 
+        arguments = self.arguments_spec.signature(batched=True).kwargs_to_args(kwargs=arguments)
         values_signature = self.values_spec.signature(batched=False)
         next_x = values_signature.kwargs_to_args(kwargs=next_x)
         next_conjugate = values_signature.kwargs_to_args(kwargs=next_conjugate)
         next_residual = values_signature.kwargs_to_args(kwargs=next_residual)
-        return next_x, next_conjugate, next_residual, next_squared_residual
+        return arguments, next_x, next_conjugate, next_residual, next_squared_residual
 
-    @tf_function(num_args=4)
-    def next_step(self, *, x, conjugate, residual, squared_residual):
+    @tf_function(num_args=5)
+    def next_step(self, *, arguments, x, conjugate, residual, squared_residual):
         """
         Termination condition: max number of iterations, or residual sufficiently small.
 
         Args:
+            arguments: ???
             x: Current solution estimate $x_t$.
             conjugate: Current conjugate $c_t$.
             residual: Current residual $r_t$.
@@ -189,32 +227,3 @@ class ConjugateGradient(Iterative):
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')
 
         return squared_residual >= epsilon
-
-    @tf_function(num_args=2)
-    def start(self, *, x_init, b):
-        """
-        Initialization step preparing the arguments for the first iteration of the loop body:  
-        $x_0, 0, p_0, r_0, r_0^2$.
-
-        Args:
-            x_init: Initial solution guess $x_0$, zero vector if None.
-            b: The right-hand side $b$ of the system of linear equations.
-
-        Returns:
-            Initial arguments for step.
-        """
-        if x_init is None:
-            # Initial guess is zero vector if not given.
-            x_init = b.fmap(function=tf.zeros_like)
-
-        # r_0 := b - A * x_0
-        # c_0 := r_0
-        fx = self.fn_x(x_init)
-        conjugate = residual = x_init.fmap(function=(lambda t, ft: t - ft), zip_values=fx)
-
-        # r_0^2 := r^T * r
-        squared_residual = tf.math.add_n(
-            inputs=[tf.math.reduce_sum(input_tensor=(res * res)) for res in residual.values()]
-        )
-
-        return x_init, conjugate, residual, squared_residual

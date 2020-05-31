@@ -264,14 +264,6 @@ class Model(Module):
             initializer='zeros', is_trainable=False, is_saved=False
         )
 
-        # Preprocessed episode reward
-        if 'reward' in self.preprocessing:
-            self.preprocessed_episode_reward = self.variable(
-                name='preprocessed-episode-reward',
-                spec=TensorSpec(type=self.reward_spec.type, shape=(self.parallel_interactions,)),
-                initializer='zeros', is_trainable=False, is_saved=False
-            )
-
         # Internals buffers
         def function(name, spec, initial):
             shape = (self.parallel_interactions,) + spec.shape
@@ -515,29 +507,14 @@ class Model(Module):
             sparse_delta = tf.IndexedSlices(values=sum_reward, indices=parallel)
             dependencies.append(self.episode_reward.scatter_add(sparse_delta=sparse_delta))
 
-        # Reward preprocessing (after episode_reward update)
-        if 'reward' in self.preprocessing:
-            with tf.control_dependencies(control_inputs=dependencies):
-                dependencies = list()
-                reward = self.preprocessing['reward'].apply(x=reward)
+            # Core observe (before terminal handling)
+            updated = self.core_observe(terminal=terminal, reward=reward, parallel=parallel)
+            dependencies.append(updated)
 
-                # Preprocessed reward summary
-                if self.summary_labels == 'all' or 'reward' in self.summary_labels:
-                    with self.summarizer.as_default():
-                        x = tf.math.reduce_mean(input_tensor=reward)
-                        tf.summary.scalar(name='preprocessed-reward', data=x, step=self.timesteps)
-
-                # Update preprocessed episode reward
-                sum_reward = tf.math.reduce_sum(input_tensor=reward, keepdims=True)
-                sparse_delta = tf.IndexedSlices(values=sum_reward, indices=parallel)
-                dependencies.append(
-                    self.preprocessed_episode_reward.scatter_add(sparse_delta=sparse_delta)
-                )
-
-        # Handle terminal (after preprocessed_episode_reward update)
+        # Handle terminal (after core observe and episode reward)
         with tf.control_dependencies(control_inputs=dependencies):
 
-            def fn_is_terminal():
+            def fn_terminal():
                 operations = list()
 
                 # Reset internals
@@ -556,37 +533,20 @@ class Model(Module):
                     with self.summarizer.as_default():
                         x = tf.gather(params=self.episode_reward, indices=parallel)
                         tf.summary.scalar(name='episode-reward', data=x, step=self.episodes)
-                        if 'reward' in self.preprocessing:
-                            x = tf.gather(params=self.preprocessed_episode_reward, indices=parallel)
-                            tf.summary.scalar(
-                                name='preprocessed-episode-reward', data=x, step=self.episodes
-                            )
 
                 # Reset episode reward
                 zero_float = tf_util.constant(value=0.0, dtype='float')
                 sparse_delta = tf.IndexedSlices(values=zero_float, indices=parallel)
                 operations.append(self.episode_reward.scatter_update(sparse_delta=sparse_delta))
-                if 'reward' in self.preprocessing:
-                    operations.append(
-                        self.preprocessed_episode_reward.scatter_update(sparse_delta=sparse_delta)
-                    )
 
                 # Increment episodes counter
                 operations.append(self.episodes.assign_add(delta=one, read_value=False))
 
-                # Reset preprocessors
-                for preprocessor in self.preprocessing.values():
-                    operations.append(preprocessor.reset())
-
                 return tf.group(*operations)
 
-            handle_terminal = tf.cond(pred=is_terminal, true_fn=fn_is_terminal, false_fn=tf.no_op)
+            handle_terminal = tf.cond(pred=is_terminal, true_fn=fn_terminal, false_fn=tf.no_op)
 
-        # Core observe (after terminal handling)
         with tf.control_dependencies(control_inputs=(handle_terminal,)):
-            updated = self.core_observe(terminal=terminal, reward=reward, parallel=parallel)
-
-        with tf.control_dependencies(control_inputs=(updated,)):
             episodes = tf_util.identity(input=self.episodes)
             updates = tf_util.identity(input=self.updates)
             return updated, episodes, updates

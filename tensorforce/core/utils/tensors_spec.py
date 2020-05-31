@@ -32,6 +32,13 @@ class TensorsSpec(NestedDict):
     def empty(self, *, batched):
         return self.fmap(function=(lambda spec: spec.empty(batched=batched)), cls=TensorDict)
 
+    def unify(self, *, other):
+        if set(self) != set(other):
+            raise TensorforceError.mismatch(
+                name='TensorsSpec.unify', argument='keys', value1=sorted(self), value2=sorted(other)
+            )
+        return self.fmap(function=(lambda x, y: x.unify(other=y)), zip_values=other)
+
     def tf_assert(self, *, x, batch_size=None, include_type_shape=False, message=None):
         if not isinstance(x, TensorDict):
             raise TensorforceError.type(name='TensorsSpec.tf_assert', argument='x', dtype=type(x))

@@ -81,7 +81,7 @@ class Policy(Module):
         raise NotImplementedError
 
     @tf_function(num_args=4)
-    def act(self, *, states, horizons, internals, auxiliaries, deterministic, return_internals):
+    def act(self, *, states, horizons, internals, auxiliaries, independent, return_internals):
         raise NotImplementedError
 
     @tf_function(num_args=1)

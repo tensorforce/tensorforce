@@ -17,10 +17,10 @@ import tensorflow as tf
 
 from tensorforce import util
 from tensorforce.core import parameter_modules, TensorSpec, tf_function, tf_util
-from tensorforce.core.layers import Layer
+from tensorforce.core.layers import Layer, StatefulLayer
 
 
-class ExponentialNormalization(Layer):
+class ExponentialNormalization(StatefulLayer):
     """
     Normalization layer based on the exponential moving average (specification key:
     `exponential_normalization`).
@@ -80,52 +80,49 @@ class ExponentialNormalization(Layer):
         )
 
     @tf_function(num_args=1)
-    def apply(self, *, x):
+    def apply(self, *, x, independent):
+        dependencies = list()
 
-        def no_update():
-            return self.moving_mean, self.moving_variance
+        if independent:
+            mean = self.moving_mean
+            variance = self.moving_variance
 
-        def apply_update():
+        else:
             one = tf_util.constant(value=1.0, dtype='float')
-            axes = tuple(1 + axis for axis in self.axes)
+            axes = (0,) + tuple(1 + axis for axis in self.axes)
 
             decay = self.decay.value()
             batch_size = tf_util.cast(x=tf.shape(input=x)[0], dtype='float')
             decay = tf.math.pow(x=decay, y=batch_size)
+            condition = tf.math.logical_or(
+                x=self.after_first_call, y=tf.math.equal(x=batch_size, y=0)
+            )
 
             mean = tf.math.reduce_mean(input_tensor=x, axis=axes, keepdims=True)
             mean = tf.where(
-                condition=self.after_first_call,
-                x=(decay * self.moving_mean + (one - decay) * mean), y=mean
+                condition=condition, x=(decay * self.moving_mean + (one - decay) * mean), y=mean
             )
 
             variance = tf.reduce_mean(
                 input_tensor=tf.math.squared_difference(x=x, y=mean), axis=axes, keepdims=True
             )
             variance = tf.where(
-                condition=self.after_first_call,
-                x=(decay * self.moving_variance + (one - decay) * variance), y=variance
+                condition=condition, x=(decay * self.moving_variance + (one - decay) * variance),
+                y=variance
             )
 
             with tf.control_dependencies(control_inputs=(mean, variance)):
-                assignment = self.after_first_call.assign(
-                    value=tf_util.constant(value=True, dtype='bool'), read_value=False
-                )
+                value = tf.math.logical_or(x=self.after_first_call, y=(batch_size > 0))
+                dependencies.append(self.after_first_call.assign(value=value, read_value=False))
 
-            with tf.control_dependencies(control_inputs=(assignment,)):
-                variance = self.moving_variance.assign(value=variance)
-                mean = self.moving_mean.assign(value=mean)
-
-            return mean, variance
-
-        skip_update = self.global_tensor(name='independent')
-
-        mean, variance = self.cond(pred=skip_update, true_fn=no_update, false_fn=apply_update)
+            mean = self.moving_mean.assign(value=mean)
+            variance = self.moving_variance.assign(value=variance)
 
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')
         reciprocal_stddev = tf.math.rsqrt(x=tf.maximum(x=variance, y=epsilon))
 
-        x = (x - tf.stop_gradient(input=mean)) * tf.stop_gradient(input=reciprocal_stddev)
+        with tf.control_dependencies(control_inputs=dependencies):
+            x = (x - tf.stop_gradient(input=mean)) * tf.stop_gradient(input=reciprocal_stddev)
 
         return x
 
@@ -156,7 +153,7 @@ class InstanceNormalization(Layer):
 
         if self.axes is None:
             mean, variance = tf.nn.moments(
-                x=x, axes=tuple(range(1, len(self.input_spec['shape']))), keepdims=True
+                x=x, axes=tuple(range(1, self.input_spec.rank)), keepdims=True
             )
         else:
             mean, variance = tf.nn.moments(

@@ -115,6 +115,12 @@ class Bernoulli(Distribution):
             states_value=states_value
         )
 
+    @tf_function(num_args=1)
+    def mode(self, *, parameters):
+        probability = parameters['probability']
+
+        return tf.greater_equal(x=probability, y=tf_util.constant(value=0.5, dtype='float'))
+
     @tf_function(num_args=2)
     def sample(self, *, parameters, temperature):
         true_logit, false_logit, probability = parameters.get(

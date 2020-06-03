@@ -157,5 +157,6 @@ class NaturalGradient(Optimizer):
                     return estimated_delta
 
         # Natural gradient step only works if constant > 0
-        skip_step = constant > tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
+        epsilon = tf.constant(value=util.epsilon, dtype=util.tf_dtype(dtype='float'))
+        skip_step = constant < (epsilon * learning_rate)
         return self.cond(pred=skip_step, true_fn=no_step, false_fn=apply_step)

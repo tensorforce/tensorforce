@@ -165,7 +165,7 @@ class DeterministicPolicyGradient(TensorforceAgent):
             optional "buckets", type "image" with optional "max_outputs"
             (<span style="color:#00C000"><b>default</b></span>: 3), or type "audio"
             (<span style="color:#00C000"><b>default</b></span>: no custom summaries).</li>
-            <li><b>labels</b> (<i>"all" | iter[string]</i>) &ndash; all excluding "*-histogram"
+            <li><b>labels</b> (<i>"all" | iter[string]</i>) &ndash; all excluding "\*-histogram"
             labels, or list of summaries to record, from the following labels
             (<span style="color:#00C000"><b>default</b></span>: only "graph"):</li>
             <li>"distributions" or "bernoulli", "categorical", "gaussian", "beta":

@@ -53,7 +53,7 @@ class Categorical(Distribution):
             parameters_spec=parameters_spec, conditions_spec=conditions_spec
         )
 
-        if self.root.config.enable_int_action_masking:
+        if self.config.enable_int_action_masking:
             self.conditions_spec['mask'] = TensorSpec(
                 type='bool', shape=(self.action_spec.shape + (self.action_spec.num_values,))
             )
@@ -128,7 +128,7 @@ class Categorical(Distribution):
             action_values -= tf.math.reduce_mean(input_tensor=action_values, axis=-1, keepdims=True)
 
         # Masking (TODO: before or after above?)
-        if self.root.config.enable_int_action_masking:
+        if self.config.enable_int_action_masking:
             min_float = tf.fill(
                 dims=tf.shape(input=action_values), value=tf_util.get_dtype(type='float').min
             )

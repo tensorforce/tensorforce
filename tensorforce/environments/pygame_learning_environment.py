@@ -93,11 +93,16 @@ class PyGameLearningEnvironment(Environment):
     def states(self):
         if self.has_game_state:
             return OrderedDict(
-                screen=dict(type='float', shape=(tuple(self.environment.getScreenDims()) + (3,))),
-                state=dict(type='float', shape=(tuple(self.environment.getGameStateDims) + (3,)))
+                screen=dict(
+                    type='float', shape=(tuple(self.environment.getScreenDims()) + (3,)),
+                    min_value=0.0, max_value=1.0
+                ), state=dict(type='float', shape=(tuple(self.environment.getGameStateDims) + (3,)))
             )
         else:
-            return dict(type='float', shape=(tuple(self.environment.getScreenDims()) + (3,)))
+            return dict(
+                type='float', shape=(tuple(self.environment.getScreenDims()) + (3,)),
+                min_value=0.0, max_value=1.0
+            )
 
     def actions(self):
         return dict(type='int', shape=(), num_values=len(self.available_actions))

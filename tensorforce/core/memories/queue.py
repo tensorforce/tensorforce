@@ -121,27 +121,28 @@ class Queue(Memory):
         corrected = tf.cond(pred=is_incorrect, true_fn=correct_terminal, false_fn=tf.no_op)
 
         with tf.control_dependencies(control_inputs=(corrected,)):
-            dependencies = list()
-            # general check: all terminal indices true
-            dependencies.append(tf.debugging.assert_equal(
-                x=tf.reduce_all(
-                    input_tensor=tf.gather(
-                        params=tf.math.greater(x=self.buffers['terminal'], y=zero),
-                        indices=self.terminal_indices[:self.episode_count + one]
-                    )
-                ),
-                y=tf_util.constant(value=True, dtype='bool'),
-                message="Memory consistency check."
-            ))
-            # general check: only terminal indices true
-            dependencies.append(tf.debugging.assert_equal(
-                x=tf.math.count_nonzero(
-                    input=self.buffers['terminal'], dtype=tf_util.get_dtype(type='int')
-                ),
-                y=(self.episode_count + one), message="Memory consistency check."
-            ))
+            assertions = [corrected]
+            if self.config.create_tf_assertions:
+                # general check: all terminal indices true
+                assertions.append(tf.debugging.assert_equal(
+                    x=tf.reduce_all(
+                        input_tensor=tf.gather(
+                            params=tf.math.greater(x=self.buffers['terminal'], y=zero),
+                            indices=self.terminal_indices[:self.episode_count + one]
+                        )
+                    ),
+                    y=tf_util.constant(value=True, dtype='bool'),
+                    message="Memory consistency check."
+                ))
+                # general check: only terminal indices true
+                assertions.append(tf.debugging.assert_equal(
+                    x=tf.math.count_nonzero(
+                        input=self.buffers['terminal'], dtype=tf_util.get_dtype(type='int')
+                    ),
+                    y=(self.episode_count + one), message="Memory consistency check."
+                ))
 
-        with tf.control_dependencies(control_inputs=dependencies):
+        with tf.control_dependencies(control_inputs=assertions):
             return one < zero
 
     @tf_function(num_args=6)
@@ -166,25 +167,26 @@ class Queue(Memory):
         corrected = tf.cond(pred=is_incorrect, true_fn=correct_terminal, false_fn=tf.no_op)
 
         # Assertions
-        with tf.control_dependencies(control_inputs=(corrected,)):
-            assertions = [
+        assertions = [corrected]
+        if self.config.create_tf_assertions:
+            with tf.control_dependencies(control_inputs=(corrected,)):
                 # check: number of timesteps fit into effectively available buffer
-                tf.debugging.assert_less_equal(
+                assertions.append(tf.debugging.assert_less_equal(
                     x=num_timesteps, y=capacity, message="Memory does not have enough capacity."
-                ),
+                ))
                 # at most one terminal
-                tf.debugging.assert_less_equal(
+                assertions.append(tf.debugging.assert_less_equal(
                     x=tf.math.count_nonzero(input=terminal, dtype=tf_util.get_dtype(type='int')),
                     y=one, message="Timesteps contain more than one terminal."
-                ),
+                ))
                 # if terminal, last timestep in batch
-                tf.debugging.assert_equal(
+                assertions.append(tf.debugging.assert_equal(
                     x=tf.math.reduce_any(input_tensor=tf.math.greater(x=terminal, y=zero)),
                     y=tf.math.greater(x=terminal[-1], y=zero),
                     message="Terminal is not the last timestep."
-                ),
+                ))
                 # general check: all terminal indices true
-                tf.debugging.assert_equal(
+                assertions.append(tf.debugging.assert_equal(
                     x=tf.reduce_all(
                         input_tensor=tf.gather(
                             params=tf.math.greater(x=self.buffers['terminal'], y=zero),
@@ -193,15 +195,14 @@ class Queue(Memory):
                     ),
                     y=tf_util.constant(value=True, dtype='bool'),
                     message="Memory consistency check."
-                ),
+                ))
                 # general check: only terminal indices true
-                tf.debugging.assert_equal(
+                assertions.append(tf.debugging.assert_equal(
                     x=tf.math.count_nonzero(
                         input=self.buffers['terminal'], dtype=tf_util.get_dtype(type='int')
                     ),
                     y=(self.episode_count + one), message="Memory consistency check."
-                )
-            ]
+                ))
 
         # Buffer indices to overwrite
         with tf.control_dependencies(control_inputs=assertions):
@@ -218,11 +219,13 @@ class Queue(Memory):
 
             # Shift remaining terminal indices accordingly
             index = self.episode_count + one
-            assertion = tf.debugging.assert_greater_equal(
-                x=index, y=num_episodes, message="Memory episode overwriting check."
-            )
+            assertions = list()
+            if self.config.create_tf_assertions:
+                assertions.append(tf.debugging.assert_greater_equal(
+                    x=index, y=num_episodes, message="Memory episode overwriting check."
+                ))
 
-        with tf.control_dependencies(control_inputs=(assertion,)):
+        with tf.control_dependencies(control_inputs=assertions):
             sparse_delta = tf.IndexedSlices(
                 values=self.terminal_indices[num_episodes: index],
                 indices=tf.range(index - num_episodes)
@@ -330,12 +333,14 @@ class Queue(Memory):
         mask = tf.reshape(tensor=mask, shape=(-1,))
         predecessor_indices = tf.boolean_mask(tensor=predecessor_indices, mask=mask, axis=0)
 
-        assertion = tf.debugging.assert_greater_equal(
-            x=tf.math.mod(x=(predecessor_indices - self.buffer_index), y=capacity), y=zero,
-            message="Predecessor check."
-        )
+        assertions = list()
+        if self.config.create_tf_assertions:
+            assertions.append(tf.debugging.assert_greater_equal(
+                x=tf.math.mod(x=(predecessor_indices - self.buffer_index), y=capacity), y=zero,
+                message="Predecessor check."
+            ))
 
-        with tf.control_dependencies(control_inputs=(assertion,)):
+        with tf.control_dependencies(control_inputs=assertions):
             function = (lambda buffer: tf.gather(params=buffer, indices=predecessor_indices))
             values = self.buffers[sequence_values].fmap(function=function, cls=TensorDict)
             sequence_values = tuple(values[name] for name in sequence_values)
@@ -396,12 +401,14 @@ class Queue(Memory):
         mask = tf.reshape(tensor=mask, shape=(-1,))
         successor_indices = tf.boolean_mask(tensor=successor_indices, mask=mask, axis=0)
 
-        assertion = tf.debugging.assert_greater_equal(
-            x=tf.math.mod(x=(self.buffer_index - one - successor_indices), y=capacity), y=zero,
-            message="Successor check."
-        )
+        assertions = list()
+        if self.config.create_tf_assertions:
+            assertions.append(tf.debugging.assert_greater_equal(
+                x=tf.math.mod(x=(self.buffer_index - one - successor_indices), y=capacity), y=zero,
+                message="Successor check."
+            ))
 
-        with tf.control_dependencies(control_inputs=(assertion,)):
+        with tf.control_dependencies(control_inputs=assertions):
             function = (lambda buffer: tf.gather(params=buffer, indices=successor_indices))
             values = self.buffers[sequence_values].fmap(function=function, cls=TensorDict)
             sequence_values = tuple(values[name] for name in sequence_values)

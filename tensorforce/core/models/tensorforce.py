@@ -489,6 +489,8 @@ class TensorforceModel(Model):
     def initialize_api(self):
         super().initialize_api()
 
+        if self.summary_labels == 'all' or 'graph' in self.summary_labels:
+            tf.summary.trace_on(graph=True, profiler=False)
         self.experience(
             states=self.states_spec.empty(batched=True),
             internals=self.internals_spec.empty(batched=True),
@@ -497,6 +499,8 @@ class TensorforceModel(Model):
             terminal=self.terminal_spec.empty(batched=True),
             reward=self.reward_spec.empty(batched=True)
         )
+        if self.summary_labels == 'all' or 'graph' in self.summary_labels:
+            tf.summary.trace_export(name='experience', step=self.timesteps, profiler_outdir=None)
         # TODO: Not possible as it tries to retrieve experiences from memory
         # self.update()
 
@@ -622,60 +626,62 @@ class TensorforceModel(Model):
         batch_size = tf_util.cast(x=tf.shape(input=terminal)[0], dtype='int')
 
         # Input assertions
-        assertions = self.states_spec.tf_assert(
-            x=states, batch_size=batch_size,
-            message='Agent.experience: invalid {issue} for {name} state input.'
-        )
-        assertions.extend(self.internals_spec.tf_assert(
-            x=internals, batch_size=batch_size,
-            message='Agent.experience: invalid {issue} for {name} internal input.'
-        ))
-        assertions.extend(self.auxiliaries_spec.tf_assert(
-            x=auxiliaries, batch_size=batch_size,
-            message='Agent.experience: invalid {issue} for {name} input.'
-        ))
-        assertions.extend(self.actions_spec.tf_assert(
-            x=actions, batch_size=batch_size,
-            message='Agent.experience: invalid {issue} for {name} action input.'
-        ))
-        assertions.extend(self.terminal_spec.tf_assert(
-            x=terminal, batch_size=batch_size,
-            message='Agent.experience: invalid {issue} for terminal input.'
-        ))
-        assertions.extend(self.reward_spec.tf_assert(
-            x=reward, batch_size=batch_size,
-            message='Agent.experience: invalid {issue} for reward input.'
-        ))
-        # Mask assertions
-        if self.config.enable_int_action_masking:
-            for name, spec in self.actions_spec.items():
-                if spec.type == 'int' and spec.num_values is not None:
-                    is_valid = tf.reduce_all(input_tensor=tf.gather(
-                        params=auxiliaries[name]['mask'],
-                        indices=tf.expand_dims(input=actions[name], axis=(spec.rank + 1)),
-                        batch_dims=(spec.rank + 1)
-                    ))
-                    assertions.append(tf.debugging.assert_equal(
-                        x=is_valid, y=true, message="Agent.experience: invalid action / mask."
-                    ))
-        # Assertion: buffer indices is zero
-        assertions.append(tf.debugging.assert_equal(
-            x=tf.math.reduce_sum(input_tensor=self.buffer_index, axis=0), y=zero,
-            message="Agent.experience: cannot be called mid-episode."
-        ))
-        # Assertion: at most one terminal
-        assertions.append(tf.debugging.assert_less_equal(
-            x=tf.math.count_nonzero(input=terminal, dtype=tf_util.get_dtype(type='int')),
-            y=tf_util.constant(value=1, dtype='int'),
-            message="Agent.experience: input contains more than one terminal."
-        ))
-        # Assertion: if terminal, last timestep in batch
-        assertions.append(tf.debugging.assert_equal(
-            x=tf.math.reduce_any(
-                input_tensor=tf.math.greater(x=tf.concat(values=([zero], terminal), axis=0), y=zero)
-            ), y=tf.math.greater(x=tf.concat(values=([zero], terminal), axis=0)[-1], y=zero),
-            message="Agent.experience: terminal is not the last input timestep."
-        ))
+        assertions = list()
+        if self.config.create_tf_assertions:
+            assertions.extend(self.states_spec.tf_assert(
+                x=states, batch_size=batch_size,
+                message='Agent.experience: invalid {issue} for {name} state input.'
+            ))
+            assertions.extend(self.internals_spec.tf_assert(
+                x=internals, batch_size=batch_size,
+                message='Agent.experience: invalid {issue} for {name} internal input.'
+            ))
+            assertions.extend(self.auxiliaries_spec.tf_assert(
+                x=auxiliaries, batch_size=batch_size,
+                message='Agent.experience: invalid {issue} for {name} input.'
+            ))
+            assertions.extend(self.actions_spec.tf_assert(
+                x=actions, batch_size=batch_size,
+                message='Agent.experience: invalid {issue} for {name} action input.'
+            ))
+            assertions.extend(self.terminal_spec.tf_assert(
+                x=terminal, batch_size=batch_size,
+                message='Agent.experience: invalid {issue} for terminal input.'
+            ))
+            assertions.extend(self.reward_spec.tf_assert(
+                x=reward, batch_size=batch_size,
+                message='Agent.experience: invalid {issue} for reward input.'
+            ))
+            # Mask assertions
+            if self.config.enable_int_action_masking:
+                for name, spec in self.actions_spec.items():
+                    if spec.type == 'int' and spec.num_values is not None:
+                        is_valid = tf.reduce_all(input_tensor=tf.gather(
+                            params=auxiliaries[name]['mask'],
+                            indices=tf.expand_dims(input=actions[name], axis=(spec.rank + 1)),
+                            batch_dims=(spec.rank + 1)
+                        ))
+                        assertions.append(tf.debugging.assert_equal(
+                            x=is_valid, y=true, message="Agent.experience: invalid action / mask."
+                        ))
+            # Assertion: buffer indices is zero
+            assertions.append(tf.debugging.assert_equal(
+                x=tf.math.reduce_sum(input_tensor=self.buffer_index, axis=0), y=zero,
+                message="Agent.experience: cannot be called mid-episode."
+            ))
+            # Assertion: at most one terminal
+            assertions.append(tf.debugging.assert_less_equal(
+                x=tf.math.count_nonzero(input=terminal, dtype=tf_util.get_dtype(type='int')),
+                y=tf_util.constant(value=1, dtype='int'),
+                message="Agent.experience: input contains more than one terminal."
+            ))
+            # Assertion: if terminal, last timestep in batch
+            assertions.append(tf.debugging.assert_equal(
+                x=tf.math.reduce_any(
+                    input_tensor=tf.math.greater(x=tf.concat(values=([zero], terminal), axis=0), y=zero)
+                ), y=tf.math.greater(x=tf.concat(values=([zero], terminal), axis=0)[-1], y=zero),
+                message="Agent.experience: terminal is not the last input timestep."
+            ))
 
         with tf.control_dependencies(control_inputs=assertions):
             # Preprocessing
@@ -712,19 +718,20 @@ class TensorforceModel(Model):
     def core_act(self, *, states, internals, auxiliaries, parallel, independent):
         zero = tf_util.constant(value=0, dtype='int')
         zero_float = tf_util.constant(value=0.0, dtype='float')
-        dependencies = list()
 
         # On-policy policy/baseline horizon (TODO: retrieve from buffer!)
-        past_horizon = tf.math.maximum(
-            x=self.policy.past_horizon(on_policy=True),
-            y=self.baseline.past_horizon(on_policy=True)
-        )
-        dependencies.append(tf.debugging.assert_equal(x=past_horizon, y=zero))
+        assertions = list()
+        if self.config.create_tf_assertions:
+            past_horizon = tf.math.maximum(
+                x=self.policy.past_horizon(on_policy=True),
+                y=self.baseline.past_horizon(on_policy=True)
+            )
+            assertions.append(tf.debugging.assert_equal(x=past_horizon, y=zero))
 
         # Variable noise
         if len(self.trainable_variables) > 0 and (
             (not independent and not self.variable_noise.is_constant(value=0.0)) or
-            (independent and self.config.apply_final_variable_noise and
+            (independent and self.config.always_apply_variable_noise and
                 self.variable_noise.final_value() != 0.0)
         ):
             if independent:
@@ -759,7 +766,7 @@ class TensorforceModel(Model):
         else:
             variable_noise_tensors = list()
 
-        with tf.control_dependencies(control_inputs=variable_noise_tensors):
+        with tf.control_dependencies(control_inputs=(variable_noise_tensors + assertions)):
             dependencies = list()
 
             # State preprocessing (after variable noise)
@@ -811,7 +818,7 @@ class TensorforceModel(Model):
         # Exploration
         if (not independent and (
             isinstance(self.exploration, dict) or not self.exploration.is_constant(value=0.0)
-        )) or (independent and self.config.apply_final_exploration and (
+        )) or (independent and self.config.always_apply_exploration and (
             isinstance(self.exploration, dict) or self.exploration.final_value() != 0.0
         )):
 
@@ -970,13 +977,15 @@ class TensorforceModel(Model):
         is_terminal = tf.concat(values=([zero], terminal), axis=0)[-1] > zero
 
         # Assertion: size of terminal equals buffer index
-        assertion = tf.debugging.assert_equal(
-            x=tf_util.cast(x=tf.shape(input=terminal)[0], dtype='int'), y=buffer_index,
-            message="Agent.observe: number of observe-timesteps has to be equal to number of "
-                    "buffered act-timesteps."
-        )
+        assertions = list()
+        if self.config.create_tf_assertions:
+            assertions.append(tf.debugging.assert_equal(
+                x=tf_util.cast(x=tf.shape(input=terminal)[0], dtype='int'), y=buffer_index,
+                message="Agent.observe: number of observe-timesteps has to be equal to number of "
+                        "buffered act-timesteps."
+            ))
 
-        with tf.control_dependencies(control_inputs=(assertion,)):
+        with tf.control_dependencies(control_inputs=assertions):
             dependencies = list()
 
             # Reward preprocessing
@@ -1155,11 +1164,13 @@ class TensorforceModel(Model):
         # Retrieve states and internals
         policy_horizon = self.policy.past_horizon(on_policy=True)
         if self.separate_baseline_policy and self.baseline_optimizer is None:
-            assertion = tf.debugging.assert_equal(
-                x=policy_horizon, y=self.baseline.past_horizon(on_policy=True),
-                message="Policy and baseline depend on a different number of previous states."
-            )
-            with tf.control_dependencies(control_inputs=(assertion,)):
+            assertions = list()
+            if self.config.create_tf_assertions:
+                assertions.append(tf.debugging.assert_equal(
+                    x=policy_horizon, y=self.baseline.past_horizon(on_policy=True),
+                    message="Policy and baseline depend on a different number of previous states."
+                ))
+            with tf.control_dependencies(control_inputs=assertions):
                 policy_horizons, (policy_states,), (policy_internals,) = self.memory.predecessors(
                     indices=indices, horizon=policy_horizon, sequence_values=('states',),
                     initial_values=('internals',)
@@ -1289,13 +1300,15 @@ class TensorforceModel(Model):
             variables = tuple(self.trainable_variables)
 
             def fn_loss(*, states, horizons, internals, auxiliaries, actions, reward, reference):
-                past_horizon = self.baseline.past_horizon(on_policy=False)
-                # TODO: remove restriction
-                assertion = tf.debugging.assert_less_equal(
-                    x=horizons[:, 1], y=past_horizon,
-                    message="Baseline horizon cannot be greater than policy horizon."
-                )
-                with tf.control_dependencies(control_inputs=(assertion,)):
+                assertions = list()
+                if self.config.create_tf_assertions:
+                    past_horizon = self.baseline.past_horizon(on_policy=False)
+                    # TODO: remove restriction
+                    assertions.append(tf.debugging.assert_less_equal(
+                        x=horizons[:, 1], y=past_horizon,
+                        message="Baseline horizon cannot be greater than policy horizon."
+                    ))
+                with tf.control_dependencies(control_inputs=assertions):
                     baseline_estimate = self.baseline.states_value(
                         states=states, horizons=horizons, internals=internals['baseline'],
                         auxiliaries=auxiliaries, reduced=True, return_per_action=False

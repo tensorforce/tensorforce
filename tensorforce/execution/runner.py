@@ -229,7 +229,17 @@ class Runner(object):
             callback_timestep_frequency (int): Timestep interval between callbacks
                 (<span style="color:#00C000"><b>default</b></span>: not specified).
             use_tqdm (bool): Whether to display a tqdm progress bar for the experiment run
-                (<span style="color:#00C000"><b>default</b></span>: display progress bar).
+                (<span style="color:#00C000"><b>default</b></span>: true), with the following
+                additional information (averaged over number of episodes given via mean_horizon):
+                <ul>
+                <li>reward &ndash; cumulative episode reward</li>
+                <li>ts/ep &ndash; timesteps per episode</li>
+                <li>sec/ep &ndash; seconds per episode</li>
+                <li>ms/ts &ndash; milliseconds per timestep</li>
+                <li>agent &ndash; percentage of time spent on agent computation</li>
+                <li>comm &ndash; if remote environment execution, percentage of time spent on
+                communication</li>
+                </ul>
             mean_horizon (int): Number of episodes progress bar values and evaluation score are
                 averaged over (<span style="color:#00C000"><b>default</b></span>: not averaged).
             evaluation (bool): Whether to run in evaluation mode, only valid if a single
@@ -376,6 +386,7 @@ class Runner(object):
                     if runner.is_environment_remote and len(runner.episode_env_seconds) > 0:
                         mean_env_sec = float(np.mean(runner.episode_env_seconds[-mean_horizon:]))
                         mean_rel_comm = (mean_agent_sec + mean_env_sec) * 100.0 / mean_sec_per_ep
+                        mean_rel_comm = 100.0 - mean_rel_comm
                         runner.tqdm.postfix[5] = mean_rel_comm
                     runner.tqdm.update(n=(runner.episodes - runner.tqdm_last_update))
                     runner.tqdm_last_update = runner.episodes

@@ -394,6 +394,7 @@ class TemporalLayer(Layer):
 
     def input_signature(self, *, function):
         if function == 'apply':
+            assert len(self.internals_spec) == 0 or self.temporal_processing == 'iterative'
             return SignatureDict(
                 x=self.input_spec.signature(batched=True),
                 horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
@@ -401,6 +402,7 @@ class TemporalLayer(Layer):
             )
 
         elif function == 'cumulative_apply':
+            assert self.temporal_processing == 'cumulative'
             cumulative_input_spec = self.input_spec.copy()
             cumulative_input_spec.shape = (None,) + cumulative_input_spec.shape
             return SignatureDict(
@@ -408,7 +410,8 @@ class TemporalLayer(Layer):
                 lengths=TensorSpec(type='int', shape=()).signature(batched=True)
             )
 
-        elif function == 'iterative_step':
+        elif function == 'iterative_apply':
+            assert self.temporal_processing == 'iterative'
             return SignatureDict(
                 x=self.input_spec.signature(batched=True),
                 internals=self.internals_spec.signature(batched=True)
@@ -474,7 +477,7 @@ class TemporalLayer(Layer):
             def body(indices, remaining, current_x, current_internals):
                 current_internals = internals_signature.args_to_kwargs(args=current_internals)
                 current_x = tf.gather(params=x, indices=indices)
-                next_x, next_internals = self.iterative_step(
+                next_x, next_internals = self.iterative_apply(
                     x=current_x, internals=current_internals
                 )
 
@@ -519,10 +522,14 @@ class TemporalLayer(Layer):
             )
             internals = internals_signature.args_to_kwargs(args=final_internals)
 
-        assertions = [
-            tf.debugging.assert_equal(x=final_indices, y=(tf.math.cumsum(x=lengths) - ones)),
-            tf.debugging.assert_equal(x=tf.math.reduce_sum(input_tensor=final_remaining), y=zero)
-        ]
+        assertions = list()
+        if self.config.create_tf_assertions:
+            assertions.append(tf.debugging.assert_equal(
+                x=final_indices, y=(tf.math.cumsum(x=lengths) - ones)
+            ))
+            assertions.append(tf.debugging.assert_equal(
+                x=tf.math.reduce_sum(input_tensor=final_remaining), y=zero
+            ))
 
         with tf.control_dependencies(control_inputs=assertions):
             if self.temporal_processing == 'cumulative':
@@ -535,7 +542,7 @@ class TemporalLayer(Layer):
         raise NotImplementedError
 
     @tf_function(num_args=2)
-    def iterative_step(self, *, x, internals):
+    def iterative_apply(self, *, x, internals):
         raise NotImplementedError
 
 

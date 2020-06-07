@@ -269,7 +269,7 @@ class ParametrizedDistributions(Stochastic, ActionValue):
 
             embedding = self.network.apply(
                 x=states, horizons=horizons, internals=internals, independent=True,
-            return_internals=False
+                return_internals=False
             )
 
             return self.value.apply(x=embedding)

@@ -141,7 +141,7 @@ class Rnn(TemporalLayer, TransformationBase):
         return x, internals
 
     @tf_function(num_args=2)
-    def iterative_step(self, *, x, internals):
+    def iterative_apply(self, *, x, internals):
         x = tf_util.float32(x=x)
         state = tf_util.float32(x=internals['state'])
 

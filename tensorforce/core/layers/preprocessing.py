@@ -13,8 +13,10 @@
 # limitations under the License.
 # ==============================================================================
 
+import numpy as np
 import tensorflow as tf
 
+from tensorforce import TensorforceError
 from tensorforce.core import parameter_modules, SignatureDict, TensorSpec, tf_function, tf_util
 from tensorforce.core.layers import Layer
 
@@ -49,27 +51,30 @@ class Clipping(Layer):
     Clipping layer (specification key: `clipping`).
 
     Args:
-        upper (parameter, float): Upper clipping value
-            (<span style="color:#C00000"><b>required</b></span>).
         lower (parameter, float): Lower clipping value
-            (<span style="color:#00C000"><b>default</b></span>: negative upper value).
+            (<span style="color:#00C000"><b>default</b></span>: no lower bound).
+        upper (parameter, float): Upper clipping value
+            (<span style="color:#00C000"><b>default</b></span>: no upper bound).
         name (string): Layer name
             (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(self, *, upper, lower=None, name=None, input_spec=None):
+    def __init__(self, *, lower=None, upper=None, name=None, input_spec=None):
         super().__init__(name=name, input_spec=input_spec)
 
         if lower is None:
+            assert upper is not None
             self.lower = None
-            self.upper = self.submodule(
-                name='upper', module=upper, modules=parameter_modules, dtype='float', min_value=0.0
-            )
         else:
             self.lower = self.submodule(
                 name='lower', module=lower, modules=parameter_modules, dtype='float'
             )
+
+        if upper is None:
+            assert lower is not None
+            self.upper = None
+        else:
             self.upper = self.submodule(
                 name='upper', module=upper, modules=parameter_modules, dtype='float'
             )
@@ -79,18 +84,22 @@ class Clipping(Layer):
 
     @tf_function(num_args=1)
     def apply(self, *, x):
-        upper = self.upper.value()
         if self.lower is None:
-            lower = -upper
+            upper = self.upper.value()
+            return tf.math.minimum(x=x, y=upper)
+        elif self.upper is None:
+            lower = self.lower.value()
+            return tf.math.maximum(x=x, y=lower)
         else:
             lower = self.lower.value()
-
-        assertion = tf.debugging.assert_greater_equal(
-            x=upper, y=lower, message="Incompatible lower and upper clipping bound."
-        )
-
-        with tf.control_dependencies(control_inputs=(assertion,)):
-            return tf.clip_by_value(t=x, clip_value_min=lower, clip_value_max=upper)
+            upper = self.upper.value()
+            assertions = list()
+            if self.config.create_tf_assertions:
+                assertions.append(tf.debugging.assert_greater_equal(
+                    x=upper, y=lower, message="Incompatible lower and upper clipping bound."
+                ))
+            with tf.control_dependencies(control_inputs=assertions):
+                return tf.clip_by_value(t=x, clip_value_min=lower, clip_value_max=upper)
 
 
 class Deltafier(PreprocessingLayer):
@@ -145,10 +154,12 @@ class Deltafier(PreprocessingLayer):
 
     @tf_function(num_args=1)
     def apply(self, *, x):
-        assertion = tf.debugging.assert_less_equal(
-            x=tf.shape(input=x)[0], y=1,
-            message="Deltafier preprocessor currently not compatible with batched Agent.act."
-        )
+        assertions = list()
+        if self.config.create_tf_assertions:
+            assertions.append(tf.debugging.assert_less_equal(
+                x=tf.shape(input=x)[0], y=1,
+                message="Deltafier preprocessor currently not compatible with batched Agent.act."
+            ))
 
         # TODO: hack for empty batch (for self.previous.assign below)
         extended = tf.concat(values=(self.previous, x), axis=0)
@@ -163,7 +174,7 @@ class Deltafier(PreprocessingLayer):
         def later_delta():
             return x - extended[:-1]
 
-        with tf.control_dependencies(control_inputs=(assertion,)):
+        with tf.control_dependencies(control_inputs=assertions):
             empty_batch = tf.math.equal(x=tf.shape(input=x)[0], y=0)
             pred = tf.math.logical_or(x=self.has_previous, y=empty_batch)
             delta = tf.cond(pred=pred, true_fn=later_delta, false_fn=first_delta)
@@ -233,6 +244,48 @@ class Image(Layer):
             x = tf.image.rgb_to_grayscale(images=x)
 
         return x
+
+
+class LinearNormalization(Layer):
+    """
+    Linear normalization layer which scales and shifts the input to [-1.0, 1.0], for states with
+    min/max_value
+    (specification key: `linear_normalization`).
+
+    Args:
+        min_value (float | array[float]): Lower bound of the value
+        max_value (float | array[float]): Upper bound of the value range
+        name (string): Layer name
+            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
+        input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
+    """
+
+    def __init__(self, *, min_value, max_value, name=None, input_spec=None):
+        self.min_value = np.asarray(min_value)
+        self.max_value = np.asarray(max_value)
+        if (self.min_value >= self.max_value).any():
+            raise TensorforceError(
+                name='LinearNormalization', argument='min/max_value',
+                value=(self.min_value, self.max_value), hint='not less than'
+            )
+
+        super().__init__(name=name, input_spec=input_spec)
+
+    def default_input_spec(self):
+        return TensorSpec(
+            type='float', shape=None, min_value=self.min_value, max_value=self.max_value
+        )
+
+    @tf_function(num_args=1)
+    def apply(self, *, x):
+        is_inf = np.logical_or(np.isinf(self.min_value), np.isinf(self.max_value))
+        is_inf = tf_util.constant(value=is_inf, dtype='bool')
+        min_value = tf_util.constant(value=self.min_value, dtype='float')
+        max_value = tf_util.constant(value=self.max_value, dtype='float')
+
+        return tf.where(
+            condition=is_inf, x=x, y=(2.0 * (x - min_value) / (max_value - min_value) - 1.0)
+        )
 
 
 class Sequence(PreprocessingLayer):
@@ -305,10 +358,12 @@ class Sequence(PreprocessingLayer):
 
     @tf_function(num_args=1)
     def apply(self, *, x):
-        assertion = tf.debugging.assert_less_equal(
-            x=tf.shape(input=x)[0], y=1,
-            message="Sequence preprocessor currently not compatible with batched Agent.act."
-        )
+        assertions = list()
+        if self.config.create_tf_assertions:
+            assertions.append(tf.debugging.assert_less_equal(
+                x=tf.shape(input=x)[0], y=1,
+                message="Sequence preprocessor currently not compatible with batched Agent.act."
+            ))
 
         def first_timestep():
             assignment = self.has_previous.assign(
@@ -332,7 +387,7 @@ class Sequence(PreprocessingLayer):
                 current = tf.expand_dims(input=x, axis=(self.axis + 1))
             return tf.concat(values=(self.previous, current), axis=(self.axis + 1))
 
-        with tf.control_dependencies(control_inputs=(assertion,)):
+        with tf.control_dependencies(control_inputs=assertions):
             empty_batch = tf.math.equal(x=tf.shape(input=x)[0], y=0)
             pred = tf.math.logical_or(x=self.has_previous, y=empty_batch)
             xs = tf.cond(pred=pred, true_fn=other_timesteps, false_fn=first_timestep)

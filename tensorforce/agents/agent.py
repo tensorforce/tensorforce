@@ -408,14 +408,18 @@ class Agent(object):
     def initial_internals(self):
         """
         Returns the initial internal agent state(s), to be used at the beginning of an episode as
-        `internals` argument for `act(...)` in independent mode
+        `internals` argument for `act()` in independent mode
 
         Returns:
             dict[internal]: Dictionary containing initial internal agent state(s).
         """
         return self.model.internals_init.fmap(function=(lambda x: x), cls=OrderedDict)
 
-    def act(self, states, internals=None, parallel=0, independent=False):
+    def act(
+        self, states, internals=None, parallel=0, independent=False,
+        # Deprecated
+        deterministic=None, evaluation=None
+    ):
         """
         Returns action(s) for the given state(s), needs to be followed by `observe()` unless
         independent mode.
@@ -425,7 +429,7 @@ class Agent(object):
                 (<span style="color:#C00000"><b>required</b></span>).
             internals (dict[internal] | iter[dict[internal]]): Dictionary containing current
                 internal agent state(s), either given by `initial_internals()` at the beginning of
-                an episode or as return value of the preceding `act(...)` call
+                an episode or as return value of the preceding `act()` call
                 (<span style="color:#C00000"><b>required</b></span> if independent mode and agent
                 has internal states).
             parallel (int | iter[int]): Parallel execution index
@@ -439,6 +443,15 @@ class Agent(object):
             argument given: Dictionary containing action(s), dictionary containing next internal
             agent state(s) if independent mode.
         """
+        if independent is not None:
+            TensorforceError.deprecated(
+                name='Agent.act', argument='deterministic', replacement='independent'
+            )
+        if evaluation is not None:
+            TensorforceError.deprecated(
+                name='Agent.act', argument='evaluation', replacement='independent'
+            )
+
         # Independent and internals
         if independent:
             if parallel != 0:

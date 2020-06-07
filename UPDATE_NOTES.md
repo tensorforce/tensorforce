@@ -14,6 +14,7 @@ This file records all major updates and new features, starting from version 0.5.
 - Agent summarizer functionality changed: `summarizer` argument changed, some summary labels and other options removed
 - Default behavior when specifying `saver` is not to load agent, unless agent is created via `Agent.load`
 - Renamed PPO/TRPO argument: `critic_network/optimizer` to `baseline_network/optimizer`
+- Renamed PPO argument: `optimization_steps` to `multi_step`
 - Renamed RNN layers: `internal_{rnn/lstm/gru}` to `rnn/lstm/gru`, `rnn/lstm/gru` --> `input_{rnn/lstm/gru}`
 - Renamed reward estimation arguments: `estimate_terminal` to `estimate_terminals`, `estimate_actions` to `estimate_action_values`
 - Renamed `auto` network argument: `internal_rnn` to `rnn`

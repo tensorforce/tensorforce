@@ -185,3 +185,11 @@ class TensorforceError(Exception):
                         name=name, argument=argument, condition=condition, value=value, hint=hint
                     )
                 )
+
+    @staticmethod
+    def deprecated(name, argument, replacement):
+        return DeprecationWarning(
+            "Deprecated {name} argument {argument}, use {replacement} instead.".format(
+                name=name, argument=argument, replacement=replacement
+            )
+        )

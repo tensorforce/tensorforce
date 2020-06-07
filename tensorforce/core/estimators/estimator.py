@@ -199,23 +199,24 @@ class Estimator(Module):
         with tf.control_dependencies(control_inputs=values.flatten()):
             assignment = self.buffer_index.assign(value=zero, read_value=False)
 
-        with tf.control_dependencies(control_inputs=(assignment,)):
-            assertions = list()
-            # Check whether exactly one terminal (, unless empty?)
-            assertions.append(
-                tf.debugging.assert_equal(
-                    x=tf.math.count_nonzero(input=terminal, dtype=tf_util.get_dtype(type='int')),
-                    y=one, message="Timesteps do not contain exactly one terminal."
+        assertions = [assignment]
+        if self.config.create_tf_assertions:
+            with tf.control_dependencies(control_inputs=(assignment,)):
+                # Check whether exactly one terminal (, unless empty?)
+                assertions.append(
+                    tf.debugging.assert_equal(
+                        x=tf.math.count_nonzero(input=terminal, dtype=tf_util.get_dtype(type='int')),
+                        y=one, message="Timesteps do not contain exactly one terminal."
+                    )
                 )
-            )
-            # Check whether last value is terminal
-            assertions.append(
-                tf.debugging.assert_equal(
-                    x=tf.math.greater(x=terminal[-1], y=zero),
-                    y=tf_util.constant(value=True, dtype='bool'),
-                    message="Terminal is not the last timestep."
+                # Check whether last value is terminal
+                assertions.append(
+                    tf.debugging.assert_equal(
+                        x=tf.math.greater(x=terminal[-1], y=zero),
+                        y=tf_util.constant(value=True, dtype='bool'),
+                        message="Terminal is not the last timestep."
+                    )
                 )
-            )
 
         # Get number of values
         with tf.control_dependencies(control_inputs=assertions):
@@ -225,14 +226,16 @@ class Estimator(Module):
         if self.estimate_horizon == 'early' and baseline is not None:
             # Dependency horizon
             # TODO: remove restriction
-            past_horizon = baseline.past_horizon(on_policy=True)
-            assertion = tf.debugging.assert_equal(
-                x=past_horizon, y=zero,
-                message="Temporary: baseline cannot depend on previous states."
-            )
+            assertions = list()
+            if self.config.create_tf_assertions:
+                past_horizon = baseline.past_horizon(on_policy=True)
+                assertions.append(tf.debugging.assert_equal(
+                    x=past_horizon, y=zero,
+                    message="Temporary: baseline cannot depend on previous states."
+                ))
 
             # Baseline estimate
-            with tf.control_dependencies(control_inputs=(assertion,)):
+            with tf.control_dependencies(control_inputs=assertions):
                 horizon_start = num_values - tf.math.maximum(x=(num_values - horizon), y=one)
                 function = (lambda value: value[horizon_start:])
                 _states = TensorDict()
@@ -320,26 +323,27 @@ class Estimator(Module):
         discount = self.discount.value()
 
         assertions = list()
-        # Check whether horizon at most capacity
-        assertions.append(tf.debugging.assert_less_equal(
-            x=horizon, y=capacity,
-            message="Estimator capacity has to be at least the same as the estimation horizon."
-        ))
-        # Check whether at most one terminal
-        assertions.append(
-            tf.debugging.assert_less_equal(
-                x=tf.math.count_nonzero(input=terminal, dtype=tf_util.get_dtype(type='int')),
-                y=one, message="Timesteps contain more than one terminal."
+        if self.config.create_tf_assertions:
+            # Check whether horizon at most capacity
+            assertions.append(tf.debugging.assert_less_equal(
+                x=horizon, y=capacity,
+                message="Estimator capacity has to be at least the same as the estimation horizon."
+            ))
+            # Check whether at most one terminal
+            assertions.append(
+                tf.debugging.assert_less_equal(
+                    x=tf.math.count_nonzero(input=terminal, dtype=tf_util.get_dtype(type='int')),
+                    y=one, message="Timesteps contain more than one terminal."
+                )
             )
-        )
-        # Check whether, if any, last value is terminal
-        assertions.append(
-            tf.debugging.assert_equal(
-                x=tf.reduce_any(input_tensor=tf.math.greater(x=terminal, y=zero)),
-                y=tf.math.greater(x=tf.concat(values=([zero], terminal), axis=0)[-1], y=zero),
-                message="Terminal is not the last timestep."
+            # Check whether, if any, last value is terminal
+            assertions.append(
+                tf.debugging.assert_equal(
+                    x=tf.reduce_any(input_tensor=tf.math.greater(x=terminal, y=zero)),
+                    y=tf.math.greater(x=tf.concat(values=([zero], terminal), axis=0)[-1], y=zero),
+                    message="Terminal is not the last timestep."
+                )
             )
-        )
 
         # Get number of overwritten values
         with tf.control_dependencies(control_inputs=assertions):
@@ -384,12 +388,14 @@ class Estimator(Module):
 
                 # Dependency horizon
                 # TODO: remove restriction
-                past_horizon = baseline.past_horizon(on_policy=True)
-                assertion = tf.debugging.assert_equal(
-                    x=past_horizon, y=zero,
-                    message="Temporary: baseline cannot depend on previous states."
-                )
-                with tf.control_dependencies(control_inputs=(assertion,)):
+                assertions = list()
+                if self.config.create_tf_assertions:
+                    past_horizon = baseline.past_horizon(on_policy=True)
+                    assertions.append(tf.debugging.assert_equal(
+                        x=past_horizon, y=zero,
+                        message="Temporary: baseline cannot depend on previous states."
+                    ))
+                with tf.control_dependencies(control_inputs=assertions):
                     batch_size = tf_util.cast(x=tf.shape(input=_states.value())[0], dtype='int')
                     starts = tf.range(start=batch_size)
                     lengths = tf_util.ones(shape=(batch_size,), dtype='int')
@@ -425,16 +431,16 @@ class Estimator(Module):
                 cond=cond, body=body, loop_vars=(horizon_estimate, horizon)
             )
 
-            assertions = [
-                tf.debugging.assert_equal(
+            assertions = list()
+            if self.config.create_tf_assertions:
+                assertions.append(tf.debugging.assert_equal(
                     x=tf.shape(input=horizon_estimate), y=tf.shape(input=discounted_sum),
                     message="Estimation check."
-                ),
-                tf.debugging.assert_equal(
+                ))
+                assertions.append(tf.debugging.assert_equal(
                     x=tf_util.cast(x=tf.shape(input=rewards)[0], dtype='int'),
                     y=(horizon + num_overwritten), message="Estimation check."
-                )
-            ]
+                ))
 
             # Overwrite buffer rewards
             with tf.control_dependencies(control_inputs=assertions):
@@ -539,18 +545,20 @@ class Estimator(Module):
 
         else:
             baseline_horizon = baseline.past_horizon(on_policy=False)
-            # TODO: remove restriction
-            assertions = [tf.debugging.assert_less_equal(
-                x=baseline_horizon, y=(horizon + one),
-                message="Baseline horizon cannot be greater than reward estimation horizon."
-            )]
-            if self.estimate_action_values:
-                policy_horizon = policy.past_horizon(on_policy=False)
+            assertions = list()
+            if self.config.create_tf_assertions:
                 # TODO: remove restriction
-                assertions.append(tf.debugging.assert_equal(
-                    x=policy_horizon, y=baseline_horizon,
-                    message="Policy and baseline horizon have to be equal."
+                assertions.append(tf.debugging.assert_less_equal(
+                    x=baseline_horizon, y=(horizon + one),
+                    message="Baseline horizon cannot be greater than reward estimation horizon."
                 ))
+                if self.estimate_action_values:
+                    policy_horizon = policy.past_horizon(on_policy=False)
+                    # TODO: remove restriction
+                    assertions.append(tf.debugging.assert_equal(
+                        x=policy_horizon, y=baseline_horizon,
+                        message="Policy and baseline horizon have to be equal."
+                    ))
 
             with tf.control_dependencies(control_inputs=assertions):
                 if self.estimate_action_values and self.parent.separate_baseline_policy:
@@ -621,14 +629,16 @@ class Estimator(Module):
             return reward
 
         assert baseline is not None
-        past_horizon = baseline.past_horizon(on_policy=False)
-        # TODO: remove restriction
-        assertion = tf.debugging.assert_less_equal(
-            x=horizons[:, 1], y=past_horizon,
-            message="Baseline horizon cannot be greater than policy horizon."
-        )
+        assertions = list()
+        if self.config.create_tf_assertions:
+            past_horizon = baseline.past_horizon(on_policy=False)
+            # TODO: remove restriction
+            assertions.append(tf.debugging.assert_less_equal(
+                x=horizons[:, 1], y=past_horizon,
+                message="Baseline horizon cannot be greater than policy horizon."
+            ))
 
-        with tf.control_dependencies(control_inputs=(assertion,)):
+        with tf.control_dependencies(control_inputs=assertions):
             baseline_estimate = baseline.states_value(
                 states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
                 reduced=True, return_per_action=False

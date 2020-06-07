@@ -123,11 +123,17 @@ class ConjugateGradient(Iterative):
         # r_0 := b - A * x_0
         # c_0 := r_0
         fx = self.fn_x(arguments, x_init)
-        subtract = functools.partial(tf_util.lift_indexedslices, tf.math.subtract)
+        subtract = functools.partial(
+            tf_util.lift_indexedslices, tf.math.subtract,
+            with_assertions=self.config.create_tf_assertions
+        )
         conjugate = residual = b.fmap(function=subtract, zip_values=fx)
 
         # r_0^2 := r^T * r
-        multiply = functools.partial(tf_util.lift_indexedslices, tf.math.multiply)
+        multiply = functools.partial(
+            tf_util.lift_indexedslices, tf.math.multiply,
+            with_assertions=self.config.create_tf_assertions
+        )
         squared_residual = tf.math.add_n(inputs=[
             tf.math.reduce_sum(input_tensor=multiply(res, res)) for res in residual.values()
         ])

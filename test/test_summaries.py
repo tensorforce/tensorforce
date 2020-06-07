@@ -16,7 +16,6 @@
 import os
 import unittest
 
-import numpy as np
 import tensorflow as tf
 
 from test.unittest_base import UnittestBase
@@ -54,10 +53,7 @@ class TestSummaries(UnittestBase, unittest.TestCase):
 
         agent, environment = self.prepare(
             summarizer=dict(
-                directory=self.__class__.directory, labels=[
-                    'distribution', 'entropy', 'graph', 'kl-divergence', 'loss', 'parameters',
-                    'reward', 'update-norm', 'updates', 'variables'
-                ]
+                directory=self.__class__.directory, labels='all'
                 # custom=dict(
                 #     audio=dict(type='audio', sample_rate=44100, max_outputs=1),
                 #     histogram=dict(type='histogram'),
@@ -66,7 +62,8 @@ class TestSummaries(UnittestBase, unittest.TestCase):
                 # )
             ), reward_estimation=dict(horizon=horizon), baseline_policy=baseline_policy,
             baseline_objective=baseline_objective, baseline_optimizer=baseline_optimizer,
-            preprocessing=preprocessing, exploration=exploration
+            preprocessing=preprocessing, exploration=exploration,
+            config=dict(create_tf_assertions=False)
         )
 
         updates = 0
@@ -85,15 +82,15 @@ class TestSummaries(UnittestBase, unittest.TestCase):
         # agent.summarize(summary='scalar', value=2.0, step=1)
         agent.close()
         environment.close()
-        self.finished_test()
 
-        for directory in os.listdir(path=self.__class__.directory):
-            directory = os.path.join(self.__class__.directory, directory)
-            for filename in os.listdir(path=directory):
-                os.remove(path=os.path.join(directory, filename))
-                assert filename.startswith('events.out.tfevents.')
-                break
-            os.rmdir(path=directory)
-        os.rmdir(path=self.__class__.directory)
+        # for directory in os.listdir(path=self.__class__.directory):
+        #     directory = os.path.join(self.__class__.directory, directory)
+        #     for filename in os.listdir(path=directory):
+        #         os.remove(path=os.path.join(directory, filename))
+        #         assert filename.startswith('events.out.tfevents.')
+        #         break
+        #     os.rmdir(path=directory)
+        #     break
+        # os.rmdir(path=self.__class__.directory)
 
         self.finished_test()

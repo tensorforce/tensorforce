@@ -102,7 +102,10 @@ class NaturalGradient(Optimizer):
                 ]
 
                 # delta' * grad(kldiv)
-                multiply = functools.partial(tf_util.lift_indexedslices, tf.math.multiply)
+                multiply = functools.partial(
+                    tf_util.lift_indexedslices, tf.math.multiply,
+                    with_assertions=self.config.create_tf_assertions
+                )
                 delta_kldiv_grads = tf.math.add_n(inputs=[
                     tf.math.reduce_sum(input_tensor=multiply(delta, grad))
                     for delta, grad in zip(deltas.values(), kldiv_grads)

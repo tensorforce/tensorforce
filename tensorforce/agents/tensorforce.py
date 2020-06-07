@@ -37,7 +37,7 @@ class TensorforceAgent(Agent):
     Args:
         states (specification): States specification
             (<span style="color:#C00000"><b>required</b></span>, better implicitly specified via
-            `environment` argument for `Agent.create(...)`), arbitrarily nested dictionary of state
+            `environment` argument for `Agent.create()`), arbitrarily nested dictionary of state
             descriptions (usually taken from `Environment.states()`) with the following attributes:
             <ul>
             <li><b>type</b> (<i>"bool" | "int" | "float"</i>) &ndash; state data type
@@ -51,7 +51,7 @@ class TensorforceAgent(Agent):
             </ul>
         actions (specification): Actions specification
             (<span style="color:#C00000"><b>required</b></span>, better implicitly specified via
-            `environment` argument for `Agent.create(...)`), arbitrarily nested dictionary of
+            `environment` argument for `Agent.create()`), arbitrarily nested dictionary of
             action descriptions (usually taken from `Environment.actions()`) with the following
             attributes:
             <ul>
@@ -66,7 +66,7 @@ class TensorforceAgent(Agent):
             </ul>
         max_episode_timesteps (int > 0): Upper bound for numer of timesteps per episode
             (<span style="color:#00C000"><b>default</b></span>: not given, better implicitly
-            specified via `environment` argument for `Agent.create(...)`).
+            specified via `environment` argument for `Agent.create()`).
 
         policy (specification): Policy configuration, see [policies](../modules/policies.html)
             (<span style="color:#00C000"><b>default</b></span>: "default", action distributions
@@ -159,23 +159,35 @@ class TensorforceAgent(Agent):
         device (string): Device name
             (<span style="color:#00C000"><b>default</b></span>: TensorFlow default).
         parallel_interactions (int > 0): Maximum number of parallel interactions to support,
-            for instance, to enable multiple parallel episodes, environments or (centrally
-            controlled) agents within an environment
+            for instance, to enable multiple parallel episodes, environments or agents within an
+            environment
             (<span style="color:#00C000"><b>default</b></span>: 1).
         config (specification): Various additional configuration options:
             <ul>
-            <li><b>directory</b> (<i>int > 0</i>) &ndash; Maximum number of timesteps within an
-            episode to buffer before executing internal observe operations, to reduce calls to
-            TensorFlow for improved performance
-            (<span style="color:#00C000"><b>default</b></span>: simple rules to infer maximum number
-            which can be buffered without affecting performance).</li>
             <li><b>seed</b> (<i>int</i>) &ndash; Random seed to set for Python, NumPy (both set
             globally!) and TensorFlow, environment seed may have to be set separately for fully
             deterministic execution
             (<span style="color:#00C000"><b>default</b></span>: none).</li>
+            <li><b>buffer_observe</b> (<i>int > 0</i>) &ndash; Maximum number of timesteps within an
+            episode to buffer before executing internal observe operations, to reduce calls to
+            TensorFlow for improved performance
+            (<span style="color:#00C000"><b>default</b></span>: simple rules to infer maximum number
+            which can be buffered without affecting performance).</li>
+            <li><b>always_apply_exploration</b> (<i>bool</i>) &ndash; Whether to always apply
+            exploration, also for independent `act()` calls (final value in case of schedule)
+            (<span style="color:#00C000"><b>default</b></span>: false).</li>
+            <li><b>always_apply_variable_noise</b> (<i>bool</i>) &ndash; Whether to always apply
+            variable noise, also for independent `act()` calls (final value in case of schedule)
+            (<span style="color:#00C000"><b>default</b></span>: false).</li>
+            <li><b>enable_int_action_masking</b> (<i>bool</i>) &ndash; Whether int action options
+            can be masked via an optional "[ACTION-NAME]_mask" state input
+            (<span style="color:#00C000"><b>default</b></span>: true).</li>
+            <li><b>create_tf_assertions</b> (<i>bool</i>) &ndash; Whether to create internal
+            TensorFlow assertion operations
+            (<span style="color:#00C000"><b>default</b></span>: true).</li>
             </ul>
         saver (specification): TensorFlow checkpoint manager configuration for periodic implicit
-            saving, as alternative to explicit saving via agent.save(...), with the following
+            saving, as alternative to explicit saving via agent.save(), with the following
             attributes (<span style="color:#00C000"><b>default</b></span>: no saver):
             <ul>
             <li><b>directory</b> (<i>path</i>) &ndash; saver directory
@@ -213,8 +225,8 @@ class TensorforceAgent(Agent):
             algorithms)</li>
             <li>"loss": policy and baseline loss plus loss components (update-based)</li>
             <li>"parameters": parameter values (according to parameter unit)</li>
-            <li>"reward": timestep and episode reward, plus optionally additional
-            reward/return values (timestep/episode/update-based)</li>
+            <li>"reward": timestep and episode reward, plus intermediate reward/return estimates
+            (timestep/episode/update-based)</li>
             <li>"update-norm": global norm of update (update-based)</li>
             <li>"updates": mean and variance of update tensors per variable (update-based)</li>
             <li>"variables": mean of trainable variables tensors (update-based)</li>
@@ -250,8 +262,29 @@ class TensorforceAgent(Agent):
         exploration=0.0, variable_noise=0.0,
         # TensorFlow etc
         name='agent', device=None, parallel_interactions=1, config=None, saver=None,
-        summarizer=None, recorder=None
+        summarizer=None, recorder=None,
+        # Deprecated
+        buffer_observe=None, seed=None
     ):
+        if 'estimate_actions' in reward_estimation:
+            TensorforceError.deprecated(
+                name='Agent', argument='reward_estimation[estimate_actions]',
+                replacement='reward_estimation[estimate_action_values]'
+            )
+        if 'estimate_terminal' in reward_estimation:
+            TensorforceError.deprecated(
+                name='Agent', argument='reward_estimation[estimate_terminal]',
+                replacement='reward_estimation[estimate_terminals]'
+            )
+        if buffer_observe is not None:
+            TensorforceError.deprecated(
+                name='Agent', argument='buffer_observe', replacement='config[buffer_observe]'
+            )
+        if seed is not None:
+            TensorforceError.deprecated(
+                name='Agent', argument='seed', replacement='config[seed]'
+            )
+
         if not hasattr(self, 'spec'):
             self.spec = OrderedDict(
                 agent='tensorforce',

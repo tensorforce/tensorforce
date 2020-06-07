@@ -31,8 +31,8 @@ class Model(Module):
         self, *, states, actions, l2_regularization, name, device, parallel_interactions, config,
         saver, summarizer
     ):
-        # Tensorforce config (TODO: should be part of Module init?)
-        self.config = config
+        # Tensorforce config
+        self._config = config
 
         Module._MODULE_STACK.clear()
         Module._MODULE_STACK.append(self.__class__)
@@ -143,6 +143,10 @@ class Model(Module):
     def root(self):
         return self
 
+    @property
+    def config(self):
+        return self._config
+
     def close(self):
         if self.saver is not None:
             self.save()
@@ -230,7 +234,12 @@ class Model(Module):
                 )
 
         self.is_initialized = True
-        self.initialize_api()
+
+        if self.summarizer is None:
+            self.initialize_api()
+        else:
+            with self.summarizer.as_default():
+                self.initialize_api()
 
         if self.saver is not None:
             if load:
@@ -280,31 +289,33 @@ class Model(Module):
         )
 
     def initialize_api(self):
-        if self.summarizer is not None:
-            default_summarizer = self.summarizer.as_default()
-        else:
-            default_summarizer = util.NullContext()
-
-        with default_summarizer:
-            if self.summary_labels == 'all' or 'graph' in self.summary_labels:
-                tf.summary.trace_on(graph=True, profiler=False)
-            self.act(
-                states=self.states_spec.empty(batched=True),
-                auxiliaries=self.auxiliaries_spec.empty(batched=True),
-                parallel=self.parallel_spec.empty(batched=True)
+        if self.summary_labels == 'all' or 'graph' in self.summary_labels:
+            tf.summary.trace_on(graph=True, profiler=False)
+        self.act(
+            states=self.states_spec.empty(batched=True),
+            auxiliaries=self.auxiliaries_spec.empty(batched=True),
+            parallel=self.parallel_spec.empty(batched=True)
+        )
+        if self.summary_labels == 'all' or 'graph' in self.summary_labels:
+            tf.summary.trace_export(name='act', step=self.timesteps, profiler_outdir=None)
+            tf.summary.trace_on(graph=True, profiler=False)
+        self.independent_act(
+            states=self.states_spec.empty(batched=True),
+            internals=self.internals_spec.empty(batched=True),
+            auxiliaries=self.auxiliaries_spec.empty(batched=True)
+        )
+        if self.summary_labels == 'all' or 'graph' in self.summary_labels:
+            tf.summary.trace_export(
+                name='independent-act', step=self.timesteps, profiler_outdir=None
             )
-            self.independent_act(
-                states=self.states_spec.empty(batched=True),
-                internals=self.internals_spec.empty(batched=True),
-                auxiliaries=self.auxiliaries_spec.empty(batched=True)
-            )
-            self.observe(
-                terminal=self.terminal_spec.empty(batched=True),
-                reward=self.reward_spec.empty(batched=True),
-                parallel=self.parallel_spec.empty(batched=False)
-            )
-            if self.summary_labels == 'all' or 'graph' in self.summary_labels:
-                tf.summary.trace_export(name='graph', step=self.timesteps, profiler_outdir=None)
+            tf.summary.trace_on(graph=True, profiler=False)
+        self.observe(
+            terminal=self.terminal_spec.empty(batched=True),
+            reward=self.reward_spec.empty(batched=True),
+            parallel=self.parallel_spec.empty(batched=False)
+        )
+        if self.summary_labels == 'all' or 'graph' in self.summary_labels:
+            tf.summary.trace_export(name='observe', step=self.timesteps, profiler_outdir=None)
 
     def input_signature(self, *, function):
         if function == 'act':
@@ -362,30 +373,32 @@ class Model(Module):
         batch_size = tf_util.cast(x=tf.shape(input=states.value())[0], dtype='int')
 
         # Input assertions
-        dependencies = self.states_spec.tf_assert(
-            x=states, batch_size=batch_size,
-            message='Agent.independent_act: invalid {issue} for {name} state input.'
-        )
-        dependencies.extend(self.internals_spec.tf_assert(
-            x=internals, batch_size=batch_size,
-            message='Agent.independent_act: invalid {issue} for {name} internal input.'
-        ))
-        dependencies.extend(self.auxiliaries_spec.tf_assert(
-            x=auxiliaries, batch_size=batch_size,
-            message='Agent.independent_act: invalid {issue} for {name} input.'
-        ))
-        # Mask assertions
-        if self.config.enable_int_action_masking:
-            for name, spec in self.actions_spec.items():
-                if spec.type == 'int':
-                    dependencies.append(tf.debugging.assert_equal(
-                        x=tf.reduce_all(input_tensor=tf.math.reduce_any(
-                            input_tensor=auxiliaries[name]['mask'], axis=(spec.rank + 1)
-                        )), y=true,
-                        message="Agent.independent_act: at least one action has to be valid."
-                    ))
+        assertions = list()
+        if self.config.create_tf_assertions:
+            assertions.extend(self.states_spec.tf_assert(
+                x=states, batch_size=batch_size,
+                message='Agent.independent_act: invalid {issue} for {name} state input.'
+            ))
+            assertions.extend(self.internals_spec.tf_assert(
+                x=internals, batch_size=batch_size,
+                message='Agent.independent_act: invalid {issue} for {name} internal input.'
+            ))
+            assertions.extend(self.auxiliaries_spec.tf_assert(
+                x=auxiliaries, batch_size=batch_size,
+                message='Agent.independent_act: invalid {issue} for {name} input.'
+            ))
+            # Mask assertions
+            if self.config.enable_int_action_masking:
+                for name, spec in self.actions_spec.items():
+                    if spec.type == 'int':
+                        assertions.append(tf.debugging.assert_equal(
+                            x=tf.reduce_all(input_tensor=tf.math.reduce_any(
+                                input_tensor=auxiliaries[name]['mask'], axis=(spec.rank + 1)
+                            )), y=true,
+                            message="Agent.independent_act: at least one action has to be valid."
+                        ))
 
-        with tf.control_dependencies(control_inputs=dependencies):
+        with tf.control_dependencies(control_inputs=assertions):
             # Core act
             parallel = tf_util.zeros(shape=(1,), dtype='int')
             return self.core_act(
@@ -400,30 +413,32 @@ class Model(Module):
         batch_size = tf_util.cast(x=tf.shape(input=parallel)[0], dtype='int')
 
         # Input assertions
-        dependencies = self.states_spec.tf_assert(
-            x=states, batch_size=batch_size,
-            message='Agent.act: invalid {issue} for {name} state input.'
-        )
-        dependencies.extend(self.auxiliaries_spec.tf_assert(
-            x=auxiliaries, batch_size=batch_size,
-            message='Agent.act: invalid {issue} for {name} input.'
-        ))
-        dependencies.extend(self.parallel_spec.tf_assert(
-            x=parallel, batch_size=batch_size,
-            message='Agent.act: invalid {issue} for parallel input.'
-        ))
-        # Mask assertions
-        if self.config.enable_int_action_masking:
-            for name, spec in self.actions_spec.items():
-                if spec.type == 'int':
-                    dependencies.append(tf.debugging.assert_equal(
-                        x=tf.reduce_all(input_tensor=tf.math.reduce_any(
-                            input_tensor=auxiliaries[name]['mask'], axis=(spec.rank + 1)
-                        )), y=true,
-                        message="Agent.independent_act: at least one action has to be valid."
-                    ))
+        assertions = list()
+        if self.config.create_tf_assertions:
+            assertions.extend(self.states_spec.tf_assert(
+                x=states, batch_size=batch_size,
+                message='Agent.act: invalid {issue} for {name} state input.'
+            ))
+            assertions.extend(self.auxiliaries_spec.tf_assert(
+                x=auxiliaries, batch_size=batch_size,
+                message='Agent.act: invalid {issue} for {name} input.'
+            ))
+            assertions.extend(self.parallel_spec.tf_assert(
+                x=parallel, batch_size=batch_size,
+                message='Agent.act: invalid {issue} for parallel input.'
+            ))
+            # Mask assertions
+            if self.config.enable_int_action_masking:
+                for name, spec in self.actions_spec.items():
+                    if spec.type == 'int':
+                        assertions.append(tf.debugging.assert_equal(
+                            x=tf.reduce_all(input_tensor=tf.math.reduce_any(
+                                input_tensor=auxiliaries[name]['mask'], axis=(spec.rank + 1)
+                            )), y=true,
+                            message="Agent.independent_act: at least one action has to be valid."
+                        ))
 
-        with tf.control_dependencies(control_inputs=dependencies):
+        with tf.control_dependencies(control_inputs=assertions):
             # Retrieve internals
             internals = self.previous_internals.fmap(
                 function=(lambda x: tf.gather(params=x, indices=parallel)), cls=TensorDict
@@ -436,20 +451,23 @@ class Model(Module):
             )
 
         # Action assertions
-        dependencies = self.actions_spec.tf_assert(x=actions, batch_size=batch_size)
-        if self.config.enable_int_action_masking:
-            for name, spec, action in self.actions_spec.zip_items(actions):
-                if spec.type == 'int':
-                    is_valid = tf.reduce_all(input_tensor=tf.gather(
-                        params=auxiliaries[name]['mask'],
-                        indices=tf.expand_dims(input=action, axis=(spec.rank + 1)),
-                        batch_dims=(spec.rank + 1)
-                    ))
-                    dependencies.append(tf.debugging.assert_equal(
-                        x=is_valid, y=true, message="Action mask check."
-                    ))
+        assertions = list()
+        if self.config.create_tf_assertions:
+            assertions.extend(self.actions_spec.tf_assert(x=actions, batch_size=batch_size))
+            if self.config.enable_int_action_masking:
+                for name, spec, action in self.actions_spec.zip_items(actions):
+                    if spec.type == 'int':
+                        is_valid = tf.reduce_all(input_tensor=tf.gather(
+                            params=auxiliaries[name]['mask'],
+                            indices=tf.expand_dims(input=action, axis=(spec.rank + 1)),
+                            batch_dims=(spec.rank + 1)
+                        ))
+                        assertions.append(tf.debugging.assert_equal(
+                            x=is_valid, y=true, message="Action mask check."
+                        ))
 
         # Remember internals
+        dependencies = list()
         for name, previous, internal in self.previous_internals.zip_items(internals):
             sparse_delta = tf.IndexedSlices(values=internal, indices=parallel)
             dependencies.append(previous.scatter_update(sparse_delta=sparse_delta))
@@ -458,7 +476,7 @@ class Model(Module):
         with tf.control_dependencies(control_inputs=(actions.flatten() + internals.flatten())):
             dependencies.append(self.timesteps.assign_add(delta=batch_size, read_value=False))
 
-        with tf.control_dependencies(control_inputs=dependencies):
+        with tf.control_dependencies(control_inputs=(dependencies + assertions)):
             actions = actions.fmap(function=tf_util.identity)
             timestep = tf_util.identity(input=self.timesteps)
             return actions, timestep
@@ -471,29 +489,31 @@ class Model(Module):
         is_terminal = tf.concat(values=([zero], terminal), axis=0)[-1] > zero
 
         # Input assertions
-        dependencies = self.terminal_spec.tf_assert(
-            x=terminal, batch_size=batch_size,
-            message='Agent.observe: invalid {issue} for terminal input.'
-        )
-        dependencies.extend(self.reward_spec.tf_assert(
-            x=reward, batch_size=batch_size,
-            message='Agent.observe: invalid {issue} for terminal input.'
-        ))
-        dependencies.extend(self.parallel_spec.tf_assert(
-            x=parallel, message='Agent.observe: invalid {issue} for parallel input.'
-        ))
-        # Assertion: at most one terminal
-        dependencies.append(tf.debugging.assert_less_equal(
-            x=tf_util.cast(x=tf.math.count_nonzero(input=terminal), dtype='int'), y=one,
-            message="Agent.observe: input contains more than one terminal."
-        ))
-        # Assertion: if terminal, last timestep in batch
-        dependencies.append(tf.debugging.assert_equal(
-            x=tf.math.reduce_any(input_tensor=tf.math.greater(x=terminal, y=zero)), y=is_terminal,
-            message="Agent.observe: terminal is not the last input timestep."
-        ))
+        assertions = list()
+        if self.config.create_tf_assertions:
+            assertions.extend(self.terminal_spec.tf_assert(
+                x=terminal, batch_size=batch_size,
+                message='Agent.observe: invalid {issue} for terminal input.'
+            ))
+            assertions.extend(self.reward_spec.tf_assert(
+                x=reward, batch_size=batch_size,
+                message='Agent.observe: invalid {issue} for terminal input.'
+            ))
+            assertions.extend(self.parallel_spec.tf_assert(
+                x=parallel, message='Agent.observe: invalid {issue} for parallel input.'
+            ))
+            # Assertion: at most one terminal
+            assertions.append(tf.debugging.assert_less_equal(
+                x=tf_util.cast(x=tf.math.count_nonzero(input=terminal), dtype='int'), y=one,
+                message="Agent.observe: input contains more than one terminal."
+            ))
+            # Assertion: if terminal, last timestep in batch
+            assertions.append(tf.debugging.assert_equal(
+                x=tf.math.reduce_any(input_tensor=tf.math.greater(x=terminal, y=zero)), y=is_terminal,
+                message="Agent.observe: terminal is not the last input timestep."
+            ))
 
-        with tf.control_dependencies(control_inputs=dependencies):
+        with tf.control_dependencies(control_inputs=assertions):
             dependencies = list()
 
             # Reward summary

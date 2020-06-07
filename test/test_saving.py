@@ -207,9 +207,10 @@ class TestSaving(UnittestBase, unittest.TestCase):
         self.assertEqual(agent.episodes, 0)
         self.finished_test()
 
-        # save: saved-model format, append updates
-        agent.save(directory=self.__class__.directory, format='saved-model', append='updates')
-        agent.close()
+        # # save: saved-model format, append updates
+        # agent.save(directory=self.__class__.directory, format='saved-model', append='updates')
+        # agent.close()
+
         # # load: pb-actonly format
         # agent = Agent.load(directory=self.__class__.directory, format='pb-actonly')
         # x = agent.session.run(fetches='agent/policy/policy-network/dense0/weights:0')

@@ -25,8 +25,8 @@ from tensorforce.core.layers.keras import Keras
 from tensorforce.core.layers.misc import Activation, Block, Dropout, Function, Reshape
 from tensorforce.core.layers.normalization import ExponentialNormalization, InstanceNormalization
 from tensorforce.core.layers.pooling import Flatten, Pooling, Pool1d, Pool2d
-from tensorforce.core.layers.preprocessing import Clipping, Deltafier, Image, PreprocessingLayer, \
-    Sequence
+from tensorforce.core.layers.preprocessing import Clipping, Deltafier, Image, LinearNormalization, \
+    PreprocessingLayer, Sequence
 from tensorforce.core.layers.rnn import Gru, Lstm, Rnn
 
 # Require Dense, Conv1d, Conv2d
@@ -39,9 +39,10 @@ layer_modules = dict(
     default=Function, deltafier=Deltafier, dense=Dense, dropout=Dropout, embedding=Embedding,
     exponential_normalization=ExponentialNormalization, flatten=Flatten, function=Function,
     gru=Gru, image=Image, input_gru=InputGru, input_lstm=InputLstm, input_rnn=InputRnn,
-    instance_normalization=InstanceNormalization, keras=Keras, linear=Linear, lstm=Lstm,
-    pooling=Pooling, pool1d=Pool1d, pool2d=Pool2d, register=Register, reshape=Reshape,
-    retrieve=Retrieve, reuse=Reuse, rnn=Rnn, sequence=Sequence
+    instance_normalization=InstanceNormalization, keras=Keras, linear=Linear,
+    linear_normalization=LinearNormalization, lstm=Lstm, pooling=Pooling, pool1d=Pool1d,
+    pool2d=Pool2d, register=Register, reshape=Reshape, retrieve=Retrieve, reuse=Reuse, rnn=Rnn,
+    sequence=Sequence
 )
 
 
@@ -49,7 +50,7 @@ __all__ = [
     'Activation', 'Block', 'Clipping', 'Conv1d', 'Conv2d', 'Conv1dTranspose', 'Conv2dTranspose',
     'Deltafier', 'Dense', 'Dropout', 'Embedding', 'ExponentialNormalization', 'Flatten',
     'Function', 'GRU', 'Image', 'InputGru', 'InputLstm', 'InputRnn', 'InstanceNormalization',
-    'Keras', 'Layer', 'layer_modules', 'Linear', 'Lstm', 'MultiInputLayer', 'Pooling', 'Pool1d',
-    'Pool2d', 'PreprocessingLayer', 'Register', 'Reshape', 'Retrieve', 'Reuse', 'Rnn', 'Sequence',
-    'StatefulLayer', 'TemporalLayer', 'TransformationBase'
+    'Keras', 'Layer', 'layer_modules', 'Linear', 'LinearNormalization', 'Lstm', 'MultiInputLayer',
+    'Pooling', 'Pool1d', 'Pool2d', 'PreprocessingLayer', 'Register', 'Reshape', 'Retrieve', 'Reuse',
+    'Rnn', 'Sequence', 'StatefulLayer', 'TemporalLayer', 'TransformationBase'
 ]

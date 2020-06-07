@@ -16,25 +16,27 @@
 
 class TensorforceConfig(object):
 
+    # modify dtype mappings
+
     def __init__(
         self, *,
-        apply_final_exploration=False,
-        apply_final_variable_noise=False,
+        always_apply_exploration=False,
+        always_apply_variable_noise=False,
         buffer_observe=1000,
+        create_tf_assertions=True,
         enable_int_action_masking=True,
-        function_asserts=True,
         seed=None
     ):
-        assert isinstance(apply_final_exploration, bool)
-        super().__setattr__('apply_final_exploration', apply_final_exploration)
-        assert isinstance(apply_final_variable_noise, bool)
-        super().__setattr__('apply_final_variable_noise', apply_final_variable_noise)
+        assert isinstance(always_apply_exploration, bool)
+        super().__setattr__('always_apply_exploration', always_apply_exploration)
+        assert isinstance(always_apply_variable_noise, bool)
+        super().__setattr__('always_apply_variable_noise', always_apply_variable_noise)
         assert isinstance(buffer_observe, int) and buffer_observe >= 1
         super().__setattr__('buffer_observe', buffer_observe)
+        assert isinstance(create_tf_assertions, bool)
+        super().__setattr__('create_tf_assertions', create_tf_assertions)
         assert isinstance(enable_int_action_masking, bool)
         super().__setattr__('enable_int_action_masking', enable_int_action_masking)
-        assert isinstance(function_asserts, bool)
-        super().__setattr__('function_asserts', function_asserts)
         assert seed is None or isinstance(seed, int)
         super().__setattr__('seed', seed)
 
@@ -43,8 +45,3 @@ class TensorforceConfig(object):
 
     def __delattr__(self, name):
         raise NotImplementedError
-
-    # exploration as part of independent
-    # variable noise
-    # sampling
-    # modify dtype mappings

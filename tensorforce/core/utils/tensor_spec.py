@@ -92,9 +92,15 @@ class TensorSpec(object):
         else:
             spec = dict(type=self.type, shape=self.shape)
             if self.min_value is not None:
-                spec['min_value'] = self.min_value
+                if isinstance(self.min_value, np.ndarray):
+                    spec['min_value'] = self.min_value.tolist()
+                else:
+                    spec['min_value'] = self.min_value
             if self.max_value is not None:
-                spec['max_value'] = self.max_value
+                if isinstance(self.max_value, np.ndarray):
+                    spec['max_value'] = self.max_value.tolist()
+                else:
+                    spec['max_value'] = self.max_value
             return spec
 
     def empty(self, *, batched):
@@ -364,6 +370,8 @@ class TensorSpec(object):
                 except BaseException:
                     raise TensorforceError.type(name='TensorSpec', argument=name, value=type(value))
 
+            # TODO: check min/max_value shape if np.ndarray
+
             # Set shape attribute
             super().__setattr__(name, value)
 
@@ -380,28 +388,55 @@ class TensorSpec(object):
             else:
                 # Min/max value: int/float
                 try:
-                    if self.type == 'int':
-                        value = int(value)
-                        if self.num_values is not None:
-                            if name == 'min_value':
-                                assert value == 0
-                            elif name == 'max_value':
-                                assert value == self.num_values - 1
-                    elif self.type == 'float':
-                        value = float(value)
+                    value = self.py_type()(value)
+                    if self.type == 'int' and self.num_values is not None:
+                        if name == 'min_value':
+                            assert value == 0
+                        elif name == 'max_value':
+                            assert value == self.num_values - 1
                 except BaseException:
-                    raise TensorforceError.type(name='TensorSpec', argument=name, value=type(value))
+                    try:
+                        value = np.asarray(value, dtype=self.np_type())
+                        if self.type == 'int':
+                            assert self.num_values is None
+                    except BaseException:
+                        raise TensorforceError.type(
+                            name='TensorSpec', argument=name, value=type(value)
+                        )
 
-                if name == 'min_value' and self.max_value is not None and value > self.max_value:
-                    raise TensorforceError.value(
-                        name='TensorSpec', argument=name, value=value,
-                        condition='max_value = {}'.format(self.max_value)
-                    )
-                elif name == 'max_value' and self.min_value is not None and value < self.min_value:
-                    raise TensorforceError.value(
-                        name='TensorSpec', argument=name, value=value,
-                        condition='min_value = {}'.format(self.min_value)
-                    )
+                if isinstance(value, np.ndarray):
+                    if self.shape is not None and (
+                        value.ndim > len(self.shape) or value.shape != self.shape[:value.ndim]
+                    ):
+                        raise TensorforceError.value(
+                            name='TensorSpec', argument=(name + ' shape'), value=value.shape,
+                            hint='incompatible with {}'.format(self.shape)
+                        )
+                    if name == 'min_value' and self.max_value is not None and \
+                            (value > self.max_value).any():
+                        raise TensorforceError.value(
+                            name='TensorSpec', argument=name, value=value,
+                            condition='max_value = {}'.format(self.max_value)
+                        )
+                    elif name == 'max_value' and self.min_value is not None and \
+                            (value < self.min_value).any():
+                        raise TensorforceError.value(
+                            name='TensorSpec', argument=name, value=value,
+                            condition='min_value = {}'.format(self.min_value)
+                        )
+                else:
+                    if name == 'min_value' and self.max_value is not None and \
+                            value > self.max_value:
+                        raise TensorforceError.value(
+                            name='TensorSpec', argument=name, value=value,
+                            condition='max_value = {}'.format(self.max_value)
+                        )
+                    elif name == 'max_value' and self.min_value is not None and \
+                            value < self.min_value:
+                        raise TensorforceError.value(
+                            name='TensorSpec', argument=name, value=value,
+                            condition='min_value = {}'.format(self.min_value)
+                        )
 
             # Set min/max_value attribute
             super().__setattr__(name, value)
@@ -510,7 +545,10 @@ class TensorSpec(object):
             min_value = None
         elif self.type != 'bool' and self.min_value is not None:
             if other.type != 'bool' and other.min_value is not None:
-                if self.min_value < other.min_value:
+                if isinstance(self.min_value, np.ndarray) or \
+                        isinstance(other.min_value, np.ndarray):
+                    min_value = np.minimum(self.min_value, other.min_value)
+                elif self.min_value < other.min_value:
                     min_value = other.min_value
                 else:
                     min_value = self.min_value
@@ -526,7 +564,10 @@ class TensorSpec(object):
             max_value = None
         elif self.type != 'bool' and self.max_value is not None:
             if other.type != 'bool' and other.max_value is not None:
-                if self.max_value < other.max_value:
+                if isinstance(self.max_value, np.ndarray) or \
+                        isinstance(other.max_value, np.ndarray):
+                    max_value = np.maximum(self.max_value, other.max_value)
+                elif self.max_value < other.max_value:
                     max_value = other.max_value
                 else:
                     max_value = self.max_value
@@ -536,11 +577,19 @@ class TensorSpec(object):
             max_value = other.max_value
         else:
             max_value = None
-        if min_value is not None and max_value is not None and min_value > max_value:
-            raise TensorforceError.mismatch(
-                name='TensorSpec.unify', argument='min/max_value', value1=min_value,
-                value2=max_value
-            )
+        if min_value is not None and max_value is not None:
+            if isinstance(min_value, np.ndarray) or isinstance(max_value, np.ndarray):
+                if (min_value > max_value).any():
+                    raise TensorforceError.mismatch(
+                        name='TensorSpec.unify', argument='min/max_value', value1=min_value,
+                        value2=max_value
+                    )
+            else:
+                if min_value > max_value:
+                    raise TensorforceError.mismatch(
+                        name='TensorSpec.unify', argument='min/max_value', value1=min_value,
+                        value2=max_value
+                    )
 
         # Unify num_values
         if dtype != 'int' and (not isinstance(dtype, tuple) or 'int' not in dtype):
@@ -581,17 +630,17 @@ class TensorSpec(object):
         elif self.type != 'bool' and self.min_value is not None:
             if self.max_value is None:
                 return 'TensorSpec(type={type}, shape={shape}, min_value={min_value})'.format(
-                    type=self.type, shape=self.shape, min_value=self.min_value
+                    type=self.type, shape=self.shape, min_value=self.min_value.tolist()
                 )
             else:
                 return ('TensorSpec(type={type}, shape={shape}, min_value={min_value}, max_value='
                         '{max_value})').format(
-                    type=self.type, shape=self.shape, min_value=self.min_value,
-                    max_value=self.max_value
+                    type=self.type, shape=self.shape, min_value=self.min_value.tolist(),
+                    max_value=self.max_value.tolist()
                 )
         elif self.type != 'bool' and self.max_value is not None:
             return 'TensorSpec(type={type}, shape={shape}, max_value={max_value})'.format(
-                type=self.type, shape=self.shape, max_value=self.max_value
+                type=self.type, shape=self.shape, max_value=self.max_value.tolist()
             )
         else:
             return 'TensorSpec(type={type}, shape={shape})'.format(type=self.type, shape=self.shape)

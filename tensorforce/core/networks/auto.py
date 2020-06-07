@@ -44,8 +44,15 @@ class AutoNetwork(LayeredNetwork):
 
     def __init__(
         self, *, size=64, depth=2, final_size=None, final_depth=1, rnn=False, device=None,
-        l2_regularization=None, name=None, inputs_spec=None
+        l2_regularization=None, name=None, inputs_spec=None,
+        # Deprecated
+        internal_rnn=None
     ):
+        if internal_rnn is not None:
+            TensorforceError.deprecated(
+                name='AutoNetwork', argument='internal_rnn', replacement='rnn'
+            )
+
         if final_size is None:
             final_size = size
 
@@ -64,6 +71,12 @@ class AutoNetwork(LayeredNetwork):
             if requires_embedding:
                 state_layers.append(dict(
                     type='embedding', name=(input_name + '_embedding'), size=size
+                ))
+
+            # Normalize bounded inputs to [-1.0, 1.0]
+            if spec.type == 'float' and spec.min_value is not None and spec.max_value is not None:
+                state_layers.append(dict(
+                    type='linear_normalization', min_value=spec.min_value, max_value=spec.max_value
                 ))
 
             # Shape-specific layer type

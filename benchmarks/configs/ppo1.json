@@ -5,7 +5,7 @@
     "update_frequency": 1,
     "learning_rate": 0.001813150053725916,
     "subsampling_fraction": 0.9131375430837279,
-    "optimization_steps": 5,
+    "multi_step": 5,
     "likelihood_ratio_clipping": 0.09955676846552193,
     "discount": 0.9985351346308641,
     "baseline_network": {"type": "auto", "rnn": false},

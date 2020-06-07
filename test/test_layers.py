@@ -152,8 +152,9 @@ class TestLayers(UnittestBase, unittest.TestCase):
         preprocessing = dict(
             state=[
                 dict(type='sequence', length=3, concatenate=False),
-                dict(type='clipping', lower=-1.0, upper=1.0)
-            ], reward=[dict(type='clipping', lower=-1.0, upper=1.0)]
+                dict(type='clipping', lower=-1.0, upper=1.0),
+                dict(type='linear_normalization', min_value=-1.0, max_value=1.0)
+            ], reward=[dict(type='clipping', upper=1.0)]
         )
         network = [dict(type='dense', name='test', size=8)]
         self.unittest(states=states, preprocessing=preprocessing, policy=network)

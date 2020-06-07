@@ -175,6 +175,10 @@ class Module(tf.Module):
         return self.parent.root
 
     @property
+    def config(self):
+        return self.parent.config
+
+    @property
     def this_submodules(self):
         predicate = (lambda x: isinstance(x, tf.Module))
         return list(self._flatten(recursive=False, predicate=predicate))

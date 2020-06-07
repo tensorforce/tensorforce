@@ -119,11 +119,13 @@ def always_true(*args, **kwargs):
     return constant(value=True, dtype='bool')
 
 
-def lift_indexedslices(binary_op, x, y):
+def lift_indexedslices(binary_op, x, y, with_assertions):
     if isinstance(x, tf.IndexedSlices):
         assert isinstance(y, tf.IndexedSlices)
-        assertion = tf.debugging.assert_equal(x=x.indices, y=y.indices)
-        with tf.control_dependencies(control_inputs=(assertion,)):
+        assertions = list()
+        if with_assertions:
+            assertions.append(tf.debugging.assert_equal(x=x.indices, y=y.indices))
+        with tf.control_dependencies(control_inputs=assertions):
             return tf.IndexedSlices(
                 values=binary_op(x.values, y.values), indices=x.indices, dense_shape=x.dense_shape
             )

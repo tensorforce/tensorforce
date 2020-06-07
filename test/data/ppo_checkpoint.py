@@ -1,4 +1,13 @@
+import os
+
 from tensorforce import Runner
+
+
+os.remove('test/data/ppo-checkpoint.data-00000-of-00001')
+os.remove('test/data/ppo-checkpoint.index')
+os.remove('test/data/ppo-checkpoint.json')
+os.remove('test/data/ppo-checkpoint.npz')
+os.remove('test/data/ppo-checkpoint.hdf5')
 
 
 runner = Runner(agent='benchmarks/configs/ppo1.json', environment='CartPole-v1')

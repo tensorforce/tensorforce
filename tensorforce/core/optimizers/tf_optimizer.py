@@ -79,7 +79,7 @@ class TFOptimizer(Optimizer):
         super().__init__(name=name, arguments_spec=arguments_spec)
 
         assert optimizer in tensorflow_optimizers
-        self.optimizer = tensorflow_optimizers[optimizer]
+        self.tf_optimizer = tensorflow_optimizers[optimizer]
         self.learning_rate = self.submodule(
             name='learning_rate', module=learning_rate, modules=parameter_modules, dtype='float',
             min_value=0.0
@@ -97,8 +97,8 @@ class TFOptimizer(Optimizer):
 
         if 'decoupled_weight_decay' in self.optimizer_kwargs:
             decoupled_weight_decay = self.optimizer_kwargs.pop('decoupled_weight_decay')
-            self.optimizer = partial(
-                tfa.optimizers.extend_with_decoupled_weight_decay(base_optimizer=self.optimizer),
+            self.tf_optimizer = partial(
+                tfa.optimizers.extend_with_decoupled_weight_decay(base_optimizer=self.tf_optimizer),
                 weight_decay=decoupled_weight_decay
             )
         if 'lookahead' in self.optimizer_kwargs:
@@ -106,25 +106,25 @@ class TFOptimizer(Optimizer):
             if isinstance(lookahead, dict) or lookahead is True:
                 if lookahead is True:
                     lookahead = dict()
-                self.optimizer = compose(
+                self.tf_optimizer = compose(
                     function1=partial(tfa.optimizers.Lookahead, name=self.name, **lookahead),
-                    function2=self.optimizer
+                    function2=self.tf_optimizer
                 )
         if 'moving_average' in self.optimizer_kwargs:
             moving_avg = self.optimizer_kwargs.pop('moving_average')
             if isinstance(moving_avg, dict) or moving_avg is True:
                 if moving_avg is True:
                     moving_avg = dict()
-                self.optimizer = compose(
+                self.tf_optimizer = compose(
                     function1=partial(tfa.optimizers.MovingAverage, name=self.name, **moving_avg),
-                    function2=self.optimizer
+                    function2=self.tf_optimizer
                 )
 
     def initialize(self):
         super().initialize()
 
-        self.optimizer = self.optimizer(
-            learning_rate=self.learning_rate.value, name=self.name, **self.optimizer_kwargs
+        self.tf_optimizer = self.tf_optimizer(
+            learning_rate=self.learning_rate.value, name='tf_optimizer', **self.optimizer_kwargs
         )
 
         name = self.name[:self.name.index('_')] + '-update/unclipped-gradient-norm'
@@ -135,7 +135,7 @@ class TFOptimizer(Optimizer):
             variables=variables, register_summaries=register_summaries
         )
 
-        self.optimizer._create_all_weights(var_list=variables)
+        self.tf_optimizer._create_all_weights(var_list=variables)
 
     @tf_function(num_args=1)
     def step(self, *, arguments, variables, fn_loss, fn_initial_gradients=None, **kwargs):
@@ -163,7 +163,7 @@ class TFOptimizer(Optimizer):
                 if gradients[n] is None:
                     gradients.pop(n)
                     grads_and_vars.pop(n)
-                else:
+                elif self.config.create_tf_assertions:
                     assertions.append(tf.debugging.assert_all_finite(
                         x=gradients[n], message="Invalid gradient: contains inf or nan."
                     ))
@@ -179,7 +179,7 @@ class TFOptimizer(Optimizer):
                 label='update-norm', name=name, data=grads_norm, step='updates'
             )
 
-            applied = self.optimizer.apply_gradients(grads_and_vars=grads_and_vars)
+            applied = self.tf_optimizer.apply_gradients(grads_and_vars=grads_and_vars)
             dependencies.append(applied)
 
         # Return deltas after actually having change the variables.

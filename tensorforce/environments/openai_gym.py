@@ -15,7 +15,7 @@
 
 import numpy as np
 
-from tensorforce import TensorforceError
+from tensorforce import TensorforceError, util
 from tensorforce.environments import Environment
 
 
@@ -164,7 +164,7 @@ class OpenAIGym(Environment):
             )
 
         self.states_spec = OpenAIGym.specs_from_gym_space(
-            space=self.environment.observation_space, ignore_value_bounds=True  # TODO: not ignore?
+            space=self.environment.observation_space, allow_infinite_box_bounds=True
         )
         if drop_states_indices is None:
             self.drop_states_indices = None
@@ -176,7 +176,7 @@ class OpenAIGym(Environment):
             self.states_spec['shape'] = (self.states_spec['shape'][0] - num_dropped,)
 
         self.actions_spec = OpenAIGym.specs_from_gym_space(
-            space=self.environment.action_space, ignore_value_bounds=False
+            space=self.environment.action_space, allow_infinite_box_bounds=False
         )
 
     def __str__(self):
@@ -234,7 +234,7 @@ class OpenAIGym(Environment):
         return states, terminal, reward
 
     @staticmethod
-    def specs_from_gym_space(space, ignore_value_bounds):
+    def specs_from_gym_space(space, allow_infinite_box_bounds):
         import gym
 
         if isinstance(space, gym.spaces.Discrete):
@@ -257,30 +257,49 @@ class OpenAIGym(Environment):
                 return specs
 
         elif isinstance(space, gym.spaces.Box):
-            if ignore_value_bounds:
-                return dict(type='float', shape=space.shape)
-            elif (space.low == space.low.item(0)).all() and (space.high == space.high.item(0)).all():
-                return dict(
-                    type='float', shape=space.shape, min_value=space.low.item(0),
-                    max_value=space.high.item(0)
-                )
+            spec = dict(type='float', shape=space.shape)
+
+            if (space.low == space.low.item(0)).all():
+                min_value = float(space.low.item(0))
+                if min_value > -10e7:
+                    spec['min_value'] = min_value
+            elif allow_infinite_box_bounds:
+                min_value = np.where(space.low < -10e7, -np.inf, space.low)
+                spec['min_value'] = min_value.astype(util.np_dtype(dtype='float'))
             else:
+                spec = None
+
+            if spec is None:
+                pass
+            elif (space.high == space.high.item(0)).all():
+                max_value = float(space.high.item(0))
+                if max_value < 10e7:
+                    spec['max_value'] = max_value
+            elif allow_infinite_box_bounds:
+                max_value = np.where(space.high > 10e7, np.inf, space.high)
+                spec['max_value'] = max_value.astype(util.np_dtype(dtype='float'))
+            else:
+                spec = None
+
+            if spec is None:
                 specs = dict()
                 low = space.low.flatten()
                 high = space.high.flatten()
                 shape = '_'.join(str(x) for x in space.low.shape)
                 for n in range(low.shape[0]):
                     specs['gymbox{}_{}'.format(n, shape)] = dict(
-                        type='float', shape=(), min_value=low[n], max_value=high[n]
+                        type='float', shape=(), min_value=float(low[n]), max_value=float(high[n])
                     )
                 return specs
+            else:
+                return spec
 
         elif isinstance(space, gym.spaces.Tuple):
             specs = dict()
             n = 0
             for n, space in enumerate(space.spaces):
                 spec = OpenAIGym.specs_from_gym_space(
-                    space=space, ignore_value_bounds=ignore_value_bounds
+                    space=space, allow_infinite_box_bounds=allow_infinite_box_bounds
                 )
                 if 'type' in spec:
                     specs['gymtpl{}'.format(n)] = spec
@@ -293,7 +312,7 @@ class OpenAIGym(Environment):
             specs = dict()
             for space_name, space in space.spaces.items():
                 spec = OpenAIGym.specs_from_gym_space(
-                    space=space, ignore_value_bounds=ignore_value_bounds
+                    space=space, allow_infinite_box_bounds=allow_infinite_box_bounds
                 )
                 if 'type' in spec:
                     specs[space_name] = spec

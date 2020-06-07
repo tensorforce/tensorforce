@@ -89,7 +89,7 @@ class ArcadeLearningEnvironment(Environment):
 
     def states(self):
         width, height = self.environment.getScreenDims()
-        return dict(type='float', shape=(height, width, 3))
+        return dict(type='float', shape=(height, width, 3), min_value=0.0, max_value=1.0)
 
     def actions(self):
         return dict(type='int', num_values=len(self.available_actions))

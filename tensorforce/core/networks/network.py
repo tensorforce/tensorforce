@@ -231,6 +231,12 @@ class LayeredNetwork(LayerbasedNetwork):
             if callable(spec):
                 spec = dict(type='function', function=spec)
 
+            # Deprecated
+            if spec.get('type') in ('internal_rnn', 'internal_lstm', 'internal_gru'):
+                TensorforceError.deprecated(
+                    name='Network layers', argument=spec['type'], replacement=spec['type'][9:]
+                )
+
             if 'name' in spec:
                 spec = dict(spec)
                 name = spec.pop('name')

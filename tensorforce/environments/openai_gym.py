@@ -264,7 +264,7 @@ class OpenAIGym(Environment):
                 if min_value > -10e7:
                     spec['min_value'] = min_value
             elif allow_infinite_box_bounds:
-                min_value = np.where(space.low < -10e7, -np.inf, space.low)
+                min_value = np.where(space.low <= -10e7, -np.inf, space.low)
                 spec['min_value'] = min_value.astype(util.np_dtype(dtype='float'))
             else:
                 spec = None
@@ -276,7 +276,7 @@ class OpenAIGym(Environment):
                 if max_value < 10e7:
                     spec['max_value'] = max_value
             elif allow_infinite_box_bounds:
-                max_value = np.where(space.high > 10e7, np.inf, space.high)
+                max_value = np.where(space.high >= 10e7, np.inf, space.high)
                 spec['max_value'] = max_value.astype(util.np_dtype(dtype='float'))
             else:
                 spec = None
@@ -287,9 +287,12 @@ class OpenAIGym(Environment):
                 high = space.high.flatten()
                 shape = '_'.join(str(x) for x in space.low.shape)
                 for n in range(low.shape[0]):
-                    specs['gymbox{}_{}'.format(n, shape)] = dict(
-                        type='float', shape=(), min_value=float(low[n]), max_value=float(high[n])
-                    )
+                    spec = dict(type='float', shape=())
+                    if low[n] > -10e7:
+                        spec['min_value'] = float(low[n])
+                    if high[n] < 10e7:
+                        spec['max_value'] = float(high[n])
+                    specs['gymbox{}_{}'.format(n, shape)] = spec
                 return specs
             else:
                 return spec

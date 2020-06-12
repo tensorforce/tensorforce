@@ -1054,11 +1054,9 @@ class Agent(object):
                     assert format == 'checkpoint'
                 if filename is None or not os.path.isfile(os.path.join(directory, filename + '.index')):
                     path = tf.train.latest_checkpoint(checkpoint_dir=directory)
-                    # TODO: path or filename returned?
-                    if '/' in path:
-                        filename = path[path.rindex('/') + 1:]
-                    else:
-                        filename = path
+                    if not path:
+                        raise TensorforceError.exists_not(name='Checkpoint', value=directory)
+                    filename = os.path.basename(path)
 
             else:
                 if format is None:

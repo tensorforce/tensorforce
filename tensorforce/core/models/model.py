@@ -688,7 +688,13 @@ class Model(Module):
             # always write temporary terminal=2/3 to indicate it is in process... has been removed recently...
             # check everywhere temrinal is checked that this is correct, if 3 is used.
             # Reset should reset estimator!!!
-            return super().save(directory=directory, filename=filename)
+            if self.checkpoint is None:
+                self.checkpoint = tf.train.Checkpoint(**{self.name: self})
+            
+            # We are using the high-level "save" method of the checkpoint to write a "checkpoint" file.
+            # This makes it easily restorable later on.
+            # The base class uses the lower level "write" method, which doesn't provide such niceties.
+            return self.checkpoint.save(file_prefix=os.path.join(directory, filename))
 
         # elif format == 'tensorflow':
         #     if self.summarizer_spec is not None:

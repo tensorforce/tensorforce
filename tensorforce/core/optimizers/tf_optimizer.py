@@ -135,7 +135,11 @@ class TFOptimizer(Optimizer):
             variables=variables, register_summaries=register_summaries
         )
 
-        self.tf_optimizer._create_all_weights(var_list=variables)
+        try:
+            self.tf_optimizer._create_all_weights(var_list=variables)
+        except AttributeError:
+            self.tf_optimizer._create_hypers()
+            self.tf_optimizer._create_slots(var_list=variables)
 
     @tf_function(num_args=1)
     def step(self, *, arguments, variables, fn_loss, fn_initial_gradients=None, **kwargs):

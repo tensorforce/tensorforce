@@ -17,11 +17,13 @@ from collections import OrderedDict
 
 import numpy as np
 import tensorflow as tf
+from tensorflow.python.training.tracking.tracking import AutoTrackable
+from tensorflow.python.training.tracking.data_structures import sticky_attribute_assignment
 
 from tensorforce.core.utils import NestedDict
 
 
-class TrackableNestedDict(NestedDict, tf.python.training.tracking.tracking.AutoTrackable):
+class TrackableNestedDict(NestedDict, AutoTrackable):
 
     def __init__(self, arg=None, *, value_type=None, overwrite=None, **kwargs):
         self._maybe_initialize_trackable()
@@ -34,9 +36,7 @@ class TrackableNestedDict(NestedDict, tf.python.training.tracking.tracking.AutoT
             super().__setattr__(name, value)
 
     def __setitem__(self, key, value):
-        value = tf.python.training.tracking.data_structures.sticky_attribute_assignment(
-            trackable=self, value=value, name=key
-        )
+        value = sticky_attribute_assignment(trackable=self, value=value, name=key)
         super().__setitem__(key, value)
 
 

@@ -207,7 +207,10 @@ class Categorical(Distribution):
     def log_probability(self, *, parameters, action):
         logits = parameters['logits']
 
-        return tf.gather(params=logits, indices=action, batch_dims=tf_util.rank(x=action))
+        rank = tf_util.rank(x=action)
+        action = tf.expand_dims(input=action, axis=rank)
+        logit = tf.gather(params=logits, indices=action, batch_dims=rank)
+        return tf.squeeze(input=logit, axis=rank)
 
     @tf_function(num_args=1)
     def entropy(self, *, parameters):
@@ -232,7 +235,10 @@ class Categorical(Distribution):
     def action_value(self, *, parameters, action):
         action_values = parameters['action_values']
 
-        return tf.gather(params=action_values, indices=action, batch_dims=tf_util.rank(x=action))
+        rank = tf_util.rank(x=action)
+        action = tf.expand_dims(input=action, axis=rank)
+        action_value = tf.gather(params=action_values, indices=action, batch_dims=rank)
+        return tf.squeeze(input=action_value, axis=rank)
         # TODO: states_value + tf.squeeze(input=logits, axis=-1)
 
     @tf_function(num_args=1)

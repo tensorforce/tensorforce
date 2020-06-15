@@ -616,7 +616,7 @@ class TensorforceAgent(Agent):
                         function=(lambda x, y: np.concatenate([x, y], axis=0)), zip_values=(trace,)
                     )
 
-            for name, value in batch.pop('auxiliaries').items():
+            for name, value in batch.pop('auxiliaries', dict()).items():
                 assert name.endswith('/mask')
                 batch['states'][name[:-5] + '_mask'] = value
 

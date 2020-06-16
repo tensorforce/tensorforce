@@ -452,7 +452,8 @@ class TensorforceAgent(Agent):
 
     def pretrain(self, directory, num_iterations, num_traces=1, num_updates=1):
         """
-        Pretrain from experience traces.
+        Naive pretraining approach as a combination of `experience()` and `update`, uses experience
+        traces obtained e.g. via recorder argument.
 
         Args:
             directory (path): Directory with experience traces, e.g. obtained via recorder; episode

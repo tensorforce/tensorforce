@@ -22,11 +22,11 @@ import sys
 test: cd docs; make html; cd ..;
 pip install --upgrade pip setuptools wheel twine
 python setup.py sdist bdist_wheel
-twine upload --repository-url https://test.pypi.org/legacy/ dist/Tensorforce-0.5.4*
+twine upload --repository-url https://test.pypi.org/legacy/ dist/Tensorforce-0.5.5*
 test: pip install --upgrade --index-url https://test.pypi.org/simple/ tensorforce
 test: python; import tensorforce;
-test: python tensorforce/examples/quickstart.py
-twine upload dist/Tensorforce-0.5.4*
+test: python tensorforce-master/examples/quickstart.py
+twine upload dist/Tensorforce-0.5.5*
 """
 
 

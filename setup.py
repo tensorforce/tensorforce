@@ -104,7 +104,7 @@ setup(
     install_requires=install_requires,
     extras_require=dict(
         tf=['tensorflow>=2.2'],
-        tf_gpu=['tensorflow-gpu'],
+        tf_gpu=['tensorflow-gpu>=2.2'],
         tfa=['tensorflow-addons'],
         docs=['m2r', 'recommonmark', 'sphinx', 'sphinx-rtd-theme'],
         tune=['hpbandster'],

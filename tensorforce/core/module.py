@@ -83,10 +83,10 @@ def tf_function(*, num_args):
                 make_key(x=arg) for key, arg in kwargs.items() if key not in graph_signature
             )
 
-            if graph_params not in function_graphs:
-                # Check that length of graph specs are consistent
-                assert len(function_graphs) == 0 or \
-                    len(next(iter(function_graphs))) == len(graph_params)
+            if str(graph_params) not in function_graphs:
+                # # Check that length of graph specs are consistent
+                # assert len(function_graphs) == 0 or \
+                #     len(next(iter(function_graphs))) == len(graph_params)
 
                 # Params kwargs
                 params_kwargs = {
@@ -101,14 +101,14 @@ def tf_function(*, num_args):
                         results = function(self, **kwargs, **params_kwargs)
                     return results
 
-                function_graphs[graph_params] = tf.function(
+                function_graphs[str(graph_params)] = tf.function(
                     func=function_graph, input_signature=graph_signature.to_list(), autograph=False
                     # experimental_implements=None, experimental_autograph_options=None,
                     # experimental_relax_shapes=False, experimental_compile=None
                 )
 
             # Apply function graph
-            return function_graphs[graph_params](*graph_args)
+            return function_graphs[str(graph_params)](*graph_args)
 
         # TensorFlow make_decorator
         return decorated

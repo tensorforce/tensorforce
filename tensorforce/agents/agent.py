@@ -25,7 +25,7 @@ import tensorflow as tf
 
 import tensorforce.agents
 from tensorforce import util, TensorforceError
-from tensorforce.core import ArrayDict, ListDict, TensorforceConfig, TensorSpec
+from tensorforce.core import ArrayDict, ListDict, TensorDict, TensorforceConfig, TensorSpec
 
 
 class Agent(object):
@@ -579,9 +579,12 @@ class Agent(object):
 
         # Model.act()
         if independent:
-            actions, internals = self.model.independent_act(
+            actions_internals = self.model.independent_act(
                 states=states, internals=internals, auxiliaries=auxiliaries
             )
+            actions_internals = TensorDict(actions_internals)
+            actions = actions_internals['actions']
+            internals = actions_internals.get('internals', TensorDict())
             assert not is_internals_none or len(internals) == 0
         else:
             actions, timesteps = self.model.act(

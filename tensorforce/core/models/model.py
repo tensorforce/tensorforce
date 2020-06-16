@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
+from collections import OrderedDict
 import os
 import time
 
@@ -401,11 +402,14 @@ class Model(Module):
         with tf.control_dependencies(control_inputs=assertions):
             # Core act
             parallel = tf_util.zeros(shape=(1,), dtype='int')
-            return self.core_act(
+            actions, internals = self.core_act(
                 states=states, internals=internals, auxiliaries=auxiliaries, parallel=parallel,
                 independent=True
             )
             # Skip action assertions
+
+            # SavedModel requires flattened output
+            return OrderedDict(TensorDict(actions=actions, internals=internals))
 
     @tf_function(num_args=3)
     def act(self, *, states, auxiliaries, parallel):
@@ -650,7 +654,6 @@ class Model(Module):
         #                     hint='not in {audio,histogram,image,scalar}'
         #                 )
 
-
     def save(self, *, directory=None, filename=None, format='checkpoint', append=None):
         if directory is None and filename is None and format == 'checkpoint':
             if self.saver is None:
@@ -667,21 +670,19 @@ class Model(Module):
         if append is not None:
             append_value = self.units[append].numpy().item()
 
-        if format == 'saved-model':
-            if filename is not None:
-                raise TensorforceError.invalid(name='Model.save', argument='filename')
-            if append is not None:
-                directory = os.path.join(directory, append[:-1] + str(append_value))
-            assert hasattr(self, '_independent_act_graphs')
-            assert len(self._independent_act_graphs) == 1
-            independent_act = next(iter(self._independent_act_graphs.values()))
-            return tf.saved_model.save(obj=self, export_dir=directory, signatures=independent_act)
-
         if filename is None:
             filename = self.name
 
         if append is not None:
             filename = filename + '-' + str(append_value)
+
+        if format == 'saved-model':
+            if append is not None:
+                directory = os.path.join(directory, filename)
+            assert hasattr(self, '_independent_act_graphs')
+            assert len(self._independent_act_graphs) == 1
+            independent_act = next(iter(self._independent_act_graphs.values()))
+            return tf.saved_model.save(obj=self, export_dir=directory, signatures=independent_act)
 
         if format == 'checkpoint':
             # which variables are not saved? should all be saved probably, so remove option

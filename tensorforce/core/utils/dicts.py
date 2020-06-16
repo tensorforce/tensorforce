@@ -117,9 +117,10 @@ class SignatureDict(NestedDict):
 class TensorDict(NestedDict):
 
     def __init__(self, *args, overwrite=True, **kwargs):
+        # TensorSpec required for SavedModel (presumably for spec tracing)
         super().__init__(
-            *args, value_type=(tf.IndexedSlices, tf.Tensor, tf.Variable), overwrite=overwrite,
-            **kwargs
+            *args, value_type=(tf.IndexedSlices, tf.Tensor, tf.TensorSpec, tf.Variable),
+            overwrite=overwrite, **kwargs
         )
 
     def to_kwargs(self):

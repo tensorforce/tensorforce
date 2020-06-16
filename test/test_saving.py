@@ -89,7 +89,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
             os.rmdir(path=self.__class__.directory)
 
         update = dict(unit='episodes', batch_size=1)
-        agent, environment = self.prepare(memory=50, update=update)
+        agent, environment = self.prepare(policy='auto', memory=50, update=update)
         states = environment.reset()
 
         # save: default checkpoint format
@@ -207,9 +207,19 @@ class TestSaving(UnittestBase, unittest.TestCase):
         self.assertEqual(agent.episodes, 0)
         self.finished_test()
 
-        # # save: saved-model format, append updates
-        # agent.save(directory=self.__class__.directory, format='saved-model', append='updates')
-        # agent.close()
+        # one episode
+        for _ in range(2):
+            states = environment.reset()
+            terminal = False
+            while not terminal:
+                actions = agent.act(states=states)
+                states, terminal, reward = environment.execute(actions=actions)
+                agent.observe(terminal=terminal, reward=reward)
+        self.assertEqual(agent.updates, 1)
+
+        # save: saved-model format, append updates
+        agent.save(directory=self.__class__.directory, format='saved-model', append='updates')
+        agent.close()
 
         # # load: pb-actonly format
         # agent = Agent.load(directory=self.__class__.directory, format='pb-actonly')
@@ -227,13 +237,20 @@ class TestSaving(UnittestBase, unittest.TestCase):
         # agent.close()
         environment.close()
 
-        os.remove(path=os.path.join(self.__class__.directory, 'agent.data-00000-of-00001'))
-        os.remove(path=os.path.join(self.__class__.directory, 'agent.index'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-1.data-00000-of-00001'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-1.index'))
         os.remove(path=os.path.join(self.__class__.directory, 'agent.json'))
+        os.remove(path=os.path.join(self.__class__.directory, 'checkpoint'))
         os.remove(path=os.path.join(self.__class__.directory, 'agent-1.npz'))
         os.remove(path=os.path.join(self.__class__.directory, 'agent-2.npz'))
         os.remove(path=os.path.join(self.__class__.directory, 'agent2.json'))
         os.remove(path=os.path.join(self.__class__.directory, 'agent2-1.hdf5'))
+        os.rmdir(path=os.path.join(self.__class__.directory, 'agent-1', 'assets'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-1', 'variables', 'variables.data-00000-of-00001'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-1', 'variables', 'variables.index'))
+        os.rmdir(path=os.path.join(self.__class__.directory, 'agent-1', 'variables'))
+        os.remove(path=os.path.join(self.__class__.directory, 'agent-1', 'saved_model.pb'))
+        os.rmdir(path=os.path.join(self.__class__.directory, 'agent-1'))
         os.rmdir(path=self.__class__.directory)
 
         self.finished_test()

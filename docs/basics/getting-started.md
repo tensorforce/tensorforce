@@ -2,6 +2,9 @@ Getting started
 ===============
 
 
+[Quickstart example](https://github.com/tensorforce/tensorforce/blob/master/examples/quickstart.py)
+
+
 ### Initializing an environment
 
 It is recommended to initialize an environment via the `Environment.create(...)` [interface](../environments/environment.html).

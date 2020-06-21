@@ -97,7 +97,7 @@ class TensorforceAgent(Agent):
         reward_estimation (specification): Reward estimation configuration with the following
             attributes (<span style="color:#C00000"><b>required</b></span>):
             <ul>
-            <li><b>horizon</b> (<i>"episode" | parameter, int >= 0</i>) &ndash; Horizon of
+            <li><b>horizon</b> (<i>"episode" | parameter, int >= 1</i>) &ndash; Horizon of
             discounted-sum reward estimation
             (<span style="color:#C00000"><b>required</b></span>).</li>
             <li><b>discount</b> (<i>parameter, 0.0 <= float <= 1.0</i>) &ndash; Discount factor for
@@ -109,16 +109,16 @@ class TensorforceAgent(Agent):
             when batches of experience are retrieved for optimization
             (<span style="color:#00C000"><b>default</b></span>: "late" if baseline_policy or
             baseline_objective are specified, else false).</li>
-            <li><b>estimate_action_values</b> (<i>bool</i>) &ndash; Whether to estimate state-action
-            instead of state values for the horizon estimate
-            (<span style="color:#00C000"><b>default</b></span>: false).</li>
-            <li><b>estimate_terminals</b> (<i>bool</i>) &ndash; Whether to estimate the value of
-            terminal horizon states
-            (<span style="color:#00C000"><b>default</b></span>: false).</li>
             <li><b>estimate_advantage</b> (<i>bool</i>) &ndash; Whether to estimate the advantage
             instead of the return by subtracting the baseline value estimate from the return
             (<span style="color:#00C000"><b>default</b></span>: false, unless baseline_policy is
             specified but baseline_objective/optimizer are not).</li>
+            <li><b>estimate_action_values</b> (<i>bool</i>) &ndash; Whether to estimate state-action
+            instead of state values for the horizon and advantage estimate
+            (<span style="color:#00C000"><b>default</b></span>: false).</li>
+            <li><b>predict_terminal_values</b> (<i>bool</i>) &ndash; Whether to predict the value of
+            terminal states
+            (<span style="color:#00C000"><b>default</b></span>: false).</li>
             </ul>
 
         baseline_policy (specification): Baseline policy configuration, main policy will be used as
@@ -154,25 +154,26 @@ class TensorforceAgent(Agent):
             to all trainable variables, as alternative exploration mechanism
             (<span style="color:#00C000"><b>default</b></span>: no variable noise).
 
-        name (string): Agent name, used e.g. for TensorFlow scopes and saver default filename
-            (<span style="color:#00C000"><b>default</b></span>: "agent").
-        device (string): Device name
-            (<span style="color:#00C000"><b>default</b></span>: TensorFlow default).
         parallel_interactions (int > 0): Maximum number of parallel interactions to support,
             for instance, to enable multiple parallel episodes, environments or agents within an
             environment
             (<span style="color:#00C000"><b>default</b></span>: 1).
-        config (specification): Various additional configuration options:
+        config (specification): Additional configuration options:
             <ul>
+            <li><b>name</b> (<i>string</i>) &ndash; Agent name, used e.g. for TensorFlow scopes and
+            saver default filename
+            (<span style="color:#00C000"><b>default</b></span>: "agent").
+            <li><b>device</b> (<i>string</i>) &ndash; Device name
+            (<span style="color:#00C000"><b>default</b></span>: TensorFlow default).
             <li><b>seed</b> (<i>int</i>) &ndash; Random seed to set for Python, NumPy (both set
             globally!) and TensorFlow, environment seed may have to be set separately for fully
             deterministic execution
             (<span style="color:#00C000"><b>default</b></span>: none).</li>
-            <li><b>buffer_observe</b> (<i>int > 0</i>) &ndash; Maximum number of timesteps within an
-            episode to buffer before executing internal observe operations, to reduce calls to
-            TensorFlow for improved performance
-            (<span style="color:#00C000"><b>default</b></span>: simple rules to infer maximum number
-            which can be buffered without affecting performance).</li>
+            <li><b>buffer_observe</b> (<i>false | "episode" | int > 0</i>) &ndash; Number of
+            timesteps within an episode to buffer before calling the internal observe function, to
+            reduce calls to TensorFlow for improved performance
+            (<span style="color:#00C000"><b>default</b></span>: configuration-specific maximum
+            number which can be buffered without affecting performance).</li>
             <li><b>always_apply_exploration</b> (<i>bool</i>) &ndash; Whether to always apply
             exploration, also for independent `act()` calls (final value in case of schedule)
             (<span style="color:#00C000"><b>default</b></span>: false).</li>
@@ -198,9 +199,9 @@ class TensorforceAgent(Agent):
             (<span style="color:#C00000"><b>required</b></span>).</li>
             <li><b>unit</b> (<i>"timesteps" | "episodes" | "updates"</i>) &ndash; frequency unit
             (<span style="color:#00C000"><b>default</b></span>: updates).</li>
-            <li><b>max-checkpoints</b> (<i>int > 0</i>) &ndash; maximum number of checkpoints to
+            <li><b>max_checkpoints</b> (<i>int > 0</i>) &ndash; maximum number of checkpoints to
             keep (<span style="color:#00C000"><b>default</b></span>: 5).</li>
-            <li><b>max-hour-frequency</b> (<i>int > 0</i>) &ndash; ignoring max-checkpoints,
+            <li><b>max_hour_frequency</b> (<i>int > 0</i>) &ndash; ignoring max-checkpoints,
             definitely keep a checkpoint in given hour frequency
             (<span style="color:#00C000"><b>default</b></span>: none).</li>
             </ul>
@@ -211,7 +212,7 @@ class TensorforceAgent(Agent):
             (<span style="color:#C00000"><b>required</b></span>).</li>
             <li><b>flush</b> (<i>int > 0</i>) &ndash; how frequently in seconds to flush the
             summary writer (<span style="color:#00C000"><b>default</b></span>: 10).</li>
-            <li><b>max-summaries</b> (<i>int > 0</i>) &ndash; maximum number of summaries to keep
+            <li><b>max_summaries</b> (<i>int > 0</i>) &ndash; maximum number of summaries to keep
             (<span style="color:#00C000"><b>default</b></span>: 5).</li>
             <li><b>labels</b> (<i>"all" | iter[string]</i>) &ndash; which summaries to record
             (<span style="color:#00C000"><b>default</b></span>: only "graph"):</li>
@@ -260,28 +261,37 @@ class TensorforceAgent(Agent):
         preprocessing=None,
         # Exploration
         exploration=0.0, variable_noise=0.0,
-        # TensorFlow etc
-        name='agent', device=None, parallel_interactions=1, config=None, saver=None,
-        summarizer=None, recorder=None,
+        # Parallel interactions
+        parallel_interactions=1,
+        # Config, saver, summarizer, recorder
+        config=None, saver=None, summarizer=None, recorder=None,
         # Deprecated
-        buffer_observe=None, seed=None
+        name=None, buffer_observe=None, device=None, seed=None
     ):
         if 'estimate_actions' in reward_estimation:
-            TensorforceError.deprecated(
+            raise TensorforceError.deprecated(
                 name='Agent', argument='reward_estimation[estimate_actions]',
                 replacement='reward_estimation[estimate_action_values]'
             )
         if 'estimate_terminal' in reward_estimation:
-            TensorforceError.deprecated(
+            raise TensorforceError.deprecated(
                 name='Agent', argument='reward_estimation[estimate_terminal]',
                 replacement='reward_estimation[estimate_terminals]'
             )
+        if name is not None:
+            raise TensorforceError.deprecated(
+                name='Agent', argument='name', replacement='config[name]'
+            )
         if buffer_observe is not None:
-            TensorforceError.deprecated(
+            raise TensorforceError.deprecated(
                 name='Agent', argument='buffer_observe', replacement='config[buffer_observe]'
             )
+        if device is not None:
+            raise TensorforceError.deprecated(
+                name='Agent', argument='device', replacement='config[device]'
+            )
         if seed is not None:
-            TensorforceError.deprecated(
+            raise TensorforceError.deprecated(
                 name='Agent', argument='seed', replacement='config[seed]'
             )
 
@@ -302,8 +312,9 @@ class TensorforceAgent(Agent):
                 preprocessing=preprocessing,
                 # Exploration
                 exploration=exploration, variable_noise=variable_noise,
-                # TensorFlow etc
-                name=name, device=device, parallel_interactions=parallel_interactions,
+                # Parallel interactions
+                parallel_interactions=parallel_interactions,
+                # Config, saver, summarizer, recorder
                 config=config, saver=saver, summarizer=summarizer, recorder=recorder
             )
 
@@ -323,40 +334,40 @@ class TensorforceAgent(Agent):
                         name='Agent', argument='max_episode_timesteps',
                         condition='parallel_interactions > 1'
                     )
-                config['buffer_observe'] = max_episode_timesteps
-            elif config['buffer_observe'] < max_episode_timesteps:
-                raise TensorforceError.value(
-                    name='Agent', argument='config[buffer_observe]',
-                    hint='< max_episode_timesteps', condition='parallel_interactions > 1'
-                )
+                config['buffer_observe'] = 'episode'
+            # elif config['buffer_observe'] < max_episode_timesteps:
+            #     raise TensorforceError.value(
+            #         name='Agent', argument='config[buffer_observe]',
+            #         hint='< max_episode_timesteps', condition='parallel_interactions > 1'
+            #     )
 
         elif update['unit'] == 'timesteps':
+            update_frequency = update.get('frequency', update['batch_size'])
             if 'buffer_observe' not in config:
-                if isinstance(update['batch_size'], int):
-                    config['buffer_observe'] = update['batch_size']
+                if isinstance(update_frequency, int):
+                    config['buffer_observe'] = update_frequency
                 else:
                     config['buffer_observe'] = 1
-            elif config['buffer_observe'] > update['batch_size']:
+            elif isinstance(update_frequency, int) and (
+                config['buffer_observe'] == 'episode' or config['buffer_observe'] > update_frequency
+            ):
                 raise TensorforceError.value(
-                    name='Agent', argument='config[buffer_observe]',
-                    hint='> update[batch_size]', condition='update[unit] = "timesteps"'
+                    name='Agent', argument='config[buffer_observe]', value=config['buffer_observe'],
+                    hint='> update[frequency]', condition='update[unit] = "timesteps"'
                 )
 
         elif update['unit'] == 'episodes':
             if 'buffer_observe' not in config:
-                if max_episode_timesteps is None:
-                    config['buffer_observe'] = 1000
-                else:
-                    config['buffer_observe'] = max_episode_timesteps
+                config['buffer_observe'] = 'episode'
 
-        reward_estimation = dict(reward_estimation)
-        if reward_estimation['horizon'] == 'episode':
-            if max_episode_timesteps is None:
-                raise TensorforceError.required(
-                    name='Agent', argument='max_episode_timesteps',
-                    condition='reward_estimation[horizon] = "episode"'
-                )
-            reward_estimation['horizon'] = max_episode_timesteps
+        # reward_estimation = dict(reward_estimation)
+        # if reward_estimation['horizon'] == 'episode':
+        #     if max_episode_timesteps is None:
+        #         raise TensorforceError.required(
+        #             name='Agent', argument='max_episode_timesteps',
+        #             condition='reward_estimation[horizon] = "episode"'
+        #         )
+        #     reward_estimation['horizon'] = max_episode_timesteps
 
         super().__init__(
             states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
@@ -372,11 +383,9 @@ class TensorforceAgent(Agent):
             baseline_objective=baseline_objective,
             l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
             preprocessing=preprocessing, exploration=exploration, variable_noise=variable_noise,
-            name=name, device=device, parallel_interactions=self.parallel_interactions,
+            parallel_interactions=self.parallel_interactions,
             config=self.config, saver=saver, summarizer=summarizer
         )
-
-        self.experience_size = self.model.estimator.capacity
 
     def experience(self, states, actions, terminal, reward, internals=None):
         """
@@ -394,7 +403,7 @@ class TensorforceAgent(Agent):
             internals (dict[state]): Dictionary containing arrays of internal agent states
                 (<span style="color:#C00000"><b>required</b></span> if agent has internal states).
         """
-        if not (self.buffer_indices == 0).all():
+        if not all(len(buffer) == 0 for buffer in self.buffers['terminal']):
             raise TensorforceError(message="Calling agent.experience is not possible mid-episode.")
 
         # Process states input and infer batching structure
@@ -514,13 +523,8 @@ class TensorforceAgent(Agent):
         # Batch experiences split into episodes and at most size buffer_observe
         last = 0
         for index in range(1, len(terminal) + 1):
-            if terminal[index - 1] == 0 and index - last < self.experience_size:
+            if terminal[index - 1] == 0:
                 continue
-
-            # Include terminal in batch if possible
-            if index < len(terminal) and terminal[index - 1] == 0 and terminal[index] > 0 and \
-                    index - last < self.experience_size:
-                index += 1
 
             function = (lambda x: x[last: index])
             states_batch = states.fmap(function=function)
@@ -622,7 +626,7 @@ class TensorforceAgent(Agent):
 
             # values = values.fmap(function=np.concatenate, cls=ArrayDict)
 
-            self.experience(**batch)
+            self.experience(**batch.to_kwargs())
             for _ in range(num_updates):
                 self.update()
             # TODO: self.obliviate()

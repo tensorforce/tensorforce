@@ -50,12 +50,12 @@ class TestParameters(UnittestBase, unittest.TestCase):
         actions = agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)
         agent.observe(terminal=terminal, reward=reward)
-        horizon1 = agent.model.estimator.horizon.value().numpy().item()
+        horizon1 = agent.model.reward_horizon.value().numpy().item()
 
         actions = agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)
         agent.observe(terminal=terminal, reward=reward)
-        horizon2 = agent.model.estimator.horizon.value().numpy().item()
+        horizon2 = agent.model.reward_horizon.value().numpy().item()
         if not isinstance(horizon, dict) or horizon['type'] == 'constant':
             self.assertEqual(horizon2, horizon1)
         else:

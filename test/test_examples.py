@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
+import os
 import unittest
 
 from tensorforce import Agent, Environment, Runner
@@ -21,6 +22,9 @@ from test.unittest_base import UnittestBase
 
 
 class TestExamples(UnittestBase, unittest.TestCase):
+
+    saver_directory = 'test/test-saving'
+    summarizer_directory = 'test/test-summaries'
 
     def test_quickstart(self):
         self.start_tests(name='quickstart')
@@ -35,30 +39,58 @@ class TestExamples(UnittestBase, unittest.TestCase):
             agent='ppo', environment=environment,
             # Automatically configured network
             network='auto',
-            # Optimization
-            batch_size=10, update_frequency=2, learning_rate=1e-3, subsampling_fraction=0.2,
-            optimization_steps=5,
+            # PPO optimization parameters
+            batch_size=10, update_frequency=2, learning_rate=3e-4, multi_step=10,
+            subsampling_fraction=0.33,
             # Reward estimation
-            likelihood_ratio_clipping=0.2, discount=0.99, estimate_terminals=False,
-            # Baseline
-            baseline_network='auto',
-            baseline_optimizer=dict(optimizer='adam', multi_step=10, learning_rate=1e-3),
+            likelihood_ratio_clipping=0.2, discount=0.99, predict_terminal_values=False,
+            # Baseline network and optimizer
+            baseline_network=dict(type='auto', size=32, depth=1),
+            baseline_optimizer=dict(optimizer='adam', learning_rate=1e-3, multi_step=10),
             # Preprocessing
             preprocessing=None,
             # Exploration
             exploration=0.0, variable_noise=0.0,
             # Regularization
-            l2_regularization=0.0, entropy_regularization=0.0
+            l2_regularization=0.0, entropy_regularization=0.0,
+            # No parallelization
+            parallel_interactions=1,
+            # Default additional config values
+            config=None,
+            # Save model every 10 updates and keep the 5 most recent checkpoints
+            saver=dict(directory=self.__class__.saver_directory, frequency=10, max_checkpoints=5),
+            # Log all available Tensorboard summaries
+            summarizer=dict(directory=self.__class__.summarizer_directory, labels='all'),
+            # Do not record agent-environment interaction trace
+            recorder=None
         )
 
         # Initialize the runner
         runner = Runner(agent=agent, environment=environment)
 
         # Start the runner
-        runner.run(num_episodes=10)
+        runner.run(num_episodes=20)
         runner.close()
 
         # ====================
+
+        os.remove(path=os.path.join(self.__class__.saver_directory, 'agent.json'))
+        os.remove(path=os.path.join(self.__class__.saver_directory, 'agent-0.data-00000-of-00001'))
+        os.remove(path=os.path.join(self.__class__.saver_directory, 'agent-0.index'))
+        os.remove(path=os.path.join(self.__class__.saver_directory, 'agent-10.data-00000-of-00001'))
+        os.remove(path=os.path.join(self.__class__.saver_directory, 'agent-10.index'))
+        os.remove(path=os.path.join(self.__class__.saver_directory, 'checkpoint'))
+        os.rmdir(path=self.__class__.saver_directory)
+
+        for directory in os.listdir(path=self.__class__.summarizer_directory):
+            directory = os.path.join(self.__class__.summarizer_directory, directory)
+            for filename in os.listdir(path=directory):
+                os.remove(path=os.path.join(directory, filename))
+                assert filename.startswith('events.out.tfevents.')
+                break
+            os.rmdir(path=directory)
+            break
+        os.rmdir(path=self.__class__.summarizer_directory)
 
         self.finished_test()
 
@@ -238,7 +270,7 @@ class TestExamples(UnittestBase, unittest.TestCase):
         ### Run an episode
         temp = [environment.environment.current_temp[0]]
         while not terminal:
-            actions, internals = agent.act(states=states, internals=internals, evaluation=True)
+            actions, internals = agent.act(states=states, internals=internals, independent=True)
             states, terminal, reward = environment.execute(actions=actions)
             temp += [states[0]]
 
@@ -284,7 +316,7 @@ class TestExamples(UnittestBase, unittest.TestCase):
         ### Run an episode
         temp = [environment.environment.current_temp[0]]
         while not terminal:
-            actions, internals = agent.act(states=states, internals=internals, evaluation=True)
+            actions, internals = agent.act(states=states, internals=internals, independent=True)
             states, terminal, reward = environment.execute(actions=actions)
             temp += [states[0]]
 

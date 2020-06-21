@@ -167,6 +167,7 @@ class Queue(Memory):
         corrected = tf.cond(pred=is_incorrect, true_fn=correct_terminal, false_fn=tf.no_op)
 
         # Assertions
+        last_terminal = tf.concat(values=([zero], terminal), axis=0)[-1]
         assertions = [corrected]
         if self.config.create_tf_assertions:
             with tf.control_dependencies(control_inputs=(corrected,)):
@@ -182,7 +183,7 @@ class Queue(Memory):
                 # if terminal, last timestep in batch
                 assertions.append(tf.debugging.assert_equal(
                     x=tf.math.reduce_any(input_tensor=tf.math.greater(x=terminal, y=zero)),
-                    y=tf.math.greater(x=terminal[-1], y=zero),
+                    y=tf.math.greater(x=last_terminal, y=zero),
                     message="Terminal is not the last timestep."
                 ))
                 # general check: all terminal indices true
@@ -240,9 +241,9 @@ class Queue(Memory):
         with tf.control_dependencies(control_inputs=(assignment,)):
             # Add last observation terminal marker
             corrected_terminal = tf.where(
-                condition=tf.math.equal(x=terminal[-1], y=zero), x=three, y=terminal[-1]
+                condition=tf.math.equal(x=terminal[-1:], y=zero), x=three, y=terminal[-1:]
             )
-            corrected_terminal = tf.concat(values=(terminal[:-1], (corrected_terminal,)), axis=0)
+            corrected_terminal = tf.concat(values=(terminal[:-1], corrected_terminal), axis=0)
             values = TensorDict(
                 states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
                 terminal=corrected_terminal, reward=reward

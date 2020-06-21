@@ -28,7 +28,7 @@ class LineSearch(Iterative):
     moving towards $x'$.
     """
 
-    def __init__(self, *, name, max_iterations, accept_ratio, mode, parameter, unroll_loop=False):
+    def __init__(self, *, name, max_iterations, accept_ratio, mode, parameter):
         """
         Creates a new line search solver instance.
 
@@ -40,9 +40,8 @@ class LineSearch(Iterative):
             mode: Mode of movement between $x_0$ and $x'$, either 'linear' or 'exponential'.
             parameter (parameter, 0.0 <= float <= 1.0): Movement mode parameter, additive or
                 multiplicative, respectively.
-            unroll_loop: Unrolls the TensorFlow while loop if true.
         """
-        super().__init__(name=name, max_iterations=max_iterations, unroll_loop=unroll_loop)
+        super().__init__(name=name, max_iterations=max_iterations)
 
         assert accept_ratio >= 0.0
         self.accept_ratio = self.submodule(

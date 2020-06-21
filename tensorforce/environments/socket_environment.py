@@ -14,6 +14,7 @@
 # ==============================================================================
 
 from socket import SHUT_RDWR, socket as Socket
+import time
 
 import msgpack
 import msgpack_numpy
@@ -145,5 +146,12 @@ class SocketEnvironment(RemoteEnvironment):
 
     def __init__(self, host, port, blocking=False):
         socket = Socket()
-        socket.connect((host, port))
+        for _ in range(100):  # TODO: 10sec timeout, not configurable
+            try:
+                socket.connect((host, port))
+                break
+            except ConnectionRefusedError:
+                time.sleep(0.1)
+        else:
+            raise TensorforceError("Remote socket connection could not be established.")
         super().__init__(connection=socket, blocking=blocking)

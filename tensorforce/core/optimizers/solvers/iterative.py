@@ -25,26 +25,19 @@ class Iterative(Solver):
     initialization step, the iteration loop body and the termination condition.
     """
 
-    def __init__(self, *, name, max_iterations, unroll_loop):
+    def __init__(self, *, name, max_iterations):
         """
         Creates a new iterative solver instance.
 
         Args:
             max_iterations (parameter, int >= 0): Maximum number of iterations before termination.
-            unroll_loop: Unrolls the TensorFlow while loop if true.
         """
         super().__init__(name=name)
 
-        assert isinstance(unroll_loop, bool)
-        self.unroll_loop = unroll_loop
-
-        if self.unroll_loop:
-            self.max_iterations = max_iterations
-        else:
-            self.max_iterations = self.submodule(
-                name='max_iterations', module=max_iterations, modules=parameter_modules,
-                dtype='int', min_value=0
-            )
+        self.max_iterations = self.submodule(
+            name='max_iterations', module=max_iterations, modules=parameter_modules,
+            dtype='int', min_value=0
+        )
 
     def complete_initialize(self, arguments_spec, values_spec):
         self.arguments_spec = arguments_spec
@@ -70,25 +63,14 @@ class Iterative(Solver):
         values = self.start(arguments=arguments, x_init=x_init, **kwargs)
 
         # Iteration loop with termination condition
-        if self.unroll_loop:
-            # Unrolled for loop
-            for _ in range(self.max_iterations):
-                next_step = self.next_step(*values)
-                step = (lambda: self.step(*values))
-                do_nothing = (lambda: values)
-                values = self.cond(pred=next_step, true_fn=step, false_fn=do_nothing)
-            solution = self.end(*values)
-
-        else:
-            # TensorFlow while loop
-            max_iterations = self.max_iterations.value()
-            values = signature.kwargs_to_args(kwargs=values, is_outer_args=True)
-            values = tf.while_loop(
-                cond=self.next_step, body=self.step, loop_vars=tuple(values),
-                maximum_iterations=tf_util.int32(x=max_iterations)
-            )
-            values = signature.args_to_kwargs(args=values)
-            solution = self.end(**values.to_kwargs())
+        max_iterations = self.max_iterations.value()
+        values = signature.kwargs_to_args(kwargs=values, is_outer_args=True)
+        values = tf.while_loop(
+            cond=self.next_step, body=self.step, loop_vars=tuple(values),
+            maximum_iterations=tf_util.int32(x=max_iterations)
+        )
+        values = signature.args_to_kwargs(args=values)
+        solution = self.end(**values.to_kwargs())
 
         return solution
 

@@ -107,7 +107,7 @@ class TestFeatures(UnittestBase, unittest.TestCase):
         # TODO: recorder currently does not include internal states
         agent = Agent.create(agent=self.agent_spec(
             policy=dict(network=dict(type='auto', size=8, depth=1, rnn=False))
-        ), environment=environment)
+        ), memory=10, environment=environment)
 
         agent.pretrain(
             directory=self.__class__.directory, num_iterations=2, num_traces=2, num_updates=3

@@ -61,11 +61,34 @@ class ConstantAgent(Agent):
             (<span style="color:#00C000"><b>default</b></span>: false for binary boolean actions,
             0 for discrete integer actions, 0.0 for continuous actions).
 
-        name (string): Agent name, used e.g. for TensorFlow scopes
+        config (specification): Additional configuration options:
+            <ul>
+            <li><b>name</b> (<i>string</i>) &ndash; Agent name, used e.g. for TensorFlow scopes
             (<span style="color:#00C000"><b>default</b></span>: "agent").
-        device (string): Device name
+            <li><b>device</b> (<i>string</i>) &ndash; Device name
             (<span style="color:#00C000"><b>default</b></span>: TensorFlow default).
-        config (specification): ...
+            <li><b>seed</b> (<i>int</i>) &ndash; Random seed to set for Python, NumPy (both set
+            globally!) and TensorFlow, environment seed may have to be set separately for fully
+            deterministic execution
+            (<span style="color:#00C000"><b>default</b></span>: none).</li>
+            <li><b>buffer_observe</b> (<i>false | "episode" | int > 0</i>) &ndash; Number of
+            timesteps within an episode to buffer before calling the internal observe function, to
+            reduce calls to TensorFlow for improved performance
+            (<span style="color:#00C000"><b>default</b></span>: configuration-specific maximum
+            number which can be buffered without affecting performance).</li>
+            <li><b>always_apply_exploration</b> (<i>bool</i>) &ndash; Whether to always apply
+            exploration, also for independent `act()` calls (final value in case of schedule)
+            (<span style="color:#00C000"><b>default</b></span>: false).</li>
+            <li><b>always_apply_variable_noise</b> (<i>bool</i>) &ndash; Whether to always apply
+            variable noise, also for independent `act()` calls (final value in case of schedule)
+            (<span style="color:#00C000"><b>default</b></span>: false).</li>
+            <li><b>enable_int_action_masking</b> (<i>bool</i>) &ndash; Whether int action options
+            can be masked via an optional "[ACTION-NAME]_mask" state input
+            (<span style="color:#00C000"><b>default</b></span>: true).</li>
+            <li><b>create_tf_assertions</b> (<i>bool</i>) &ndash; Whether to create internal
+            TensorFlow assertion operations
+            (<span style="color:#00C000"><b>default</b></span>: true).</li>
+            </ul>
         summarizer (specification): TensorBoard summarizer configuration with the following
             attributes (<span style="color:#00C000"><b>default</b></span>: no summarizer):
             <ul>
@@ -107,18 +130,15 @@ class ConstantAgent(Agent):
         self, states, actions, max_episode_timesteps=None,
         # Agent
         action_values=None,
-        # TensorFlow etc
-        name='agent', device=None, config=None, summarizer=None, recorder=None
+        # Config, summarizer, recorder
+        config=None, summarizer=None, recorder=None
     ):
         if not hasattr(self, 'spec'):
             self.spec = OrderedDict(
                 agent='constant',
-                # Environment
                 states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
-                # Agent
                 action_values=action_values,
-                # TensorFlow etc
-                name=name, device=device, config=config, summarizer=summarizer, recorder=recorder
+                config=config, summarizer=summarizer, recorder=recorder
             )
 
         super().__init__(
@@ -127,10 +147,8 @@ class ConstantAgent(Agent):
         )
 
         self.model = ConstantModel(
-            # Model
-            states=self.states_spec, actions=self.actions_spec, name=name, device=device,
-            parallel_interactions=self.parallel_interactions, config=self.config,
-            summarizer=summarizer,
-            # ConstantModel
+            states=self.states_spec, actions=self.actions_spec,
+            parallel_interactions=self.parallel_interactions,
+            config=self.config, summarizer=summarizer,
             action_values=action_values
         )

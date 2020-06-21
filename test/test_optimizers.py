@@ -29,8 +29,8 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
         self.start_tests(name='update-modifier-wrapper')
 
         self.unittest(optimizer=dict(
-            optimizer='adam', learning_rate=1e-3, multi_step=5, subsampling_fraction=0.5,
-            clipping_threshold=1e-2, optimizing_iterations=3
+            optimizer='adam', learning_rate=1e-3, clipping_threshold=1e-2, multi_step=5,
+            subsampling_fraction=0.5, linesearch_iterations=3
         ))
 
     def test_natural_gradient(self):

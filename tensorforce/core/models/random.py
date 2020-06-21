@@ -24,9 +24,9 @@ class RandomModel(Model):
     Utility class to return random actions of a desired shape and with given bounds.
     """
 
-    def __init__(self, *, states, actions, name, device, parallel_interactions, summarizer, config):
+    def __init__(self, *, states, actions, parallel_interactions, summarizer, config):
         super().__init__(
-            states=states, actions=actions, l2_regularization=0.0, name=name, device=None,
+            states=states, actions=actions, l2_regularization=0.0,
             parallel_interactions=parallel_interactions, saver=None, summarizer=summarizer,
             config=config
         )

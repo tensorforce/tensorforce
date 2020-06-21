@@ -13,12 +13,13 @@ This file records all major updates and new features, starting from version 0.5.
 - Agent saver functionality changed (Checkpoint/SavedModel instead of Saver/Protobuf): `save`/`load` functions and `saver` argument changed
 - Agent summarizer functionality changed: `summarizer` argument changed, some summary labels and other options removed
 - Default behavior when specifying `saver` is not to load agent, unless agent is created via `Agent.load`
-- Renamed PPO/TRPO argument: `critic_network/optimizer` to `baseline_network/optimizer`
+- Renamed PPO/TRPO/DPG argument: `critic_network/optimizer` to `baseline_network/optimizer`
 - Renamed PPO argument: `optimization_steps` to `multi_step`
 - Renamed RNN layers: `internal_{rnn/lstm/gru}` to `rnn/lstm/gru`, `rnn/lstm/gru` --> `input_{rnn/lstm/gru}`
-- Renamed reward estimation arguments: `estimate_terminal` to `estimate_terminals`, `estimate_actions` to `estimate_action_values`
+- Renamed reward estimation arguments: `estimate_horizon` to `predict_horizon_values`, `estimate_actions` to `predict_action_values`, `estimate_terminal` to `predict_terminal_values`
 - Renamed `auto` network argument: `internal_rnn` to `rnn`
 - Renamed `(internal_)rnn/lstm/gru` layer argument: `length` to `horizon`
+- Renamed `optimizing_step` to `linesearch_step`, and `UpdateModifierWrapper` argument `optimizing_iterations` to `linesearch_iterations`
 - Changed default memory `device` argument: `CPU:0`
 - Renamed rewards summaries
 - Combined `long` and `int` type

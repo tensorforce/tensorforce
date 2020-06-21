@@ -233,7 +233,7 @@ class LayeredNetwork(LayerbasedNetwork):
 
             # Deprecated
             if spec.get('type') in ('internal_rnn', 'internal_lstm', 'internal_gru'):
-                TensorforceError.deprecated(
+                raise TensorforceError.deprecated(
                     name='Network layers', argument=spec['type'], replacement=spec['type'][9:]
                 )
 

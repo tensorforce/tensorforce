@@ -35,15 +35,13 @@ class NaturalGradient(Optimizer):
             (<span style="color:#00C000"><b>default</b></span>: 10).
         cg_damping (0.0 <= float <= 1.0): Conjugate gradient damping factor.
             (<span style="color:#00C000"><b>default</b></span>: 1e-3).
-        cg_unroll_loop (bool): Whether to unroll the conjugate gradient loop
-            (<span style="color:#00C000"><b>default</b></span>: false).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
         arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
-        self, *, learning_rate, cg_max_iterations=10, cg_damping=1e-3, cg_unroll_loop=False,
-        name=None, arguments_spec=None
+        self, *, learning_rate, cg_max_iterations=10, cg_damping=1e-3, name=None,
+        arguments_spec=None
     ):
         super().__init__(name=name, arguments_spec=arguments_spec)
 
@@ -54,7 +52,7 @@ class NaturalGradient(Optimizer):
 
         self.conjugate_gradient = self.submodule(
             name='conjugate_gradient', module='conjugate_gradient', modules=solver_modules,
-            max_iterations=cg_max_iterations, damping=cg_damping, unroll_loop=cg_unroll_loop
+            max_iterations=cg_max_iterations, damping=cg_damping
         )
 
     def initialize_given_variables(self, *, variables, register_summaries):

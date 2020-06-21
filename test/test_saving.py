@@ -207,8 +207,8 @@ class TestSaving(UnittestBase, unittest.TestCase):
         self.assertEqual(agent.episodes, 0)
         self.finished_test()
 
-        # one episode
-        for _ in range(2):
+        # three episodes (due to batch_size change, hence mismatch with loaded internal last_update)
+        for _ in range(3):
             states = environment.reset()
             terminal = False
             while not terminal:

@@ -307,36 +307,28 @@ class Agent(object):
         self.reward_spec = self.model.reward_spec
         self.parallel_spec = self.model.parallel_spec
 
-        # Parallel buffer indices
-        self.buffer_indices = np.zeros(
-            shape=(self.parallel_interactions,), dtype=util.np_dtype(dtype='int')
-        )
+        # Act-observe timestep completed check
         self.timestep_completed = np.ones(
             shape=(self.parallel_interactions,), dtype=util.np_dtype(dtype='bool')
         )
 
         # Parallel terminal/reward buffers
-        self.buffers = ArrayDict()
-        shape = (self.parallel_interactions, self.config.buffer_observe)
-        self.buffers['terminal'] = np.ndarray(
-            shape=(shape + self.terminal_spec.shape), dtype=self.terminal_spec.np_type()
-        )
-        self.buffers['reward'] = np.ndarray(
-            shape=(shape + self.reward_spec.shape), dtype=self.reward_spec.np_type()
-        )
+        self.buffers = ListDict()
+        self.buffers['terminal'] = [list() for _ in range(self.parallel_interactions)]
+        self.buffers['reward'] = [list() for _ in range(self.parallel_interactions)]
 
         # Recorder buffers if required
         if self.recorder_spec is not None:
             self.num_episodes = 0
 
             def function(spec):
-                return np.ndarray(shape=(shape + spec.shape), dtype=spec.np_type())
+                return [list() for _ in range(self.parallel_interactions)]
 
-            self.buffers['states'] = self.states_spec.fmap(function=function, cls=ArrayDict)
+            self.buffers['states'] = self.states_spec.fmap(function=function, cls=ListDict)
             self.buffers['auxiliaries'] = self.auxiliaries_spec.fmap(
-                function=function, cls=ArrayDict
+                function=function, cls=ListDict
             )
-            self.buffers['actions'] = self.actions_spec.fmap(function=function, cls=ArrayDict)
+            self.buffers['actions'] = self.actions_spec.fmap(function=function, cls=ListDict)
 
             function = (lambda x: list())
 
@@ -388,13 +380,18 @@ class Agent(object):
         Resets possibly inconsistent internal values, for instance, after saving and restoring an
         agent. Automatically triggered as part of Agent.create/load/initialize/restore.
         """
-        # Reset parallel buffer indices
-        self.buffer_indices = np.zeros(
-            shape=(self.parallel_interactions,), dtype=util.np_dtype(dtype='int')
-        )
+        # Reset timestep completed
         self.timestep_completed = np.ones(
             shape=(self.parallel_interactions,), dtype=util.np_dtype(dtype='bool')
         )
+
+        # Reset buffers
+        for buffer in self.buffers.values():
+            for x in buffer:
+                x.clear()
+        if self.recorder_spec is not None:
+            for x in self.recorded.values():
+                x.clear()
 
         # Reset model
         timesteps, episodes, updates = self.model.reset()
@@ -443,12 +440,12 @@ class Agent(object):
             argument given: Dictionary containing action(s), dictionary containing next internal
             agent state(s) if independent mode.
         """
-        if independent is not None:
-            TensorforceError.deprecated(
+        if deterministic is not None:
+            raise TensorforceError.deprecated(
                 name='Agent.act', argument='deterministic', replacement='independent'
             )
         if evaluation is not None:
-            TensorforceError.deprecated(
+            raise TensorforceError.deprecated(
                 name='Agent.act', argument='evaluation', replacement='independent'
             )
 
@@ -564,11 +561,10 @@ class Agent(object):
         if self.recorder_spec is not None and not independent and \
                 self.episodes >= self.recorder_spec.get('start', 0):
             for n in range(num_parallel):
-                index = self.buffer_indices[parallel[n]]
                 for name in self.states_spec:
-                    self.buffers['states'][name][parallel[n], index] = states[name][n]
+                    self.buffers['states'][name][parallel[n]].append(states[name][n])
                 for name in self.auxiliaries_spec:
-                    self.buffers['auxiliaries'][name][parallel[n], index] = auxiliaries[name][n]
+                    self.buffers['auxiliaries'][name][parallel[n]].append(auxiliaries[name][n])
 
         # Inputs to tensors
         states = self.states_spec.to_tensor(value=states, batched=True)
@@ -599,9 +595,8 @@ class Agent(object):
         if self.recorder_spec is not None and not independent and \
                 self.episodes >= self.recorder_spec.get('start', 0):
             for n in range(num_parallel):
-                index = self.buffer_indices[parallel[n]]
                 for name in self.actions_spec:
-                    self.buffers['actions'][name][parallel[n], index] = actions[name][n]
+                    self.buffers['actions'][name][parallel[n]].append(actions[name][n])
 
         # Unbatch actions
         if batched:
@@ -734,29 +729,27 @@ class Agent(object):
         for n in range(num_parallel):
 
             # Buffer inputs
-            p = parallel[n].item()
-            index = self.buffer_indices[p]
-            self.buffers['terminal'][p, index] = terminal[n]
-            self.buffers['reward'][p, index] = reward[n]
-
-            # Increment buffer index
-            index += 1
-            self.buffer_indices[p] = index
+            p = parallel[n]
+            self.buffers['terminal'][p].append(terminal[n])
+            self.buffers['reward'][p].append(reward[n])
 
             # Check whether episode is too long
-            if self.max_episode_timesteps is not None and index > self.max_episode_timesteps:
+            if self.max_episode_timesteps is not None and \
+                    len(self.buffers['terminal'][p]) > self.max_episode_timesteps:
                 raise TensorforceError(message="Episode longer than max_episode_timesteps.")
 
             # Continue if not terminal and buffer_observe
-            if terminal[n].item() == 0 and index < self.config.buffer_observe:
+            if terminal[n].item() == 0 and (
+                self.config.buffer_observe == 'episode' or
+                len(self.buffers['terminal'][p]) < self.config.buffer_observe
+            ):
                 continue
 
-            # Reset buffer index
-            self.buffer_indices[p] = 0
-
             # Buffered terminal/reward inputs
-            t = self.buffers['terminal'][p, :index]
-            r = self.buffers['reward'][p, :index]
+            t = np.asarray(self.buffers['terminal'][p], dtype=self.terminal_spec.np_type())
+            r = np.asarray(self.buffers['reward'][p], dtype=self.reward_spec.np_type())
+            self.buffers['terminal'][p].clear()
+            self.buffers['reward'][p].clear()
 
             # Recorder
             if self.recorder_spec is not None and \
@@ -765,16 +758,19 @@ class Agent(object):
                 # Store buffered values
                 for name in self.states_spec:
                     self.recorded['states'][name].append(
-                        self.buffers['states'][name][p, :index].copy()
+                        np.stack(self.buffers['states'][name][p], axis=0)
                     )
+                    self.buffers['states'][name][p].clear()
                 for name in self.auxiliaries_spec:
                     self.recorded['auxiliaries'][name].append(
-                        self.buffers['auxiliaries'][name][p, :index].copy()
+                        np.stack(self.buffers['auxiliaries'][name][p], axis=0)
                     )
+                    self.buffers['auxiliaries'][name][p].clear()
                 for name, spec in self.actions_spec.items():
                     self.recorded['actions'][name].append(
-                        self.buffers['actions'][name][p, :index].copy()
+                        np.stack(self.buffers['actions'][name][p], axis=0)
                     )
+                    self.buffers['actions'][name][p].clear()
                 self.recorded['terminal'].append(t.copy())
                 self.recorded['reward'].append(r.copy())
 

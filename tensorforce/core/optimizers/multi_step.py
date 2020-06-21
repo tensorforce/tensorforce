@@ -29,55 +29,34 @@ class MultiStep(UpdateModifier):
             (<span style="color:#C00000"><b>required</b></span>).
         num_steps (parameter, int >= 0): Number of optimization steps
             (<span style="color:#C00000"><b>required</b></span>).
-        unroll_loop (bool): Whether to unroll the repetition loop
-            (<span style="color:#00C000"><b>default</b></span>: false).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
         arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(self, *, optimizer, num_steps, unroll_loop=False, name=None, arguments_spec=None):
+    def __init__(self, *, optimizer, num_steps, name=None, arguments_spec=None):
         super().__init__(optimizer=optimizer, name=name, arguments_spec=arguments_spec)
 
-        assert isinstance(unroll_loop, bool)
-        self.unroll_loop = unroll_loop
-
-        if self.unroll_loop:
-            self.num_steps = num_steps
-        else:
-            self.num_steps = self.submodule(
-                name='num_steps', module=num_steps, modules=parameter_modules, dtype='int',
-                min_value=0
-            )
+        self.num_steps = self.submodule(
+            name='num_steps', module=num_steps, modules=parameter_modules, dtype='int',
+            min_value=0
+        )
 
     @tf_function(num_args=1)
     def step(self, *, arguments, variables, **kwargs):
         deltas = [tf.zeros_like(input=variable) for variable in variables]
 
-        if self.unroll_loop:
-            # Unrolled for loop
-            for _ in range(self.num_steps):
-                with tf.control_dependencies(control_inputs=deltas):
-                    step_deltas = self.optimizer.step(
-                        arguments=arguments, variables=variables, **kwargs
-                    )
-                    deltas = [delta1 + delta2 for delta1, delta2 in zip(deltas, step_deltas)]
+        def body(deltas):
+            with tf.control_dependencies(control_inputs=deltas):
+                step_deltas = self.optimizer.step(
+                    arguments=arguments, variables=variables, **kwargs
+                )
+                deltas = [delta1 + delta2 for delta1, delta2 in zip(deltas, step_deltas)]
+            return (deltas,)
 
-            return deltas
+        num_steps = self.num_steps.value()
+        deltas = tf.while_loop(
+            cond=tf_util.always_true, body=body, loop_vars=(deltas,),
+            maximum_iterations=tf_util.int32(x=num_steps)
+        )[0]
 
-        else:
-            # TensorFlow while loop
-            def body(deltas):
-                with tf.control_dependencies(control_inputs=deltas):
-                    step_deltas = self.optimizer.step(
-                        arguments=arguments, variables=variables, **kwargs
-                    )
-                    deltas = [delta1 + delta2 for delta1, delta2 in zip(deltas, step_deltas)]
-                return (deltas,)
-
-            num_steps = self.num_steps.value()
-            deltas = tf.while_loop(
-                cond=tf_util.always_true, body=body, loop_vars=(deltas,),
-                maximum_iterations=tf_util.int32(x=num_steps)
-            )[0]
-
-            return deltas
+        return deltas

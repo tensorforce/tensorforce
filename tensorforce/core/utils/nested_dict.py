@@ -174,7 +174,10 @@ class NestedDict(OrderedDict):
             return super().__contains__(item)
 
     def __getitem__(self, key):
-        if isinstance(key, (list, tuple)):
+        if isinstance(key, (int, slice)):
+            return self.fmap(function=(lambda x: x[key]))
+
+        elif isinstance(key, (list, tuple)):
             return self.__class__(((name, self[name]) for name in key))
 
         elif not isinstance(key, str):

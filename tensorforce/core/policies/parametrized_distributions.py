@@ -152,7 +152,7 @@ class ParametrizedDistributions(Stochastic, ActionValue):
 
     @tf_function(num_args=4)
     def act(self, *, states, horizons, internals, auxiliaries, independent, return_internals):
-        if independent:
+        if independent:  # TODO: or temp constant 0.0
             embedding = self.network.apply(
                 x=states, horizons=horizons, internals=internals, independent=independent,
                 return_internals=return_internals
@@ -189,6 +189,9 @@ class ParametrizedDistributions(Stochastic, ActionValue):
         )
         if return_internals:
             embedding, internals = embedding
+
+        # TODO: conditional, global or per action, whether to call sample() or mode()
+        # Get rid of deterministic parameter
 
         def function(name, distribution, temperature):
             conditions = auxiliaries.get(name, default=TensorDict())

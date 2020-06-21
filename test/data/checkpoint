@@ -1,0 +1,2 @@
+model_checkpoint_path: "ppo-checkpoint-1"
+all_model_checkpoint_paths: "ppo-checkpoint-1"

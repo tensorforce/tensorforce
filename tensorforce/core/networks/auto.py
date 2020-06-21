@@ -49,7 +49,7 @@ class AutoNetwork(LayeredNetwork):
         internal_rnn=None
     ):
         if internal_rnn is not None:
-            TensorforceError.deprecated(
+            raise TensorforceError.deprecated(
                 name='AutoNetwork', argument='internal_rnn', replacement='rnn'
             )
 

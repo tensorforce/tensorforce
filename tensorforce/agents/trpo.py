@@ -77,19 +77,21 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
             (<span style="color:#00C000"><b>default</b></span>: batch_size).
         learning_rate (parameter, float > 0.0): Optimizer learning rate
             (<span style="color:#00C000"><b>default</b></span>: 1e-3).
+        linesearch_iterations (parameter, int >= 0):  Maximum number of line search iterations
+            (<span style="color:#00C000"><b>default</b></span>: 10).
 
         discount (parameter, 0.0 <= float <= 1.0): Discount factor for future rewards of
             discounted-sum reward estimation
             (<span style="color:#00C000"><b>default</b></span>: 0.99).
-        estimate_terminals (bool): Whether to estimate the value of terminal horizon states
+        predict_terminal_values (bool): Whether to predict the value of terminal states
             (<span style="color:#00C000"><b>default</b></span>: false).
 
-        baseline_network (specification): Critic network configuration, see
-            [networks](../modules/networks.html), main policy will be used as critic if none
+        baseline_network (specification): Baseline network configuration, see
+            [networks](../modules/networks.html), main policy will be used as baseline if none
             (<span style="color:#00C000"><b>default</b></span>: none).
-        baseline_optimizer (float > 0.0 | specification): Critic optimizer configuration, see
-            [optimizers](../modules/optimizers.html), main optimizer will be used for critic if
-            none, a float implies none and specifies a custom weight for the critic loss
+        baseline_optimizer (float > 0.0 | specification): Baseline optimizer configuration, see
+            [optimizers](../modules/optimizers.html), main optimizer will be used for baseline if
+            none, a float implies none and specifies a custom weight for the baseline loss
             (<span style="color:#00C000"><b>default</b></span>: none).
 
         l2_regularization (parameter, float >= 0.0): L2 regularization loss weight
@@ -111,25 +113,26 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
             to all trainable variables, as alternative exploration mechanism
             (<span style="color:#00C000"><b>default</b></span>: no variable noise).
 
-        name (string): Agent name, used e.g. for TensorFlow scopes and saver default filename
-            (<span style="color:#00C000"><b>default</b></span>: "agent").
-        device (string): Device name
-            (<span style="color:#00C000"><b>default</b></span>: TensorFlow default).
         parallel_interactions (int > 0): Maximum number of parallel interactions to support,
             for instance, to enable multiple parallel episodes, environments or agents within an
             environment
             (<span style="color:#00C000"><b>default</b></span>: 1).
-        config (specification): Various additional configuration options:
+        config (specification): Additional configuration options:
             <ul>
+            <li><b>name</b> (<i>string</i>) &ndash; Agent name, used e.g. for TensorFlow scopes and
+            saver default filename
+            (<span style="color:#00C000"><b>default</b></span>: "agent").
+            <li><b>device</b> (<i>string</i>) &ndash; Device name
+            (<span style="color:#00C000"><b>default</b></span>: TensorFlow default).
             <li><b>seed</b> (<i>int</i>) &ndash; Random seed to set for Python, NumPy (both set
             globally!) and TensorFlow, environment seed may have to be set separately for fully
             deterministic execution
             (<span style="color:#00C000"><b>default</b></span>: none).</li>
-            <li><b>buffer_observe</b> (<i>int > 0</i>) &ndash; Maximum number of timesteps within an
-            episode to buffer before executing internal observe operations, to reduce calls to
-            TensorFlow for improved performance
-            (<span style="color:#00C000"><b>default</b></span>: simple rules to infer maximum number
-            which can be buffered without affecting performance).</li>
+            <li><b>buffer_observe</b> (<i>false | "episode" | int > 0</i>) &ndash; Number of
+            timesteps within an episode to buffer before calling the internal observe function, to
+            reduce calls to TensorFlow for improved performance
+            (<span style="color:#00C000"><b>default</b></span>: configuration-specific maximum
+            number which can be buffered without affecting performance).</li>
             <li><b>always_apply_exploration</b> (<i>bool</i>) &ndash; Whether to always apply
             exploration, also for independent `act()` calls (final value in case of schedule)
             (<span style="color:#00C000"><b>default</b></span>: false).</li>
@@ -210,10 +213,10 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
         # Memory
         memory=None,
         # Optimization
-        update_frequency=None, learning_rate=1e-3,
+        update_frequency=None, learning_rate=1e-3, linesearch_iterations=10,
         # Reward estimation
-        discount=0.99, estimate_terminals=False,
-        # Critic
+        discount=0.99, predict_terminal_values=False,
+        # Baseline
         baseline_network=None, baseline_optimizer=None,
         # Preprocessing
         preprocessing=None,
@@ -221,39 +224,40 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
         exploration=0.0, variable_noise=0.0,
         # Regularization
         l2_regularization=0.0, entropy_regularization=0.0,
-        # TensorFlow etc
-        name='agent', device=None, parallel_interactions=1, config=None, saver=None,
-        summarizer=None, recorder=None,
+        # Parallel interactions
+        parallel_interactions=1,
+        # Config, saver, summarizer, recorder
+        config=None, saver=None, summarizer=None, recorder=None,
         # Deprecated
         estimate_terminal=None, critic_network=None, critic_optimizer=None, **kwargs
     ):
         if estimate_terminal is not None:
-            TensorforceError.deprecated(
-                name='PPO', argument='estimate_terminal', replacement='estimate_terminals'
+            raise TensorforceError.deprecated(
+                name='TRPO', argument='estimate_terminal', replacement='predict_terminal_values'
             )
         if critic_network is not None:
-            TensorforceError.deprecated(
-                name='PPO', argument='critic_network', replacement='baseline_network'
+            raise TensorforceError.deprecated(
+                name='TRPO', argument='critic_network', replacement='baseline_network'
             )
         if critic_optimizer is not None:
-            TensorforceError.deprecated(
-                name='PPO', argument='critic_optimizer', replacement='baseline_optimizer'
+            raise TensorforceError.deprecated(
+                name='TRPO', argument='critic_optimizer', replacement='baseline_optimizer'
             )
 
         self.spec = OrderedDict(
             agent='trpo',
             states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
-                batch_size=batch_size,
+            batch_size=batch_size,
             network=network, use_beta_distribution=use_beta_distribution,
             memory=memory,
             update_frequency=update_frequency, learning_rate=learning_rate,
-            discount=discount, estimate_terminals=estimate_terminals,
+            discount=discount, predict_terminal_values=predict_terminal_values,
             baseline_network=baseline_network, baseline_optimizer=baseline_optimizer,
             preprocessing=preprocessing,
             exploration=exploration, variable_noise=variable_noise,
             l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
-            name=name, device=device, parallel_interactions=parallel_interactions, config=config,
-                saver=saver, summarizer=summarizer, recorder=recorder
+            parallel_interactions=parallel_interactions,
+            config=config, saver=saver, summarizer=summarizer, recorder=recorder
         )
 
         policy = dict(network=network, temperature=1.0, use_beta_distribution=use_beta_distribution)
@@ -269,22 +273,26 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
             update = dict(unit='episodes', batch_size=batch_size, frequency=update_frequency)
 
         optimizer = dict(
-            optimizer='natural_gradient', learning_rate=learning_rate, optimizing_iterations=10
+            optimizer='natural_gradient', learning_rate=learning_rate,
+            linesearch_iterations=linesearch_iterations
         )
-
         objective = dict(type='policy_gradient', ratio_based=True)
 
         if baseline_network is None:
-            assert not estimate_terminals
-            reward_estimation = dict(horizon='episode', discount=discount, estimate_horizon=False)
+            assert not predict_terminal_values
+            reward_estimation = dict(
+                horizon='episode', discount=discount, predict_horizon_values=False,
+                estimate_advantage=False
+            )
             baseline_policy = None
             assert baseline_optimizer is None
             baseline_objective = None
-        else:
 
+        else:
             reward_estimation = dict(
-                horizon='episode', discount=discount, estimate_horizon='early',
-                estimate_terminals=estimate_terminals, estimate_advantage=True
+                horizon='episode', discount=discount, predict_horizon_values='early',
+                estimate_advantage=True, predict_action_values=False,
+                predict_terminal_values=predict_terminal_values
             )
             baseline_policy = dict(network=baseline_network)
             assert baseline_optimizer is not None
@@ -296,8 +304,7 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
             parallel_interactions=parallel_interactions, config=config, recorder=recorder,
             # Model
             preprocessing=preprocessing, exploration=exploration, variable_noise=variable_noise,
-            l2_regularization=l2_regularization, name=name, device=device, saver=saver,
-            summarizer=summarizer,
+            l2_regularization=l2_regularization, saver=saver, summarizer=summarizer,
             # TensorforceModel
             policy=policy, memory=memory, update=update, optimizer=optimizer, objective=objective,
             reward_estimation=reward_estimation, baseline_policy=baseline_policy,

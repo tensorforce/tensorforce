@@ -46,8 +46,8 @@ class TestAgents(UnittestBase, unittest.TestCase):
             actions=dict(type='float', shape=(), min_value=-1.0, max_value=1.0),
             agent='dpg', memory=100, batch_size=4,
             network=dict(type='auto', size=8, depth=1, rnn=2),
-            # TODO: baseline horizon cannot be greater than reward horizon + 1
-            horizon=1,
+            # TODO: baseline horizon cannot be greater than reward horizon
+            horizon=2,
             critic_network=dict(type='auto', size=7, depth=1, rnn=2)
         )
 
@@ -57,8 +57,8 @@ class TestAgents(UnittestBase, unittest.TestCase):
             actions=dict(type='int', shape=(2,), num_values=4),
             agent='double_dqn', memory=100, batch_size=4,
             network=dict(type='auto', size=8, depth=1, rnn=2),
-            # TODO: baseline horizon cannot be greater than reward horizon + 1
-            horizon=1
+            # TODO: baseline horizon cannot be greater than reward horizon
+            horizon=2
         )
 
     def test_dqn(self):
@@ -67,8 +67,8 @@ class TestAgents(UnittestBase, unittest.TestCase):
             actions=dict(type='int', shape=(2,), num_values=4),
             agent='dqn', memory=100, batch_size=4,
             network=dict(type='auto', size=8, depth=1, rnn=2),
-            # TODO: baseline horizon cannot be greater than reward horizon + 1
-            horizon=1
+            # TODO: baseline horizon cannot be greater than reward horizon
+            horizon=3
         )
 
     def test_dueling_dqn(self):
@@ -77,8 +77,8 @@ class TestAgents(UnittestBase, unittest.TestCase):
             actions=dict(type='int', shape=(2,), num_values=4),
             agent='dueling_dqn', memory=100, batch_size=4,
             network=dict(type='auto', size=8, depth=1, rnn=2),
-            # TODO: baseline horizon cannot be greater than reward horizon + 1
-            horizon=1
+            # TODO: baseline horizon cannot be greater than reward horizon
+            horizon=2
         )
 
     def test_ppo(self):
@@ -103,9 +103,9 @@ class TestAgents(UnittestBase, unittest.TestCase):
             objective='policy_gradient', reward_estimation=dict(horizon=3)
         )
 
-    def test_trpo(self):
-        self.start_tests(name='TRPO')
-        self.unittest(agent='trpo', batch_size=2, network=dict(type='auto', size=8, depth=1, rnn=2))
+    # def test_trpo(self):
+    #     self.start_tests(name='TRPO')
+    #     self.unittest(agent='trpo', batch_size=2, network=dict(type='auto', size=8, depth=1, rnn=2))
 
     def test_vpg(self):
         self.start_tests(name='VPG')

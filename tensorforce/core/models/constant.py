@@ -26,11 +26,10 @@ class ConstantModel(Model):
     """
 
     def __init__(
-        self, *, states, actions, name, device, parallel_interactions, summarizer, config,
-        action_values
+        self, *, states, actions, parallel_interactions, summarizer, config, action_values
     ):
         super().__init__(
-            states=states, actions=actions, l2_regularization=0.0, name=name, device=None,
+            states=states, actions=actions, l2_regularization=0.0,
             parallel_interactions=parallel_interactions, saver=None, summarizer=summarizer,
             config=config
         )

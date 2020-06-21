@@ -50,6 +50,9 @@ class ArrayDict(NestedDict):
             value = np.asarray(value)
         super().__setitem__(key, value)
 
+    def to_kwargs(self):
+        return OrderedDict(((name, arg) for name, arg in super(NestedDict, self).items()))
+
 
 class ListDict(NestedDict):
 

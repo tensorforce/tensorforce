@@ -29,8 +29,8 @@ from tensorforce.core import ArrayDict, Module, SignatureDict, TensorDict, Tenso
 class Model(Module):
 
     def __init__(
-        self, *, states, actions, l2_regularization, name, device, parallel_interactions, config,
-        saver, summarizer
+        self, *, states, actions, l2_regularization, parallel_interactions, config, saver,
+        summarizer
     ):
         # Tensorforce config
         self._config = config
@@ -38,7 +38,9 @@ class Model(Module):
         Module._MODULE_STACK.clear()
         Module._MODULE_STACK.append(self.__class__)
 
-        super().__init__(device=device, l2_regularization=l2_regularization, name=name)
+        super().__init__(
+            device=self._config.device, l2_regularization=l2_regularization, name=self._config.name
+        )
 
         assert self.l2_regularization is not None
         self.is_trainable = True
@@ -98,13 +100,13 @@ class Model(Module):
         if saver is None:
             self.saver = None
         elif not all(key in (
-            'directory', 'filename', 'frequency', 'load', 'max-checkpoints', 'max-hour-frequency',
+            'directory', 'filename', 'frequency', 'load', 'max_checkpoints', 'max_hour_frequency',
             'unit'
         ) for key in saver):
             raise TensorforceError.value(
                 name='agent', argument='saver', value=list(saver),
-                hint='not from {directory,filename,frequency,load,max-checkpoints,'
-                     'max-hour-frequency,unit}'
+                hint='not from {directory,filename,frequency,load,max_checkpoints,'
+                     'max_hour_frequency,unit}'
             )
         elif 'directory' not in saver:
             raise TensorforceError.required(name='agent', argument='saver[directory]')
@@ -118,11 +120,11 @@ class Model(Module):
             self.summarizer = None
             self.summary_labels = frozenset()
         elif not all(
-            key in ('directory', 'flush', 'labels', 'max-summaries') for key in summarizer
+            key in ('directory', 'flush', 'labels', 'max_summaries') for key in summarizer
         ):
             raise TensorforceError.value(
                 name='agent', argument='summarizer', value=list(summarizer),
-                hint='not from {directory,flush,labels,max-summaries}'
+                hint='not from {directory,flush,labels,max_summaries}'
             )
         elif 'directory' not in summarizer:
             raise TensorforceError.required(name='agent', argument='summarizer[directory]')
@@ -191,7 +193,7 @@ class Model(Module):
                     os.makedirs(directory)
                     directories = list()
 
-                max_summaries = self.summarizer.get('max-summaries', 5)
+                max_summaries = self.summarizer.get('max_summaries', 5)
                 if len(directories) > max_summaries - 1:
                     for subdir in directories[:len(directories) - max_summaries + 1]:
                         subdir = os.path.join(directory, subdir)
@@ -227,8 +229,8 @@ class Model(Module):
                 self.checkpoint = tf.train.Checkpoint(**{self.name: self})
                 self.saver = tf.train.CheckpointManager(
                     checkpoint=self.checkpoint, directory=self.saver_directory,
-                    max_to_keep=self.saver.get('max-checkpoints', 5),
-                    keep_checkpoint_every_n_hours=self.saver.get('max-hour-frequency'),
+                    max_to_keep=self.saver.get('max_checkpoints', 5),
+                    keep_checkpoint_every_n_hours=self.saver.get('max_hour_frequency'),
                     checkpoint_name=self.saver_filename,
                     step_counter=self.units[self.saver.get('unit', 'updates')],
                     checkpoint_interval=self.saver['frequency'], init_fn=None

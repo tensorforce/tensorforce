@@ -79,13 +79,13 @@ class DeterministicPolicyGradient(TensorforceAgent):
         learning_rate (parameter, float > 0.0): Optimizer learning rate
             (<span style="color:#00C000"><b>default</b></span>: 3e-4).
 
-        horizon (parameter, int >= 0): Horizon of discounted-sum reward estimation before critic
+        horizon (parameter, int >= 1): Horizon of discounted-sum reward estimation before critic
             estimate
-            (<span style="color:#00C000"><b>default</b></span>: 0).
+            (<span style="color:#00C000"><b>default</b></span>: 1).
         discount (parameter, 0.0 <= float <= 1.0): Discount factor for future rewards of
             discounted-sum reward estimation
             (<span style="color:#00C000"><b>default</b></span>: 0.99).
-        estimate_terminals (bool): Whether to estimate the value of terminal horizon states
+        predict_terminal_values (bool): Whether to predict the value of terminal states
             (<span style="color:#00C000"><b>default</b></span>: false).
 
         critic_network (specification): Critic network configuration, see
@@ -115,25 +115,26 @@ class DeterministicPolicyGradient(TensorforceAgent):
             to all trainable variables, as alternative exploration mechanism
             (<span style="color:#00C000"><b>default</b></span>: no variable noise).
 
-        name (string): Agent name, used e.g. for TensorFlow scopes and saver default filename
-            (<span style="color:#00C000"><b>default</b></span>: "agent").
-        device (string): Device name
-            (<span style="color:#00C000"><b>default</b></span>: TensorFlow default).
         parallel_interactions (int > 0): Maximum number of parallel interactions to support,
             for instance, to enable multiple parallel episodes, environments or agents within an
             environment
             (<span style="color:#00C000"><b>default</b></span>: 1).
-        config (specification): Various additional configuration options:
+        config (specification): Additional configuration options:
             <ul>
+            <li><b>name</b> (<i>string</i>) &ndash; Agent name, used e.g. for TensorFlow scopes and
+            saver default filename
+            (<span style="color:#00C000"><b>default</b></span>: "agent").
+            <li><b>device</b> (<i>string</i>) &ndash; Device name
+            (<span style="color:#00C000"><b>default</b></span>: TensorFlow default).
             <li><b>seed</b> (<i>int</i>) &ndash; Random seed to set for Python, NumPy (both set
             globally!) and TensorFlow, environment seed may have to be set separately for fully
             deterministic execution
             (<span style="color:#00C000"><b>default</b></span>: none).</li>
-            <li><b>buffer_observe</b> (<i>int > 0</i>) &ndash; Maximum number of timesteps within an
-            episode to buffer before executing internal observe operations, to reduce calls to
-            TensorFlow for improved performance
-            (<span style="color:#00C000"><b>default</b></span>: simple rules to infer maximum number
-            which can be buffered without affecting performance).</li>
+            <li><b>buffer_observe</b> (<i>false | "episode" | int > 0</i>) &ndash; Number of
+            timesteps within an episode to buffer before calling the internal observe function, to
+            reduce calls to TensorFlow for improved performance
+            (<span style="color:#00C000"><b>default</b></span>: configuration-specific maximum
+            number which can be buffered without affecting performance).</li>
             <li><b>always_apply_exploration</b> (<i>bool</i>) &ndash; Whether to always apply
             exploration, also for independent `act()` calls (final value in case of schedule)
             (<span style="color:#00C000"><b>default</b></span>: false).</li>
@@ -216,7 +217,7 @@ class DeterministicPolicyGradient(TensorforceAgent):
         # Optimization
         update_frequency=None, start_updating=None, learning_rate=3e-4,
         # Reward estimation
-        horizon=0, discount=0.99, estimate_terminals=False,
+        horizon=1, discount=0.99, predict_terminal_values=False,
         # Critic
         critic_network='auto', critic_optimizer=1.0,
         # Preprocessing
@@ -225,15 +226,16 @@ class DeterministicPolicyGradient(TensorforceAgent):
         exploration=0.0, variable_noise=0.0,
         # Regularization
         l2_regularization=0.0, entropy_regularization=0.0,
-        # TensorFlow etc
-        name='agent', device=None, parallel_interactions=1, config=None, saver=None,
-        summarizer=None, recorder=None,
+        # Parallel interactions
+        parallel_interactions=1,
+        # Config, saver, summarizer, recorder
+        config=None, saver=None, summarizer=None, recorder=None,
         # Deprecated
         estimate_terminal=None, **kwargs
     ):
         if estimate_terminal is not None:
-            TensorforceError.deprecated(
-                name='PPO', argument='estimate_terminal', replacement='estimate_terminals'
+            raise TensorforceError.deprecated(
+                name='DPG', argument='estimate_terminal', replacement='predict_terminal_values'
             )
 
         self.spec = OrderedDict(
@@ -242,30 +244,37 @@ class DeterministicPolicyGradient(TensorforceAgent):
             max_episode_timesteps=max_episode_timesteps,
             network=network, use_beta_distribution=use_beta_distribution,
             update_frequency=update_frequency, start_updating=start_updating,
-                learning_rate=learning_rate,
-            horizon=horizon, discount=discount, estimate_terminals=estimate_terminals,
+            learning_rate=learning_rate,
+            horizon=horizon, discount=discount, predict_terminal_values=predict_terminal_values,
             critic_network=critic_network, critic_optimizer=critic_optimizer,
             preprocessing=preprocessing,
             exploration=exploration, variable_noise=variable_noise,
             l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
-            name=name, device=device, parallel_interactions=parallel_interactions, config=config,
-                saver=saver, summarizer=summarizer, recorder=recorder
+            parallel_interactions=parallel_interactions,
+            config=config, saver=saver, summarizer=summarizer, recorder=recorder
         )
 
         policy = dict(network=network, temperature=0.0, use_beta_distribution=use_beta_distribution)
+
         memory = dict(type='replay', capacity=memory)
+
         update = dict(unit='timesteps', batch_size=batch_size)
         if update_frequency is not None:
             update['frequency'] = update_frequency
         if start_updating is not None:
             update['start'] = start_updating
+
         optimizer = dict(type='adam', learning_rate=learning_rate)
         objective = 'deterministic_policy_gradient'
+
         reward_estimation = dict(
-            horizon=horizon, discount=discount, estimate_horizon='late',
-            estimate_terminals=estimate_terminals, estimate_action_values=True
+            horizon=horizon, discount=discount, predict_horizon_values='late',
+            estimate_advantage=False, predict_action_values=True,
+            predict_terminal_values=predict_terminal_values
         )
+
         baseline_policy = dict(network=critic_network, distributions=dict(float='gaussian'))
+        baseline_optimizer = critic_optimizer
         baseline_objective = dict(type='value', value='action')
 
         super().__init__(
@@ -274,12 +283,11 @@ class DeterministicPolicyGradient(TensorforceAgent):
             parallel_interactions=parallel_interactions, config=config, recorder=recorder,
             # Model
             preprocessing=preprocessing, exploration=exploration, variable_noise=variable_noise,
-            l2_regularization=l2_regularization, name=name, device=device, saver=saver,
-            summarizer=summarizer,
+            l2_regularization=l2_regularization, saver=saver, summarizer=summarizer,
             # TensorforceModel
             policy=policy, memory=memory, update=update, optimizer=optimizer, objective=objective,
             reward_estimation=reward_estimation, baseline_policy=baseline_policy,
-            baseline_optimizer=critic_optimizer, baseline_objective=baseline_objective,
+            baseline_optimizer=baseline_optimizer, baseline_objective=baseline_objective,
             entropy_regularization=entropy_regularization, **kwargs
         )
 

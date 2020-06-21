@@ -103,28 +103,6 @@ python run.py --agent benchmarks/configs/ppo1.json --episodes 100 \
 
 
 
-### Record & pretrain
-
-```python
-agent = Agent.create(...
-    recorder=dict(
-        directory='data/traces',
-        frequency=100  # record a traces file every 100 episodes
-    ), ...
-)
-...
-agent.close()
-
-# Pretrain agent on recorded traces
-agent = Agent.create(...)
-agent.pretrain(
-    directory='data/traces',
-    num_iterations=100  # perform 100 update iterations on traces (more configurations possible)
-)
-```
-
-
-
 ### Save & restore
 
 ##### TensorFlow saver (full model)
@@ -166,5 +144,27 @@ Agent.create(...
         # list of labels, or 'all'
         labels=['entropy', 'graph', 'kl-divergence', 'loss', 'reward', 'update-norm']
     ), ...
+)
+```
+
+
+
+### Record & pretrain
+
+```python
+agent = Agent.create(...
+    recorder=dict(
+        directory='data/traces',
+        frequency=100  # record a traces file every 100 episodes
+    ), ...
+)
+...
+agent.close()
+
+# Pretrain agent on recorded traces (memory size needs to be compatible)
+agent = Agent.create(...)
+agent.pretrain(
+    directory='data/traces',
+    num_iterations=100  # perform 100 update iterations on traces (more configurations possible)
 )
 ```

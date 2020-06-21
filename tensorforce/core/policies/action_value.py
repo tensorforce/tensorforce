@@ -15,7 +15,6 @@
 
 import tensorflow as tf
 
-from tensorforce import TensorforceError
 from tensorforce.core import SignatureDict, TensorSpec, tf_function
 from tensorforce.core.policies import Policy
 

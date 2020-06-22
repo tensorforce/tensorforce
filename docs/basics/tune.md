@@ -11,7 +11,7 @@ tune.py -- Hyperparameter tuner
 
 **-\-[l]evel** (*string, default: not specified*) -- Level or game id, like `CartPole-v1`, if supported
 <br>
-**-\-[m]ax-repeats** (*int, default: 1*) -- Maximum number of repetitions
+**-\-[m]ax-repeats** (*int, default: 10*) -- Maximum number of repetitions
 <br>
 **-\-[n]um-iterations** (*int, default: 1*) -- Number of BOHB iterations
 <br>

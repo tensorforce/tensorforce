@@ -224,7 +224,7 @@ class TensorforceModel(Model):
         #   n         y           n           main policy, shared loss/kldiv, weighted 1.0
         #   n         y           f           main policy, shared loss/kldiv, weighted
         #   n         y           y           main policy, separate
-        #   y         n           n           advantage_in_loss=True,default estimate_advantage=True
+        #   y         n           n           estimate_advantage=True,advantage_in_loss=True
         #   y         n           f           shared objective/loss/kldiv, weighted
         #   y         n           y           shared objective
         #   y         y           n           shared loss/kldiv, weighted 1.0, equal horizon
@@ -348,6 +348,8 @@ class TensorforceModel(Model):
             )
             if self.baseline_objective is not None:
                 arguments_spec['reference'] = self.baseline_objective.reference_spec()
+            else:
+                arguments_spec['reference'] = self.objective.reference_spec()
             self.baseline_optimizer = self.submodule(
                 name='baseline_optimizer', module=baseline_optimizer, modules=optimizer_modules,
                 is_trainable=False, arguments_spec=arguments_spec
@@ -357,7 +359,8 @@ class TensorforceModel(Model):
             internals=internals_spec, auxiliaries=self.auxiliaries_spec, actions=self.actions_spec,
             reward=self.reward_spec
         )
-        if self.baseline_loss_weight is not None and self.separate_baseline_policy:
+        if self.baseline_objective is not None and self.baseline_loss_weight is not None and \
+                not self.baseline_loss_weight.is_constant(value=0.0):
             arguments_spec['reference'] = TensorsSpec(
                 policy=self.objective.reference_spec(),
                 baseline=self.baseline_objective.reference_spec()
@@ -565,7 +568,8 @@ class TensorforceModel(Model):
                     ),
                     auxiliaries=self.auxiliaries_spec.signature(batched=True),
                     actions=self.actions_spec.signature(batched=True),
-                    reward=self.reward_spec.signature(batched=True)
+                    reward=self.reward_spec.signature(batched=True),
+                    reference=self.objective.reference_spec().signature(batched=True)
                 )
             else:
                 return SignatureDict(
@@ -606,7 +610,8 @@ class TensorforceModel(Model):
             )
 
         elif function == 'loss':
-            if self.baseline_loss_weight is not None and self.separate_baseline_policy:
+            if self.baseline_objective is not None and self.baseline_loss_weight is not None and \
+                    not self.baseline_loss_weight.is_constant(value=0.0):
                 return SignatureDict(
                     states=self.processed_states_spec.signature(batched=True),
                     horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
@@ -841,14 +846,14 @@ class TensorforceModel(Model):
             dependencies.extend(actions.flatten())
 
             # Baseline internals (after variable noise)
-            if self.separate_baseline_policy:
-                if len(self.internals_spec.get('baseline', TensorsSpec())) > 0:
-                    # TODO: Baseline policy network apply to retrieve next internals
-                    # TODO: Also important
-                    _, next_internals['baseline'] = self.baseline.network.apply(
-                        x=states, horizons=horizons, internals=internals['baseline'],
-                        independent=independent, return_internals=True
-                    )
+            if self.separate_baseline_policy and \
+                    len(self.internals_spec.get('baseline', TensorsSpec())) > 0:
+                # TODO: Baseline policy network apply to retrieve next internals
+                # TODO: Also important
+                _, next_internals['baseline'] = self.baseline.network.apply(
+                    x=states, horizons=horizons, internals=internals['baseline'],
+                    independent=independent, return_internals=True
+                )
             dependencies.extend(next_internals.flatten())
 
         # Reverse variable noise (after policy act)
@@ -1363,13 +1368,13 @@ class TensorforceModel(Model):
                         y=self.baseline.past_horizon(on_policy=False)
                     )
                     unit = self.timesteps
-                    start = tf.math.maximum(x=start, y=(frequency + past_horizon + one))
+                    start = tf.math.maximum(x=start, y=(frequency + past_horizon))
                     if self.reward_horizon == 'episode':
                         min_start = tf.where(
                             condition=(self.episodes > zero), x=start, y=(unit + one)
                         )
                         start = tf.math.maximum(x=start, y=min_start)
-                    elif self.predict_horizon_values == 'late':
+                    else:
                         start += self.reward_horizon.value()
                     if self.config.buffer_observe == 'episode':
                         min_start = tf.where(
@@ -1802,6 +1807,11 @@ class TensorforceModel(Model):
                 states=baseline_states, horizons=baseline_horizons, internals=baseline_internals,
                 auxiliaries=auxiliaries, actions=actions, reward=reward, policy=self.baseline
             )
+        else:
+            baseline_arguments['reference'] = self.objective.reference(
+                states=baseline_states, horizons=baseline_horizons, internals=baseline_internals,
+                auxiliaries=auxiliaries, actions=actions, reward=reward, policy=self.baseline
+            )
 
         if self.baseline_optimizer is not None:
             def fn_kl_divergence(
@@ -1865,7 +1875,7 @@ class TensorforceModel(Model):
             states=policy_states, horizons=policy_horizons, internals=policy_only_internals,
             auxiliaries=auxiliaries, actions=actions, reward=reward, policy=self.policy
         )
-        if self.separate_baseline_policy and self.baseline_loss_weight is not None and \
+        if self.baseline_objective is not None and self.baseline_loss_weight is not None and \
                 not self.baseline_loss_weight.is_constant(value=0.0):
             reference = TensorDict(policy=reference, baseline=baseline_arguments['reference'])
 
@@ -1928,38 +1938,10 @@ class TensorforceModel(Model):
                 states=states, horizons=horizons, internals=internals.get('policy', TensorDict()),
                 auxiliaries=auxiliaries
             )
-            kl_divergence = self.policy.kl_divergence(
+            return self.policy.kl_divergence(
                 states=states, horizons=horizons, internals=internals.get('policy', TensorDict()),
                 auxiliaries=auxiliaries, reference=reference, reduced=True, return_per_action=False
             )
-
-            if self.baseline_loss_weight is not None and \
-                    not self.baseline_loss_weight.is_constant(value=0.0):
-                zero = tf_util.constant(value=0.0, dtype='float')
-                baseline_loss_weight = self.baseline_loss_weight.value()
-
-                def no_baseline_kl_divergence():
-                    return zero
-
-                def apply_baseline_kl_divergence():
-                    reference = self.policy.kldiv_reference(
-                        states=states, horizons=horizons,
-                        internals=internals.get('baseline', TensorDict()),
-                        auxiliaries=auxiliaries
-                    )
-                    baseline_kl_divergence = self.baseline.kl_divergence(
-                        states=states, horizons=horizons,
-                        internals=internals.get('baseline', TensorDict()),
-                        auxiliaries=auxiliaries, reference=reference, reduced=True,
-                        return_per_action=False
-                    )
-                    return baseline_loss_weight * baseline_kl_divergence
-
-                kl_divergence += tf.cond(
-                    pred=tf.math.equal(x=baseline_loss_weight, y=zero),
-                    true_fn=no_baseline_kl_divergence, false_fn=apply_baseline_kl_divergence
-                )
-            return kl_divergence
 
         kwargs = self.objective.optimizer_arguments(policy=self.policy, baseline=self.baseline)
         if self.baseline_objective is not None and self.baseline_loss_weight is not None and \
@@ -2056,7 +2038,7 @@ class TensorforceModel(Model):
             policy_internals = internals.get('policy', TensorDict())
         else:
             policy_internals = internals
-        if self.separate_baseline_policy and self.baseline_loss_weight is not None and \
+        if self.baseline_objective is not None and self.baseline_loss_weight is not None and \
                 not self.baseline_loss_weight.is_constant(value=0.0):
             policy_reference = reference['policy']
         else:
@@ -2089,10 +2071,10 @@ class TensorforceModel(Model):
                 baseline_internals = internals.get('baseline', TensorDict())
             else:
                 baseline_internals = policy_internals
-            if self.separate_baseline_policy:
+            if self.baseline_objective is not None:
                 baseline_reference = reference['baseline']
             else:
-                baseline_reference = reference
+                baseline_reference = policy_reference
 
             zero = tf_util.constant(value=0.0, dtype='float')
             baseline_loss_weight = self.baseline_loss_weight.value()

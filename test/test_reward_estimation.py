@@ -27,9 +27,11 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         reward_estimation = dict(horizon=1, discount=0.99, predict_horizon_values=False)
         self.unittest(reward_estimation=reward_estimation)
 
-        # horizon longer than episode
+        # horizon as long as episode
         reward_estimation = dict(horizon=10, discount=0.99, predict_horizon_values=False)
         self.unittest(reward_estimation=reward_estimation)
+
+        # episode horizon
         reward_estimation = dict(horizon='episode', discount=0.99, predict_horizon_values=False)
         self.unittest(reward_estimation=reward_estimation)
 

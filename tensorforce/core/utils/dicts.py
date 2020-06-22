@@ -92,7 +92,7 @@ class SignatureDict(NestedDict):
                 assert isinstance(arg, TensorDict)
                 args.append(spec.kwargs_to_args(kwargs=arg))
             else:
-                assert isinstance(arg, (tf.IndexedSlices, tf.Tensor, tf.Variable))
+                assert isinstance(arg, (tf.IndexedSlices, tf.Tensor, tf.Variable)), (name, spec, arg)
                 args.append(arg)
         return args
 

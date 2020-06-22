@@ -30,83 +30,64 @@ from tensorforce.execution import Runner
 
 class TensorforceWorker(Worker):
 
-    def __init__(self, *args, environment=None, **kwargs):
-        # def __init__(self, run_id, nameserver=None, nameserver_port=None, logger=None, host=None, id=None, timeout=None):
+    def __init__(self, *args, environment, max_episode_timesteps=None, **kwargs):
         super().__init__(*args, **kwargs)
-        assert environment is not None
         self.environment = environment
+        self.max_episode_timesteps = max_episode_timesteps
 
     def compute(self, config_id, config, budget, working_directory):
-        if self.environment.max_episode_timesteps() is None:
-            min_capacity = 1000 + config['batch_size']
-        else:
-            min_capacity = self.environment.max_episode_timesteps() + config['batch_size']
-        max_capacity = 100000
-        capacity = min(max_capacity, max(min_capacity, config['memory'] * config['batch_size']))
-        frequency = max(4, int(config['frequency'] * config['batch_size']))
+        frequency = max(1, int(config['frequency'] * config['batch_size']))
+        update = dict(unit='episodes', batch_size=config['batch_size'], frequency=frequency)
 
+        policy = dict(network=dict(type='auto', size=64, depth=2, rnn=False))
+        optimizer = dict(type='adam', learning_rate=config['learning_rate'])
         if config['ratio_based'] == 'yes':
-            ratio_based = True
-            clipping_value = config['clipping_value']
+            objective = dict(type='policy_gradient', ratio_based=True, clipping_value=0.2)
         else:
-            ratio_based = False
-            clipping_value = 0.0
+            objective = dict(type='policy_gradient', ratio_based=False, clipping_value=0.2)
+
+        horizon = config['horizon']
+        discount = config['discount']
 
         if config['baseline'] == 'no':
-            baseline_policy = None
-            baseline_objective = None
-            baseline_optimizer = None
-            estimate_horizon = False
-            estimate_terminal = False
+            predict_horizon_values = False
             estimate_advantage = False
-        else:
-            estimate_horizon = 'late'
+            predict_action_values = False
+            baseline_policy = None
+            baseline_optimizer = None
+            baseline_objective = None
+        elif config['baseline'] == 'same':
+            predict_horizon_values = 'early'
             estimate_advantage = (config['estimate_advantage'] == 'yes')
-            if config['baseline'] == 'same-policy':
-                baseline_policy = None
-                baseline_objective = None
-                baseline_optimizer = None
-            elif config['baseline'] == 'auto':
-                # other modes, shared network/policy etc !!!
-                baseline_policy = dict(network=dict(type='auto', internal_rnn=False))
-                baseline_objective = dict(
-                    type='value', value='state', huber_loss=0.0, early_reduce=False
-                )
-                baseline_optimizer = dict(
-                    type='adam', learning_rate=config['baseline_learning_rate']
-                )
-            else:
-                assert False
-
-        if config['l2_regularization'] < 3e-5:  # yes/no better
-            l2_regularization = 0.0
+            predict_action_values = False
+            baseline_policy = None
+            baseline_optimizer = config['baseline_weight']
+            baseline_objective = dict(type='value', value='state')
+        elif config['baseline'] == 'yes':
+            predict_horizon_values = 'early'
+            estimate_advantage = (config['estimate_advantage'] == 'yes')
+            predict_action_values = False
+            baseline_policy = dict(network=dict(type='auto', size=64, depth=2, rnn=False))
+            baseline_optimizer = baseline_optimizer = dict(
+                type='adam', learning_rate=config['baseline_learning_rate']
+            )
+            baseline_objective = dict(type='value', value='state')
         else:
-            l2_regularization = config['l2_regularization']
+            assert False
 
-        if config['entropy_regularization'] < 3e-5:  # yes/no better
+        if config['entropy_regularization'] < 3e-5:
             entropy_regularization = 0.0
         else:
             entropy_regularization = config['entropy_regularization']
 
         agent = dict(
-            agent='tensorforce',
-            policy=dict(network=dict(type='auto', internal_rnn=False)),
-            memory=dict(type='replay', capacity=capacity),
-            update=dict(unit='timesteps', batch_size=config['batch_size'], frequency=frequency),
-            optimizer=dict(type='adam', learning_rate=config['learning_rate']),
-            objective=dict(
-                type='policy_gradient', ratio_based=ratio_based, clipping_value=clipping_value,
-                early_reduce=False
-            ),
+            policy=policy, memory='recent', update=update, optimizer=optimizer, objective=objective,
             reward_estimation=dict(
-                horizon=config['horizon'], discount=config['discount'],
-                estimate_horizon=estimate_horizon, estimate_actions=False,
-                estimate_terminal=False, estimate_advantage=estimate_advantage
+                horizon=horizon, discount=discount, predict_horizon_values=predict_horizon_values,
+                estimate_advantage=estimate_advantage, predict_action_values=predict_action_values
             ),
-            baseline_policy=baseline_policy, baseline_objective=baseline_objective,
-            baseline_optimizer=baseline_optimizer,
-            preprocessing=None,
-            l2_regularization=l2_regularization, entropy_regularization=entropy_regularization
+            baseline_policy=baseline_policy, baseline_optimizer=baseline_optimizer,
+            baseline_objective=baseline_objective, entropy_regularization=entropy_regularization
         )
 
         # num_episodes = list()
@@ -115,14 +96,11 @@ class TensorforceWorker(Worker):
         rewards = list()
 
         for n in range(round(budget)):
-            runner = Runner(agent=agent, environment=self.environment)
-
-            # performance_threshold = runner.environment.max_episode_timesteps() - agent['reward_estimation']['horizon']
-
-            # def callback(r, p):
-            #     return True
-
-            runner.run(num_episodes=500, use_tqdm=False)
+            runner = Runner(
+                agent=agent, environment=self.environment,
+                max_episode_timesteps=self.max_episode_timesteps
+            )
+            runner.run(num_episodes=200, use_tqdm=False)
             runner.close()
 
             # num_episodes.append(len(runner.episode_rewards))
@@ -144,34 +122,25 @@ class TensorforceWorker(Worker):
 
     @staticmethod
     def get_configspace():
-        """
-        It builds the configuration space with the needed hyperparameters.
-        It is easily possible to implement different types of hyperparameters.
-        Beside float-hyperparameters on a log scale, it is also able to handle categorical input parameter.
-        :return: ConfigurationsSpace-Object
-        """
         configspace = cs.ConfigurationSpace()
 
-        memory = cs.hyperparameters.UniformIntegerHyperparameter(name='memory', lower=2, upper=50)
-        configspace.add_hyperparameter(hyperparameter=memory)
-
         batch_size = cs.hyperparameters.UniformIntegerHyperparameter(
-            name='batch_size', lower=32, upper=8192, log=True
+            name='batch_size', lower=1, upper=50, log=True
         )
         configspace.add_hyperparameter(hyperparameter=batch_size)
 
         frequency = cs.hyperparameters.UniformFloatHyperparameter(
-            name='frequency', lower=3e-2, upper=1.0, log=True
+            name='frequency', lower=1e-2, upper=1.0, log=True
         )
         configspace.add_hyperparameter(hyperparameter=frequency)
 
         learning_rate = cs.hyperparameters.UniformFloatHyperparameter(
-            name='learning_rate', lower=1e-5, upper=3e-2, log=True
+            name='learning_rate', lower=1e-5, upper=0.1, log=True
         )
         configspace.add_hyperparameter(hyperparameter=learning_rate)
 
         horizon = cs.hyperparameters.UniformIntegerHyperparameter(
-            name='horizon', lower=1, upper=50
+            name='horizon', lower=1, upper=100, log=True
         )
         configspace.add_hyperparameter(hyperparameter=horizon)
 
@@ -185,18 +154,18 @@ class TensorforceWorker(Worker):
         )
         configspace.add_hyperparameter(hyperparameter=ratio_based)
 
-        clipping_value = cs.hyperparameters.UniformFloatHyperparameter(
-            name='clipping_value', lower=0.05, upper=0.5
-        )
-        configspace.add_hyperparameter(hyperparameter=clipping_value)
-
         baseline = cs.hyperparameters.CategoricalHyperparameter(
-            name='baseline', choices=('no', 'auto', 'same-policy')
+            name='baseline', choices=('no', 'same', 'yes')
         )
         configspace.add_hyperparameter(hyperparameter=baseline)
 
+        baseline_weight = cs.hyperparameters.UniformFloatHyperparameter(
+            name='baseline_weight', lower=1e-2, upper=1e2
+        )
+        configspace.add_hyperparameter(hyperparameter=baseline_weight)
+
         baseline_learning_rate = cs.hyperparameters.UniformFloatHyperparameter(
-            name='baseline_learning_rate', lower=1e-5, upper=3e-2, log=True
+            name='baseline_learning_rate', lower=1e-5, upper=0.1, log=True
         )
         configspace.add_hyperparameter(hyperparameter=baseline_learning_rate)
 
@@ -205,29 +174,24 @@ class TensorforceWorker(Worker):
         )
         configspace.add_hyperparameter(hyperparameter=estimate_advantage)
 
-        l2_regularization = cs.hyperparameters.UniformFloatHyperparameter(
-            name='l2_regularization', lower=1e-5, upper=1.0, log=True
-        )
-        configspace.add_hyperparameter(hyperparameter=l2_regularization)
-
         entropy_regularization = cs.hyperparameters.UniformFloatHyperparameter(
             name='entropy_regularization', lower=1e-5, upper=1.0, log=True
         )
         configspace.add_hyperparameter(hyperparameter=entropy_regularization)
 
         configspace.add_condition(
-            condition=cs.EqualsCondition(child=clipping_value, parent=ratio_based, value='yes')
-        )
-
-        configspace.add_condition(
-            condition=cs.NotEqualsCondition(
-                child=baseline_learning_rate, parent=baseline, value='no'
-            )
-        )
-
-        configspace.add_condition(
             condition=cs.NotEqualsCondition(
                 child=estimate_advantage, parent=baseline, value='no'
+            )
+        )
+        configspace.add_condition(
+            condition=cs.EqualsCondition(
+                child=baseline_weight, parent=baseline, value='same'
+            )
+        )
+        configspace.add_condition(
+            condition=cs.EqualsCondition(
+                child=baseline_learning_rate, parent=baseline, value='yes'
             )
         )
 
@@ -244,7 +208,7 @@ def main():
         help='Level or game id, like `CartPole-v1`, if supported'
     )
     parser.add_argument(
-        '-m', '--max-repeats', type=int, default=1, help='Maximum number of repetitions'
+        '-m', '--max-repeats', type=int, default=10, help='Maximum number of repetitions'
     )
     parser.add_argument(
         '-n', '--num-iterations', type=int, default=1, help='Number of BOHB iterations'
@@ -277,17 +241,7 @@ def main():
         environment=environment, run_id=args.id, nameserver=nameserver,
         nameserver_port=nameserver_port, host=host
     )
-    # TensorforceWorker(run_id, nameserver=None, nameserver_port=None, logger=None, host=None, id=None, timeout=None)
-    # logger: logging.logger instance, logger used for debugging output
-    # id: anything with a __str__method, if multiple workers are started in the same process, you MUST provide a unique id for each one of them using the `id` argument.
-    # timeout: int or float, specifies the timeout a worker will wait for a new after finishing a computation before shutting down. Towards the end of a long run with multiple workers, this helps to shutdown idling workers. We recommend a timeout that is roughly half the time it would take for the second largest budget to finish. The default (None) means that the worker will wait indefinitely and never shutdown on its own.
-
     worker.run(background=True)
-
-    # config = cs.sample_configuration().get_dictionary()
-    # print(config)
-    # res = worker.compute(config=config, budget=1, working_directory='.')
-    # print(res)
 
     if args.restore is None:
         previous_result = None
@@ -317,9 +271,13 @@ def main():
     with open(os.path.join(args.directory, 'results.pkl'), 'wb') as filehandle:
         pickle.dump(results, filehandle)
 
-    print('Best found configuration:', results.get_id2config_mapping()[results.get_incumbent_id()]['config'])
+    print('Best found configuration: {}'.format(
+        results.get_id2config_mapping()[results.get_incumbent_id()]['config']
+    ))
     print('Runs:', results.get_runs_by_id(config_id=results.get_incumbent_id()))
-    print('A total of {} unique configurations where sampled.'.format(len(results.get_id2config_mapping())))
+    print('A total of {} unique configurations where sampled.'.format(
+        len(results.get_id2config_mapping())
+    ))
     print('A total of {} runs where executed.'.format(len(results.get_all_runs())))
     print('Total budget corresponds to {:.1f} full function evaluations.'.format(
         sum([r.budget for r in results.get_all_runs()]) / args.max_repeats)
@@ -328,3 +286,6 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+# python tune.py benchmarks/configs/cartpole.json 

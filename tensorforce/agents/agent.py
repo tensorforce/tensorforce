@@ -145,8 +145,8 @@ class Agent(object):
             environment (Environment object): Environment which the agent is supposed to be trained
                 on, environment-related arguments like state/action space specifications and
                 maximum episode length will be extract if given
-                (<span style="color:#C00000"><b>recommended</b></span>, unless "pb-actonly" format).
-            kwargs: Additional agent arguments, invalid for "pb-actonly" format.
+                (<span style="color:#C00000"><b>recommended</b></span>).
+            kwargs: Additional agent arguments.
         """
         if directory is not None:
             if filename is None:
@@ -180,38 +180,28 @@ class Agent(object):
         if 'parallel_interactions' in kwargs and kwargs['parallel_interactions'] > 1:
             agent['parallel_interactions'] = kwargs['parallel_interactions']
 
-        if format == 'pb-actonly':
-            assert environment is None
-            assert len(kwargs) == 0
-            agent = ActonlyAgent(
-                path=os.path.join(directory, os.path.splitext(filename)[0] + '.pb'),
-                states=agent['states'], actions=agent['actions'], internals=agent.get('internals'),
-                initial_internals=agent.get('initial_internals')
-            )
-
-        else:
-            agent.pop('internals', None)
-            agent.pop('initial_internals', None)
-            saver_restore = False
-            if 'saver' in agent and isinstance(agent['saver'], dict):
-                if not agent.get('load', True):
-                    raise TensorforceError.value(
-                        name='Agent.load', argument='saver[load]', value=agent['saver']['load']
-                    )
-                agent['saver'] = dict(agent['saver'])
-                agent['saver']['load'] = True
-                saver_restore = True
-            elif 'saver' in kwargs and isinstance(kwargs['saver'], dict):
-                if not kwargs.get('load', True):
-                    raise TensorforceError.value(
-                        name='Agent.load', argument='saver[load]', value=kwargs['saver']['load']
-                    )
-                kwargs['saver'] = dict(kwargs['saver'])
-                kwargs['saver']['load'] = True
-                saver_restore = True
-            agent = Agent.create(agent=agent, environment=environment, **kwargs)
-            if not saver_restore:
-                agent.restore(directory=directory, filename=filename, format=format)
+        agent.pop('internals', None)
+        agent.pop('initial_internals', None)
+        saver_restore = False
+        if 'saver' in agent and isinstance(agent['saver'], dict):
+            if not agent.get('load', True):
+                raise TensorforceError.value(
+                    name='Agent.load', argument='saver[load]', value=agent['saver']['load']
+                )
+            agent['saver'] = dict(agent['saver'])
+            agent['saver']['load'] = True
+            saver_restore = True
+        elif 'saver' in kwargs and isinstance(kwargs['saver'], dict):
+            if not kwargs.get('load', True):
+                raise TensorforceError.value(
+                    name='Agent.load', argument='saver[load]', value=kwargs['saver']['load']
+                )
+            kwargs['saver'] = dict(kwargs['saver'])
+            kwargs['saver']['load'] = True
+            saver_restore = True
+        agent = Agent.create(agent=agent, environment=environment, **kwargs)
+        if not saver_restore:
+            agent.restore(directory=directory, filename=filename, format=format)
 
         return agent
 
@@ -456,7 +446,7 @@ class Agent(object):
                     name='Agent.act', argument='parallel', condition='independent is true'
                 )
             is_internals_none = (internals is None)
-            if is_internals_none and len(self.model.internals_spec) > 0:
+            if is_internals_none and len(self.internals_spec) > 0:
                 raise TensorforceError.required(
                     name='Agent.act', argument='internals', condition='independent is true'
                 )
@@ -476,7 +466,7 @@ class Agent(object):
 
             if is_internals_none:
                 # Default input internals=None
-                internals = ArrayDict()
+                pass
 
             elif is_iter_of_dicts:
                 # Input structure iter[dict[internal]]
@@ -499,17 +489,18 @@ class Agent(object):
                     )
                 internals = ArrayDict(internals)
 
-            # Expand inputs if not batched
-            if not batched:
-                internals = internals.fmap(function=(lambda x: np.expand_dims(x, axis=0)))
+            if not independent or not is_internals_none:
+                # Expand inputs if not batched
+                if not batched:
+                    internals = internals.fmap(function=(lambda x: np.expand_dims(x, axis=0)))
 
-            # Check number of inputs
-            for name, internal in internals.items():
-                if internal.shape[0] != num_parallel:
-                    raise TensorforceError.value(
-                        name='Agent.act', argument='len(internals[{}])'.format(name),
-                        value=internal.shape[0], hint='!= len(states)'
-                    )
+                # Check number of inputs
+                for name, internal in internals.items():
+                    if internal.shape[0] != num_parallel:
+                        raise TensorforceError.value(
+                            name='Agent.act', argument='len(internals[{}])'.format(name),
+                            value=internal.shape[0], hint='!= len(states)'
+                        )
 
         else:
             # Non-independent mode: handle parallel input
@@ -568,25 +559,37 @@ class Agent(object):
 
         # Inputs to tensors
         states = self.states_spec.to_tensor(value=states, batched=True)
-        if independent:
+        if independent and not is_internals_none:
             internals = self.internals_spec.to_tensor(value=internals, batched=True)
         auxiliaries = self.auxiliaries_spec.to_tensor(value=auxiliaries, batched=True)
         parallel_tensor = self.parallel_spec.to_tensor(value=parallel, batched=True)
 
         # Model.act()
-        if independent:
-            actions_internals = self.model.independent_act(
-                states=states, internals=internals, auxiliaries=auxiliaries
-            )
-            actions_internals = TensorDict(actions_internals)
-            actions = actions_internals['actions']
-            internals = actions_internals.get('internals', TensorDict())
-            assert not is_internals_none or len(internals) == 0
-        else:
+        if not independent:
             actions, timesteps = self.model.act(
                 states=states, auxiliaries=auxiliaries, parallel=parallel_tensor
             )
             self.timesteps = timesteps.numpy().item()
+
+        elif len(self.internals_spec) > 0:
+            if len(self.auxiliaries_spec) > 0:
+                actions_internals = self.model.independent_act(
+                    states=states, internals=internals, auxiliaries=auxiliaries
+                )
+            else:
+                assert len(auxiliaries) == 0
+                actions_internals = self.model.independent_act(states=states, internals=internals)
+            actions_internals = TensorDict(actions_internals)
+            actions = actions_internals['actions']
+            internals = actions_internals['internals']
+
+        else:
+            if len(self.auxiliaries_spec) > 0:
+                actions = self.model.independent_act(states=states, auxiliaries=auxiliaries)
+            else:
+                assert len(auxiliaries) == 0
+                actions = self.model.independent_act(states=states)
+            actions = TensorDict(actions)
 
         # Outputs from tensors
         actions = self.actions_spec.from_tensor(tensor=actions, batched=True)
@@ -625,7 +628,7 @@ class Agent(object):
                 actions = function(actions['action'])
             else:
                 actions = actions.fmap(function=function, cls=OrderedDict)
-            if independent:
+            if independent and not is_internals_none:
                 internals = internals.fmap(function=function, cls=OrderedDict)
 
         if self.model.saver is not None:
@@ -1163,139 +1166,6 @@ class Agent(object):
             raise TensorforceError.value(
                 name='agent.get_query_tensors', argument='function', value=function
             )
-
-
-class ActonlyAgent(object):
-
-    def __init__(self, path, states, actions, internals=None, initial_internals=None):
-        self.states_spec = states
-        self.actions_spec = actions
-        if internals is None:
-            assert initial_internals is None
-            self.internals_spec = OrderedDict()
-            self._initial_internals = OrderedDict()
-        else:
-            assert list(internals) == list(initial_internals)
-            self.internals_spec = internals
-            self._initial_internals = initial_internals
-
-        with tf.io.gfile.GFile(name=path, mode='rb') as filehandle:
-            graph_def = tf.compat.v1.GraphDef()
-            graph_def.ParseFromString(filehandle.read())
-        graph = tf.Graph()
-        with graph.as_default():
-            tf.graph_util.import_graph_def(graph_def=graph_def, name='')
-        graph.finalize()
-        self.session = tf.compat.v1.Session(graph=graph)
-        self.session.__enter__()
-
-    def close(self):
-        self.session.__exit__(None, None, None)
-        tf.compat.v1.reset_default_graph()
-
-    def initial_internals(self):
-        return OrderedDict(**self._initial_internals)
-
-    def act(
-        self, states, internals=None, parallel=0, independent=True, deterministic=True,
-        evaluation=True, query=None, **kwargs
-    ):
-        # Invalid arguments
-        assert parallel == 0 and independent and deterministic and evaluation and \
-            query is None and len(kwargs) == 0
-
-        assert util.reduce_all(predicate=util.not_nan_inf, xs=states)
-        internals_is_none = (internals is None)
-        if internals_is_none:
-            if len(self.internals_spec) > 0:
-                raise TensorforceError.required(name='agent.act', argument='internals')
-            internals = OrderedDict()
-
-        # Batch states
-        name = next(iter(self.states_spec))
-        batched = (np.asarray(states[name]).ndim > len(self.states_spec[name]['shape']))
-        if batched:
-            if isinstance(states[0], dict):
-                states = OrderedDict((
-                    (name, np.asarray([states[n][name] for n in range(len(parallel))]))
-                    for name in states[0]
-                ))
-            else:
-                states = np.asarray(states)
-            internals = OrderedDict((
-                (name, np.asarray([internals[n][name] for n in range(len(parallel))]))
-                for name in internals[0]
-            ))
-        else:
-            states = states.fmap(function=(lambda x: np.asarray([x])))
-            internals = internals.fmap(function=(lambda x: np.asarray([x])))
-
-        # Auxiliaries
-        auxiliaries = OrderedDict()
-        if isinstance(states, dict):
-            states = dict(states)
-            for name, spec in self.actions_spec.items():
-                if spec['type'] == 'int' and name + '_mask' in states:
-                    auxiliaries[name + '_mask'] = states.pop(name + '_mask')
-
-        def function(name, spec):
-            auxiliary = ArrayDict()
-            if self.config.enable_int_action_masking and spec.type == 'int' and \
-                    spec.num_values is not None:
-                # Mask, either part of states or default all true
-                auxiliary['mask'] = states.pop(name + '_mask', np.ones(
-                    shape=(num_parallel,) + spec.shape + (spec.num_values,), dtype=spec.np_type()
-                ))
-            return auxiliary
-
-        auxiliaries = self.actions_spec.fmap(function=function, cls=ArrayDict, with_names=True)
-
-        # Normalize states dictionary
-        states = util.input2tensor(value=states, spec=self.states_spec)
-
-        # Model.act()
-        fetches = (
-            {
-                name: util.join_scopes('agent.independent_act', name + '-output:0')
-                for name in self.actions_spec
-            }, {
-                name: util.join_scopes('agent.independent_act', name + '-output:0')
-                for name in self.internals_spec
-            }
-        )
-
-        feed_dict = dict()
-        for name, state in states.items():
-            feed_dict[util.join_scopes('agent', name + '-input:0')] = state
-        for name, auxiliary in auxiliaries.items():
-            feed_dict[util.join_scopes('agent', name + '-input:0')] = auxiliary
-        for name, internal in internals.items():
-            feed_dict[util.join_scopes('agent', name + '-input:0')] = internal
-
-        actions, internals = self.session.run(fetches=fetches, feed_dict=feed_dict)
-
-        # Reverse normalized actions dictionary
-        actions = util.unpack_values(
-            value_type='action', values=actions, values_spec=self.actions_spec
-        )
-
-        # Unbatch actions
-        if batched:
-            if isinstance(actions, dict):
-                actions = [
-                    OrderedDict(((name, actions[name][n]) for name in actions))
-                    for n in range(len(parallel))
-                ]
-        else:
-            actions = actions.fmap(function=(lambda x: x[0]))
-            internals = internals.fmap(function=(lambda x: x[0]))
-
-        if internals_is_none:
-            if len(internals) > 0:
-                raise TensorforceError.unexpected()
-            return actions
-        else:
-            return actions, internals
 
 
 class TensorforceJSONEncoder(json.JSONEncoder):

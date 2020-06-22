@@ -43,7 +43,7 @@ def make_key(*, x):
             raise exc
 
 
-def tf_function(*, num_args):
+def tf_function(*, num_args, optional=0):
 
     def decorator(function):
 
@@ -70,7 +70,7 @@ def tf_function(*, num_args):
 
             # Graph signature
             graph_signature = self.input_signature(function=name)
-            assert graph_signature.num_args() == num_args
+            assert num_args - optional <= graph_signature.num_args() <= num_args
 
             # Graph arguments
             if len(kwargs) > 0:
@@ -110,7 +110,6 @@ def tf_function(*, num_args):
             # Apply function graph
             return function_graphs[str(graph_params)](*graph_args)
 
-        # TensorFlow make_decorator
         return decorated
 
     return decorator

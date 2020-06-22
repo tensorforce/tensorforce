@@ -24,6 +24,7 @@ This file records all major updates and new features, starting from version 0.5.
 - Renamed rewards summaries
 - Combined `long` and `int` type
 - Added double DQN agent (`double_dqn`)
+- Always wrap environment in `EnvironmentWrapper` class
 
 
 

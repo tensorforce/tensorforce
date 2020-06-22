@@ -224,7 +224,7 @@ class UnittestEnvironment(Environment):
 
     def execute(self, actions):
         if not self.is_valid_actions(actions, self._states):
-            print(actions, self._states)
+            print(actions, self._states, self.actions_spec)
             raise TensorforceError.value(name='execute', argument='actions', value=actions)
 
         self.timestep += 1

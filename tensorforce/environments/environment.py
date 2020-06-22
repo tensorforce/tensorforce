@@ -135,11 +135,9 @@ class Environment(object):
             )
 
         elif isinstance(environment, Environment):
-            if max_episode_timesteps is not None:
-                environment = EnvironmentWrapper(
-                    environment=environment, max_episode_timesteps=max_episode_timesteps
-                )
-            return environment
+            return EnvironmentWrapper(
+                environment=environment, max_episode_timesteps=max_episode_timesteps
+            )
 
         elif isinstance(environment, type) and issubclass(environment, Environment):
             environment = environment(**kwargs)
@@ -343,14 +341,16 @@ class EnvironmentWrapper(Environment):
         if isinstance(environment, EnvironmentWrapper):
             raise TensorforceError.unexpected()
         if environment.max_episode_timesteps() is not None and \
+                max_episode_timesteps is not None and \
                 environment.max_episode_timesteps() < max_episode_timesteps:
             raise TensorforceError.unexpected()
 
         self.environment = environment
-        self.environment._max_episode_timesteps = max_episode_timesteps
-        self._max_episode_timesteps = max_episode_timesteps
+        if max_episode_timesteps is None:
+            self._max_episode_timesteps = self.environment._max_episode_timesteps
+        else:
+            self._max_episode_timesteps = max_episode_timesteps
         self._timestep = None
-
 
     def __str__(self):
         return str(self.environment)
@@ -366,18 +366,24 @@ class EnvironmentWrapper(Environment):
 
     def reset(self):
         self._timestep = 0
-        return self.environment.reset()
+        states = self.environment.reset()
+        if isinstance(states, dict):
+            states = states.copy()
+        return states
 
     def execute(self, actions):
         if self._timestep is None:
             raise TensorforceError(
                 message="An environment episode has to be initialized by calling reset() first."
             )
-        assert self._timestep < self._max_episode_timesteps
+        assert self._max_episode_timesteps is None or self._timestep < self._max_episode_timesteps
         states, terminal, reward = self.environment.execute(actions=actions)
+        if isinstance(states, dict):
+            states = states.copy()
         terminal = int(terminal)
         self._timestep += 1
-        if terminal == 0 and self._timestep >= self._max_episode_timesteps:
+        if terminal == 0 and self._max_episode_timesteps is not None and \
+                self._timestep >= self._max_episode_timesteps:
             terminal = 2
         if terminal > 0:
             self._timestep = None

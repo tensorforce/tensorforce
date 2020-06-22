@@ -29,6 +29,21 @@ class TestExamples(UnittestBase, unittest.TestCase):
     def test_quickstart(self):
         self.start_tests(name='quickstart')
 
+        # Remove directory if exists
+        if os.path.exists(path=self.__class__.saver_directory):
+            for filename in os.listdir(path=self.__class__.saver_directory):
+                os.remove(path=os.path.join(self.__class__.saver_directory, filename))
+            os.rmdir(path=self.__class__.directory)
+
+        # Remove directory if exists
+        if os.path.exists(path=self.__class__.summarizer_directory):
+            for directory in os.listdir(path=self.__class__.summarizer_directory):
+                directory = os.path.join(self.__class__.summarizer_directory, directory)
+                for filename in os.listdir(path=directory):
+                    os.remove(path=os.path.join(directory, filename))
+                os.rmdir(path=directory)
+            os.rmdir(path=self.__class__.summarizer_directory)
+
         # ====================
 
         # Create an OpenAI-Gym environment
@@ -229,9 +244,7 @@ class TestExamples(UnittestBase, unittest.TestCase):
                 ## terminal == False means episode is not done
                 ## terminal == True means it is done.
                 terminal = False
-                if self.timestep > self.max_episode_timesteps():
-                    terminal = True
-                
+
                 return self.current_temp, terminal, reward
 
         ###-----------------------------------------------------------------------------

@@ -88,8 +88,10 @@ class TestSaving(UnittestBase, unittest.TestCase):
                 os.remove(path=os.path.join(self.__class__.directory, filename))
             os.rmdir(path=self.__class__.directory)
 
+        policy = dict(network=dict(type='auto', size=8, depth=1, rnn=False))
         update = dict(unit='episodes', batch_size=1)
-        agent, environment = self.prepare(policy='auto', memory=50, update=update)
+        # TODO: no
+        agent, environment = self.prepare(policy=policy, memory=50, update=update)
         states = environment.reset()
 
         # save: default checkpoint format
@@ -174,7 +176,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
         update['batch_size'] = 2
         agent = Agent.load(
             directory=self.__class__.directory, filename='agent2', environment=environment,
-            update=update, parallel_interactions=2
+            policy=policy, update=update, parallel_interactions=2
         )
         x = agent.model.policy.network.layers[1].weights.numpy()
         self.assertTrue((x == weights1).all())
@@ -187,7 +189,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
         # saved in checkpoint format
         agent = Agent.load(
             directory=self.__class__.directory, format='checkpoint', environment=environment,
-            update=update, parallel_interactions=1
+            policy=policy, update=update, parallel_interactions=1
         )
         x = agent.model.policy.network.layers[1].weights.numpy()
         self.assertTrue((x == weights0).all())
@@ -199,7 +201,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
         # load: numpy format, full filename including timesteps suffix
         agent = Agent.load(
             directory=self.__class__.directory, filename='agent-1', format='numpy',
-            environment=environment, update=update, parallel_interactions=2
+            environment=environment, policy=policy, update=update, parallel_interactions=2
         )
         x = agent.model.policy.network.layers[1].weights.numpy()
         self.assertTrue((x == weights0).all())
@@ -221,18 +223,24 @@ class TestSaving(UnittestBase, unittest.TestCase):
         agent.save(directory=self.__class__.directory, format='saved-model', append='updates')
         agent.close()
 
-        # # load: pb-actonly format
-        # agent = Agent.load(directory=self.__class__.directory, format='pb-actonly')
-        # x = agent.session.run(fetches='agent/policy/policy-network/dense0/weights:0')
-        # self.assertTrue((x == weights0).all())
+        # load: saved-model format
+        agent = tf.saved_model.load(export_dir=os.path.join(self.__class__.directory, 'agent-1'))
+        act = next(iter(agent._independent_act_graphs.values()))
 
-        # # one episode
-        # states = environment.reset()
-        # internals = agent.initial_internals()
-        # terminal = False
-        # while not terminal:
-        #     actions, internals = agent.act(states=states, internals=internals)
-        #     states, terminal, _ = environment.execute(actions=actions)
+        # one episode
+        states = environment.reset()
+        terminal = False
+        while not terminal:
+            # Turn dicts into lists and batch inputs
+            auxiliaries = [[[states.pop('int_action_mask')]]]
+            states = [[state] for state in states.values()]
+            actions = act(states, auxiliaries)
+            # Split result dict and unbatch values
+            actions = {
+                name: value.numpy().item() if value.shape == (1,) else value.numpy()[0]
+                for name, value in actions.items()
+            }
+            states, terminal, _ = environment.execute(actions=actions)
 
         # agent.close()
         environment.close()

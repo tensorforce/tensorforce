@@ -103,9 +103,9 @@ class TestAgents(UnittestBase, unittest.TestCase):
             objective='policy_gradient', reward_estimation=dict(horizon=3)
         )
 
-    # def test_trpo(self):
-    #     self.start_tests(name='TRPO')
-    #     self.unittest(agent='trpo', batch_size=2, network=dict(type='auto', size=8, depth=1, rnn=2))
+    def test_trpo(self):
+        self.start_tests(name='TRPO')
+        self.unittest(agent='trpo', batch_size=2, network=dict(type='auto', size=8, depth=1, rnn=2))
 
     def test_vpg(self):
         self.start_tests(name='VPG')

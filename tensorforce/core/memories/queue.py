@@ -298,7 +298,6 @@ class Queue(Memory):
     def predecessors(self, *, indices, horizon, sequence_values, initial_values):
         assert isinstance(sequence_values, tuple)
         assert isinstance(initial_values, tuple)
-        assert sequence_values != () or initial_values != ()
 
         zero = tf_util.constant(value=0, dtype='int')
         one = tf_util.constant(value=1, dtype='int')
@@ -352,8 +351,12 @@ class Queue(Memory):
             values = self.buffers[initial_values].fmap(function=function, cls=TensorDict)
             initial_values = tuple(values[name] for name in initial_values)
 
+
         if len(sequence_values) == 0:
-            return lengths, initial_values
+            if len(initial_values) == 0:
+                return lengths
+            else:
+                return lengths, initial_values
 
         elif len(initial_values) == 0:
             return tf.stack(values=(starts, lengths), axis=1), sequence_values
@@ -365,7 +368,6 @@ class Queue(Memory):
     def successors(self, *, indices, horizon, sequence_values, final_values):
         assert isinstance(sequence_values, tuple)
         assert isinstance(final_values, tuple)
-        assert sequence_values != () or final_values != ()
 
         zero = tf_util.constant(value=0, dtype='int')
         one = tf_util.constant(value=1, dtype='int')
@@ -422,7 +424,10 @@ class Queue(Memory):
             final_values = tuple(values[name] for name in final_values)
 
         if len(sequence_values) == 0:
-            return lengths, final_values
+            if len(final_values) == 0:
+                return lengths
+            else:
+                return lengths, final_values
 
         elif len(final_values) == 0:
             return tf.stack(values=(starts, lengths), axis=1), sequence_values

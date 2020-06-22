@@ -176,8 +176,9 @@ class TensorforceModel(Model):
             states_spec=self.processed_states_spec, auxiliaries_spec=self.auxiliaries_spec,
             actions_spec=self.actions_spec, **kwargs
         )
-        self.internals_spec['policy'] = self.policy.internals_spec
-        self.internals_init['policy'] = self.policy.internals_init()
+        if len(self.policy.internals_spec) > 0:
+            self.internals_spec['policy'] = self.policy.internals_spec
+            self.internals_init['policy'] = self.policy.internals_init()
 
         # Update mode
         if not all(key in ('batch_size', 'frequency', 'start', 'unit') for key in update):
@@ -289,8 +290,9 @@ class TensorforceModel(Model):
                 is_trainable=baseline_is_trainable, states_spec=self.processed_states_spec,
                 auxiliaries_spec=self.auxiliaries_spec, actions_spec=self.actions_spec, **kwargs
             )
-            self.internals_spec['baseline'] = self.baseline.internals_spec
-            self.internals_init['baseline'] = self.baseline.internals_init()
+            if len(self.baseline.internals_spec) > 0:
+                self.internals_spec['baseline'] = self.baseline.internals_spec
+                self.internals_init['baseline'] = self.baseline.internals_init()
 
         # Check for name collisions
         for name in self.internals_spec:
@@ -301,14 +303,15 @@ class TensorforceModel(Model):
         # Objectives
         self.objective = self.submodule(
             name='policy_objective', module=objective, modules=objective_modules,
-            states_spec=self.processed_states_spec, internals_spec=self.internals_spec['policy'],
+            states_spec=self.processed_states_spec,
+            internals_spec=self.internals_spec.get('policy', TensorsSpec()),
             auxiliaries_spec=self.auxiliaries_spec, actions_spec=self.actions_spec,
             reward_spec=self.reward_spec
         )
         if self.separate_baseline_policy:
-            internals_spec = self.internals_spec['baseline']
+            internals_spec = self.internals_spec.get('baseline', TensorsSpec())
         else:
-            internals_spec = self.internals_spec['policy']
+            internals_spec = self.internals_spec.get('policy', TensorsSpec())
         if baseline_objective is None:
             self.baseline_objective = None
         else:
@@ -333,11 +336,11 @@ class TensorforceModel(Model):
             self.baseline_optimizer = None
         else:
             self.baseline_loss_weight = None
-            internals_spec = self.internals_spec['policy']
+            internals_spec = self.internals_spec.get('policy', TensorsSpec())
             if self.separate_baseline_policy:
-                baseline_internals = self.internals_spec['baseline']
+                baseline_internals = self.internals_spec.get('baseline', TensorsSpec())
             else:
-                baseline_internals = self.internals_spec['policy']
+                baseline_internals = self.internals_spec.get('policy', TensorsSpec())
             arguments_spec = TensorsSpec(
                 states=self.processed_states_spec, horizons=TensorSpec(type='int', shape=(2,)),
                 internals=baseline_internals, auxiliaries=self.auxiliaries_spec,
@@ -556,9 +559,9 @@ class TensorforceModel(Model):
                     states=self.processed_states_spec.signature(batched=True),
                     horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
                     internals=(
-                        self.internals_spec['baseline'].signature(batched=True)
+                        self.internals_spec.get('baseline', TensorsSpec()).signature(batched=True)
                         if self.separate_baseline_policy else
-                        self.internals_spec['policy'].signature(batched=True)
+                        self.internals_spec.get('policy', TensorsSpec()).signature(batched=True)
                     ),
                     auxiliaries=self.auxiliaries_spec.signature(batched=True),
                     actions=self.actions_spec.signature(batched=True),
@@ -569,9 +572,9 @@ class TensorforceModel(Model):
                     states=self.processed_states_spec.signature(batched=True),
                     horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
                     internals=(
-                        self.internals_spec['baseline'].signature(batched=True)
+                        self.internals_spec.get('baseline', TensorsSpec()).signature(batched=True)
                         if self.separate_baseline_policy else
-                        self.internals_spec['policy'].signature(batched=True)
+                        self.internals_spec.get('policy', TensorsSpec()).signature(batched=True)
                     ),
                     auxiliaries=self.auxiliaries_spec.signature(batched=True),
                     actions=self.actions_spec.signature(batched=True),
@@ -630,7 +633,7 @@ class TensorforceModel(Model):
                 return SignatureDict(
                     states=self.processed_states_spec.signature(batched=True),
                     horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
-                    internals=self.internals_spec['policy'].signature(batched=True),
+                    internals=self.internals_spec.get('policy', TensorsSpec()).signature(batched=True),
                     auxiliaries=self.auxiliaries_spec.signature(batched=True),
                     actions=self.actions_spec.signature(batched=True),
                     reward=self.reward_spec.signature(batched=True),
@@ -641,7 +644,7 @@ class TensorforceModel(Model):
             return SignatureDict(
                 states=self.processed_states_spec.signature(batched=True),
                 horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
-                internals=self.internals_spec['policy'].signature(batched=True),
+                internals=self.internals_spec.get('policy', TensorsSpec()).signature(batched=True),
                 auxiliaries=self.auxiliaries_spec.signature(batched=True)
             )
 
@@ -825,23 +828,27 @@ class TensorforceModel(Model):
             lengths = tf_util.ones(shape=(batch_size,), dtype='int')
             horizons = tf.stack(values=(starts, lengths), axis=1)
             next_internals = TensorDict()
-            actions, next_internals['policy'] = self.policy.act(
-                states=states, horizons=horizons, internals=internals['policy'],
-                auxiliaries=auxiliaries, independent=independent, return_internals=True
-            )
+            if len(self.internals_spec.get('policy', TensorsSpec())) > 0:
+                actions, next_internals['policy'] = self.policy.act(
+                    states=states, horizons=horizons, internals=internals['policy'],
+                    auxiliaries=auxiliaries, independent=independent, return_internals=True
+                )
+            else:
+                actions, _ = self.policy.act(
+                    states=states, horizons=horizons, internals=TensorDict(),
+                    auxiliaries=auxiliaries, independent=independent, return_internals=True
+                )
             dependencies.extend(actions.flatten())
 
             # Baseline internals (after variable noise)
             if self.separate_baseline_policy:
-                if len(self.internals_spec['baseline']) > 0:
+                if len(self.internals_spec.get('baseline', TensorsSpec())) > 0:
                     # TODO: Baseline policy network apply to retrieve next internals
                     # TODO: Also important
                     _, next_internals['baseline'] = self.baseline.network.apply(
                         x=states, horizons=horizons, internals=internals['baseline'],
                         independent=independent, return_internals=True
                     )
-                else:
-                    next_internals['baseline'] = TensorDict()
             dependencies.extend(next_internals.flatten())
 
         # Reverse variable noise (after policy act)
@@ -997,13 +1004,25 @@ class TensorforceModel(Model):
                 buffer_index = tf.math.mod(x=buffer_index, y=self.buffer_capacity)
             indices = tf.stack(values=(parallel, buffer_index), axis=1)
             for name, buffer, state in self.states_buffer.zip_items(states):
-                assignments.append(buffer.scatter_nd_update(indices=indices, updates=state))
+                value = tf.tensor_scatter_nd_update(tensor=buffer, indices=indices, updates=state)
+                assignments.append(buffer.assign(value=value))
+                # assignments.append(buffer.scatter_nd_update(indices=indices, updates=state))
             for name, buffer, internal in self.internals_buffer.zip_items(internals):  # not next_*
-                assignments.append(buffer.scatter_nd_update(indices=indices, updates=internal))
+                value = tf.tensor_scatter_nd_update(
+                    tensor=buffer, indices=indices, updates=internal
+                )
+                assignments.append(buffer.assign(value=value))
+                # assignments.append(buffer.scatter_nd_update(indices=indices, updates=internal))
             for name, buffer, auxiliary in self.auxiliaries_buffer.zip_items(auxiliaries):
-                assignments.append(buffer.scatter_nd_update(indices=indices, updates=auxiliary))
+                value = tf.tensor_scatter_nd_update(
+                    tensor=buffer, indices=indices, updates=auxiliary
+                )
+                assignments.append(buffer.assign(value=value))
+                # assignments.append(buffer.scatter_nd_update(indices=indices, updates=auxiliary))
             for name, buffer, action in self.actions_buffer.zip_items(actions):
-                assignments.append(buffer.scatter_nd_update(indices=indices, updates=action))
+                value = tf.tensor_scatter_nd_update(tensor=buffer, indices=indices, updates=action)
+                assignments.append(buffer.assign(value=value))
+                # assignments.append(buffer.scatter_nd_update(indices=indices, updates=action))
 
             # Increment buffer index (after buffer assignments)
             with tf.control_dependencies(control_inputs=assignments):
@@ -1096,12 +1115,21 @@ class TensorforceModel(Model):
                 assignments = list()
                 indices = tf.range(start=(buffer_index - batch_size), limit=buffer_index)
                 indices = tf.stack(values=(batch_parallel, indices), axis=1)
-                assignments.append(
-                    self.terminal_buffer.scatter_nd_update(indices=indices, updates=terminal)
+
+                value = tf.tensor_scatter_nd_update(
+                    tensor=self.terminal_buffer, indices=indices, updates=terminal
                 )
-                assignments.append(
-                    self.reward_buffer.scatter_nd_update(indices=indices, updates=reward)
+                assignments.append(self.terminal_buffer.assign(value=value))
+                # assignments.append(
+                #     self.terminal_buffer.scatter_nd_update(indices=indices, updates=terminal)
+                # )
+                value = tf.tensor_scatter_nd_update(
+                    tensor=self.reward_buffer, indices=indices, updates=reward
                 )
+                assignments.append(self.reward_buffer.assign(value=value))
+                # assignments.append(
+                #     self.reward_buffer.scatter_nd_update(indices=indices, updates=reward)
+                # )
                 return tf.group(assignments)
 
             def fn_terminal():
@@ -1158,13 +1186,19 @@ class TensorforceModel(Model):
                         params=x[parallel], indices=indices[:num_complete]
                     ))
                     if self.separate_baseline_policy:
-                        internals = self.internals_buffer['baseline'].fmap(
-                            function=function, cls=TensorDict
-                        )
+                        if len(self.internals_spec.get('baseline', TensorsSpec())) > 0:
+                            internals = self.internals_buffer['baseline'].fmap(
+                                function=function, cls=TensorDict
+                            )
+                        else:
+                            internals = TensorDict()
                     else:
-                        internals = self.internals_buffer['policy'].fmap(
-                            function=function, cls=TensorDict
-                        )
+                        if len(self.internals_spec.get('policy', TensorsSpec())) > 0:
+                            internals = self.internals_buffer['policy'].fmap(
+                                function=function, cls=TensorDict
+                            )
+                        else:
+                            internals = TensorDict()
                     function = (lambda x: tf.gather(
                         params=x[parallel], indices=indices[baseline_horizon:]
                     ))
@@ -1226,12 +1260,20 @@ class TensorforceModel(Model):
                 indices = tf.range(start=(buffer_index - batch_size), limit=buffer_index)
                 indices = tf.math.mod(x=indices, y=capacity)
                 indices = tf.stack(values=(batch_parallel, indices), axis=1)
-                assignments.append(
-                    self.terminal_buffer.scatter_nd_update(indices=indices, updates=terminal)
+                value = tf.tensor_scatter_nd_update(
+                    tensor=self.terminal_buffer, indices=indices, updates=terminal
                 )
-                assignments.append(
-                    self.reward_buffer.scatter_nd_update(indices=indices, updates=reward)
+                assignments.append(self.terminal_buffer.assign(value=value))
+                # assignments.append(
+                #     self.terminal_buffer.scatter_nd_update(indices=indices, updates=terminal)
+                # )
+                value = tf.tensor_scatter_nd_update(
+                    tensor=self.reward_buffer, indices=indices, updates=reward
                 )
+                assignments.append(self.reward_buffer.assign(value=value))
+                # assignments.append(
+                #     self.reward_buffer.scatter_nd_update(indices=indices, updates=reward)
+                # )
 
                 with tf.control_dependencies(control_inputs=assignments):
                     # (similar to partial_episode_horizon in core_experience)
@@ -1322,14 +1364,13 @@ class TensorforceModel(Model):
                     )
                     unit = self.timesteps
                     start = tf.math.maximum(x=start, y=(frequency + past_horizon + one))
-                    if self.predict_horizon_values == 'late':
-                        if self.reward_horizon == 'episode':
-                            min_start = tf.where(
-                                condition=(self.episodes > zero), x=start, y=(unit + one)
-                            )
-                            start = tf.math.maximum(x=start, y=min_start)
-                        else:
-                            start += self.reward_horizon.value()
+                    if self.reward_horizon == 'episode':
+                        min_start = tf.where(
+                            condition=(self.episodes > zero), x=start, y=(unit + one)
+                        )
+                        start = tf.math.maximum(x=start, y=min_start)
+                    elif self.predict_horizon_values == 'late':
+                        start += self.reward_horizon.value()
                     if self.config.buffer_observe == 'episode':
                         min_start = tf.where(
                             condition=(self.episodes > zero), x=start, y=(unit + one)
@@ -1385,9 +1426,9 @@ class TensorforceModel(Model):
                 input=tf.stack(values=(zero, past_horizon + maybe_one)), axis=0
             )
             if self.separate_baseline_policy:
-                _internals = internals['baseline']
+                _internals = internals.get('baseline', TensorDict())
             else:
-                _internals = internals['policy']
+                _internals = internals.get('policy', TensorDict())
 
             if self.predict_action_values:
                 return self.baseline.actions_value(
@@ -1446,9 +1487,9 @@ class TensorforceModel(Model):
                 horizons_length = tf.math.minimum(x=horizons_length, y=(past_horizon + one))
                 horizons = tf.stack(values=(horizons_start, horizons_length), axis=1)
                 if self.separate_baseline_policy:
-                    _internals = internals['baseline']
+                    _internals = internals.get('baseline', TensorDict())
                 else:
-                    _internals = internals['policy']
+                    _internals = internals.get('policy', TensorDict())
 
                 if self.predict_action_values:
                     horizon_values = self.baseline.actions_value(
@@ -1556,7 +1597,7 @@ class TensorforceModel(Model):
                 baseline_states = policy_states
                 baseline_horizons = policy_horizons
                 if self.separate_baseline_policy:
-                    baseline_internals = policy_internals['baseline']
+                    baseline_internals = policy_internals.get('baseline', TensorDict())
                 else:
                     baseline_internals = policy_internals
         else:
@@ -1565,23 +1606,43 @@ class TensorforceModel(Model):
                     indices=indices, horizon=policy_horizon, sequence_values=('states',),
                     initial_values=('internals',)
                 )
-            else:
+            elif len(self.internals_spec.get('policy', TensorsSpec())) > 0:
                 policy_horizons, (policy_states,), (policy_internals,) = self.memory.predecessors(
                     indices=indices, horizon=policy_horizon, sequence_values=('states',),
                     initial_values=('internals/policy',)
                 )
+            else:
+                policy_horizons, (policy_states,) = self.memory.predecessors(
+                    indices=indices, horizon=policy_horizon, sequence_values=('states',),
+                    initial_values=()
+                )
+                policy_internals = TensorDict()
             # Optimize !!!!!
             baseline_horizon = self.baseline.past_horizon(on_policy=True)
             if self.separate_baseline_policy:
-                baseline_horizons, (baseline_states,), (baseline_internals,) = self.memory.predecessors(
-                    indices=indices, horizon=baseline_horizon, sequence_values=('states',),
-                    initial_values=('internals/baseline',)
-                )
+                if len(self.internals_spec.get('baseline', TensorsSpec())) > 0:
+                    baseline_horizons, (baseline_states,), (baseline_internals,) = self.memory.predecessors(
+                        indices=indices, horizon=baseline_horizon, sequence_values=('states',),
+                        initial_values=('internals/baseline',)
+                    )
+                else:
+                    baseline_horizons, (baseline_states,) = self.memory.predecessors(
+                        indices=indices, horizon=baseline_horizon, sequence_values=('states',),
+                        initial_values=()
+                    )
+                    baseline_internals = TensorDict()
             else:
-                baseline_horizons, (baseline_states,), (baseline_internals,) = self.memory.predecessors(
-                    indices=indices, horizon=baseline_horizon, sequence_values=('states',),
-                    initial_values=('internals/policy',)
-                )
+                if len(self.internals_spec.get('policy', TensorsSpec())) > 0:
+                    baseline_horizons, (baseline_states,), (baseline_internals,) = self.memory.predecessors(
+                        indices=indices, horizon=baseline_horizon, sequence_values=('states',),
+                        initial_values=('internals/policy',)
+                    )
+                else:
+                    baseline_horizons, (baseline_states,) = self.memory.predecessors(
+                        indices=indices, horizon=baseline_horizon, sequence_values=('states',),
+                        initial_values=()
+                    )
+                    baseline_internals = TensorDict()
 
         # Retrieve auxiliaries, actions, reward
         auxiliaries, actions, reward = self.memory.retrieve(
@@ -1609,20 +1670,36 @@ class TensorforceModel(Model):
                         final_values=('states', 'internals', 'auxiliaries', 'terminal')
                     )
                     _states, _internals, _auxiliaries, _terminal = _final_values
-                    _policy_internals = _internals['policy']
-                    _baseline_internals = _internals['baseline']
+                    _policy_internals = _internals.get('policy', TensorDict())
+                    _baseline_internals = _internals.get('baseline', TensorDict())
                 elif self.separate_baseline_policy:
-                    final_horizons, _final_values = self.memory.successors(
-                        indices=indices, horizon=reward_horizon, sequence_values=(),
-                        final_values=('states', 'internals/baseline', 'auxiliaries', 'terminal')
-                    )
-                    _states, _baseline_internals, _auxiliaries, _terminal = _final_values
+                    if len(self.internals_spec.get('baseline', TensorsSpec())) > 0:
+                        final_horizons, _final_values = self.memory.successors(
+                            indices=indices, horizon=reward_horizon, sequence_values=(),
+                            final_values=('states', 'internals/baseline', 'auxiliaries', 'terminal')
+                        )
+                        _states, _baseline_internals, _auxiliaries, _terminal = _final_values
+                    else:
+                        final_horizons, _final_values = self.memory.successors(
+                            indices=indices, horizon=reward_horizon, sequence_values=(),
+                            final_values=('states', 'auxiliaries', 'terminal')
+                        )
+                        _states, _auxiliaries, _terminal = _final_values
+                        _baseline_internals = TensorDict()
                 else:
-                    final_horizons, _final_values = self.memory.successors(
-                        indices=indices, horizon=reward_horizon, sequence_values=(),
-                        final_values=('states', 'internals/policy', 'auxiliaries', 'terminal')
-                    )
-                    _states, _policy_internals, _auxiliaries, _terminal = _final_values
+                    if len(self.internals_spec.get('policy', TensorsSpec())) > 0:
+                        final_horizons, _final_values = self.memory.successors(
+                            indices=indices, horizon=reward_horizon, sequence_values=(),
+                            final_values=('states', 'internals/policy', 'auxiliaries', 'terminal')
+                        )
+                        _states, _policy_internals, _auxiliaries, _terminal = _final_values
+                    else:
+                        final_horizons, _final_values = self.memory.successors(
+                            indices=indices, horizon=reward_horizon, sequence_values=(),
+                            final_values=('states', 'auxiliaries', 'terminal')
+                        )
+                        _states, _auxiliaries, _terminal = _final_values
+                        _policy_internals = TensorDict()
                     _baseline_internals = _policy_internals
 
             else:
@@ -1648,18 +1725,32 @@ class TensorforceModel(Model):
                             indices=indices, horizon=(reward_horizon - _baseline_horizon),
                             sequence_values=(), final_values=('internals',)
                         )
-                        _policy_internals = _internals['policy']
-                        _baseline_internals = _internals['baseline']
+                        _policy_internals = _internals.get('policy', TensorDict())
+                        _baseline_internals = _internals.get('baseline', TensorDict())
                     elif self.separate_baseline_policy:
-                        _starts, (_baseline_internals,) = self.memory.successors(
-                            indices=indices, horizon=(reward_horizon - _baseline_horizon),
-                            sequence_values=(), final_values=('internals/baseline',)
-                        )
+                        if len(self.internals_spec.get('baseline', TensorsSpec())) > 0:
+                            _starts, (_baseline_internals,) = self.memory.successors(
+                                indices=indices, horizon=(reward_horizon - _baseline_horizon),
+                                sequence_values=(), final_values=('internals/baseline',)
+                            )
+                        else:
+                            _starts = self.memory.successors(
+                                indices=indices, horizon=(reward_horizon - _baseline_horizon),
+                                sequence_values=(), final_values=()
+                            )
+                            _baseline_internals = TensorDict()
                     else:
-                        _starts, (_policy_internals,) = self.memory.successors(
-                            indices=indices, horizon=(reward_horizon - _baseline_horizon),
-                            sequence_values=(), final_values=('internals/policy',)
-                        )
+                        if len(self.internals_spec.get('policy', TensorsSpec())) > 0:
+                            _starts, (_policy_internals,) = self.memory.successors(
+                                indices=indices, horizon=(reward_horizon - _baseline_horizon),
+                                sequence_values=(), final_values=('internals/policy',)
+                            )
+                        else:
+                            _starts = self.memory.successors(
+                                indices=indices, horizon=(reward_horizon - _baseline_horizon),
+                                sequence_values=(), final_values=()
+                            )
+                            _policy_internals = TensorDict()
                         _baseline_internals = _policy_internals
                     _horizons, (_states,), (_auxiliaries, _terminal) = self.memory.successors(
                         indices=_starts, horizon=_baseline_horizon, sequence_values=('states',),
@@ -1693,11 +1784,6 @@ class TensorforceModel(Model):
                 )
 
             reward += discounts * horizon_estimate
-
-
-
-
-
 
         # reward = self.add_summary(label=('return', 'rewards'), name='return', tensor=reward)  # TODO: need to be moved to episode?
         if 'return' in self.preprocessing:
@@ -1804,13 +1890,15 @@ class TensorforceModel(Model):
                     if self.predict_action_values:
                         # TODO: get actions from policy
                         baseline_prediction = self.baseline.actions_value(
-                            states=states, horizons=horizons, internals=internals['baseline'],
+                            states=states, horizons=horizons,
+                            internals=internals.get('baseline', TensorDict()),
                             auxiliaries=auxiliaries, actions=actions,
                             reduced=True, return_per_action=False
                         )
                     else:
                         baseline_prediction = self.baseline.states_value(
-                            states=states, horizons=horizons, internals=internals['baseline'],
+                            states=states, horizons=horizons,
+                            internals=internals.get('baseline', TensorDict()),
                             auxiliaries=auxiliaries,
                             reduced=True, return_per_action=False
                         )
@@ -1837,11 +1925,11 @@ class TensorforceModel(Model):
             *, states, horizons, internals, auxiliaries, actions, reward, reference
         ):
             reference = self.policy.kldiv_reference(
-                states=states, horizons=horizons, internals=internals['policy'],
+                states=states, horizons=horizons, internals=internals.get('policy', TensorDict()),
                 auxiliaries=auxiliaries
             )
             kl_divergence = self.policy.kl_divergence(
-                states=states, horizons=horizons, internals=internals['policy'],
+                states=states, horizons=horizons, internals=internals.get('policy', TensorDict()),
                 auxiliaries=auxiliaries, reference=reference, reduced=True, return_per_action=False
             )
 
@@ -1855,11 +1943,13 @@ class TensorforceModel(Model):
 
                 def apply_baseline_kl_divergence():
                     reference = self.policy.kldiv_reference(
-                        states=states, horizons=horizons, internals=internals['baseline'],
+                        states=states, horizons=horizons,
+                        internals=internals.get('baseline', TensorDict()),
                         auxiliaries=auxiliaries
                     )
                     baseline_kl_divergence = self.baseline.kl_divergence(
-                        states=states, horizons=horizons, internals=internals['baseline'],
+                        states=states, horizons=horizons,
+                        internals=internals.get('baseline', TensorDict()),
                         auxiliaries=auxiliaries, reference=reference, reduced=True,
                         return_per_action=False
                     )
@@ -1963,7 +2053,7 @@ class TensorforceModel(Model):
     @tf_function(num_args=7)
     def loss(self, *, states, horizons, internals, auxiliaries, actions, reward, reference):
         if self.baseline_optimizer is None:
-            policy_internals = internals['policy']
+            policy_internals = internals.get('policy', TensorDict())
         else:
             policy_internals = internals
         if self.separate_baseline_policy and self.baseline_loss_weight is not None and \
@@ -1996,7 +2086,7 @@ class TensorforceModel(Model):
         if self.baseline_loss_weight is not None and \
                 not self.baseline_loss_weight.is_constant(value=0.0):
             if self.separate_baseline_policy:
-                baseline_internals = internals['baseline']
+                baseline_internals = internals.get('baseline', TensorDict())
             else:
                 baseline_internals = policy_internals
             if self.separate_baseline_policy:

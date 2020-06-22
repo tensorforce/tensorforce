@@ -302,11 +302,12 @@ class Model(Module):
         if self.summary_labels == 'all' or 'graph' in self.summary_labels:
             tf.summary.trace_export(name='act', step=self.timesteps, profiler_outdir=None)
             tf.summary.trace_on(graph=True, profiler=False)
-        self.independent_act(
-            states=self.states_spec.empty(batched=True),
-            internals=self.internals_spec.empty(batched=True),
-            auxiliaries=self.auxiliaries_spec.empty(batched=True)
-        )
+        kwargs = dict(states=self.states_spec.empty(batched=True))
+        if len(self.internals_spec) > 0:
+            kwargs['internals'] = self.internals_spec.empty(batched=True)
+        if len(self.auxiliaries_spec) > 0:
+            kwargs['auxiliaries'] = self.auxiliaries_spec.empty(batched=True)
+        self.independent_act(**kwargs)
         if self.summary_labels == 'all' or 'graph' in self.summary_labels:
             tf.summary.trace_export(
                 name='independent-act', step=self.timesteps, profiler_outdir=None
@@ -344,11 +345,12 @@ class Model(Module):
             )
 
         elif function == 'independent_act':
-            return SignatureDict(
-                states=self.states_spec.signature(batched=True),
-                internals=self.internals_spec.signature(batched=True),
-                auxiliaries=self.auxiliaries_spec.signature(batched=True)
-            )
+            signature = SignatureDict(states=self.states_spec.signature(batched=True))
+            if len(self.internals_spec) > 0:
+                signature['internals'] = self.internals_spec.signature(batched=True)
+            if len(self.auxiliaries_spec) > 0:
+                signature['auxiliaries'] = self.auxiliaries_spec.signature(batched=True)
+            return signature
 
         elif function == 'observe':
             return SignatureDict(
@@ -370,8 +372,14 @@ class Model(Module):
         update = tf_util.identity(input=self.updates)
         return timestep, episode, update
 
-    @tf_function(num_args=3)
-    def independent_act(self, *, states, internals, auxiliaries):
+    @tf_function(num_args=3, optional=2)
+    def independent_act(self, *, states, internals=None, auxiliaries=None):
+        if internals is None:
+            assert len(self.internals_spec) == 0
+            internals = TensorDict()
+        if auxiliaries is None:
+            assert len(self.auxiliaries_spec) == 0
+            auxiliaries = TensorDict()
         true = tf_util.constant(value=True, dtype='bool')
         batch_size = tf_util.cast(x=tf.shape(input=states.value())[0], dtype='int')
 
@@ -411,7 +419,10 @@ class Model(Module):
             # Skip action assertions
 
             # SavedModel requires flattened output
-            return OrderedDict(TensorDict(actions=actions, internals=internals))
+            if len(self.internals_spec) > 0:
+                return OrderedDict(TensorDict(actions=actions, internals=internals))
+            else:
+                return OrderedDict(actions)
 
     @tf_function(num_args=3)
     def act(self, *, states, auxiliaries, parallel):

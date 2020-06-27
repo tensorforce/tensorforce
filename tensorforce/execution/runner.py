@@ -160,8 +160,8 @@ class Runner(object):
                 remote=remote, blocking=blocking, host=host[n], port=port[n]
             )
             assert isinstance(environment, RemoteEnvironment) == self.is_environment_remote
-            assert environment.states() == states
-            assert environment.actions() == actions
+            assert util.is_equal(x=environment.states(), y=states)
+            assert util.is_equal(x=environment.actions(), y=actions)
             self.environments.append(environment)
 
         self.evaluation = evaluation

@@ -82,6 +82,20 @@ def is_iterable(x):
         return False
 
 
+def is_equal(x, y):
+    if isinstance(x, tuple):
+        return isinstance(y, tuple) and all(is_equal(x=x, y=y) for x, y in zip(x, y))
+    elif isinstance(x, (list, tuple)):
+        return isinstance(y, list) and all(is_equal(x=x, y=y) for x, y in zip(x, y))
+    elif isinstance(x, dict):
+        return isinstance(y, dict) and len(x) == len(y) and \
+            all(k in y and is_equal(x=v, y=y[k]) for k, v in x.items())
+    elif isinstance(x, np.ndarray):
+        return isinstance(y, np.ndarray) and (x == y).all()
+    else:
+        return x == y
+
+
 def unary_tuple(x, depth):
     assert depth > 0
     for _ in range(depth):

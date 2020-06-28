@@ -569,7 +569,7 @@ class TensorforceAgent(Agent):
         if self.model.saver is not None:
             self.model.save()
 
-    def pretrain(self, directory, num_iterations, num_traces=1, num_updates=1):
+    def pretrain(self, directory, num_iterations, num_traces=1, num_updates=1, extension='.npz'):
         """
         Pretrain from experience traces.
 
@@ -585,6 +585,8 @@ class TensorforceAgent(Agent):
                 (<span style="color:#00C000"><b>default</b></span>: 1).
             num_updates (int > 0): Number of updates per iteration
                 (<span style="color:#00C000"><b>default</b></span>: 1).
+            extension (str): Traces file extension to filter the given directory for
+                (<span style="color:#00C000"><b>default</b></span>: ".npz").
         """
         if not os.path.isdir(directory):
             raise TensorforceError.value(
@@ -592,7 +594,7 @@ class TensorforceAgent(Agent):
             )
         files = sorted(
             os.path.join(directory, f) for f in os.listdir(directory)
-            if os.path.isfile(os.path.join(directory, f)) and f.startswith('trace-')
+            if os.path.isfile(os.path.join(directory, f)) and os.path.splitext(f)[1] == extension
         )
         indices = list(range(len(files)))
 

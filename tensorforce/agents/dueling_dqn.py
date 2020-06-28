@@ -72,7 +72,7 @@ class DuelingDQN(TensorforceAgent):
         start_updating (parameter, int >= batch_size): Number of timesteps before first update
             (<span style="color:#00C000"><b>default</b></span>: none).
         learning_rate (parameter, float > 0.0): Optimizer learning rate
-            (<span style="color:#00C000"><b>default</b></span>: 3e-4).
+            (<span style="color:#00C000"><b>default</b></span>: 1e-3).
         huber_loss (parameter, float > 0.0): Huber loss threshold
             (<span style="color:#00C000"><b>default</b></span>: no huber loss).
 
@@ -209,7 +209,7 @@ class DuelingDQN(TensorforceAgent):
         # Network
         network='auto',
         # Optimization
-        update_frequency=None, start_updating=None, learning_rate=3e-4, huber_loss=0.0,
+        update_frequency=None, start_updating=None, learning_rate=1e-3, huber_loss=0.0,
         # Reward estimation
         horizon=1, discount=0.99, predict_terminal_values=False,
         # Target network

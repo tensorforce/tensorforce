@@ -1,10 +1,10 @@
-gym
-h5py
-matplotlib
-msgpack
-msgpack-numpy
-numpy
-pandas
-pytest
-scipy
-tqdm
+gym >= 0.17.2
+h5py >= 2.10.0
+matplotlib >= 3.2.2
+msgpack >= 1.0.0
+msgpack-numpy >= 0.4.6
+numpy >= 1.19.0
+pandas >= 1.0.5
+pytest >= 5.4.3
+scipy >= 1.5.0
+tqdm >= 4.46.1

@@ -14,8 +14,10 @@
 # ==============================================================================
 
 import argparse
+import importlib
 import os
 import pickle
+import time
 
 import ConfigSpace as cs
 from hpbandster.core.nameserver import NameServer, nic_name_to_host
@@ -24,30 +26,46 @@ from hpbandster.core.worker import Worker
 from hpbandster.optimizers import BOHB
 import numpy as np
 
-from tensorforce.environments import Environment
 from tensorforce.execution import Runner
+
+
+import tensorflow as tf
 
 
 class TensorforceWorker(Worker):
 
-    def __init__(self, *args, environment, max_episode_timesteps=None, **kwargs):
+    def __init__(
+        self, *args, environment, num_episodes, max_episode_timesteps=None, num_parallel=None,
+        **kwargs
+    ):
         super().__init__(*args, **kwargs)
         self.environment = environment
         self.max_episode_timesteps = max_episode_timesteps
+        self.num_episodes = num_episodes
+        self.num_parallel = num_parallel
+        self.counter = 0
 
     def compute(self, config_id, config, budget, working_directory):
-        frequency = max(1, int(config['frequency'] * config['batch_size']))
-        update = dict(unit='episodes', batch_size=config['batch_size'], frequency=frequency)
+        num_runs = round(budget)
+        print('{} {} iteration #{}: runs={}'.format(
+            time.strftime('%Y-%m-%d %H:%M:%S'), self.run_id, self.counter, num_runs
+        ), end='', flush=True)
+        self.counter += 1
 
+        update = dict(unit='episodes', batch_size=config['batch_size'], frequency=1)
         policy = dict(network=dict(type='auto', size=64, depth=2, rnn=False))
-        optimizer = dict(type='adam', learning_rate=config['learning_rate'])
-        if config['ratio_based'] == 'yes':
-            objective = dict(type='policy_gradient', ratio_based=True, clipping_value=0.2)
-        else:
-            objective = dict(type='policy_gradient', ratio_based=False, clipping_value=0.2)
+        optimizer = dict(
+            optimizer='adam', learning_rate=config['learning_rate'],
+            multi_step=config['multi_step'], linesearch_iterations=5, subsampling_fraction=256
+        )
 
-        horizon = config['horizon']
-        discount = config['discount']
+        if config['importance_sampling'] == 'yes':
+            objective = dict(
+                type='policy_gradient', importance_sampling=True,
+                clipping_value=config['clipping_value']
+            )
+        else:
+            objective = dict(type='policy_gradient', importance_sampling=False)
 
         if config['baseline'] == 'no':
             predict_horizon_values = False
@@ -56,6 +74,7 @@ class TensorforceWorker(Worker):
             baseline_policy = None
             baseline_optimizer = None
             baseline_objective = None
+
         elif config['baseline'] == 'same':
             predict_horizon_values = 'early'
             estimate_advantage = (config['estimate_advantage'] == 'yes')
@@ -63,17 +82,23 @@ class TensorforceWorker(Worker):
             baseline_policy = None
             baseline_optimizer = config['baseline_weight']
             baseline_objective = dict(type='value', value='state')
+
         elif config['baseline'] == 'yes':
             predict_horizon_values = 'early'
             estimate_advantage = (config['estimate_advantage'] == 'yes')
             predict_action_values = False
             baseline_policy = dict(network=dict(type='auto', size=64, depth=2, rnn=False))
-            baseline_optimizer = baseline_optimizer = dict(
-                type='adam', learning_rate=config['baseline_learning_rate']
-            )
+            baseline_optimizer = config['baseline_weight']
             baseline_objective = dict(type='value', value='state')
+
         else:
             assert False
+
+        reward_estimation = dict(
+            horizon=config['horizon'], discount=config['discount'],
+            predict_horizon_values=predict_horizon_values, estimate_advantage=estimate_advantage,
+            predict_action_values=predict_action_values
+        )
 
         if config['entropy_regularization'] < 3e-5:
             entropy_regularization = 0.0
@@ -82,41 +107,43 @@ class TensorforceWorker(Worker):
 
         agent = dict(
             policy=policy, memory='recent', update=update, optimizer=optimizer, objective=objective,
-            reward_estimation=dict(
-                horizon=horizon, discount=discount, predict_horizon_values=predict_horizon_values,
-                estimate_advantage=estimate_advantage, predict_action_values=predict_action_values
-            ),
-            baseline_policy=baseline_policy, baseline_optimizer=baseline_optimizer,
-            baseline_objective=baseline_objective, entropy_regularization=entropy_regularization
+            reward_estimation=reward_estimation, baseline_policy=baseline_policy,
+            baseline_optimizer=baseline_optimizer, baseline_objective=baseline_objective,
+            entropy_regularization=entropy_regularization
         )
 
-        # num_episodes = list()
+        average_reward = list()
         final_reward = list()
-        max_reward = list()
         rewards = list()
 
-        for n in range(round(budget)):
-            runner = Runner(
-                agent=agent, environment=self.environment,
-                max_episode_timesteps=self.max_episode_timesteps
-            )
-            runner.run(num_episodes=200, use_tqdm=False)
+        for n in range(num_runs):
+            if self.num_parallel is None:
+                runner = Runner(
+                    agent=agent, environment=self.environment,
+                    max_episode_timesteps=self.max_episode_timesteps
+                )
+                runner.run(num_episodes=self.num_episodes, use_tqdm=False)
+            else:
+                runner = Runner(
+                    agent=agent, environment=self.environment,
+                    max_episode_timesteps=self.max_episode_timesteps,
+                    num_parallel=min(self.num_parallel, config['batch_size']),
+                    remote='multiprocessing'
+                )
+                runner.run(
+                    num_episodes=self.num_episodes, batch_agent_calls=True, sync_episodes=True,
+                    use_tqdm=False
+                )
             runner.close()
 
-            # num_episodes.append(len(runner.episode_rewards))
+            average_reward.append(float(np.mean(runner.episode_rewards, axis=0)))
             final_reward.append(float(np.mean(runner.episode_rewards[-20:], axis=0)))
-            average_rewards = [
-                float(np.mean(runner.episode_rewards[n: n + 20], axis=0))
-                for n in range(len(runner.episode_rewards) - 20)
-            ]
-            max_reward.append(float(np.amax(average_rewards, axis=0)))
             rewards.append(list(runner.episode_rewards))
 
-        # mean_num_episodes = float(np.mean(num_episodes, axis=0))
+        mean_average_reward = float(np.mean(average_reward, axis=0))
         mean_final_reward = float(np.mean(final_reward, axis=0))
-        mean_max_reward = float(np.mean(max_reward, axis=0))
-        # loss = mean_num_episodes - mean_final_reward - mean_max_reward
-        loss = -mean_final_reward - mean_max_reward
+        loss = -(mean_average_reward + mean_final_reward)
+        print(', avg={:.2f}, final={:.2f}'.format(mean_average_reward, mean_final_reward), flush=True)
 
         return dict(loss=loss, info=dict(rewards=rewards))
 
@@ -125,19 +152,19 @@ class TensorforceWorker(Worker):
         configspace = cs.ConfigurationSpace()
 
         batch_size = cs.hyperparameters.UniformIntegerHyperparameter(
-            name='batch_size', lower=1, upper=50, log=True
+            name='batch_size', lower=1, upper=20, log=True
         )
         configspace.add_hyperparameter(hyperparameter=batch_size)
 
-        frequency = cs.hyperparameters.UniformFloatHyperparameter(
-            name='frequency', lower=1e-2, upper=1.0, log=True
-        )
-        configspace.add_hyperparameter(hyperparameter=frequency)
-
         learning_rate = cs.hyperparameters.UniformFloatHyperparameter(
-            name='learning_rate', lower=1e-5, upper=0.1, log=True
+            name='learning_rate', lower=1e-5, upper=1e-1, log=True
         )
         configspace.add_hyperparameter(hyperparameter=learning_rate)
+
+        multi_step = cs.hyperparameters.UniformIntegerHyperparameter(
+            name='multi_step', lower=1, upper=20, log=True
+        )
+        configspace.add_hyperparameter(hyperparameter=multi_step)
 
         horizon = cs.hyperparameters.UniformIntegerHyperparameter(
             name='horizon', lower=1, upper=100, log=True
@@ -149,10 +176,15 @@ class TensorforceWorker(Worker):
         )
         configspace.add_hyperparameter(hyperparameter=discount)
 
-        ratio_based = cs.hyperparameters.CategoricalHyperparameter(
-            name='ratio_based', choices=('no', 'yes')
+        importance_sampling = cs.hyperparameters.CategoricalHyperparameter(
+            name='importance_sampling', choices=('no', 'yes')
         )
-        configspace.add_hyperparameter(hyperparameter=ratio_based)
+        configspace.add_hyperparameter(hyperparameter=importance_sampling)
+
+        clipping_value = cs.hyperparameters.UniformFloatHyperparameter(
+            name='clipping_value', lower=1e-2, upper=1.0, log=False
+        )
+        configspace.add_hyperparameter(hyperparameter=clipping_value)
 
         baseline = cs.hyperparameters.CategoricalHyperparameter(
             name='baseline', choices=('no', 'same', 'yes')
@@ -164,11 +196,6 @@ class TensorforceWorker(Worker):
         )
         configspace.add_hyperparameter(hyperparameter=baseline_weight)
 
-        baseline_learning_rate = cs.hyperparameters.UniformFloatHyperparameter(
-            name='baseline_learning_rate', lower=1e-5, upper=0.1, log=True
-        )
-        configspace.add_hyperparameter(hyperparameter=baseline_learning_rate)
-
         estimate_advantage = cs.hyperparameters.CategoricalHyperparameter(
             name='estimate_advantage', choices=('no', 'yes')
         )
@@ -179,53 +206,67 @@ class TensorforceWorker(Worker):
         )
         configspace.add_hyperparameter(hyperparameter=entropy_regularization)
 
-        configspace.add_condition(
-            condition=cs.NotEqualsCondition(
-                child=estimate_advantage, parent=baseline, value='no'
-            )
-        )
-        configspace.add_condition(
-            condition=cs.EqualsCondition(
-                child=baseline_weight, parent=baseline, value='same'
-            )
-        )
-        configspace.add_condition(
-            condition=cs.EqualsCondition(
-                child=baseline_learning_rate, parent=baseline, value='yes'
-            )
-        )
+        configspace.add_condition(condition=cs.EqualsCondition(
+            child=clipping_value, parent=importance_sampling, value='yes'
+        ))
+        configspace.add_condition(condition=cs.NotEqualsCondition(
+            child=estimate_advantage, parent=baseline, value='no'
+        ))
+        configspace.add_condition(condition=cs.NotEqualsCondition(
+            child=baseline_weight, parent=baseline, value='no'
+        ))
 
         return configspace
 
 
 def main():
     parser = argparse.ArgumentParser(description='Tensorforce hyperparameter tuner')
+    # Environment arguments (from run.py)
     parser.add_argument(
-        'environment', help='Environment (name, configuration JSON file, or library module)'
+        '-e', '--environment', type=str, default=None,
+        help='Environment (name, configuration JSON file, or library module)'
     )
     parser.add_argument(
         '-l', '--level', type=str, default=None,
         help='Level or game id, like `CartPole-v1`, if supported'
     )
     parser.add_argument(
-        '-m', '--max-repeats', type=int, default=10, help='Maximum number of repetitions'
+        '-m', '--max-episode-timesteps', type=int, default=None,
+        help='Maximum number of timesteps per episode'
     )
     parser.add_argument(
-        '-n', '--num-iterations', type=int, default=1, help='Number of BOHB iterations'
+        '--import-modules', type=str, default=None,
+        help='Import comma-separated modules required for environment'
+    )
+    # Runner arguments (from run.py)
+    parser.add_argument('-n', '--episodes', type=int, default=None, help='Number of episodes')
+    parser.add_argument(
+        '-p', '--num-parallel', type=int, default=None,
+        help='Number of environment instances to execute in parallel'
+    )
+    # Tuner arguments
+    parser.add_argument(
+        '-r', '--max-repeats', type=int, default=10, help='Maximum number of repetitions'
+    )
+    parser.add_argument(
+        '-i', '--num-iterations', type=int, default=1, help='Number of BOHB iterations'
     )
     parser.add_argument(
         '-d', '--directory', type=str, default='tuner', help='Output directory'
     )
     parser.add_argument(
-        '-r', '--restore', type=str, default=None, help='Restore from given directory'
+        '--restore', type=str, default=None, help='Restore from given directory'
     )
     parser.add_argument('--id', type=str, default='worker', help='Unique worker id')
     args = parser.parse_args()
 
-    if args.level is None:
-        environment = Environment.create(environment=args.environment)
-    else:
-        environment = Environment.create(environment=args.environment, level=args.level)
+    if args.import_modules is not None:
+        for module in args.import_modules.split(','):
+            importlib.import_module(name=module)
+
+    environment = dict(environment=args.environment)
+    if args.level is not None:
+        environment['level'] = args.level
 
     if False:
         host = nic_name_to_host(nic_name=None)
@@ -238,8 +279,9 @@ def main():
     nameserver, nameserver_port = server.start()
 
     worker = TensorforceWorker(
-        environment=environment, run_id=args.id, nameserver=nameserver,
-        nameserver_port=nameserver_port, host=host
+        environment=environment, max_episode_timesteps=args.max_episode_timesteps,
+        num_episodes=args.episodes, num_parallel=args.num_parallel, run_id=args.id,
+        nameserver=nameserver, nameserver_port=nameserver_port, host=host
     )
     worker.run(background=True)
 
@@ -248,7 +290,7 @@ def main():
     else:
         previous_result = logged_results_to_HBS_result(directory=args.restore)
 
-    result_logger = json_result_logger(directory=args.directory, overwrite=True)  # ???
+    result_logger = json_result_logger(directory=args.directory, overwrite=True)
 
     optimizer = BOHB(
         configspace=worker.get_configspace(), min_budget=0.5, max_budget=float(args.max_repeats),
@@ -256,9 +298,15 @@ def main():
         nameserver=nameserver, nameserver_port=nameserver_port, host=host,
         result_logger=result_logger, previous_result=previous_result
     )
-    # BOHB(configspace=None, eta=3, min_budget=0.01, max_budget=1, min_points_in_model=None, top_n_percent=15, num_samples=64, random_fraction=1 / 3, bandwidth_factor=3, min_bandwidth=1e-3, **kwargs)
-    # Master(run_id, config_generator, working_directory='.', ping_interval=60, nameserver='127.0.0.1', nameserver_port=None, host=None, shutdown_workers=True, job_queue_sizes=(-1,0), dynamic_queue_size=True, logger=None, result_logger=None, previous_result = None)
-    # logger: logging.logger like object, the logger to output some (more or less meaningful) information
+    # BOHB(configspace=None, eta=3, min_budget=0.01, max_budget=1, min_points_in_model=None,
+    # top_n_percent=15, num_samples=64, random_fraction=1 / 3, bandwidth_factor=3,
+    # min_bandwidth=1e-3, **kwargs)
+    # Master(run_id, config_generator, working_directory='.', ping_interval=60,
+    # nameserver='127.0.0.1', nameserver_port=None, host=None, shutdown_workers=True,
+    # job_queue_sizes=(-1,0), dynamic_queue_size=True, logger=None, result_logger=None,
+    # previous_result = None)
+    # logger: logging.logger like object, the logger to output some (more or less meaningful)
+    # information
 
     results = optimizer.run(n_iterations=args.num_iterations)
     # optimizer.run(n_iterations=1, min_n_workers=1, iteration_kwargs={})
@@ -266,7 +314,6 @@ def main():
 
     optimizer.shutdown(shutdown_workers=True)
     server.shutdown()
-    environment.close()
 
     with open(os.path.join(args.directory, 'results.pkl'), 'wb') as filehandle:
         pickle.dump(results, filehandle)
@@ -286,6 +333,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-# python tune.py benchmarks/configs/cartpole.json 

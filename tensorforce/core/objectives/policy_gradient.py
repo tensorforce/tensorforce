@@ -26,7 +26,8 @@ class PolicyGradient(Objective):
     target reward value (specification key: `policy_gradient`).
 
     Args:
-        ratio_based (bool): Whether to scale the likelihood-ratio instead of the log-likelihood
+        importance_sampling (bool): Whether to use the importance sampling version of the policy
+            gradient objective
             (<span style="color:#00C000"><b>default</b></span>: false).
         clipping_value (parameter, float >= 0.0): Clipping threshold for the maximized value
             (<span style="color:#00C000"><b>default</b></span>: no clipping).
@@ -41,7 +42,7 @@ class PolicyGradient(Objective):
     """
 
     def __init__(
-        self, *, ratio_based=False, clipping_value=0.0, early_reduce=False, name=None,
+        self, *, importance_sampling=False, clipping_value=0.0, early_reduce=False, name=None,
         states_spec=None, internals_spec=None, auxiliaries_spec=None, actions_spec=None,
         reward_spec=None
     ):
@@ -50,7 +51,7 @@ class PolicyGradient(Objective):
             auxiliaries_spec=auxiliaries_spec, actions_spec=actions_spec, reward_spec=reward_spec
         )
 
-        self.ratio_based = ratio_based
+        self.importance_sampling = importance_sampling
 
         clipping_value = 0.0 if clipping_value is None else clipping_value
         self.clipping_value = self.submodule(
@@ -61,7 +62,7 @@ class PolicyGradient(Objective):
         self.early_reduce = early_reduce
 
     def reference_spec(self):
-        if not self.ratio_based:
+        if not self.importance_sampling:
             return super().reference_spec()
 
         elif self.early_reduce:
@@ -75,7 +76,7 @@ class PolicyGradient(Objective):
 
     @tf_function(num_args=6)
     def reference(self, *, states, horizons, internals, auxiliaries, actions, reward, policy):
-        if self.ratio_based:
+        if self.importance_sampling:
             return policy.log_probability(
                 states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
                 actions=actions, reduced=self.early_reduce, return_per_action=False
@@ -98,7 +99,7 @@ class PolicyGradient(Objective):
         one = tf_util.constant(value=1.0, dtype='float')
         clipping_value = self.clipping_value.value()
 
-        if self.ratio_based:
+        if self.importance_sampling:
             scaling = tf.math.exp(x=(log_probability - tf.stop_gradient(input=reference)))
             min_value = one / (one + clipping_value)
             max_value = one + clipping_value

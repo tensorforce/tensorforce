@@ -29,10 +29,8 @@ test: python tensorforce/examples/quickstart.py
 twine upload dist/Tensorforce-0.5.4*
 """
 
-
 if sys.version_info.major != 3:
     raise NotImplementedError("Tensorforce is only compatible with Python 3.")
-
 
 tensorforce_directory = os.path.abspath(os.path.dirname(__file__))
 
@@ -72,6 +70,9 @@ with open(os.path.join(tensorforce_directory, 'README.md'), 'r') as filehandle:
         raise NotImplementedError
 long_description = ''.join(long_description)
 
+# Find packages
+packages = [package for package in find_packages(exclude=('test',))]
+assert all(package.startswith('tensorforce') for package in packages)
 
 # Extract install_requires from requirements.txt
 install_requires = list()
@@ -94,25 +95,21 @@ setup(
     author='Alexander Kuhnle',
     author_email='tensorforce.team@gmail.com',
     url='http://github.com/tensorforce/tensorforce',
-    packages=[
-        package for package in find_packages(exclude=('test',))
-        if package.startswith('tensorforce')
-    ],
+    packages=packages,
     download_url='https://github.com/tensorforce/tensorforce/archive/{}.tar.gz'.format(version),
     license='Apache 2.0',
     python_requires='>=3.5',
     install_requires=install_requires,
     extras_require=dict(
-        tf=['tensorflow>=2.2'],
-        tf_gpu=['tensorflow-gpu>=2.2'],
-        tfa=['tensorflow-addons'],
-        docs=['m2r', 'recommonmark', 'sphinx', 'sphinx-rtd-theme'],
-        tune=['hpbandster'],
-        envs=['gym[atari,box2d,classic_control]', 'gym-retro', 'mazeexp', 'vizdoom'],
-        mazeexp=['mazeexp'],
-        gym=['gym[atari,box2d,classic_control]'],
-        retro=['gym-retro'],
-        vizdoom=['vizdoom'],
+        tf=['tensorflow >= 2.2.0'],
+        tf_gpu=['tensorflow-gpu >= 2.2.0'],
+        tfa=['tensorflow-addons >= 0.10.0'],
+        docs=['m2r >= 0.2.1', 'recommonmark >= 0.6.0', 'sphinx >= 3.1.1', 'sphinx-rtd-theme >= 0.5.0'],
+        tune=['hpbandster >= 0.7.4'],
+        envs=['gym[atari,box2d,classic_control] >= 0.17.2', 'gym-retro >= 0.8.0', 'vizdoom >= 1.1.7'],
+        gym=['gym[atari,box2d,classic_control] >= 0.17.2'],
+        retro=['gym-retro >= 0.8.0'],
+        vizdoom=['vizdoom >= 1.1.7'],
         carla=['pygame', 'opencv-python']
     ),
     zip_safe=False

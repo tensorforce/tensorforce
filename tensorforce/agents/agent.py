@@ -791,7 +791,7 @@ class Agent(object):
                             files = sorted(
                                 f for f in os.listdir(directory)
                                 if os.path.isfile(os.path.join(directory, f))
-                                and f.startswith('trace-')
+                                and os.path.splitext(f)[1] == '.npz'
                             )
                         else:
                             os.makedirs(directory)
@@ -803,8 +803,8 @@ class Agent(object):
                                 os.remove(filename)
 
                         # Write recording file
-                        filename = os.path.join(directory, 'trace-{}-{}.npz'.format(
-                            self.episodes, time.strftime('%Y%m%d-%H%M%S')
+                        filename = os.path.join(directory, 'trace-{}-{:09d}.npz'.format(
+                            time.strftime('%Y%m%d-%H%M%S'), self.episodes
                         ))
                         kwargs = self.recorded.fmap(function=np.concatenate, cls=ArrayDict).items()
                         np.savez_compressed(file=filename, **dict(kwargs))
@@ -851,9 +851,9 @@ class Agent(object):
                 # Single state is batched, iter[state]
                 assert states.shape[1:] == self.states_spec['state'].shape
                 assert input_type in (tuple, list, np.ndarray)
+                num_instances = states.shape[0]
                 states = ArrayDict(state=states)
                 batched = True
-                num_instances = states.shape[0]
                 is_iter_of_dicts = True  # Default
 
         elif util.is_iterable(x=states):

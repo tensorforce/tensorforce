@@ -28,46 +28,29 @@ class LineSearch(Iterative):
     moving towards $x'$.
     """
 
-    def __init__(self, *, name, max_iterations, accept_ratio, mode, parameter):
+    def __init__(self, *, name, max_iterations, backtracking_factor, accept_ratio):
         """
         Creates a new line search solver instance.
 
         Args:
             max_iterations (parameter, int >= 0): Maximum number of iterations before termination.
+            backtracking_factor (parameter, 0.0 < float < 1.0): Backtracking factor.
             accept_ratio (parameter, 0.0 <= float <= 1.0): Lower limit of what improvement ratio
                 over $x = x'$ is acceptable (based either on a given estimated improvement or with
                 respect to the value at   $x = x'$).
-            mode: Mode of movement between $x_0$ and $x'$, either 'linear' or 'exponential'.
-            parameter (parameter, 0.0 <= float <= 1.0): Movement mode parameter, additive or
-                multiplicative, respectively.
         """
         super().__init__(name=name, max_iterations=max_iterations)
+
+        self.backtracking_factor = self.submodule(
+            name='backtracking_factor', module=backtracking_factor, modules=parameter_modules,
+            dtype='float', min_value=0.0, max_value=1.0
+        )
 
         assert accept_ratio >= 0.0
         self.accept_ratio = self.submodule(
             name='accept_ratio', module=accept_ratio, modules=parameter_modules, dtype='float',
             min_value=0.0, max_value=1.0
         )
-
-        # TODO: Implement such sequences more generally, also useful for learning rate decay or so.
-        if mode not in ('linear', 'exponential'):
-            raise TensorforceError(
-                "Invalid line search mode: {}, please choose one of 'linear' or 'exponential'".format(mode)
-            )
-        self.mode = mode
-
-        self.parameter = self.submodule(
-            name='parameter', module=parameter, modules=parameter_modules, dtype='float',
-            min_value=0.0, max_value=1.0
-        )
-
-        if self.mode == 'linear':
-            self.additional_signature = SignatureDict(
-                base_value=TensorSpec(type='float', shape=()).signature(batched=False),
-                estimated_incr=TensorSpec(type='float', shape=()).signature(batched=False)
-            )
-        else:
-            self.additional_signature = TensorSpec(type='float', shape=()).signature(batched=False)
 
     def input_signature(self, *, function):
         if function == 'end' or function == 'next_step' or function == 'step':
@@ -77,8 +60,8 @@ class LineSearch(Iterative):
                 deltas=self.values_spec.signature(batched=False),
                 improvement=TensorSpec(type='float', shape=()).signature(batched=False),
                 last_improvement=TensorSpec(type='float', shape=()).signature(batched=False),
-                estimated=TensorSpec(type='float', shape=()).signature(batched=False),
-                additional=self.additional_signature
+                base_value=TensorSpec(type='float', shape=()).signature(batched=False),
+                estimated=TensorSpec(type='float', shape=()).signature(batched=False)
             )
 
         elif function == 'solve' or function == 'start':
@@ -86,159 +69,169 @@ class LineSearch(Iterative):
                 arguments=self.arguments_spec.signature(batched=True),
                 x_init=self.values_spec.signature(batched=False),
                 base_value=TensorSpec(type='float', shape=()).signature(batched=False),
-                target_value=TensorSpec(type='float', shape=()).signature(batched=False),
-                estimated_improvement=TensorSpec(type='float', shape=()).signature(batched=False)
+                zero_value=TensorSpec(type='float', shape=()).signature(batched=False),
+                estimated=TensorSpec(type='float', shape=()).signature(batched=False)
             )
 
         else:
             return super().input_signature(function=function)
 
     @tf_function(num_args=5)
-    def solve(self, *, arguments, x_init, base_value, target_value, estimated_improvement, fn_x):
+    def solve(self, *, arguments, x_init, base_value, zero_value, estimated, fn_x):
         """
         Iteratively optimizes $f(x)$ for $x$ on the line between $x'$ and $x_0$.
 
         Args:
             x_init: Initial solution guess $x_0$.
             base_value: Value $f(x')$ at $x = x'$.
-            target_value: Value $f(x_0)$ at $x = x_0$.
-            estimated_improvement: Estimated improvement for $x = x_0$, $f(x')$ if None.
-            fn_x: A callable returning the value $f(x)$ at $x$.
+            zero_value: Value $f(x_0)$ at $x = x_0$.
+            estimated: Estimated improvement for $x = x_0$.
+            fn_x: A callable returning the value $f(x)$ at $x$, with potential side effect.
 
         Returns:
             A solution $x$ to the problem as given by the solver.
         """
         return super().solve(
-            arguments=arguments, x_init=x_init, base_value=base_value, target_value=target_value,
-            estimated_improvement=estimated_improvement, fn_x=fn_x
+            arguments=arguments, x_init=x_init, base_value=base_value, zero_value=zero_value,
+            estimated=estimated, fn_x=fn_x
         )
 
     @tf_function(num_args=5)
-    def start(self, *, arguments, x_init, base_value, target_value, estimated_improvement):
+    def start(self, *, arguments, x_init, base_value, zero_value, estimated):
         """
         Initialization step preparing the arguments for the first iteration of the loop body.
 
         Args:
             x_init: Initial solution guess $x_0$.
             base_value: Value $f(x')$ at $x = x'$.
-            target_value: Value $f(x_0)$ at $x = x_0$.
-            estimated_improvement: Estimated value at $x = x_0$, $f(x')$ if None.
+            zero_value: Value $f(x_0)$ at $x = x_0$.
+            estimated: Estimated value at $x = x_0$.
 
         Returns:
             Initial arguments for step.
         """
-        difference = target_value - base_value
-        epsilon = tf_util.constant(value=util.epsilon, dtype='float')
-        improvement = difference / tf.math.maximum(x=estimated_improvement, y=epsilon)
 
-        last_improvement = improvement - 1.0
-        parameter = self.parameter.value()
+        dependencies = list()
+        if self.config.create_tf_assertions:
+            zero_float = tf_util.constant(value=0.0, dtype='float')
+            dependencies.append(tf.debugging.assert_greater_equal(x=estimated, y=zero_float))
 
-        if self.mode == 'linear':
-            deltas = x_init.fmap(function=(lambda t: -t * parameter))
-            estimated_incr = -estimated_improvement * parameter
-            additional = TensorDict(base_value=base_value, estimated_incr=estimated_incr)
+        with tf.control_dependencies(control_inputs=dependencies):
+            zeros_x = x_init.fmap(function=tf.zeros_like)
 
-        elif self.mode == 'exponential':
-            deltas = x_init.fmap(function=(lambda t: -t * parameter))
-            additional = base_value
+            improvement = zero_value - base_value
+            last_improvement = tf_util.constant(value=-1.0, dtype='float')
 
-        return arguments, x_init, deltas, improvement, last_improvement, estimated_improvement, \
-            additional
+        return arguments, zeros_x, x_init, improvement, last_improvement, base_value, estimated
 
     @tf_function(num_args=7)
-    def step(self, *, arguments, x, deltas, improvement, last_improvement, estimated, additional):
+    def step(self, *, arguments, x, deltas, improvement, last_improvement, base_value, estimated):
         """
         Iteration loop body of the line search algorithm.
 
         Args:
-            x: Current solution estimate $x_t$.
-            deltas: Current difference $x_t - x'$.
-            improvement: Current improvement $(f(x_t) - f(x')) / v'$.
-            last_improvement: Last improvement $(f(x_{t-1}) - f(x')) / v'$.
-            estimated: Current estimated value $v'$.
-            additional: Mode-dependent.
+            x: Current solution estimate $x_{t-1}$.
+            deltas: Current difference $x_t - x_{t-1}$.
+            improvement: Current improvement $(f(x_t) - f(x'))$.
+            last_improvement: Last improvement $(f(x_{t-1}) - f(x'))$.
+            base_value: Value $f(x')$ at $x = x'$.
+            estimated: Current estimated value at $x_t$.
 
         Returns:
             Updated arguments for next iteration.
         """
         next_x = x.fmap(function=(lambda t, delta: t + delta), zip_values=deltas)
-        parameter = self.parameter.value()
 
-        if self.mode == 'linear':
-            base_value = additional['base_value']
-            next_deltas = deltas
-            next_estimated = estimated + additional['estimated_incr']
+        backtracking_factor = self.backtracking_factor.value()
+        next_estimated = estimated * backtracking_factor
 
-        elif self.mode == 'exponential':
-            base_value = additional
-            next_deltas = deltas.fmap(function=(lambda delta: delta * parameter))
-            next_estimated = estimated * parameter
+        def first_iteration():
+            one_float = tf_util.constant(value=1.0, dtype='float')
+            return deltas.fmap(function=(lambda t: t * (backtracking_factor - one_float)))
+
+        def other_iterations():
+            return deltas.fmap(function=(lambda delta: delta * backtracking_factor))
+
+        zero_float = tf_util.constant(value=0.0, dtype='float')
+        next_deltas = tf.cond(
+            pred=(last_improvement < zero_float), true_fn=first_iteration, false_fn=other_iterations
+        )
 
         target_value = self.fn_x(arguments, next_deltas)
-
-        difference = target_value - base_value
-        epsilon = tf_util.constant(value=util.epsilon, dtype='float')
-        next_improvement = difference / tf.math.maximum(x=next_estimated, y=epsilon)
+        next_improvement = target_value - base_value
 
         arguments = self.arguments_spec.signature(batched=True).kwargs_to_args(kwargs=arguments)
         values_signature = self.values_spec.signature(batched=False)
         next_x = values_signature.kwargs_to_args(kwargs=next_x)
         next_deltas = values_signature.kwargs_to_args(kwargs=next_deltas)
-        if isinstance(self.additional_signature, SignatureDict):
-            additional = self.additional_signature.kwargs_to_args(kwargs=additional)
-        return arguments, next_x, next_deltas, next_improvement, improvement, next_estimated, \
-            additional
+        return arguments, next_x, next_deltas, next_improvement, improvement, base_value, \
+            next_estimated
 
     @tf_function(num_args=7)
     def next_step(
-        self, *, arguments, x, deltas, improvement, last_improvement, estimated, additional
+        self, *, arguments, x, deltas, improvement, last_improvement, base_value, estimated
     ):
         """
         Termination condition: max number of iterations, or no improvement for last step, or
         improvement less than acceptable ratio, or estimated value not positive.
 
         Args:
-            x: Current solution estimate $x_t$.
-            deltas: Current difference $x_t - x'$.
-            improvement: Current improvement $(f(x_t) - f(x')) / v'$.
-            last_improvement: Last improvement $(f(x_{t-1}) - f(x')) / v'$.
-            estimated: Current estimated value $v'$.
-            additional: Mode-dependent.
+            x: Current solution estimate $x_{t-1}$.
+            deltas: Current difference $x_t - x_{t-1}$.
+            improvement: Current improvement $(f(x_t) - f(x'))$.
+            last_improvement: Last improvement $(f(x_{t-1}) - f(x'))$.
+            base_value: Value $f(x')$ at $x = x'$.
+            estimated: Current estimated value at $x_t$.
 
         Returns:
             True if another iteration should be performed.
         """
-        improved = improvement > last_improvement
-        accept_ratio = self.accept_ratio.value()
-        next_step = tf.math.logical_and(x=improved, y=(improvement < accept_ratio))
+        # Continue while current step is an improvement over last step
+        zero_float = tf_util.constant(value=0.0, dtype='float')
+        last_improvement = tf.math.maximum(x=last_improvement, y=zero_float)
+        next_step = (improvement >= last_improvement)
+        # Continue while estimated improvement is positive
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')
-        return tf.math.logical_and(x=next_step, y=(estimated > epsilon))
+        next_step = tf.math.logical_and(x=next_step, y=(estimated > epsilon))
+        # Continue while improvement ratio is below accept ratio, so not yet sufficient
+        accept_ratio = self.accept_ratio.value()
+        improvement_ratio = improvement / tf.math.maximum(x=estimated, y=epsilon)
+        return tf.math.logical_and(x=next_step, y=(improvement_ratio < accept_ratio))
 
     @tf_function(num_args=7)
-    def end(self, *, arguments, x, deltas, improvement, last_improvement, estimated, additional):
+    def end(self, *, arguments, x, deltas, improvement, last_improvement, base_value, estimated):
         """
         Termination step preparing the return value.
 
         Args:
             x: Final solution estimate $x_n$.
-            deltas: Current difference $x_n - x'$.
-            improvement: Current improvement $(f(x_n) - f(x')) / v'$.
-            last_improvement: Last improvement $(f(x_{n-1}) - f(x')) / v'$.
-            estimated: Current estimated value $v'$.
-            additional: Mode-dependent.
+            deltas: Current difference $x_n - x_{n-1}$.
+            improvement: Current improvement $(f(x_n) - f(x'))$.
+            last_improvement: Last improvement $(f(x_{n-1}) - f(x'))$.
+            base_value: Value $f(x')$ at $x = x'$.
+            estimated: Final estimated value at $x_n$.
 
         Returns:
             Final solution.
         """
-        def accept_deltas():
+        zero_float = tf_util.constant(value=0.0, dtype='float')
+        last_improvement = tf.math.maximum(x=last_improvement, y=zero_float)
+
+        def keep_last_step():
             return x.fmap(function=(lambda t, delta: t + delta), zip_values=deltas)
 
-        def undo_deltas():
-            value = self.fn_x(arguments, deltas.fmap(function=(lambda delta: -delta)))
-            with tf.control_dependencies(control_inputs=(value,)):
+        def undo_last_step():
+            target_value = self.fn_x(arguments, deltas.fmap(function=(lambda delta: -delta)))
+
+            dependencies = [target_value]
+            if self.config.create_tf_assertions:
+                epsilon = tf_util.constant(value=1e-4, dtype='float')
+                dependencies.append(tf.debugging.assert_less(
+                    x=tf.math.abs(x=(target_value - base_value - last_improvement)), y=epsilon
+                ))
+
+            with tf.control_dependencies(control_inputs=dependencies):
                 return x.fmap(function=tf_util.identity)
 
-        skip_undo_deltas = improvement > last_improvement
-        x = tf.cond(pred=skip_undo_deltas, true_fn=accept_deltas, false_fn=undo_deltas)
-        return x
+        accept_solution = (improvement >= last_improvement)
+        return tf.cond(pred=accept_solution, true_fn=keep_last_step, false_fn=undo_last_step)

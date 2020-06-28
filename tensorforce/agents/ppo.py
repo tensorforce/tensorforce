@@ -76,11 +76,12 @@ class ProximalPolicyOptimization(TensorforceAgent):
         update_frequency ("never" | parameter, int > 0): Frequency of updates
             (<span style="color:#00C000"><b>default</b></span>: batch_size).
         learning_rate (parameter, float > 0.0): Optimizer learning rate
-            (<span style="color:#00C000"><b>default</b></span>: 3e-4).
+            (<span style="color:#00C000"><b>default</b></span>: 1e-3).
         multi_step (parameter, int >= 1): Number of optimization steps
             (<span style="color:#00C000"><b>default</b></span>: 10).
-        subsampling_fraction (parameter, 0.0 < float <= 1.0): Fraction of batch timesteps to
-            subsample (<span style="color:#00C000"><b>default</b></span>: 0.33).
+        subsampling_fraction (parameter, int > 0 | 0.0 < float <= 1.0): Absolute/relative fraction
+            of batch timesteps to subsample
+            (<span style="color:#00C000"><b>default</b></span>: 0.33).
 
         likelihood_ratio_clipping (parameter, float > 0.0): Likelihood-ratio clipping threshold
             (<span style="color:#00C000"><b>default</b></span>: 0.2).
@@ -217,7 +218,7 @@ class ProximalPolicyOptimization(TensorforceAgent):
         # Memory
         memory=None,
         # Optimization
-        update_frequency=None, learning_rate=3e-4, multi_step=10, subsampling_fraction=0.33,
+        update_frequency=None, learning_rate=1e-3, multi_step=10, subsampling_fraction=0.33,
         # Reward estimation
         likelihood_ratio_clipping=0.2, discount=0.99, predict_terminal_values=False,
         # Baseline
@@ -288,7 +289,8 @@ class ProximalPolicyOptimization(TensorforceAgent):
             subsampling_fraction=subsampling_fraction
         )
         objective = dict(
-            type='policy_gradient', ratio_based=True, clipping_value=likelihood_ratio_clipping
+            type='policy_gradient', importance_sampling=True,
+            clipping_value=likelihood_ratio_clipping
         )
 
         if baseline_network is None:

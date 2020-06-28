@@ -28,8 +28,8 @@ class SubsamplingStep(UpdateModifier):
     Args:
         optimizer (specification): Optimizer configuration
             (<span style="color:#C00000"><b>required</b></span>).
-        fraction (parameter, 0.0 <= float <= 1.0): Fraction of batch timesteps to subsample
-            (<span style="color:#C00000"><b>required</b></span>).
+        fraction (parameter, int > 0 | 0.0 < float <= 1.0): Absolute/relative fraction of batch
+            timesteps to subsample (<span style="color:#C00000"><b>required</b></span>).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
         arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
@@ -37,46 +37,59 @@ class SubsamplingStep(UpdateModifier):
     def __init__(self, *, optimizer, fraction, name=None, arguments_spec=None):
         super().__init__(optimizer=optimizer, name=name, arguments_spec=arguments_spec)
 
-        self.fraction = self.submodule(
-            name='fraction', module=fraction, modules=parameter_modules, dtype='float',
-            min_value=0.0, max_value=1.0
-        )
+        if isinstance(fraction, int):
+            self.is_fraction_absolute = True
+            self.fraction = self.submodule(
+                name='fraction', module=fraction, modules=parameter_modules, dtype='int',
+                min_value=1
+            )
+        else:
+            self.is_fraction_absolute = False
+            self.fraction = self.submodule(
+                name='fraction', module=fraction, modules=parameter_modules, dtype='float',
+                min_value=0.0, max_value=1.0
+            )
 
     @tf_function(num_args=1)
     def step(self, *, arguments, **kwargs):
-        if 'states' in arguments and 'horizons' in arguments:
-            states = arguments['states']
-            horizons = arguments['horizons']
-        else:
-            states = None
+        if not self.is_fraction_absolute and self.fraction.is_constant(value=1.0):
+            return self.optimizer.step(arguments=arguments, **kwargs)
 
-        # TODO: item, but not states/horizons
         batch_size = tf_util.cast(x=tf.shape(input=arguments['reward'])[0], dtype='int')
-        fraction = self.fraction.value()
-        num_samples = fraction * tf_util.cast(x=batch_size, dtype='float')
-        num_samples = tf_util.cast(x=num_samples, dtype='int')
-        one = tf_util.constant(value=1, dtype='int')
-        num_samples = tf.math.maximum(x=num_samples, y=one)
-        indices = tf.random.uniform(
-            shape=(num_samples,), maxval=batch_size, dtype=tf_util.get_dtype(type='int')
-        )
+        if self.is_fraction_absolute:
+            if self.fraction.is_constant() is None:
+                fraction = self.fraction.value()
+            else:
+                fraction = self.fraction.is_constant()
+        else:
+            fraction = self.fraction.value() * tf_util.cast(x=batch_size, dtype='float')
+            fraction = tf_util.cast(x=fraction, dtype='int')
+            one = tf_util.constant(value=1, dtype='int')
+            fraction = tf.math.maximum(x=fraction, y=one)
 
-        subsampled_arguments = TensorDict()
+        def subsampled_step():
+            subsampled_arguments = TensorDict()
+            indices = tf.random.uniform(
+                shape=(fraction,), maxval=batch_size, dtype=tf_util.get_dtype(type='int')
+            )
 
-        if states is not None:
-            horizons = tf.gather(params=horizons, indices=indices)
-            starts = horizons[:, 0]
-            lengths = horizons[:, 1]
-            states_indices = tf.ragged.range(starts=starts, limits=(starts + lengths)).values
-            function = (lambda x: tf.gather(params=x, indices=states_indices))
-            subsampled_arguments['states'] = states.fmap(function=function)
-            starts = tf.math.cumsum(x=lengths, exclusive=True)
-            subsampled_arguments['horizons'] = tf.stack(values=(starts, lengths), axis=1)
+            if 'states' in arguments and 'horizons' in arguments:
+                horizons = tf.gather(params=arguments['horizons'], indices=indices)
+                starts = horizons[:, 0]
+                lengths = horizons[:, 1]
+                states_indices = tf.ragged.range(starts=starts, limits=(starts + lengths)).values
+                function = (lambda x: tf.gather(params=x, indices=states_indices))
+                subsampled_arguments['states'] = arguments['states'].fmap(function=function)
+                starts = tf.math.cumsum(x=lengths, exclusive=True)
+                subsampled_arguments['horizons'] = tf.stack(values=(starts, lengths), axis=1)
 
-        for name, argument in arguments.items():
-            if states is None or (not name.startswith('states') and name != 'horizons'):
-                subsampled_arguments[name] = tf.gather(params=argument, indices=indices)
+            for name, argument in arguments.items():
+                if name not in subsampled_arguments:
+                    subsampled_arguments[name] = tf.gather(params=argument, indices=indices)
 
-        deltas = self.optimizer.step(arguments=subsampled_arguments, **kwargs)
+            return self.optimizer.step(arguments=subsampled_arguments, **kwargs)
 
-        return deltas
+        def normal_step():
+            return self.optimizer.step(arguments=arguments, **kwargs)
+
+        return tf.cond(pred=(fraction < batch_size), true_fn=subsampled_step, false_fn=normal_step)

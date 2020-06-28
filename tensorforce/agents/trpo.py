@@ -76,9 +76,12 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
         update_frequency ("never" | parameter, int > 0): Frequency of updates
             (<span style="color:#00C000"><b>default</b></span>: batch_size).
         learning_rate (parameter, float > 0.0): Optimizer learning rate
-            (<span style="color:#00C000"><b>default</b></span>: 1e-3).
+            (<span style="color:#00C000"><b>default</b></span>: 1e-2).
         linesearch_iterations (parameter, int >= 0):  Maximum number of line search iterations
             (<span style="color:#00C000"><b>default</b></span>: 10).
+        subsampling_fraction (parameter, int > 0 | 0.0 < float <= 1.0): Absolute/relative fraction
+            of batch timesteps to subsample for computation of natural gradient update
+            (<span style="color:#00C000"><b>default</b></span>: no subsampling).
 
         discount (parameter, 0.0 <= float <= 1.0): Discount factor for future rewards of
             discounted-sum reward estimation
@@ -213,7 +216,8 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
         # Memory
         memory=None,
         # Optimization
-        update_frequency=None, learning_rate=1e-3, linesearch_iterations=10,
+        update_frequency=None, learning_rate=1e-2, linesearch_iterations=10,
+        subsampling_fraction=1.0,
         # Reward estimation
         discount=0.99, predict_terminal_values=False,
         # Baseline
@@ -274,9 +278,9 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
 
         optimizer = dict(
             optimizer='natural_gradient', learning_rate=learning_rate,
-            linesearch_iterations=linesearch_iterations
+            linesearch_iterations=linesearch_iterations, subsampling_fraction=subsampling_fraction
         )
-        objective = dict(type='policy_gradient', ratio_based=True)
+        objective = dict(type='policy_gradient', importance_sampling=True)
 
         if baseline_network is None:
             assert not predict_terminal_values

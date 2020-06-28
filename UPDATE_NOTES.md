@@ -25,6 +25,9 @@ This file records all major updates and new features, starting from version 0.5.
 - Combined `long` and `int` type
 - Added double DQN agent (`double_dqn`)
 - Always wrap environment in `EnvironmentWrapper` class
+- Optimizer `subsampling_step` accepts both absolute (int) and relative (float) fractions
+- New TRPO argument `subsampling_fraction`
+- Objective `policy_gradient` argument `ratio_based` renamed to `importance_sampling`
 
 
 

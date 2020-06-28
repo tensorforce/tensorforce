@@ -5,8 +5,6 @@ run.py -- Runner
 ###### Agent arguments
 
 **-\-[a]gent** (*string*, **required** *unless "socket-server" remote mode*) -- Agent (name, configuration JSON file, or library module)
-<br>
-**-\-[n]etwork** (*string, default: not specified*) -- Network (name, configuration JSON file, or library module)
 
 
 ###### Environment arguments
@@ -47,7 +45,7 @@ run.py -- Runner
 
 **-\-e[v]aluation** (*bool, default: false*) -- Run environment (last if multiple) in evaluation mode
 <br>
-**-\-e[p]isodes** (*int, default: not specified*) -- Number of episodes
+**-\-episodes [n]** (*int, default: not specified*) -- Number of episodes
 <br>
 **-\-[t]imesteps** (*int, default: not specified*) -- Number of timesteps
 <br>

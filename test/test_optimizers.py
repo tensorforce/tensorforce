@@ -30,8 +30,10 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
 
         self.unittest(optimizer=dict(
             optimizer='adam', learning_rate=1e-3, clipping_threshold=1e-2, multi_step=5,
-            subsampling_fraction=0.5, linesearch_iterations=3
+            linesearch_iterations=3, subsampling_fraction=0.5
         ))
+
+        self.unittest(optimizer=dict(optimizer='adam', subsampling_fraction=2))
 
     def test_natural_gradient(self):
         self.start_tests(name='natural-gradient')

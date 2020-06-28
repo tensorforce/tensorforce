@@ -24,6 +24,7 @@ import numpy as np
 from tensorforce import Environment, Runner
 
 matplotlib.use('Agg')
+
 import matplotlib.pyplot as plt
 
 
@@ -33,10 +34,6 @@ def main():
     parser.add_argument(
         '-a', '--agent', type=str, default=None,
         help='Agent (name, configuration JSON file, or library module)'
-    )
-    parser.add_argument(
-        '-n', '--network', type=str, default=None,
-        help='Network (name, configuration JSON file, or library module)'
     )
     # Environment arguments
     parser.add_argument(
@@ -102,7 +99,7 @@ def main():
         '-v', '--evaluation', action='store_true',
         help='Run environment (last if multiple) in evaluation mode'
     )
-    parser.add_argument('-p', '--episodes', type=int, default=None, help='Number of episodes')
+    parser.add_argument('-n', '--episodes', type=int, default=None, help='Number of episodes')
     parser.add_argument('-t', '--timesteps', type=int, default=None, help='Number of timesteps')
     parser.add_argument('-u', '--updates', type=int, default=None, help='Number of agent updates')
     parser.add_argument(
@@ -173,8 +170,6 @@ def main():
         agent = None
     else:
         agent = dict(agent=args.agent)
-    if args.network is not None:
-        agent['network'] = args.network
 
     for _ in range(args.repeat):
         runner = Runner(

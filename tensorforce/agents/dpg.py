@@ -77,7 +77,7 @@ class DeterministicPolicyGradient(TensorforceAgent):
         start_updating (parameter, int >= batch_size): Number of timesteps before first update
             (<span style="color:#00C000"><b>default</b></span>: none).
         learning_rate (parameter, float > 0.0): Optimizer learning rate
-            (<span style="color:#00C000"><b>default</b></span>: 3e-4).
+            (<span style="color:#00C000"><b>default</b></span>: 1e-3).
 
         horizon (parameter, int >= 1): Horizon of discounted-sum reward estimation before critic
             estimate
@@ -215,7 +215,7 @@ class DeterministicPolicyGradient(TensorforceAgent):
         # Network
         network='auto', use_beta_distribution=True,
         # Optimization
-        update_frequency=None, start_updating=None, learning_rate=3e-4,
+        update_frequency=None, start_updating=None, learning_rate=1e-3,
         # Reward estimation
         horizon=1, discount=0.99, predict_terminal_values=False,
         # Critic

@@ -31,26 +31,24 @@ class LinesearchStep(UpdateModifier):
             (<span style="color:#C00000"><b>required</b></span>).
         max_iterations (parameter, int >= 0): Maximum number of line search iterations
             (<span style="color:#00C000"><b>default</b></span>: 10).
-        ls_accept_ratio (parameter, 0.0 <= float <= 1.0): Line search acceptance ratio
-            (<span style="color:#00C000"><b>default</b></span>: 0.9).
-        ls_mode ('exponential' | 'linear'): Line search mode, see line search solver
-            (<span style="color:#00C000"><b>default</b></span>: 'exponential').
-        ls_parameter (parameter, 0.0 <= float <= 1.0): Line search parameter, see line search solver
+        backtracking_factor (parameter, 0.0 < float < 1.0): Line search backtracking factor
             (<span style="color:#00C000"><b>default</b></span>: 0.75).
+        accept_ratio (parameter, 0.0 <= float <= 1.0): Line search acceptance ratio, not applicable
+            in most situations (<span style="color:#00C000"><b>default</b></span>: 0.9).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
         arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
-        self, *, optimizer, max_iterations=10, ls_accept_ratio=0.9, ls_mode='exponential',
-        ls_parameter=0.75, name=None, arguments_spec=None
+        self, *, optimizer, max_iterations=10, backtracking_factor=0.75, accept_ratio=0.9,
+        name=None, arguments_spec=None
     ):
         super().__init__(optimizer=optimizer, name=name, arguments_spec=arguments_spec)
 
         self.line_search = self.submodule(
             name='line_search', module='line_search', modules=solver_modules,
-            max_iterations=max_iterations, accept_ratio=ls_accept_ratio, mode=ls_mode,
-            parameter=ls_parameter
+            max_iterations=max_iterations, backtracking_factor=backtracking_factor,
+            accept_ratio=accept_ratio
         )
 
     def initialize_given_variables(self, *, variables, register_summaries):
@@ -77,6 +75,10 @@ class LinesearchStep(UpdateModifier):
                 return_estimated_improvement=True
             )
 
+        with tf.control_dependencies(control_inputs=deltas):
+            # Negative value since line search maximizes.
+            loss_after = -fn_loss(**arguments.to_kwargs())
+
             if isinstance(deltas, tuple):
                 # If 'return_estimated_improvement' argument exists.
                 if len(deltas) != 2:
@@ -85,14 +87,13 @@ class LinesearchStep(UpdateModifier):
                 # Negative value since line search maximizes.
                 estimated_improvement = -estimated_improvement
             else:
-                # TODO: Is this a good alternative?
-                estimated_improvement = tf.math.abs(x=loss_before)
+                # Some high value
+                estimated_improvement = tf.math.maximum(
+                    x=tf.math.abs(x=(loss_after - loss_before)),
+                    y=tf.math.maximum(x=loss_after, y=tf_util.constant(value=1.0, dtype='float'))
+                ) * tf_util.constant(value=1000.0, dtype='float')
 
-        with tf.control_dependencies(control_inputs=deltas):
-            # Negative value since line search maximizes.
-            loss_step = -fn_loss(**arguments.to_kwargs())
-
-        with tf.control_dependencies(control_inputs=(loss_step,)):
+        with tf.control_dependencies(control_inputs=(loss_after,)):
 
             # TODO: should be moved to initialize_given_variables, but fn_loss...
             def evaluate_step(arguments, deltas):
@@ -106,8 +107,8 @@ class LinesearchStep(UpdateModifier):
 
             deltas = TensorDict(((var.name, delta) for var, delta in zip(variables, deltas)))
             deltas = self.line_search.solve(
-                arguments=arguments, x_init=deltas, base_value=loss_before, target_value=loss_step,
-                estimated_improvement=estimated_improvement, fn_x=evaluate_step
+                arguments=arguments, x_init=deltas, base_value=loss_before, zero_value=loss_after,
+                estimated=estimated_improvement, fn_x=evaluate_step
             )
 
             return list(deltas.values())

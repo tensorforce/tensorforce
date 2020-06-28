@@ -76,7 +76,7 @@ class AdvantageActorCritic(TensorforceAgent):
         update_frequency ("never" | parameter, int > 0): Frequency of updates
             (<span style="color:#00C000"><b>default</b></span>: batch_size).
         learning_rate (parameter, float > 0.0): Optimizer learning rate
-            (<span style="color:#00C000"><b>default</b></span>: 3e-4).
+            (<span style="color:#00C000"><b>default</b></span>: 1e-3).
 
         horizon ("episode" | parameter, int >= 0): Horizon of discounted-sum reward estimation
             before critic estimate
@@ -216,7 +216,7 @@ class AdvantageActorCritic(TensorforceAgent):
         # Memory
         memory=None,
         # Optimization
-        update_frequency=None, learning_rate=3e-4,
+        update_frequency=None, learning_rate=1e-3,
         # Reward estimation
         horizon=1, discount=0.99, predict_terminal_values=False,
         # Critic

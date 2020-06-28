@@ -44,13 +44,13 @@ class TestObjectives(UnittestBase, unittest.TestCase):
         objective = dict(type='policy_gradient')
         self.unittest(objective=objective)
 
-        objective = dict(type='policy_gradient', ratio_based=True)
+        objective = dict(type='policy_gradient', importance_sampling=True)
         self.unittest(objective=objective)
 
         objective = dict(type='policy_gradient', clipping_value=1.0)
         self.unittest(objective=objective)
 
-        objective = dict(type='policy_gradient', ratio_based=True, clipping_value=0.2)
+        objective = dict(type='policy_gradient', importance_sampling=True, clipping_value=0.2)
         self.unittest(objective=objective)
 
         objective = dict(type='policy_gradient', early_reduce=True)

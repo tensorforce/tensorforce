@@ -74,13 +74,21 @@ class Parameter(Module):
     def max_value(self):
         return None
 
-    def is_constant(self, *, value):
-        assert isinstance(value, self.spec.py_type())
-        if self.min_value() == value and self.max_value() == value:
-            assert self.final_value() == value
-            return True
+    def is_constant(self, *, value=None):
+        if value is None:
+            if self.min_value() is not None and self.min_value() == self.max_value():
+                assert self.final_value() == self.min_value()
+                assert isinstance(self.final_value(), self.spec.py_type())
+                return self.final_value()
+            else:
+                return None
         else:
-            return False
+            assert isinstance(value, self.spec.py_type())
+            if self.min_value() == value and self.max_value() == value:
+                assert self.final_value() == value
+                return True
+            else:
+                return False
 
     def final_value(self):
         raise NotImplementedError

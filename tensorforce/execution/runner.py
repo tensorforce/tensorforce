@@ -210,14 +210,15 @@ class Runner(object):
                 (<span style="color:#00C000"><b>default</b></span>: no update limit).
             batch_agent_calls (bool): Whether to batch agent calls for parallel environment
                 execution
-                (<span style="color:#00C000"><b>default</b></span>: separate call per environment).
+                (<span style="color:#00C000"><b>default</b></span>: false, separate call per
+                environment).
             sync_timesteps (bool): Whether to synchronize parallel environment execution on
                 timestep-level, implied by batch_agent_calls
-                (<span style="color:#00C000"><b>default</b></span>: not synchronized unless
-                batch_agent_calls).
+                (<span style="color:#00C000"><b>default</b></span>: false, unless
+                batch_agent_calls is true).
             sync_episodes (bool): Whether to synchronize parallel environment execution on
                 episode-level
-                (<span style="color:#00C000"><b>default</b></span>: not synchronized).
+                (<span style="color:#00C000"><b>default</b></span>: false).
             num_sleep_secs (float): Sleep duration if no environment is ready
                 (<span style="color:#00C000"><b>default</b></span>: one milliseconds).
             callback ((Runner, parallel) -> bool): Callback function taking the runner instance

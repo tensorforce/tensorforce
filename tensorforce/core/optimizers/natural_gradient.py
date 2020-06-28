@@ -30,7 +30,8 @@ class NaturalGradient(Optimizer):
 
     Args:
         learning_rate (parameter, float >= 0.0): Learning rate as KL-divergence of distributions
-            between optimization steps (<span style="color:#C00000"><b>required</b></span>).
+            between optimization steps
+            (<span style="color:#00C000"><b>default</b></span>: 0.01).
         cg_max_iterations (int >= 0): Maximum number of conjugate gradient iterations.
             (<span style="color:#00C000"><b>default</b></span>: 10).
         cg_damping (0.0 <= float <= 1.0): Conjugate gradient damping factor.
@@ -40,7 +41,7 @@ class NaturalGradient(Optimizer):
     """
 
     def __init__(
-        self, *, learning_rate, cg_max_iterations=10, cg_damping=1e-3, name=None,
+        self, *, learning_rate=1e-2, cg_max_iterations=10, cg_damping=0.1, name=None,
         arguments_spec=None
     ):
         super().__init__(name=name, arguments_spec=arguments_spec)
@@ -170,26 +171,23 @@ class NaturalGradient(Optimizer):
             # delta = delta' / lambda  (zero prevented via tf.cond pred below)
             estimated_deltas = deltas.fmap(function=(lambda delta: delta / lagrange_multiplier))
 
-            # improvement = grad(loss) * delta  (= loss_new - loss_old)
-            estimated_improvement = tf.math.add_n(inputs=[
-                tf.math.reduce_sum(input_tensor=(loss_grad * delta))
-                for loss_grad, delta in zip(loss_gradients, estimated_deltas.values())
-            ])
-
             # Apply natural gradient improvement.
             assignments = list()
             for variable, delta in zip(variables, estimated_deltas.values()):
                 assignments.append(variable.assign_add(delta=delta, read_value=False))
 
             with tf.control_dependencies(control_inputs=assignments):
-                # Trivial operation to enforce control dependency
-                estimated_deltas = [
-                    tf_util.identity(input=delta) for delta in estimated_deltas.values()
-                ]
                 if return_estimated_improvement:
-                    return estimated_deltas, estimated_improvement
+                    # improvement = grad(loss) * delta  (= loss_new - loss_old)
+                    estimated_improvement = tf.math.add_n(inputs=[
+                        tf.math.reduce_sum(input_tensor=(loss_grad * delta))
+                        for loss_grad, delta in zip(loss_gradients, estimated_deltas.values())
+                    ])
+
+                    return list(estimated_deltas.values()), estimated_improvement
                 else:
-                    return estimated_deltas
+                    # Trivial operation to enforce control dependency
+                    return [tf_util.identity(input=delta) for delta in estimated_deltas.values()]
 
         # Natural gradient step only works if constant > 0  (epsilon to avoid zero division)
         skip_step = constant < (tf_util.constant(value=util.epsilon, dtype='float') * learning_rate)

@@ -60,7 +60,7 @@ class TFOptimizer(Optimizer):
             <https://www.tensorflow.org/addons/api_docs/python/tfa/optimizers>`__
             (<span style="color:#C00000"><b>required</b></span> unless given by specification key).
         learning_rate (parameter, float >= 0.0): Learning rate
-            (<span style="color:#00C000"><b>default</b></span>: 3e-4).
+            (<span style="color:#00C000"><b>default</b></span>: 1e-3).
         gradient_norm_clipping (parameter, float >= 0.0): Clip gradients by the ratio of the sum
             of their norms (<span style="color:#00C000"><b>default</b></span>: 1.0).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
@@ -73,7 +73,7 @@ class TFOptimizer(Optimizer):
     """
 
     def __init__(
-        self, *, optimizer, learning_rate=3e-4, gradient_norm_clipping=1.0, name=None,
+        self, *, optimizer, learning_rate=1e-3, gradient_norm_clipping=1.0, name=None,
         arguments_spec=None, **kwargs
     ):
         super().__init__(name=name, arguments_spec=arguments_spec)

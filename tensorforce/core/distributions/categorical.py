@@ -33,7 +33,7 @@ class Categorical(Distribution):
         input_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__( self, *, advantage_based=False, name=None, action_spec=None, input_spec=None):
+    def __init__(self, *, advantage_based=False, name=None, action_spec=None, input_spec=None):
         assert action_spec.type == 'int' and action_spec.num_values is not None
 
         parameters_spec = TensorsSpec(

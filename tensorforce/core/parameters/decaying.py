@@ -390,7 +390,7 @@ class Decaying(Parameter):
 
         if self.inverse:
             one = tf_util.constant(value=1.0, dtype='float')
-            parameter = one / parameter
+            parameter = tf.math.reciprocal(x=parameter)
 
         if self.scale != 1.0:
             scale = tf_util.constant(value=self.scale, dtype='float')

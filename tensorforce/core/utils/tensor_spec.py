@@ -280,6 +280,11 @@ class TensorSpec(object):
                 )
             )
 
+        if self.type == 'float':
+            assertions.append(tf.debugging.assert_all_finite(
+                x=x, message=('' if message is None else message.format(issue='inf/nan value'))
+            ))
+
         # Min/max value (includes num_values)
         if self.type != 'bool' and self.min_value is not None:
             assertions.append(tf.debugging.assert_greater_equal(

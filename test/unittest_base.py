@@ -15,18 +15,13 @@
 
 from copy import deepcopy
 from datetime import datetime
-import os
 import sys
-import warnings
 
 import tensorflow as tf
 
-from tensorforce import Agent, Environment, Runner, TensorforceError
+from tensorforce import Agent, Environment, Runner
 from tensorforce.core.layers import Layer
 from test.unittest_environment import UnittestEnvironment
-
-
-# os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
 class UnittestBase(object):
@@ -53,7 +48,7 @@ class UnittestBase(object):
     # Agent
     agent = dict(
         policy=dict(network=dict(type='auto', size=8, depth=1, rnn=2)), update=4,
-        objective='policy_gradient', reward_estimation=dict(horizon=3)
+        objective='policy_gradient', reward_estimation=dict(horizon=3), config=dict(eager_mode=True)
     )
 
     def setUp(self):

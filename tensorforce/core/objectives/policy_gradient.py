@@ -29,7 +29,7 @@ class PolicyGradient(Objective):
         importance_sampling (bool): Whether to use the importance sampling version of the policy
             gradient objective
             (<span style="color:#00C000"><b>default</b></span>: false).
-        clipping_value (parameter, float >= 0.0): Clipping threshold for the maximized value
+        clipping_value (parameter, float > 0.0): Clipping threshold for the maximized value
             (<span style="color:#00C000"><b>default</b></span>: no clipping).
         early_reduce (bool): Whether to compute objective for reduced likelihoods instead of per
             likelihood (<span style="color:#00C000"><b>default</b></span>: true).
@@ -42,7 +42,7 @@ class PolicyGradient(Objective):
     """
 
     def __init__(
-        self, *, importance_sampling=False, clipping_value=0.0, early_reduce=False, name=None,
+        self, *, importance_sampling=False, clipping_value=None, early_reduce=False, name=None,
         states_spec=None, internals_spec=None, auxiliaries_spec=None, actions_spec=None,
         reward_spec=None
     ):
@@ -62,10 +62,7 @@ class PolicyGradient(Objective):
         self.early_reduce = early_reduce
 
     def reference_spec(self):
-        if not self.importance_sampling:
-            return super().reference_spec()
-
-        elif self.early_reduce:
+        if self.early_reduce:
             return TensorSpec(type='float', shape=())
 
         else:
@@ -76,17 +73,10 @@ class PolicyGradient(Objective):
 
     @tf_function(num_args=6)
     def reference(self, *, states, horizons, internals, auxiliaries, actions, reward, policy):
-        if self.importance_sampling:
-            return policy.log_probability(
-                states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-                actions=actions, reduced=self.early_reduce, return_per_action=False
-            )
-
-        else:
-            return super().reference(
-                states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-                actions=actions, reward=reward, policy=policy
-            )
+        return policy.log_probability(
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+            actions=actions, reduced=self.early_reduce, return_per_action=False
+        )
 
     @tf_function(num_args=7)
     def loss(self, *, states, horizons, internals, auxiliaries, actions, reward, reference, policy):
@@ -94,20 +84,21 @@ class PolicyGradient(Objective):
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
             actions=actions, reduced=self.early_reduce, return_per_action=False
         )
+        reference = tf.stop_gradient(input=reference)
 
         zero = tf_util.constant(value=0.0, dtype='float')
         one = tf_util.constant(value=1.0, dtype='float')
-        clipping_value = self.clipping_value.value()
+        clipping_value = one + self.clipping_value.value()
 
         if self.importance_sampling:
-            scaling = tf.math.exp(x=(log_probability - tf.stop_gradient(input=reference)))
-            min_value = one / (one + clipping_value)
-            max_value = one + clipping_value
+            scaling = tf.math.exp(x=(log_probability - reference))
+            min_value = tf.math.reciprocal(x=clipping_value)
+            max_value = clipping_value
 
         else:
             scaling = log_probability
-            min_value = -clipping_value
-            max_value = log_probability + one
+            min_value = reference - tf.math.log(x=clipping_value)
+            max_value = reference + tf.math.log(x=clipping_value)
 
         if not self.early_reduce:
             reward = tf.expand_dims(input=reward, axis=1)

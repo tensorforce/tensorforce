@@ -39,7 +39,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
                 os.remove(path=os.path.join(self.__class__.directory, filename))
             os.rmdir(path=self.__class__.directory)
 
-        agent, environment = self.prepare()
+        agent, environment = self.prepare(config=dict(eager_mode=False))
         states = environment.reset()
         actions = agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)
@@ -53,7 +53,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
         agent.close()
         environment.close()
 
-        agent, environment = self.prepare()
+        agent, environment = self.prepare(config=dict(eager_mode=False))
         states = environment.reset()
         actions = agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)
@@ -91,7 +91,9 @@ class TestSaving(UnittestBase, unittest.TestCase):
         policy = dict(network=dict(type='auto', size=8, depth=1, rnn=False))
         update = dict(unit='episodes', batch_size=1)
         # TODO: no
-        agent, environment = self.prepare(policy=policy, memory=50, update=update)
+        agent, environment = self.prepare(
+            policy=policy, memory=50, update=update, config=dict(eager_mode=False)
+        )
         states = environment.reset()
 
         # save: default checkpoint format
@@ -276,7 +278,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
         # save: before first timestep
         update = dict(unit='episodes', batch_size=1)
         saver = dict(directory=self.__class__.directory, frequency=1)
-        agent, environment = self.prepare(update=update, saver=saver)
+        agent, environment = self.prepare(update=update, saver=saver, config=dict(eager_mode=False))
         weights0 = agent.model.policy.network.layers[1].weights.numpy()
         states = environment.reset()
         actions = agent.act(states=states)
@@ -303,7 +305,6 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
         # load: from given directory
         agent = Agent.load(directory=self.__class__.directory, environment=environment)
-        # agent = Agent.load(environment=environment, update=update, saver=saver, **self.agent_spec())
         x = agent.model.policy.network.layers[1].weights.numpy()
         self.assertTrue((x == weights1).all())
         self.assertEqual(agent.timesteps, timesteps)
@@ -312,7 +313,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
         self.finished_test()
 
         # create, not load
-        agent, environment = self.prepare(update=update, saver=saver)
+        agent, environment = self.prepare(update=update, saver=saver, config=dict(eager_mode=False))
         x = agent.model.policy.network.layers[1].weights.numpy()
         self.assertTrue((x != weights0).any())
         self.assertTrue((x != weights1).any())

@@ -25,10 +25,6 @@ class TestSummaries(UnittestBase, unittest.TestCase):
 
     directory = 'test/test-summaries'
 
-    def setUp(self):
-        super().setUp()
-        tf.config.experimental_run_functions_eagerly(run_eagerly=False)
-
     def test_summaries(self):
         # FEATURES.MD
         self.start_tests()
@@ -56,7 +52,7 @@ class TestSummaries(UnittestBase, unittest.TestCase):
             reward_estimation=dict(horizon=horizon), baseline_policy=baseline_policy,
             baseline_objective=baseline_objective, baseline_optimizer=baseline_optimizer,
             preprocessing=preprocessing, exploration=exploration,
-            config=dict(create_tf_assertions=False)
+            config=dict(create_tf_assertions=False, eager_mode=False)
         )
 
         updates = 0

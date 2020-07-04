@@ -253,6 +253,10 @@ class Agent(object):
             config = dict()
         self.config = TensorforceConfig(**config)
 
+        # Eager mode
+        if self.config.eager_mode:
+            tf.config.experimental_run_functions_eagerly(run_eagerly=True)
+
         # Random seed
         if self.config.seed is not None:
             random.seed(a=self.config.seed)

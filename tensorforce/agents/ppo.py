@@ -84,7 +84,7 @@ class ProximalPolicyOptimization(TensorforceAgent):
             (<span style="color:#00C000"><b>default</b></span>: 0.33).
 
         likelihood_ratio_clipping (parameter, float > 0.0): Likelihood-ratio clipping threshold
-            (<span style="color:#00C000"><b>default</b></span>: 0.2).
+            (<span style="color:#00C000"><b>default</b></span>: 0.25).
         discount (parameter, 0.0 <= float <= 1.0): Discount factor for future rewards of
             discounted-sum reward estimation
             (<span style="color:#00C000"><b>default</b></span>: 0.99).
@@ -150,6 +150,9 @@ class ProximalPolicyOptimization(TensorforceAgent):
             <li><b>create_tf_assertions</b> (<i>bool</i>) &ndash; Whether to create internal
             TensorFlow assertion operations
             (<span style="color:#00C000"><b>default</b></span>: true).</li>
+            <li><b>eager_mode</b> (<i>bool</i>) &ndash; Whether to run functions eagerly instead of
+            running as a traced graph function, can be helpful for debugging
+            (<span style="color:#00C000"><b>default</b></span>: false).</li>
             </ul>
         saver (specification): TensorFlow checkpoint manager configuration for periodic implicit
             saving, as alternative to explicit saving via agent.save(), with the following
@@ -220,7 +223,7 @@ class ProximalPolicyOptimization(TensorforceAgent):
         # Optimization
         update_frequency=None, learning_rate=1e-3, multi_step=10, subsampling_fraction=0.33,
         # Reward estimation
-        likelihood_ratio_clipping=0.2, discount=0.99, predict_terminal_values=False,
+        likelihood_ratio_clipping=0.25, discount=0.99, predict_terminal_values=False,
         # Baseline
         baseline_network=None, baseline_optimizer=None,
         # Preprocessing

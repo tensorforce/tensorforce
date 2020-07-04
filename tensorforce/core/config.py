@@ -25,27 +25,38 @@ class TensorforceConfig(object):
         buffer_observe=False,
         create_tf_assertions=True,
         device=None,
+        eager_mode=False,
         enable_int_action_masking=True,
         name='agent',
         seed=None
     ):
         assert isinstance(always_apply_exploration, bool)
         super().__setattr__('always_apply_exploration', always_apply_exploration)
+
         assert isinstance(always_apply_variable_noise, bool)
         super().__setattr__('always_apply_variable_noise', always_apply_variable_noise)
+
         assert buffer_observe is False or buffer_observe == 'episode' or \
             isinstance(buffer_observe, int) and buffer_observe >= 1
         if buffer_observe is False:
             buffer_observe = 1
         super().__setattr__('buffer_observe', buffer_observe)
+
         assert isinstance(create_tf_assertions, bool)
         super().__setattr__('create_tf_assertions', create_tf_assertions)
+
+        assert isinstance(eager_mode, bool)
+        super().__setattr__('eager_mode', eager_mode)
+
         assert isinstance(enable_int_action_masking, bool)
         super().__setattr__('enable_int_action_masking', enable_int_action_masking)
+
         assert device is None or isinstance(device, str)  # more specific?
         super().__setattr__('device', device)
+
         assert isinstance(name, str)
         super().__setattr__('name', name)
+
         assert seed is None or isinstance(seed, int)
         super().__setattr__('seed', seed)
 

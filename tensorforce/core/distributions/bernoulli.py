@@ -52,7 +52,7 @@ class Bernoulli(Distribution):
             action_size = util.product(xs=self.action_spec.shape, empty=0)
             self.logit = self.submodule(
                 name='logit', module='linear', modules=layer_modules, size=action_size,
-                input_spec=self.input_spec
+                initialization_scale=0.01, input_spec=self.input_spec
             )
 
         else:
@@ -73,7 +73,7 @@ class Bernoulli(Distribution):
                 )
             self.logit = self.submodule(
                 name='logit', module='linear', modules=layer_modules, size=size,
-                input_spec=self.input_spec
+                initialization_scale=0.01, input_spec=self.input_spec
             )
 
     def initialize(self):

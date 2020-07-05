@@ -14,7 +14,6 @@
 # ==============================================================================
 
 import logging
-import os
 
 from tensorforce.exception import TensorforceError
 from tensorforce.environments import Environment
@@ -25,7 +24,5 @@ from tensorforce.execution import Runner
 __all__ = ['Agent', 'Environment', 'Runner', 'TensorforceError']
 
 __version__ = '0.6'
-
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())

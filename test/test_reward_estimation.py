@@ -39,9 +39,7 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         self.start_tests(name='early horizon estimate')
 
         # TODO: action value doesn't exist for Beta
-        policy = dict(
-            network=dict(type='auto', size=8, depth=1, rnn=2), use_beta_distribution=False
-        )
+        policy = dict(network=dict(type='auto', size=8, depth=1, rnn=2))
         reward_estimation = dict(
             horizon='episode', predict_horizon_values='early', predict_action_values=True
         )
@@ -76,9 +74,7 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
             predict_terminal_values=True
         )
         # TODO: action value doesn't exist for Beta
-        baseline_policy = dict(
-            network=dict(type='auto', size=7, depth=1, rnn=1), use_beta_distribution=False
-        )
+        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=1))
         baseline_optimizer = 'adam'
         baseline_objective = dict(type='value', value='action')
         self.unittest(
@@ -98,9 +94,7 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         reward_estimation = dict(horizon=3, predict_horizon_values='late', predict_action_values=True)
         # TODO: action value doesn't exist for Beta
         # TODO: baseline horizon has to be equal to policy horizon
-        baseline_policy = dict(
-            network=dict(type='auto', size=7, depth=1, rnn=2), use_beta_distribution=False
-        )
+        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=2))
         baseline_optimizer = 2.0
         baseline_objective = dict(type='value', value='action')
         self.unittest(
@@ -122,9 +116,7 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         )
         # TODO: action value doesn't exist for Beta
         # TODO: baseline horizon has to be equal to policy horizon
-        baseline_policy = dict(
-            network=dict(type='auto', size=7, depth=1, rnn=2), use_beta_distribution=False
-        )
+        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=2))
         baseline_optimizer = 'adam'
         baseline_objective = dict(type='value', value='action')
         self.unittest(
@@ -136,16 +128,12 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         self.start_tests(name='advantage estimate')
 
         reward_estimation = dict(horizon=3, predict_horizon_values=False, estimate_advantage=True)
-        baseline_policy = dict(
-            network=dict(type='auto', size=7, depth=1, rnn=1), use_beta_distribution=False
-        )
+        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=1))
         # Implicit advantage computation as part of loss
         self.unittest(reward_estimation=reward_estimation, baseline_policy=baseline_policy)
 
         # TODO: action value doesn't exist for Beta
-        policy = dict(
-            network=dict(type='auto', size=8, depth=1, rnn=2), use_beta_distribution=False
-        )
+        policy = dict(network=dict(type='auto', size=8, depth=1, rnn=2))
         reward_estimation = dict(
             horizon='episode', predict_horizon_values='early', predict_action_values=True,
             estimate_advantage=True

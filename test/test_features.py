@@ -14,6 +14,7 @@
 # ==============================================================================
 
 import os
+from tempfile import TemporaryDirectory
 from threading import Thread
 import unittest
 
@@ -22,8 +23,6 @@ from test.unittest_base import UnittestBase
 
 
 class TestFeatures(UnittestBase, unittest.TestCase):
-
-    directory = 'test/test-recording'
 
     # @pytest.mark.skip(reason='problems with processes/sockets in travis')
     def test_parallelization(self):
@@ -86,39 +85,32 @@ class TestFeatures(UnittestBase, unittest.TestCase):
         # FEATURES.MD
         self.start_tests(name='pretrain')
 
-        # Remove directory if exists
-        if os.path.exists(path=self.__class__.directory):
-            for filename in os.listdir(path=self.__class__.directory):
-                os.remove(path=os.path.join(self.__class__.directory, filename))
-            os.rmdir(path=self.__class__.directory)
+        with TemporaryDirectory() as directory:
+            agent, environment = self.prepare(recorder=dict(directory=directory))
 
-        agent, environment = self.prepare(recorder=dict(directory=self.__class__.directory))
+            for _ in range(3):
+                states = environment.reset()
+                terminal = False
+                while not terminal:
+                    actions = agent.act(states=states)
+                    states, terminal, reward = environment.execute(actions=actions)
+                    agent.observe(terminal=terminal, reward=reward)
 
-        for _ in range(3):
-            states = environment.reset()
-            terminal = False
-            while not terminal:
-                actions = agent.act(states=states)
-                states, terminal, reward = environment.execute(actions=actions)
-                agent.observe(terminal=terminal, reward=reward)
+            agent.close()
 
-        agent.close()
+            # TODO: recorder currently does not include internal states
+            agent = Agent.create(agent=self.agent_spec(
+                policy=dict(network=dict(type='auto', size=8, depth=1, rnn=False))
+            ), memory=10, environment=environment)
 
-        # TODO: recorder currently does not include internal states
-        agent = Agent.create(agent=self.agent_spec(
-            policy=dict(network=dict(type='auto', size=8, depth=1, rnn=False))
-        ), memory=10, environment=environment)
+            agent.pretrain(directory=directory, num_iterations=2, num_traces=2, num_updates=3)
 
-        agent.pretrain(
-            directory=self.__class__.directory, num_iterations=2, num_traces=2, num_updates=3
-        )
+            agent.close()
+            environment.close()
 
-        agent.close()
-        environment.close()
-
-        for filename in os.listdir(path=self.__class__.directory):
-            os.remove(path=os.path.join(self.__class__.directory, filename))
-            assert filename.startswith('trace-')
-        os.rmdir(path=self.__class__.directory)
+            files = os.listdir(path=directory)
+            self.assertTrue(
+                all(file.startswith('trace-') and file.endswith('.npz') for file in files)
+            )
 
         self.finished_test()

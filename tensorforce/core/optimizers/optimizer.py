@@ -85,12 +85,26 @@ class Optimizer(Module):
                 t_list=[tf_util.cast(x=delta, dtype='float') for delta in deltas]
             )
 
+        assertions = list(deltas)
+        # if self.config.create_tf_assertions:
+        #     if self.__class__.__name__ != 'Synchronization':
+        #         for delta, variable in zip(deltas, variables):
+        #             if variable.shape.num_elements() <= 4:
+        #                 continue
+        #             if '/policy/' in variable.name and '_distribution/' in variable.name:
+        #                 continue
+        #             assertions.append(tf.debugging.assert_equal(
+        #                 x=tf.math.reduce_any(
+        #                     input_tensor=tf.math.not_equal(x=delta, y=tf.zeros_like(input=delta))
+        #                 ), y=tf_util.constant(value=True, dtype='bool'), message=variable.name
+        #             ))
+
         name = self.name[:self.name.index('_')] + '-update/norm'
         dependencies.extend(
             self.summary(label='update-norm', name=name, data=fn_summary, step='updates')
         )
 
-        with tf.control_dependencies(control_inputs=deltas):
+        with tf.control_dependencies(control_inputs=assertions):
 
             def fn_summary():
                 xs = list()

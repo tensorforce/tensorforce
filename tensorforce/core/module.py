@@ -455,7 +455,9 @@ class Module(tf.Module):
 
         return module
 
-    def variable(self, *, name, spec, initializer, is_trainable, is_saved):
+    def variable(
+        self, *, name, spec, initializer, is_trainable, is_saved, initialization_scale=None
+    ):
         assert self.is_initialized is False
         # name
         if not isinstance(name, str):
@@ -469,7 +471,7 @@ class Module(tf.Module):
             )
         # initializer
         initializer_names = (
-            'normal', 'normal-relu', 'orthogonal', 'orthogonal-relu', 'zeros', 'ones'
+            'constant', 'normal', 'normal-relu', 'ones', 'orthogonal', 'orthogonal-relu', 'zeros'
         )
         if not isinstance(initializer, (spec.py_type(), np.ndarray, tf.Tensor)) and \
                 initializer not in initializer_names:
@@ -482,6 +484,19 @@ class Module(tf.Module):
             raise TensorforceError.type(
                 name='variable', argument='initializer', dtype=tf_util.dtype(x=initializer)
             )
+        # initialization_scale
+        if initialization_scale is not None:
+            if isinstance(initializer, (spec.py_type(), np.ndarray, tf.Tensor)) or \
+                    initializer not in ('constant', 'orthogonal', 'orthogonal-relu'):
+                raise TensorforceError.invalid(
+                    name='variable', argument='initialization_scale',
+                    condition='initializer not orthogonal'
+                )
+            elif not isinstance(initialization_scale, spec.py_type()):
+                raise TensorforceError.type(
+                    name='variable', argument='initialization_scale',
+                    dtype=type(initialization_scale), hint='!= float'
+                )
         # is_trainable
         if not isinstance(is_trainable, bool):
             raise TensorforceError.type(
@@ -495,6 +510,7 @@ class Module(tf.Module):
         # is_saved
         if not isinstance(is_saved, bool):
             raise TensorforceError.type(name='variable', argument='is_saved', dtype=type(is_saved))
+
         # Variable initializer
         if isinstance(initializer, spec.py_type()):
             initializer = tf_util.constant(value=initializer, dtype=spec.type, shape=spec.shape)
@@ -512,19 +528,19 @@ class Module(tf.Module):
             initializer = initializer
         elif not isinstance(initializer, str):
             raise TensorforceError("Invalid variable initializer: {}".format(initializer))
-        elif initializer[:6] == 'normal':
+        elif initializer.startswith('normal'):
             if spec.type != 'float':
                 raise TensorforceError(
                     message="Invalid variable initializer value for non-float variable: {}.".format(
                         initializer
                     )
                 )
-            if initializer[6:] == '-relu':
+            if initializer.endswith('-relu'):
                 stddev = min(0.1, np.sqrt(2.0 / util.product(xs=spec.shape[:-1])))
             else:
                 stddev = min(0.1, np.sqrt(2.0 / (util.product(xs=spec.shape[:-1]) + spec.shape[-1])))
             initializer = tf.random.normal(shape=spec.shape, stddev=stddev, dtype=spec.tf_type())
-        elif initializer[:10] == 'orthogonal':
+        elif initializer.startswith('orthogonal'):
             if spec.type != 'float':
                 raise TensorforceError(
                     message="Invalid variable initializer value for non-float variable: {}.".format(
@@ -540,13 +556,22 @@ class Module(tf.Module):
             normal = np.random.normal(size=(util.product(xs=spec.shape[:-1]), spec.shape[-1]))
             u, _, v = np.linalg.svd(a=normal, full_matrices=False)
             orthogonal = u if u.shape[1] == spec.shape[-1] else v
-            if initializer[10:] == '-relu':
+            if initializer.endswith('-relu'):
                 orthogonal = orthogonal * np.sqrt(2.0)
+            if initialization_scale is not None and initialization_scale != 1.0:
+                if initialization_scale <= 0.0:
+                    raise TensorforceError.value(
+                        name='variable', argument='initialization_scale',
+                        value=initialization_scale, hint='<= 0.0'
+                    )
+                orthogonal = orthogonal * initialization_scale
             initializer = tf_util.constant(value=orthogonal.reshape(spec.shape), dtype=spec.type)
         elif initializer == 'zeros':
             initializer = tf_util.zeros(shape=spec.shape, dtype=spec.type)
         elif initializer == 'ones':
             initializer = tf_util.ones(shape=spec.shape, dtype=spec.type)
+        elif initializer == 'constant':
+            initializer = tf_util.fill(dims=spec.shape, value=self.initialization_scale)
 
         # Variable
         variable = tf.Variable(

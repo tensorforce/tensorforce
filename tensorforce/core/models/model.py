@@ -690,8 +690,7 @@ class Model(Module):
             filename = filename + '-' + str(append_value)
 
         if format == 'saved-model':
-            if append is not None:
-                directory = os.path.join(directory, filename)
+            directory = os.path.join(directory, filename)
             assert hasattr(self, '_independent_act_graphs')
             assert len(self._independent_act_graphs) == 1
             independent_act = next(iter(self._independent_act_graphs.values()))
@@ -704,7 +703,7 @@ class Model(Module):
             # Reset should reset estimator!!!
             if self.checkpoint is None:
                 self.checkpoint = tf.train.Checkpoint(**{self.name: self})
-            
+
             # We are using the high-level "save" method of the checkpoint to write a "checkpoint" file.
             # This makes it easily restorable later on.
             # The base class uses the lower level "write" method, which doesn't provide such niceties.

@@ -29,6 +29,8 @@ class Linear(Layer):
             (<span style="color:#C00000"><b>required</b></span>).
         bias (bool): Whether to add a trainable bias variable
             (<span style="color:#00C000"><b>default</b></span>: true).
+        initialization_scale (float > 0.0): Initialization scale
+            (<span style="color:#00C000"><b>default</b></span>: 1.0).
         vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
@@ -39,25 +41,28 @@ class Linear(Layer):
     """
 
     def __init__(
-        self, *, size, bias=True, vars_trainable=True, l2_regularization=None, name=None,
-        input_spec=None
+        self, *, size, bias=True, initialization_scale=1.0, vars_trainable=True,
+        l2_regularization=None, name=None, input_spec=None
     ):
         super().__init__(l2_regularization=l2_regularization, name=name, input_spec=input_spec)
 
         if len(self.input_spec.shape) <= 1:
             self.linear = self.submodule(
                 name='linear', module=Dense, size=size, bias=bias, activation=None, dropout=0.0,
-                vars_trainable=vars_trainable, input_spec=self.input_spec
+                initialization_scale=initialization_scale, vars_trainable=vars_trainable,
+                input_spec=self.input_spec
             )
         elif len(self.input_spec.shape) == 2:
             self.linear = self.submodule(
                 name='linear', module=Conv1d, size=size, window=1, bias=bias, activation=None,
-                dropout=0.0, vars_trainable=vars_trainable, input_spec=self.input_spec
+                dropout=0.0, initialization_scale=initialization_scale,
+                vars_trainable=vars_trainable, input_spec=self.input_spec
             )
         elif len(self.input_spec.shape) == 3:
             self.linear = self.submodule(
                 name='linear', module=Conv2d, size=size, window=1, bias=bias, activation=None,
-                dropout=0.0, vars_trainable=vars_trainable, input_spec=self.input_spec
+                dropout=0.0, initialization_scale=initialization_scale,
+                vars_trainable=vars_trainable, input_spec=self.input_spec
             )
         else:
             raise TensorforceError.value(

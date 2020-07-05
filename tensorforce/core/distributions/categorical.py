@@ -64,7 +64,8 @@ class Categorical(Distribution):
             # Single embedding
             self.action_values = self.submodule(
                 name='action_values', module='linear', modules=layer_modules,
-                size=(self.action_spec.size * num_values), input_spec=input_spec
+                size=(self.action_spec.size * num_values), initialization_scale=0.01,
+                input_spec=input_spec
             )
             if advantage_based:
                 self.state_value = self.submodule(
@@ -94,7 +95,7 @@ class Categorical(Distribution):
                 )
             self.action_values = self.submodule(
                 name='action_values', module='linear', modules=layer_modules,
-                size=(size * num_values), input_spec=input_spec
+                size=(size * num_values), initialization_scale=0.01, input_spec=input_spec
             )
 
     def initialize(self):

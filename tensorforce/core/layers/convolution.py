@@ -44,6 +44,8 @@ class Conv1d(TransformationBase):
             (<span style="color:#00C000"><b>default</b></span>: relu).
         dropout (parameter, 0.0 <= float < 1.0): Dropout rate
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
+        initialization_scale (float > 0.0): Initialization scale
+            (<span style="color:#00C000"><b>default</b></span>: 1.0).
         vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
@@ -55,7 +57,8 @@ class Conv1d(TransformationBase):
 
     def __init__(
         self, *, size, window=3, stride=1, padding='same', dilation=1, bias=True, activation='relu',
-        dropout=0.0, vars_trainable=True, l2_regularization=None, name=None, input_spec=None
+        dropout=0.0, initialization_scale=1.0, vars_trainable=True, l2_regularization=None,
+        name=None, input_spec=None
     ):
         self.window = window
         self.stride = stride
@@ -67,6 +70,8 @@ class Conv1d(TransformationBase):
             vars_trainable=vars_trainable,  l2_regularization=l2_regularization, name=name,
             input_spec=input_spec
         )
+
+        self.initialization_scale = initialization_scale
 
     def default_input_spec(self):
         return TensorSpec(type='float', shape=(0, 0))
@@ -100,7 +105,8 @@ class Conv1d(TransformationBase):
 
         self.weights = self.variable(
             name='weights', spec=TensorSpec(type='float', shape=(self.window, in_size, self.size)),
-            initializer=initializer, is_trainable=self.vars_trainable, is_saved=True
+            initializer=initializer, initialization_scale=self.initialization_scale,
+            is_trainable=self.vars_trainable, is_saved=True
         )
 
     @tf_function(num_args=1)
@@ -136,6 +142,8 @@ class Conv2d(TransformationBase):
             (<span style="color:#00C000"><b>default</b></span>: "relu").
         dropout (parameter, 0.0 <= float < 1.0): Dropout rate
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
+        initialization_scale (float > 0.0): Initialization scale
+            (<span style="color:#00C000"><b>default</b></span>: 1.0).
         vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
@@ -147,7 +155,8 @@ class Conv2d(TransformationBase):
 
     def __init__(
         self, *, size, window=3, stride=1, padding='same', dilation=1, bias=True, activation='relu',
-        dropout=0.0, vars_trainable=True, l2_regularization=None, name=None, input_spec=None
+        dropout=0.0, initialization_scale=1.0, vars_trainable=True, l2_regularization=None,
+        name=None, input_spec=None
     ):
         if isinstance(window, int):
             self.window = (window, window)
@@ -177,6 +186,8 @@ class Conv2d(TransformationBase):
             vars_trainable=vars_trainable, input_spec=input_spec,
             l2_regularization=l2_regularization
         )
+
+        self.initialization_scale = initialization_scale
 
     def default_input_spec(self):
         return TensorSpec(type='float', shape=(0, 0, 0))
@@ -215,7 +226,8 @@ class Conv2d(TransformationBase):
         self.weights = self.variable(
             name='weights',
             spec=TensorSpec(type='float', shape=(self.window + (in_size, self.size))),
-            initializer=initializer, is_trainable=self.vars_trainable, is_saved=True
+            initializer=initializer, initialization_scale=self.initialization_scale,
+            is_trainable=self.vars_trainable, is_saved=True
         )
 
     @tf_function(num_args=1)
@@ -254,6 +266,8 @@ class Conv1dTranspose(TransformationBase):
             (<span style="color:#00C000"><b>default</b></span>: "relu").
         dropout (parameter, 0.0 <= float < 1.0): Dropout rate
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
+        initialization_scale (float > 0.0): Initialization scale
+            (<span style="color:#00C000"><b>default</b></span>: 1.0).
         vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
@@ -265,8 +279,8 @@ class Conv1dTranspose(TransformationBase):
 
     def __init__(
         self, *, size, window=3, output_width=None, stride=1, padding='same', dilation=1, bias=True,
-        activation='relu', dropout=0.0, vars_trainable=True,  l2_regularization=None, name=None,
-        input_spec=None
+        activation='relu', dropout=0.0, initialization_scale=1.0, vars_trainable=True,
+        l2_regularization=None, name=None, input_spec=None
     ):
         self.window = window
         if output_width is None:
@@ -279,10 +293,11 @@ class Conv1dTranspose(TransformationBase):
 
         super().__init__(
             name=name, size=size, bias=bias, activation=activation, dropout=dropout,
-            vars_trainable=vars_trainable, input_spec=input_spec, 
+            vars_trainable=vars_trainable, input_spec=input_spec,
             l2_regularization=l2_regularization
         )
 
+        self.initialization_scale = initialization_scale
 
     def default_input_spec(self):
         return TensorSpec(type='float', shape=(0, 0))
@@ -319,7 +334,8 @@ class Conv1dTranspose(TransformationBase):
 
         self.weights = self.variable(
             name='weights', spec=TensorSpec(type='float', shape=(self.window, in_size, self.size)),
-            initializer=initializer, is_trainable=self.vars_trainable, is_saved=True
+            initializer=initializer, initialization_scale=self.initialization_scale,
+            is_trainable=self.vars_trainable, is_saved=True
         )
 
     @tf_function(num_args=1)
@@ -362,6 +378,8 @@ class Conv2dTranspose(TransformationBase):
             (<span style="color:#00C000"><b>default</b></span>: "relu").
         dropout (parameter, 0.0 <= float < 1.0): Dropout rate
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
+        initialization_scale (float > 0.0): Initialization scale
+            (<span style="color:#00C000"><b>default</b></span>: 1.0).
         vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
@@ -373,8 +391,8 @@ class Conv2dTranspose(TransformationBase):
 
     def __init__(
         self, *, size, window=3, output_shape=None, stride=1, padding='same', dilation=1, bias=True,
-        activation='relu', dropout=0.0, vars_trainable=True, l2_regularization=None, name=None,
-        input_spec=None
+        activation='relu', dropout=0.0, initialization_scale=1.0, vars_trainable=True,
+        l2_regularization=None, name=None, input_spec=None
     ):
         if isinstance(window, int):
             self.window = (window, window)
@@ -418,9 +436,11 @@ class Conv2dTranspose(TransformationBase):
 
         super().__init__(
             name=name, size=size, bias=bias, activation=activation, dropout=dropout,
-            vars_trainable=vars_trainable, input_spec=input_spec, 
+            vars_trainable=vars_trainable, input_spec=input_spec,
             l2_regularization=l2_regularization
         )
+
+        self.initialization_scale = initialization_scale
 
     def default_input_spec(self):
         return TensorSpec(type='float', shape=(0, 0, 0))
@@ -462,7 +482,8 @@ class Conv2dTranspose(TransformationBase):
         self.weights = self.variable(
             name='weights',
             spec=TensorSpec(type='float', shape=(self.window + (in_size, self.size))),
-            initializer=initializer, is_trainable=self.vars_trainable, is_saved=True
+            initializer=initializer, initialization_scale=self.initialization_scale,
+            is_trainable=self.vars_trainable, is_saved=True
         )
 
     @tf_function(num_args=1)

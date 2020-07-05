@@ -33,6 +33,8 @@ class Dense(TransformationBase):
             (<span style="color:#00C000"><b>default</b></span>: tanh).
         dropout (parameter, 0.0 <= float < 1.0): Dropout rate
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
+        initialization_scale (float > 0.0): Initialization scale
+            (<span style="color:#00C000"><b>default</b></span>: 1.0).
         vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
@@ -43,14 +45,16 @@ class Dense(TransformationBase):
     """
 
     def __init__(
-        self, *, size, bias=True, activation='tanh', dropout=0.0, vars_trainable=True,
-        l2_regularization=None, name=None, input_spec=None
+        self, *, size, bias=True, activation='tanh', dropout=0.0, initialization_scale=1.0,
+        vars_trainable=True, l2_regularization=None, name=None, input_spec=None
     ):
         super().__init__(
             size=size, bias=bias, activation=activation, dropout=dropout,
             vars_trainable=vars_trainable, l2_regularization=l2_regularization, name=name,
             input_spec=input_spec
         )
+
+        self.initialization_scale = initialization_scale
 
     def default_input_spec(self):
         return TensorSpec(type='float', shape=(0,))
@@ -79,7 +83,8 @@ class Dense(TransformationBase):
 
         self.weights = self.variable(
             name='weights', spec=TensorSpec(type='float', shape=(in_size, self.size)),
-            initializer=initializer, is_trainable=self.vars_trainable, is_saved=True
+            initializer=initializer, initialization_scale=self.initialization_scale,
+            is_trainable=self.vars_trainable, is_saved=True
         )
 
     @tf_function(num_args=1)

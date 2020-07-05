@@ -67,7 +67,7 @@ class VanillaPolicyGradient(TensorforceAgent):
             network).
         use_beta_distribution (bool): Whether to use the Beta distribution for bounded continuous
             actions by default.
-            (<span style="color:#00C000"><b>default</b></span>: true).
+            (<span style="color:#00C000"><b>default</b></span>: false).
 
         memory (int > 0): Batch memory capacity, has to fit at least maximum batch_size + 1 episodes
             (<span style="color:#00C000"><b>default</b></span>: minimum capacity, usually does not
@@ -146,6 +146,8 @@ class VanillaPolicyGradient(TensorforceAgent):
             <li><b>eager_mode</b> (<i>bool</i>) &ndash; Whether to run functions eagerly instead of
             running as a traced graph function, can be helpful for debugging
             (<span style="color:#00C000"><b>default</b></span>: false).</li>
+            <li><b>tf_log_level</b> (<i>0 <= int <= 3</i>) &ndash; TensorFlow log level
+            (<span style="color:#00C000"><b>default</b></span>: 3, no logging).</li>
             </ul>
         saver (specification): TensorFlow checkpoint manager configuration for periodic implicit
             saving, as alternative to explicit saving via agent.save(), with the following
@@ -210,7 +212,7 @@ class VanillaPolicyGradient(TensorforceAgent):
         # Environment
         self, states, actions, max_episode_timesteps, batch_size,
         # Network
-        network='auto', use_beta_distribution=True,
+        network='auto', use_beta_distribution=False,
         # Memory
         memory=None,
         # Optimization

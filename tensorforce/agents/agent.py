@@ -21,7 +21,6 @@ import time
 from collections import OrderedDict
 
 import numpy as np
-import tensorflow as tf
 
 import tensorforce.agents
 from tensorforce import util, TensorforceError
@@ -252,6 +251,11 @@ class Agent(object):
         if config is None:
             config = dict()
         self.config = TensorforceConfig(**config)
+
+        os.environ['TF_CPP_MIN_LOG_LEVEL'] = str(self.config.tf_log_level)
+
+        # Import tensorflow after setting log level
+        import tensorflow as tf
 
         # Eager mode
         if self.config.eager_mode:
@@ -596,6 +600,7 @@ class Agent(object):
             actions = TensorDict(actions)
 
         # Outputs from tensors
+        # print(actions)
         actions = self.actions_spec.from_tensor(tensor=actions, batched=True)
 
         # Buffer outputs for recording
@@ -1058,7 +1063,9 @@ class Agent(object):
                     format = 'checkpoint'
                 else:
                     assert format == 'checkpoint'
-                if filename is None or not os.path.isfile(os.path.join(directory, filename + '.index')):
+                if filename is None or \
+                        not os.path.isfile(os.path.join(directory, filename + '.index')):
+                    import tensorflow as tf
                     path = tf.train.latest_checkpoint(checkpoint_dir=directory)
                     if not path:
                         raise TensorforceError.exists_not(name='Checkpoint', value=directory)

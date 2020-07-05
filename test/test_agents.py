@@ -20,7 +20,7 @@ from test.unittest_base import UnittestBase
 
 class TestAgents(UnittestBase, unittest.TestCase):
 
-    agent = dict()
+    agent = dict(config=dict(eager_mode=True))
 
     def test_a2c(self):
         self.start_tests(name='A2C')

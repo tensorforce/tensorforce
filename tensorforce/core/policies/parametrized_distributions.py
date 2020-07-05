@@ -43,7 +43,7 @@ class ParametrizedDistributions(Stochastic, ActionValue):
             per action (<span style="color:#00C000"><b>default</b></span>: 0.0).
         use_beta_distribution (bool): Whether to use the Beta distribution for bounded continuous
             actions by default.
-            (<span style="color:#00C000"><b>default</b></span>: true).
+            (<span style="color:#00C000"><b>default</b></span>: false).
         state_value_mode ("independent" | "max-action-values" | "infer-from-distributions" | "no-state-value" | "no-distributions"):
             How to estimate state value, either via a separate linear layer independent of
             distributions ("independent"), or inferred as maximum of discrete bool/int action
@@ -63,7 +63,7 @@ class ParametrizedDistributions(Stochastic, ActionValue):
 
     # Network first
     def __init__(
-        self, network='auto', *, distributions=None, temperature=0.0, use_beta_distribution=True,
+        self, network='auto', *, distributions=None, temperature=0.0, use_beta_distribution=False,
         state_value_mode='independent', device=None,  l2_regularization=None, name=None,
         states_spec=None, auxiliaries_spec=None, internals_spec=None, actions_spec=None
     ):

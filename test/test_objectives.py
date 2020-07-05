@@ -62,9 +62,8 @@ class TestObjectives(UnittestBase, unittest.TestCase):
         objective = dict(type='value', value='state')
         self.unittest(objective=objective)
 
-        policy = dict(
-            network=dict(type='auto', size=8, depth=1, rnn=2), use_beta_distribution=False
-        )
+        # TODO: action value doesn't exist for Beta
+        policy = dict(network=dict(type='auto', size=8, depth=1, rnn=2))
         objective = dict(type='value', value='action')
         self.unittest(policy=policy, objective=objective)
 

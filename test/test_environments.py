@@ -21,7 +21,7 @@ from test.unittest_base import UnittestBase
 
 class TestEnvironments(UnittestBase, unittest.TestCase):
 
-    agent = dict(agent='random')
+    agent = dict(agent='random', config=dict(eager_mode=True))
 
     # @pytest.mark.skip(reason='not installed as part of travis')
     # def test_ale(self):

@@ -6,6 +6,7 @@ CONTRIBUTING.html
 PROJECTS.html
 README.html
 UPDATE_NOTES.html
+.ipynb_checkpoints/
 
 /.eggs/
 /.pytest_cache/

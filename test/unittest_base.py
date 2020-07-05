@@ -17,8 +17,6 @@ from copy import deepcopy
 from datetime import datetime
 import sys
 
-import tensorflow as tf
-
 from tensorforce import Agent, Environment, Runner
 from tensorforce.core.layers import Layer
 from test.unittest_environment import UnittestEnvironment
@@ -40,29 +38,20 @@ class UnittestBase(object):
         bool_action=dict(type='bool', shape=(1,)),
         int_action=dict(type='int', shape=(2,), num_values=4),
         float_action=dict(type='float', shape=(1, 2)),
-        bounded_action=dict(type='float', shape=(), min_value=1.0, max_value=2.0)
+        bounded_action=dict(type='float', shape=(), min_value=1.0, max_value=2.0),
+        beta_action=dict(type='float', shape=(), min_value=1.0, max_value=2.0)
     )
     min_timesteps = 5
     max_episode_timesteps = 10
 
     # Agent
     agent = dict(
-        policy=dict(network=dict(type='auto', size=8, depth=1, rnn=2)), update=4,
-        objective='policy_gradient', reward_estimation=dict(horizon=3), config=dict(eager_mode=True)
+        policy=dict(
+            network=dict(type='auto', size=8, depth=1, rnn=2),
+            distributions=dict(beta_action='beta')
+        ), update=4, objective='policy_gradient', reward_estimation=dict(horizon=3),
+        config=dict(eager_mode=True)
     )
-
-    def setUp(self):
-        # TODO: Handle IndexedSlices problem?
-        # warnings.filterwarnings(
-        #     action='ignore',
-        #     message='Converting sparse IndexedSlices to a dense Tensor of unknown shape'
-        # )
-        # warnings.filterwarnings(
-        #     action='ignore',
-        #     message='Logging before flag parsing goes to stderr'
-        # )
-        super().setUp()
-        tf.config.experimental_run_functions_eagerly(run_eagerly=True)
 
     def start_tests(self, name=None):
         """
@@ -77,7 +66,6 @@ class UnittestBase(object):
                 datetime.now().strftime('%H:%M:%S'), self.__class__.__name__[4:], name
             ))
         sys.stdout.flush()
-        tf.compat.v1.reset_default_graph()
 
     def finished_test(self, assertion=None):
         """

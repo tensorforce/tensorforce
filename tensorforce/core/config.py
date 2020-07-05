@@ -28,7 +28,8 @@ class TensorforceConfig(object):
         eager_mode=False,
         enable_int_action_masking=True,
         name='agent',
-        seed=None
+        seed=None,
+        tf_log_level=3
     ):
         assert isinstance(always_apply_exploration, bool)
         super().__setattr__('always_apply_exploration', always_apply_exploration)
@@ -59,6 +60,9 @@ class TensorforceConfig(object):
 
         assert seed is None or isinstance(seed, int)
         super().__setattr__('seed', seed)
+
+        assert isinstance(tf_log_level, int) and 0 <= tf_log_level <= 3
+        super().__setattr__('tf_log_level', tf_log_level)
 
     def __setattr__(self, name, value):
         raise NotImplementedError

@@ -348,8 +348,6 @@ class TensorforceModel(Model):
             )
             if self.baseline_objective is not None:
                 arguments_spec['reference'] = self.baseline_objective.reference_spec()
-            else:
-                arguments_spec['reference'] = self.objective.reference_spec()
             self.baseline_optimizer = self.submodule(
                 name='baseline_optimizer', module=baseline_optimizer, modules=optimizer_modules,
                 is_trainable=False, arguments_spec=arguments_spec
@@ -557,7 +555,9 @@ class TensorforceModel(Model):
 
     def input_signature(self, *, function):
         if function == 'baseline_loss':
-            if self.baseline_objective is None:
+            if self.advantage_in_loss:
+                assert False
+            elif self.baseline_objective is None:
                 return SignatureDict(
                     states=self.processed_states_spec.signature(batched=True),
                     horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
@@ -1804,11 +1804,6 @@ class TensorforceModel(Model):
         )
         if self.baseline_objective is not None:
             baseline_arguments['reference'] = self.baseline_objective.reference(
-                states=baseline_states, horizons=baseline_horizons, internals=baseline_internals,
-                auxiliaries=auxiliaries, actions=actions, reward=reward, policy=self.baseline
-            )
-        else:
-            baseline_arguments['reference'] = self.objective.reference(
                 states=baseline_states, horizons=baseline_horizons, internals=baseline_internals,
                 auxiliaries=auxiliaries, actions=actions, reward=reward, policy=self.baseline
             )

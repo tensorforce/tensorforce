@@ -27,12 +27,21 @@ class Gaussian(Distribution):
     Gaussian distribution, for unbounded continuous actions (specification key: `gaussian`).
 
     Args:
+        global_stddev (bool): Whether to use a separate set of trainable weights to parametrize
+            standard deviation, instead of a state-dependent linear transformation
+            (<span style="color:#00C000"><b>default</b></span>: false).
+        bounded_transform ("clipping" | "tanh"): Transformation to adjust sampled actions in case of
+            bounded action space
+            (<span style="color:#00C000"><b>default</b></span>: tanh).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
         action_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         input_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(self, *, name=None, action_spec=None, input_spec=None):
+    def __init__(
+        self, *, global_stddev=False, bounded_transform='tanh', name=None, action_spec=None,
+        input_spec=None
+    ):
         assert action_spec.type == 'float'
 
         parameters_spec = TensorsSpec(
@@ -47,17 +56,36 @@ class Gaussian(Distribution):
             parameters_spec=parameters_spec, conditions_spec=conditions_spec
         )
 
+        self.global_stddev = global_stddev
+
+        if bounded_transform not in ('clipping', 'tanh'):
+            raise TensorforceError.value(
+                name='Gaussian', argument='bounded_transform', value=bounded_transform,
+                hint='not in {clipping,tanh}'
+            )
+        elif bounded_transform == 'tanh' and (
+            (self.action_spec.min_value is not None) is not (self.action_spec.max_value is not None)
+        ):
+            raise TensorforceError.value(
+                name='Gaussian', argument='bounded_transform', value=bounded_transform,
+                condition='one-sided bounded action space'
+            )
+        elif self.action_spec.min_value is None and self.action_spec.max_value is None:
+            bounded_transform = None
+        self.bounded_transform = bounded_transform
+
         if len(self.input_spec.shape) == 1:
             # Single embedding
             action_size = util.product(xs=self.action_spec.shape, empty=0)
             self.mean = self.submodule(
                 name='mean', module='linear', modules=layer_modules, size=action_size,
-                input_spec=self.input_spec
+                initialization_scale=0.01, input_spec=self.input_spec
             )
-            self.log_stddev = self.submodule(
-                name='log_stddev', module='linear', modules=layer_modules, size=action_size,
-                input_spec=self.input_spec
-            )
+            if not self.global_stddev:
+                self.log_stddev = self.submodule(
+                    name='log_stddev', module='linear', modules=layer_modules, size=action_size,
+                    initialization_scale=0.01, input_spec=self.input_spec
+                )
 
         else:
             # Embedding per action
@@ -77,15 +105,23 @@ class Gaussian(Distribution):
                 )
             self.mean = self.submodule(
                 name='mean', module='linear', modules=layer_modules, size=size,
-                input_spec=self.input_spec
+                initialization_scale=0.01, input_spec=self.input_spec
             )
-            self.log_stddev = self.submodule(
-                name='log_stddev', module='linear', modules=layer_modules, size=size,
-                input_spec=self.input_spec
-            )
+            if not self.global_stddev:
+                self.log_stddev = self.submodule(
+                    name='log_stddev', module='linear', modules=layer_modules, size=size,
+                    initialization_scale=0.01, input_spec=self.input_spec
+                )
 
     def initialize(self):
         super().initialize()
+
+        if self.global_stddev:
+            spec = TensorSpec(type='float', shape=((1,) + self.action_spec.shape))
+            self.log_stddev = self.variable(
+                name='log_stddev', spec=spec, initializer='constant',
+                initialization_scale=np.log(0.5), is_trainable=True, is_saved=True
+            )
 
         prefix = 'distributions/' + self.name
         self.register_summary(label='distribution', name=(prefix + '-mean', prefix + '-stddev'))
@@ -103,9 +139,12 @@ class Gaussian(Distribution):
             mean = tf.reshape(tensor=mean, shape=shape)
 
         # Log standard deviation
-        log_stddev = self.log_stddev.apply(x=x)
-        if len(self.input_spec.shape) == 1:
-            log_stddev = tf.reshape(tensor=log_stddev, shape=shape)
+        if self.global_stddev:
+            log_stddev = self.log_stddev
+        else:
+            log_stddev = self.log_stddev.apply(x=x)
+            if len(self.input_spec.shape) == 1:
+                log_stddev = tf.reshape(tensor=log_stddev, shape=shape)
 
         # Clip log_stddev for numerical stability (epsilon < 1.0, hence negative)
         log_stddev = tf.clip_by_value(
@@ -121,11 +160,25 @@ class Gaussian(Distribution):
     def mode(self, *, parameters):
         action = parameters['mean']
 
-        # Clip if bounded action
-        if self.action_spec.min_value is not None:
-            action = tf.maximum(x=self.action_spec.min_value, y=action)
-        if self.action_spec.max_value is not None:
-            action = tf.minimum(x=self.action_spec.max_value, y=action)
+        # Bounded transformation
+        if self.bounded_transform is not None:
+            if self.bounded_transform == 'tanh':
+                action = tf.math.tanh(x=action)
+
+            if self.action_spec.min_value is not None and self.action_spec.max_value is not None:
+                one = tf_util.constant(value=1.0, dtype='float')
+                half = tf_util.constant(value=0.5, dtype='float')
+                min_value = tf_util.constant(value=self.action_spec.min_value, dtype='float')
+                max_value = tf_util.constant(value=self.action_spec.max_value, dtype='float')
+                action = min_value + (max_value - min_value) * half * (action + one)
+
+            elif self.action_spec.min_value is not None:
+                min_value = tf_util.constant(value=self.action_spec.min_value, dtype='float')
+                action = tf.maximum(x=min_value, y=action)
+            else:
+                assert self.action_spec.max_value is not None
+                max_value = tf_util.constant(value=self.action_spec.max_value, dtype='float')
+                action = tf.minimum(x=max_value, y=action)
 
         return action
 
@@ -146,11 +199,10 @@ class Gaussian(Distribution):
 
         # Entropy summary
         def fn_summary():
-            half = tf_util.constant(value=0.5, dtype='float')
-            two = tf_util.constant(value=2.0, dtype='float')
-            e_const = tf_util.constant(value=np.e, dtype='float')
-            pi_const = tf_util.constant(value=np.pi, dtype='float')
-            entropy = log_stddev + half * tf.math.log(x=(two * pi_const * e_const))
+            half_log_two_pi_e = tf_util.constant(
+                value=(0.5 * np.log(2.0 * np.pi * np.e)), dtype='float'
+            )
+            entropy = log_stddev + half_log_two_pi_e
             return tf.math.reduce_mean(input_tensor=entropy)
 
         name = 'entropies/' + self.name
@@ -165,11 +217,26 @@ class Gaussian(Distribution):
         with tf.control_dependencies(control_inputs=dependencies):
             action = mean + stddev * temperature * normal_distribution
 
-            # Clip if bounded action
-            if self.action_spec.min_value is not None:
-                action = tf.maximum(x=self.action_spec.min_value, y=action)
-            if self.action_spec.max_value is not None:
-                action = tf.minimum(x=self.action_spec.max_value, y=action)
+            # Bounded transformation
+            if self.bounded_transform is not None:
+                if self.bounded_transform == 'tanh':
+                    action = tf.math.tanh(x=action)
+
+                if self.action_spec.min_value is not None and \
+                        self.action_spec.max_value is not None:
+                    one = tf_util.constant(value=1.0, dtype='float')
+                    half = tf_util.constant(value=0.5, dtype='float')
+                    min_value = tf_util.constant(value=self.action_spec.min_value, dtype='float')
+                    max_value = tf_util.constant(value=self.action_spec.max_value, dtype='float')
+                    action = min_value + (max_value - min_value) * half * (action + one)
+
+                elif self.action_spec.min_value is not None:
+                    min_value = tf_util.constant(value=self.action_spec.min_value, dtype='float')
+                    action = tf.maximum(x=min_value, y=action)
+                else:
+                    assert self.action_spec.max_value is not None
+                    max_value = tf_util.constant(value=self.action_spec.max_value, dtype='float')
+                    action = tf.minimum(x=max_value, y=action)
 
             return action
 
@@ -177,27 +244,44 @@ class Gaussian(Distribution):
     def log_probability(self, *, parameters, action):
         mean, stddev, log_stddev = parameters.get(('mean', 'stddev', 'log_stddev'))
 
-        half = tf_util.constant(value=0.5, dtype='float')
-        two = tf_util.constant(value=2.0, dtype='float')
+        # Inverse bounded transformation
+        if self.bounded_transform is not None:
+            if self.action_spec.min_value is not None and self.action_spec.max_value is not None:
+                one = tf_util.constant(value=1.0, dtype='float')
+                two = tf_util.constant(value=2.0, dtype='float')
+                min_value = tf_util.constant(value=self.action_spec.min_value, dtype='float')
+                max_value = tf_util.constant(value=self.action_spec.max_value, dtype='float')
+                action = two * (action - min_value) / (max_value - min_value) - one
+
+            if self.bounded_transform == 'tanh':
+                clip = tf_util.constant(value=(1.0 - util.epsilon), dtype='float')
+                action = tf.clip_by_value(t=action, clip_value_min=-clip, clip_value_max=clip)
+                action = tf.math.atanh(x=action)
+
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')
-        pi_const = tf_util.constant(value=np.pi, dtype='float')
+        half = tf_util.constant(value=0.5, dtype='float')
+        half_log_two_pi = tf_util.constant(value=(0.5 * np.log(2.0 * np.pi)), dtype='float')
 
         sq_mean_distance = tf.square(x=(action - mean))
         sq_stddev = tf.maximum(x=tf.square(x=stddev), y=epsilon)
 
-        return -half * sq_mean_distance / sq_stddev - log_stddev - \
-            half * tf.math.log(x=(two * pi_const))
+        log_prob = -half * sq_mean_distance / sq_stddev - log_stddev - half_log_two_pi
+
+        if self.bounded_transform == 'tanh':
+            log_two = tf_util.constant(value=np.log(2.0), dtype='float')
+            log_prob -= two * (log_two - action - tf.math.softplus(features=(-two * action)))
+
+        return log_prob
 
     @tf_function(num_args=1)
     def entropy(self, *, parameters):
         log_stddev = parameters['log_stddev']
 
-        half = tf_util.constant(value=0.5, dtype='float')
-        two = tf_util.constant(value=2.0, dtype='float')
-        e_const = tf_util.constant(value=np.e, dtype='float')
-        pi_const = tf_util.constant(value=np.pi, dtype='float')
+        half_lg_two_pi_e = tf_util.constant(value=(0.5 * np.log(2.0 * np.pi * np.e)), dtype='float')
 
-        return log_stddev + half * tf.math.log(x=(two * pi_const * e_const))
+        # TODO: doesn't take into account self.bounded_transform == 'tanh'
+
+        return log_stddev + half_lg_two_pi_e
 
     @tf_function(num_args=2)
     def kl_divergence(self, *, parameters1, parameters2):
@@ -218,23 +302,42 @@ class Gaussian(Distribution):
     def states_value(self, *, parameters):
         log_stddev = parameters['log_stddev']
 
-        half = tf_util.constant(value=0.5, dtype='float')
-        two = tf_util.constant(value=2.0, dtype='float')
-        pi_const = tf_util.constant(value=np.pi, dtype='float')
+        half_lg_two_pi = tf_util.constant(value=(0.5 * np.log(2.0 * np.pi)), dtype='float')
+        # TODO: why no e here, but for entropy?
 
-        return -log_stddev - half * tf.math.log(x=(two * pi_const))
+        return -log_stddev - half_lg_two_pi
 
     @tf_function(num_args=2)
     def action_value(self, *, parameters, action):
         mean, stddev, log_stddev = parameters.get(('mean', 'stddev', 'log_stddev'))
 
+        # Inverse bounded transformation
+        if self.bounded_transform is not None:
+            if self.action_spec.min_value is not None and self.action_spec.max_value is not None:
+                one = tf_util.constant(value=1.0, dtype='float')
+                two = tf_util.constant(value=2.0, dtype='float')
+                min_value = tf_util.constant(value=self.action_spec.min_value, dtype='float')
+                max_value = tf_util.constant(value=self.action_spec.max_value, dtype='float')
+                action = two * (action - min_value) / (max_value - min_value) - one
+
+            if self.bounded_transform == 'tanh':
+                clip = tf_util.constant(value=(1.0 - util.epsilon), dtype='float')
+                action = tf.clip_by_value(t=action, clip_value_min=-clip, clip_value_max=clip)
+                action = tf.math.atanh(x=action)
+
         half = tf_util.constant(value=0.5, dtype='float')
         two = tf_util.constant(value=2.0, dtype='float')
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')
-        pi_const = tf_util.constant(value=np.pi, dtype='float')
+        log_two_pi = tf_util.constant(value=(np.log(2.0 * np.pi)), dtype='float')
+        # TODO: why no e here, but for entropy?
 
         sq_mean_distance = tf.square(x=(action - mean))
         sq_stddev = tf.maximum(x=tf.square(x=stddev), y=epsilon)
 
-        return -half * sq_mean_distance / sq_stddev - two * log_stddev - \
-            tf.math.log(x=(two * pi_const))
+        action_value = -half * sq_mean_distance / sq_stddev - two * log_stddev - log_two_pi
+
+        if self.bounded_transform == 'tanh':
+            log_two = tf_util.constant(value=np.log(2.0), dtype='float')
+            action_value -= two * (log_two - action - tf.math.softplus(features=(-two * action)))
+
+        return action_value

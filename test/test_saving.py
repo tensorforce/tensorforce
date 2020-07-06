@@ -29,7 +29,9 @@ class TestSaving(UnittestBase, unittest.TestCase):
         self.start_tests(name='modules')
 
         with TemporaryDirectory() as directory:
-            agent, environment = self.prepare(config=dict(eager_mode=False))
+            agent, environment = self.prepare(
+                config=dict(eager_mode=False, create_debug_assertions=True)
+            )
             states = environment.reset()
             actions = agent.act(states=states)
             states, terminal, reward = environment.execute(actions=actions)
@@ -43,7 +45,9 @@ class TestSaving(UnittestBase, unittest.TestCase):
             agent.close()
             environment.close()
 
-            agent, environment = self.prepare(config=dict(eager_mode=False))
+            agent, environment = self.prepare(
+                config=dict(eager_mode=False, create_debug_assertions=True)
+            )
             states = environment.reset()
             actions = agent.act(states=states)
             states, terminal, reward = environment.execute(actions=actions)
@@ -76,7 +80,8 @@ class TestSaving(UnittestBase, unittest.TestCase):
             update = dict(unit='episodes', batch_size=1)
             # TODO: no
             agent, environment = self.prepare(
-                policy=policy, memory=50, update=update, config=dict(eager_mode=False)
+                policy=policy, memory=50, update=update,
+                config=dict(eager_mode=False, create_debug_assertions=True)
             )
             states = environment.reset()
 
@@ -248,7 +253,8 @@ class TestSaving(UnittestBase, unittest.TestCase):
             update = dict(unit='episodes', batch_size=1)
             saver = dict(directory=directory, frequency=1)
             agent, environment = self.prepare(
-                update=update, saver=saver, config=dict(eager_mode=False)
+                update=update, saver=saver,
+                config=dict(eager_mode=False, create_debug_assertions=True)
             )
             weights0 = agent.model.policy.network.layers[1].weights.numpy()
             states = environment.reset()
@@ -285,7 +291,8 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
             # create, not load
             agent, environment = self.prepare(
-                update=update, saver=saver, config=dict(eager_mode=False)
+                update=update, saver=saver,
+                config=dict(eager_mode=False, create_debug_assertions=True)
             )
             x = agent.model.policy.network.layers[1].weights.numpy()
             self.assertTrue((x != weights0).any())

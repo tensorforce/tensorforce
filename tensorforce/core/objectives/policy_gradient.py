@@ -86,7 +86,6 @@ class PolicyGradient(Objective):
         )
         reference = tf.stop_gradient(input=reference)
 
-        zero = tf_util.constant(value=0.0, dtype='float')
         one = tf_util.constant(value=1.0, dtype='float')
         clipping_value = one + self.clipping_value.value()
 
@@ -112,7 +111,7 @@ class PolicyGradient(Objective):
             )
             return tf.math.minimum(x=(scaling * reward), y=(clipped_scaling * reward))
 
-        skip_clipping = tf.math.equal(x=clipping_value, y=zero)
+        skip_clipping = tf.math.equal(x=clipping_value, y=one)
         scaled = tf.cond(pred=skip_clipping, true_fn=no_clipping, false_fn=apply_clipping)
 
         loss = -scaled

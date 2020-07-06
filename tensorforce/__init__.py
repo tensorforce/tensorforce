@@ -23,6 +23,6 @@ from tensorforce.execution import Runner
 
 __all__ = ['Agent', 'Environment', 'Runner', 'TensorforceError']
 
-__version__ = '0.6'
+__version__ = '0.6.0'
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())

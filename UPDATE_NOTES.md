@@ -30,6 +30,7 @@ This file records all major updates and new features, starting from version 0.5.
 - Objective `policy_gradient` argument `ratio_based` renamed to `importance_sampling`
 - Changed `use_beta_distribution` default to false
 - Added `Gaussian` distribution arguments `global_stddev` and `bounded_transform` (for improved bounded action space handling)
+- Changed `tune.py` arguments
 
 
 

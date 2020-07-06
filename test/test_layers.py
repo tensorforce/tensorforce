@@ -171,7 +171,7 @@ class TestLayers(UnittestBase, unittest.TestCase):
         # TODO: buffer_observe incompatible with Deltafier/Sequence expecting single-step inputs
         agent, environment = self.prepare(
             states=states, policy=network, preprocessing=preprocessing,
-            config=dict(buffer_observe=1)
+            config=dict(buffer_observe=1, eager_mode=True, create_debug_assertions=True)
         )
 
         states = environment.reset()

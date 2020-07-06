@@ -40,7 +40,7 @@ class ParametrizedDistributions(Stochastic, ActionValue):
             actions, Gaussian distribution for unbounded continuous actions, Beta distribution for
             bounded continuous actions).
         temperature (parameter | dict[parameter], float >= 0.0): Sampling temperature, global or
-            per action (<span style="color:#00C000"><b>default</b></span>: 0.0).
+            per action (<span style="color:#00C000"><b>default</b></span>: 1.0).
         use_beta_distribution (bool): Whether to use the Beta distribution for bounded continuous
             actions by default.
             (<span style="color:#00C000"><b>default</b></span>: false).
@@ -63,7 +63,7 @@ class ParametrizedDistributions(Stochastic, ActionValue):
 
     # Network first
     def __init__(
-        self, network='auto', *, distributions=None, temperature=0.0, use_beta_distribution=False,
+        self, network='auto', *, distributions=None, temperature=1.0, use_beta_distribution=False,
         state_value_mode='independent', device=None,  l2_regularization=None, name=None,
         states_spec=None, auxiliaries_spec=None, internals_spec=None, actions_spec=None
     ):

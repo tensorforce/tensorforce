@@ -71,7 +71,7 @@ with open(os.path.join(tensorforce_directory, 'README.md'), 'r') as filehandle:
 long_description = ''.join(long_description)
 
 # Find packages
-packages = [package for package in find_packages(exclude=('test',))]
+packages = find_packages(exclude=('test',))
 assert all(package.startswith('tensorforce') for package in packages)
 
 # Extract install_requires from requirements.txt

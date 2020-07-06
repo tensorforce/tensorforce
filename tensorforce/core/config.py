@@ -23,6 +23,7 @@ class TensorforceConfig(object):
         always_apply_exploration=False,
         always_apply_variable_noise=False,
         buffer_observe=False,
+        create_debug_assertions=False,
         create_tf_assertions=True,
         device=None,
         eager_mode=False,
@@ -42,6 +43,9 @@ class TensorforceConfig(object):
         if buffer_observe is False:
             buffer_observe = 1
         super().__setattr__('buffer_observe', buffer_observe)
+
+        assert isinstance(create_debug_assertions, bool)
+        super().__setattr__('create_debug_assertions', create_debug_assertions)
 
         assert isinstance(create_tf_assertions, bool)
         super().__setattr__('create_tf_assertions', create_tf_assertions)

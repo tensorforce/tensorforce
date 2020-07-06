@@ -44,7 +44,8 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
             horizon='episode', predict_horizon_values='early', predict_action_values=True
         )
         self.unittest(
-            policy=policy, reward_estimation=reward_estimation, config=dict(buffer_observe=3)
+            policy=policy, reward_estimation=reward_estimation,
+            config=dict(buffer_observe=3, eager_mode=True, create_debug_assertions=True)
         )
 
         update = dict(unit='episodes', batch_size=1)
@@ -55,7 +56,7 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         self.unittest(
             update=update, reward_estimation=reward_estimation,
             baseline_optimizer=baseline_optimizer, baseline_objective=baseline_objective,
-            config=dict(buffer_observe='episode')  # or 1?
+            config=dict(buffer_observe='episode', eager_mode=True, create_debug_assertions=True)  # or 1?
         )
 
         reward_estimation = dict(

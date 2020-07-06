@@ -15,22 +15,21 @@
 
 import tensorflow as tf
 
-from tensorforce import TensorforceError, util
-from tensorforce.core import parameter_modules, SignatureDict, TensorDict, TensorSpec, \
-    tf_function, tf_util
+from tensorforce import util
+from tensorforce.core import parameter_modules, SignatureDict, TensorSpec, tf_function, tf_util
 from tensorforce.core.optimizers.solvers import Iterative
 
 
 class LineSearch(Iterative):
     """
-    Line search algorithm which iteratively optimizes the value $f(x)$ for $x$ on the line between  
-    $x'$ and $x_0$ by optimistically taking the first acceptable $x$ starting from $x_0$ and  
+    Line search algorithm which iteratively optimizes the value $f(x)$ for $x$ on the line between
+    $x'$ and $x_0$ by optimistically taking the first acceptable $x$ starting from $x_0$ and
     moving towards $x'$.
     """
 
     def __init__(self, *, name, max_iterations, backtracking_factor, accept_ratio):
         """
-        Creates a new line search solver instance.
+        Create a new line search solver instance.
 
         Args:
             max_iterations (parameter, int >= 0): Maximum number of iterations before termination.
@@ -79,7 +78,7 @@ class LineSearch(Iterative):
     @tf_function(num_args=5)
     def solve(self, *, arguments, x_init, base_value, zero_value, estimated, fn_x):
         """
-        Iteratively optimizes $f(x)$ for $x$ on the line between $x'$ and $x_0$.
+        Iteratively optimize $f(x)$ for $x$ on the line between $x'$ and $x_0$.
 
         Args:
             x_init: Initial solution guess $x_0$.
@@ -157,8 +156,13 @@ class LineSearch(Iterative):
             pred=(last_improvement < zero_float), true_fn=first_iteration, false_fn=other_iterations
         )
 
-        target_value = self.fn_x(arguments, next_deltas)
-        next_improvement = target_value - base_value
+        with tf.control_dependencies(control_inputs=(improvement,)):
+            target_value = self.fn_x(arguments, next_deltas)
+            next_improvement = target_value - base_value
+            # target_value = tf.compat.v1.Print(target_value, ('round', next_improvement, improvement, target_value, base_value))
+
+        with tf.control_dependencies(control_inputs=(target_value,)):
+            next_deltas = next_deltas.fmap(function=tf_util.identity)
 
         arguments = self.arguments_spec.signature(batched=True).kwargs_to_args(kwargs=arguments)
         values_signature = self.values_spec.signature(batched=False)
@@ -225,7 +229,9 @@ class LineSearch(Iterative):
 
             dependencies = [target_value]
             if self.config.create_tf_assertions:
-                epsilon = tf_util.constant(value=1e-4, dtype='float')
+                epsilon = tf_util.constant(value=util.epsilon, dtype='float')
+                epsilon = tf.math.maximum(x=epsilon, y=(epsilon * tf.math.abs(x=base_value)))
+                # target_value = tf.compat.v1.Print(target_value, (target_value - base_value - last_improvement, target_value, base_value, improvement, last_improvement, epsilon))
                 dependencies.append(tf.debugging.assert_less(
                     x=tf.math.abs(x=(target_value - base_value - last_improvement)), y=epsilon
                 ))

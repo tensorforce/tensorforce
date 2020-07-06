@@ -15,7 +15,6 @@
 
 import tensorflow as tf
 
-from tensorforce import util
 from tensorforce.core import Module, SignatureDict, TensorDict, TensorSpec, TensorsSpec, tf_function
 
 

@@ -86,7 +86,7 @@ class Optimizer(Module):
             )
 
         assertions = list(deltas)
-        # if self.config.create_tf_assertions:
+        # if self.config.create_debug_assertions:
         #     if self.__class__.__name__ != 'Synchronization':
         #         for delta, variable in zip(deltas, variables):
         #             if variable.shape.num_elements() <= 4:

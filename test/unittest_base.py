@@ -50,7 +50,8 @@ class UnittestBase(object):
             network=dict(type='auto', size=8, depth=1, rnn=2),
             distributions=dict(beta_action='beta')
         ), update=4, objective='policy_gradient', reward_estimation=dict(horizon=3),
-        config=dict(eager_mode=True)
+        # Config default changes need to be adapted everywhere (search "config=dict")
+        config=dict(eager_mode=True, create_debug_assertions=True)
     )
 
     def start_tests(self, name=None):

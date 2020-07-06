@@ -1,6 +1,8 @@
 tune.py -- Hyperparameter tuner
 ===============================
 
+Uses the [BOHB optimizer (Bayesian Optimization and Hyperband)](https://github.com/automl/HpBandSter) internally.
+
 
 ###### Environment arguments
 
@@ -22,9 +24,11 @@ tune.py -- Hyperparameter tuner
 
 ##### Tuner arguments
 
-**-\-max-[r]epeats** (*int, default: 10*) -- Maximum number of repetitions
+**-\-[r]uns-per-round** (*string, default: 1,2,5,10*) -- Comma-separated number of runs per optimization round, each with a successively smaller number of candidates
 <br>
-**-\-num-[i]terations** (*int, default: 1*) -- Number of BOHB iterations
+**-\-[s]election-factor** (*int, default: 3*) -- Selection factor n, meaning that one out of n candidates in each round advances to the next optimization round
+<br>
+**-\-num-[i]terations** (*int, default: 1*) -- Number of optimization iterations, each consisting of a series of optimization rounds with an increasingly reduced candidate pool
 <br>
 **-\-[d]irectory** (*string, default: "tuner"*) -- Output directory
 <br>

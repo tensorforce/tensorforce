@@ -82,25 +82,29 @@ class LinesearchStep(UpdateModifier):
             if isinstance(deltas, tuple):
                 # If 'return_estimated_improvement' argument exists.
                 if len(deltas) != 2:
-                    raise TensorforceError("Unexpected output of internal optimizer.")
+                    raise TensorforceError(message="Unexpected output of internal optimizer.")
                 deltas, estimated_improvement = deltas
                 # Negative value since line search maximizes.
                 estimated_improvement = -estimated_improvement
             else:
-                # Some high value
+                # Some big value
                 estimated_improvement = tf.math.maximum(
                     x=tf.math.abs(x=(loss_after - loss_before)),
                     y=tf.math.maximum(x=loss_after, y=tf_util.constant(value=1.0, dtype='float'))
                 ) * tf_util.constant(value=1000.0, dtype='float')
 
-        with tf.control_dependencies(control_inputs=(loss_after,)):
+            # TODO: debug assertion
+            dependencies = [loss_after]
+            if self.config.create_debug_assertions:
+                dependencies.append(tf.debugging.assert_none_equal(x=loss_before, y=loss_after))
+
+        with tf.control_dependencies(control_inputs=dependencies):
 
             # TODO: should be moved to initialize_given_variables, but fn_loss...
             def evaluate_step(arguments, deltas):
-                with tf.control_dependencies(control_inputs=list(deltas.values())):
-                    assignments = list()
-                    for variable, delta in zip(variables, deltas.values()):
-                        assignments.append(variable.assign_add(delta=delta, read_value=False))
+                assignments = list()
+                for variable, delta in zip(variables, deltas.values()):
+                    assignments.append(variable.assign_add(delta=delta, read_value=False))
                 with tf.control_dependencies(control_inputs=assignments):
                     # Negative value since line search maximizes.
                     return -fn_loss(**arguments.to_kwargs())

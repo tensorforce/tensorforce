@@ -1,6 +1,5 @@
 gym >= 0.17.2
 h5py >= 2.10.0
-hpbandster >= 0.7.4
 matplotlib >= 3.2.2
 msgpack >= 1.0.0
 msgpack-numpy >= 0.4.6

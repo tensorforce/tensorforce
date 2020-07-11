@@ -110,6 +110,7 @@ setup(
     install_requires=install_requires,
     extras_require=dict(
         tfa=['tensorflow-addons >= 0.10.0'],
+        tune=['hpbandster >= 0.7.4'],
         envs=['gym[atari,box2d,classic_control] >= 0.17.2', 'gym-retro >= 0.8.0', 'vizdoom >= 1.1.7'],
         gym=['gym[atari,box2d,classic_control] >= 0.17.2'],
         retro=['gym-retro >= 0.8.0'],

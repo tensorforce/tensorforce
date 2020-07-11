@@ -109,12 +109,13 @@ setup(
     ],
     install_requires=install_requires,
     extras_require=dict(
-        docs=['m2r >= 0.2.1', 'recommonmark >= 0.6.0', 'sphinx >= 3.1.1', 'sphinx-rtd-theme >= 0.5.0'],
+        tfa=['tensorflow-addons >= 0.10.0'],
         envs=['gym[atari,box2d,classic_control] >= 0.17.2', 'gym-retro >= 0.8.0', 'vizdoom >= 1.1.7'],
         gym=['gym[atari,box2d,classic_control] >= 0.17.2'],
         retro=['gym-retro >= 0.8.0'],
         vizdoom=['vizdoom >= 1.1.7'],
-        carla=['pygame', 'opencv-python']
+        carla=['pygame', 'opencv-python'],
+        docs=['m2r >= 0.2.1', 'recommonmark >= 0.6.0', 'sphinx >= 3.1.1', 'sphinx-rtd-theme >= 0.5.0']
     ),
     zip_safe=False
 )

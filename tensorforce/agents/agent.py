@@ -1014,8 +1014,11 @@ class Agent(object):
             elif filename.endswith('.npz'):
                 filename = filename[:-4]
                 format = 'numpy'
-            elif filename.endswith('.hdf5') or filename.endswith('.h5'):
+            elif filename.endswith('.hdf5'):
                 filename = filename[:-5]
+                format = 'hdf5'
+            elif filename.endswith('.h5'):
+                filename = filename[:-3]
                 format = 'hdf5'
             else:
                 assert False

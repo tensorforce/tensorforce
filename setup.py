@@ -22,11 +22,11 @@ import sys
 test: cd docs; make html; cd ..;
 pip install --upgrade pip setuptools wheel twine
 python setup.py sdist bdist_wheel
-twine upload --repository-url https://test.pypi.org/legacy/ dist/Tensorforce-0.5.4*
+twine upload --repository-url https://test.pypi.org/legacy/ dist/Tensorforce-0.5.5*
 test: pip install --upgrade --index-url https://test.pypi.org/simple/ tensorforce
 test: python; import tensorforce;
-test: python tensorforce/examples/quickstart.py
-twine upload dist/Tensorforce-0.5.4*
+test: python tensorforce-master/examples/quickstart.py
+twine upload dist/Tensorforce-0.5.5*
 """
 
 if sys.version_info.major != 3:
@@ -99,6 +99,14 @@ setup(
     download_url='https://github.com/tensorforce/tensorforce/archive/{}.tar.gz'.format(version),
     license='Apache 2.0',
     python_requires='>=3.5',
+    classifiers=[
+        'Natural Language :: English',
+        'Topic :: Scientific/Engineering',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.7'
+    ],
     install_requires=install_requires,
     extras_require=dict(
         docs=['m2r >= 0.2.1', 'recommonmark >= 0.6.0', 'sphinx >= 3.1.1', 'sphinx-rtd-theme >= 0.5.0'],

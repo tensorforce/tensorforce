@@ -3,9 +3,14 @@
 [![Docs](https://readthedocs.org/projects/tensorforce/badge)](http://tensorforce.readthedocs.io/en/latest/)
 [![Gitter](https://badges.gitter.im/tensorforce/community.svg)](https://gitter.im/tensorforce/community)
 [![Build Status](https://travis-ci.com/tensorforce/tensorforce.svg?branch=master)](https://travis-ci.com/tensorforce/tensorforce)
+[![pypi version](https://img.shields.io/pypi/v/tensorforce)](https://pypi.org/project/Tensorforce/)
+[![python version](https://img.shields.io/pypi/pyversions/tensorforce)](https://pypi.org/project/Tensorforce/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/tensorforce/tensorforce/blob/master/LICENSE)
 [![Donate](https://img.shields.io/badge/donate-GitHub_Sponsors-yellow)](https://github.com/sponsors/AlexKuhnle)
 [![Donate](https://img.shields.io/badge/donate-Liberapay-yellow)](https://liberapay.com/TensorforceTeam/donate)
+
+
+**Important:** The `master` version has now been updated to 0.6 beta.
 
 
 

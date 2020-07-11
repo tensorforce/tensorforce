@@ -590,7 +590,8 @@ class TensorforceAgent(Agent):
 
     def pretrain(self, directory, num_iterations, num_traces=1, num_updates=1, extension='.npz'):
         """
-        Pretrain from experience traces.
+        Naive pretraining approach as a combination of `experience()` and `update`, uses experience
+        traces obtained e.g. via recorder argument.
 
         See [record-and-pretrain script](https://github.com/tensorforce/tensorforce/blob/master/examples/record_and_pretrain.py)
         for illustrative example.

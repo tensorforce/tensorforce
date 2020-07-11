@@ -95,8 +95,8 @@ class CARLAEnvironment(Environment):
 
         self.timeout = timeout
         self.client = env_utils.get_client(address, port, self.timeout)
-        self.world: carla.World = self.client.get_world()
-        self.map: carla.Map = self.world.get_map()
+        self.world = self.client.get_world()  # type: carla.World
+        self.map = self.world.get_map()  # type: carla.Map
         self.synchronous_context = None
 
         # set fix fps:
@@ -107,10 +107,10 @@ class CARLAEnvironment(Environment):
 
         # vehicle
         self.vehicle_filter = vehicle_filter
-        self.vehicle: carla.Vehicle = None
+        self.vehicle = None  # type: carla.Vehicle
 
         # actions
-        self.control: carla.VehicleControl = None
+        self.control = None  # type: carla.VehicleControl
         self.prev_actions = None
 
         # weather
@@ -358,7 +358,7 @@ class CARLAEnvironment(Environment):
 
         if self.vehicle is None:
             blueprint = env_utils.random_blueprint(self.world, actor_filter=self.vehicle_filter)
-            self.vehicle: carla.Vehicle = env_utils.spawn_actor(self.world, blueprint, spawn_point)
+            self.vehicle = env_utils.spawn_actor(self.world, blueprint, spawn_point)  # type: carla.Vehicle
 
             self._create_sensors()
             self.synchronous_context = CARLASyncContext(self.world, self.sensors, fps=self.fps)

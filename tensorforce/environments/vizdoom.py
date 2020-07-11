@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -97,11 +97,11 @@ class ViZDoom(Environment):
     def states(self):
         if self.include_variables:
             return OrderedDict(
-                screen=dict(type='float', shape=self.state_shape),
+                screen=dict(type='float', shape=self.state_shape, min_value=0.0, max_value=1.0),
                 variables=dict(type='float', shape=self.num_variables)
             )
         else:
-            return dict(type='float', shape=self.state_shape)
+            return dict(type='float', shape=self.state_shape, min_value=0.0, max_value=1.0)
 
     def actions(self):
         if self.factored_action:

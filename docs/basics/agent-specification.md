@@ -66,31 +66,3 @@ Agent.create(...
     memory=dict(capacity=10000), ...
 )
 ```
-
-
-
-### Static vs dynamic hyperparameters
-
-Tensorforce distinguishes between agent/module arguments (primitive types: bool/int/long/float) which specify either part of the TensorFlow model architecture, like the layer size, or a value within the architecture, like the learning rate. Whereas the former are statically defined as part of the agent initialization, the latter can be dynamically adjusted afterwards. These dynamic hyperparameters are indicated by `parameter` as part of their type specification in the documentation, and can alternatively be assigned a [parameter module](../modules/parameters.html) instead of a constant value, for instance, to specify a decaying learning rate.
-
-
-##### Example: exponentially decaying exploration
-```python
-Agent.create(...
-    exploration=dict(
-        type='decaying', unit='timesteps', decay='exponential',
-        initial_value=0.1, decay_steps=1000, decay_rate=0.5
-    ), ...
-)
-```
-
-
-##### Example: linearly increasing horizon
-```python
-Agent.create(...
-    reward_estimation=dict(horizon=dict(
-        type='decaying', dtype='long', unit='episodes', decay='polynomial',
-        initial_value=10.0, decay_steps=1000, final_value=50.0, power=1.0
-    ), ...
-)
-```

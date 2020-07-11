@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,11 +13,10 @@
 # limitations under the License.
 # ==============================================================================
 
-from collections import OrderedDict
 import time
-from tqdm import tqdm
 
 import numpy as np
+from tqdm import tqdm
 
 from tensorforce import Agent, Environment, TensorforceError, util
 from tensorforce.environments import RemoteEnvironment
@@ -161,8 +160,8 @@ class Runner(object):
                 remote=remote, blocking=blocking, host=host[n], port=port[n]
             )
             assert isinstance(environment, RemoteEnvironment) == self.is_environment_remote
-            assert environment.states() == states
-            assert environment.actions() == actions
+            assert util.is_equal(x=environment.states(), y=states)
+            assert util.is_equal(x=environment.actions(), y=actions)
             self.environments.append(environment)
 
         self.evaluation = evaluation
@@ -211,14 +210,15 @@ class Runner(object):
                 (<span style="color:#00C000"><b>default</b></span>: no update limit).
             batch_agent_calls (bool): Whether to batch agent calls for parallel environment
                 execution
-                (<span style="color:#00C000"><b>default</b></span>: separate call per environment).
+                (<span style="color:#00C000"><b>default</b></span>: false, separate call per
+                environment).
             sync_timesteps (bool): Whether to synchronize parallel environment execution on
                 timestep-level, implied by batch_agent_calls
-                (<span style="color:#00C000"><b>default</b></span>: not synchronized unless
-                batch_agent_calls).
+                (<span style="color:#00C000"><b>default</b></span>: false, unless
+                batch_agent_calls is true).
             sync_episodes (bool): Whether to synchronize parallel environment execution on
                 episode-level
-                (<span style="color:#00C000"><b>default</b></span>: not synchronized).
+                (<span style="color:#00C000"><b>default</b></span>: false).
             num_sleep_secs (float): Sleep duration if no environment is ready
                 (<span style="color:#00C000"><b>default</b></span>: one milliseconds).
             callback ((Runner, parallel) -> bool): Callback function taking the runner instance
@@ -611,7 +611,7 @@ class Runner(object):
         if self.evaluation_run and self.terminals[-1] <= 0:
             agent_start = time.time()
             self.actions[-1], self.evaluation_internals = self.agent.act(
-                states=self.states[-1], internals=self.evaluation_internals, evaluation=True
+                states=self.states[-1], internals=self.evaluation_internals, independent=True
             )
             self.episode_agent_second[-1] += time.time() - agent_start
 
@@ -622,7 +622,7 @@ class Runner(object):
         else:
             agent_start = time.time()
             actions, self.evaluation_internals = self.agent.act(
-                states=self.states[-1], internals=self.evaluation_internals, evaluation=True
+                states=self.states[-1], internals=self.evaluation_internals, independent=True
             )
             self.evaluation_agent_second += time.time() - agent_start
 
@@ -636,7 +636,7 @@ class Runner(object):
             self.timesteps += 1
             if ((
                 self.episode_timestep[-1] % self.callback_timestep_frequency == 0 and
-                not self.callback(self, parallel)
+                not self.callback(self, -1)
             ) or self.timesteps >= self.num_timesteps):
                 self.terminate = 2
 
@@ -742,7 +742,7 @@ class Runner(object):
             self.episodes += 1
             if self.terminate == 0 and ((
                 self.episodes % self.callback_episode_frequency == 0 and
-                not self.callback(self, 0)
+                not self.callback(self, -1)
             ) or self.episodes >= self.num_episodes):
                 self.terminate = 1
 

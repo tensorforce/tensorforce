@@ -4,4 +4,4 @@ msgpack-numpy
 recommonmark
 sphinx
 sphinx-rtd-theme
-tensorflow==2.0.1
+tensorflow

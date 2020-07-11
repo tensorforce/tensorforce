@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 
 import tensorflow as tf
 
-from tensorforce import util
+from tensorforce.core import tf_function, tf_util
 from tensorforce.core.memories import Queue
 
 
@@ -24,50 +24,52 @@ class Recent(Queue):
     Batching memory which always retrieves most recent experiences (specification key: `recent`).
 
     Args:
-        name (string): Memory name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         capacity (int > 0): Memory capacity
             (<span style="color:#00C000"><b>default</b></span>: minimum capacity).
-        values_spec (specification): Values specification
-            (<span style="color:#0000C0"><b>internal use</b></span>).
-        min_capacity (int >= 0): Minimum memory capacity
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         device (string): Device name
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+            (<span style="color:#00C000"><b>default</b></span>: CPU:0).
+        name (string): <span style="color:#0000C0"><b>internal use</b></span>.
+        values_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        min_capacity (int >= 0): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def tf_retrieve_timesteps(self, n, past_horizon, future_horizon):
-        one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
-        capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))
+    @tf_function(num_args=3)
+    def retrieve_timesteps(self, *, n, past_horizon, future_horizon):
+        one = tf_util.constant(value=1, dtype='int')
+        capacity = tf_util.constant(value=self.capacity, dtype='int')
 
         # Check whether memory contains at least one valid timestep
-        num_timesteps = tf.minimum(x=self.buffer_index, y=capacity) - past_horizon - future_horizon
-        assertion = tf.debugging.assert_greater_equal(x=num_timesteps, y=one)
+        num_timesteps = tf.math.minimum(x=self.buffer_index, y=capacity)
+        num_timesteps -= (past_horizon + future_horizon)
+
+        # Check whether memory contains at least one timestep
+        assertions = list()
+        if self.config.create_tf_assertions:
+            assertions.append(tf.debugging.assert_greater_equal(x=num_timesteps, y=one))
 
         # Most recent timestep indices range
-        with tf.control_dependencies(control_inputs=(assertion,)):
+        with tf.control_dependencies(control_inputs=assertions):
             indices = tf.range(start=(self.buffer_index - n), limit=self.buffer_index)
             indices = tf.math.mod(x=(indices - future_horizon), y=capacity)
 
         return indices
 
-    def tf_retrieve_episodes(self, n):
-        zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
-        one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
-        capacity = tf.constant(value=self.capacity, dtype=util.tf_dtype(dtype='long'))
+    @tf_function(num_args=1)
+    def retrieve_episodes(self, *, n):
+        zero = tf_util.constant(value=0, dtype='int')
+        one = tf_util.constant(value=1, dtype='int')
+        capacity = tf_util.constant(value=self.capacity, dtype='int')
 
         # Check whether memory contains at least one episode
-        assertion = tf.debugging.assert_greater_equal(x=self.episode_count, y=one)
+        assertions = list()
+        if self.config.create_tf_assertions:
+            assertions.append(tf.debugging.assert_greater_equal(x=self.episode_count, y=one))
 
         # Get start and limit index for most recent n episodes
-        with tf.control_dependencies(control_inputs=(assertion,)):
-            start = self.terminal_indices[self.episode_count - n]
-            limit = self.terminal_indices[self.episode_count]
-            # Increment terminal of previous episode
-            start = start + one
-            limit = limit + one
+        with tf.control_dependencies(control_inputs=assertions):
+            # (Increment terminal of previous episode)
+            start = self.terminal_indices[self.episode_count - n] + one
+            limit = self.terminal_indices[self.episode_count] + one
 
             # Correct limit index if smaller than start index
             limit = limit + tf.where(condition=(limit < start), x=capacity, y=zero)

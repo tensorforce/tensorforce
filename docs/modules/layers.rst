@@ -1,15 +1,20 @@
 Layers
 ======
 
-Default layer: ``Function`` with default argument ``function``
+See the `networks documentation <networks.html>`_ for more information about how to specify networks.
 
+Default layer: ``Function`` with default argument ``function``, so a ``lambda`` function is a short-form specification of a simple transformation layer:
 
-Convolutional layers
---------------------
+.. code-block:: python
 
-.. autoclass:: tensorforce.core.layers.Conv1d
-
-.. autoclass:: tensorforce.core.layers.Conv2d
+    Agent.create(
+        ...
+        policy=dict(network=[
+            (lambda x: tf.clip_by_value(x, -1.0, 1.0)),
+            ...
+        ]),
+        ...
+    )
 
 
 Dense layers
@@ -20,20 +25,42 @@ Dense layers
 .. autoclass:: tensorforce.core.layers.Linear
 
 
+Convolutional layers
+--------------------
+
+.. autoclass:: tensorforce.core.layers.Conv1d
+
+.. autoclass:: tensorforce.core.layers.Conv2d
+
+.. autoclass:: tensorforce.core.layers.Conv1dTranspose
+
+.. autoclass:: tensorforce.core.layers.Conv2dTranspose
+
+
 Embedding layers
 ----------------
 
 .. autoclass:: tensorforce.core.layers.Embedding
 
 
-Recurrent layers
-----------------
+Recurrent layers (unrolled over timesteps)
+------------------------------------------
 
-.. autoclass:: tensorforce.core.layers.Gru
+.. autoclass:: tensorforce.core.layers.Rnn
 
 .. autoclass:: tensorforce.core.layers.Lstm
 
-.. autoclass:: tensorforce.core.layers.Rnn
+.. autoclass:: tensorforce.core.layers.Gru
+
+
+Input recurrent layers (unrolled over sequence input)
+-----------------------------------------------------
+
+.. autoclass:: tensorforce.core.layers.InputRnn
+
+.. autoclass:: tensorforce.core.layers.InputLstm
+
+.. autoclass:: tensorforce.core.layers.InputGru
 
 
 Pooling layers
@@ -59,42 +86,36 @@ Normalization layers
 Misc layers
 -----------
 
+.. autoclass:: tensorforce.core.layers.Reshape
+
 .. autoclass:: tensorforce.core.layers.Activation
-
-.. autoclass:: tensorforce.core.layers.Clipping
-
-.. autoclass:: tensorforce.core.layers.Deltafier
 
 .. autoclass:: tensorforce.core.layers.Dropout
 
+.. autoclass:: tensorforce.core.layers.Clipping
+
 .. autoclass:: tensorforce.core.layers.Image
 
-.. autoclass:: tensorforce.core.layers.Reshape
+.. autoclass:: tensorforce.core.layers.Deltafier
 
 .. autoclass:: tensorforce.core.layers.Sequence
-
-
-Layers with internal states
----------------------------
-
-.. autoclass:: tensorforce.core.layers.InternalGru
-
-.. autoclass:: tensorforce.core.layers.InternalLstm
-
-.. autoclass:: tensorforce.core.layers.InternalRnn
 
 
 Special layers
 --------------
 
-.. autoclass:: tensorforce.core.layers.Block
-
 .. autoclass:: tensorforce.core.layers.Function
-
-.. autoclass:: tensorforce.core.layers.Keras
 
 .. autoclass:: tensorforce.core.layers.Register
 
 .. autoclass:: tensorforce.core.layers.Retrieve
 
+.. autoclass:: tensorforce.core.layers.Block
+
 .. autoclass:: tensorforce.core.layers.Reuse
+
+
+Keras layer
+-----------
+
+.. autoclass:: tensorforce.core.layers.Keras

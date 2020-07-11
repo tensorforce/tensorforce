@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -29,10 +29,8 @@ test: python tensorforce-master/examples/quickstart.py
 twine upload dist/Tensorforce-0.5.5*
 """
 
-
 if sys.version_info.major != 3:
     raise NotImplementedError("Tensorforce is only compatible with Python 3.")
-
 
 tensorforce_directory = os.path.abspath(os.path.dirname(__file__))
 
@@ -72,6 +70,9 @@ with open(os.path.join(tensorforce_directory, 'README.md'), 'r') as filehandle:
         raise NotImplementedError
 long_description = ''.join(long_description)
 
+# Find packages
+packages = find_packages(exclude=('test',))
+assert all(package.startswith('tensorforce') for package in packages)
 
 # Extract install_requires from requirements.txt
 install_requires = list()
@@ -94,10 +95,7 @@ setup(
     author='Alexander Kuhnle',
     author_email='tensorforce.team@gmail.com',
     url='http://github.com/tensorforce/tensorforce',
-    packages=[
-        package for package in find_packages(exclude=('test',))
-        if package.startswith('tensorforce')
-    ],
+    packages=packages,
     download_url='https://github.com/tensorforce/tensorforce/archive/{}.tar.gz'.format(version),
     license='Apache 2.0',
     python_requires='>=3.5',
@@ -111,16 +109,11 @@ setup(
     ],
     install_requires=install_requires,
     extras_require=dict(
-        tf=['tensorflow==2.0.1'],
-        tf_gpu=['tensorflow-gpu==2.0.1'],
-        tfa=['tensorflow-addons==0.6.0'],
-        docs=['m2r', 'recommonmark', 'sphinx', 'sphinx-rtd-theme'],
-        tune=['hpbandster'],
-        envs=['gym[all]', 'gym-retro', 'mazeexp', 'vizdoom'],
-        mazeexp=['mazeexp'],
-        gym=['gym[all]'],
-        retro=['gym-retro'],
-        vizdoom=['vizdoom'],
+        docs=['m2r >= 0.2.1', 'recommonmark >= 0.6.0', 'sphinx >= 3.1.1', 'sphinx-rtd-theme >= 0.5.0'],
+        envs=['gym[atari,box2d,classic_control] >= 0.17.2', 'gym-retro >= 0.8.0', 'vizdoom >= 1.1.7'],
+        gym=['gym[atari,box2d,classic_control] >= 0.17.2'],
+        retro=['gym-retro >= 0.8.0'],
+        vizdoom=['vizdoom >= 1.1.7'],
         carla=['pygame', 'opencv-python']
     ),
     zip_safe=False

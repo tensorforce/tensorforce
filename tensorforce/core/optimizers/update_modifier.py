@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,23 +17,22 @@ import tensorforce.core
 from tensorforce.core.optimizers import Optimizer
 
 
-class MetaOptimizer(Optimizer):
+class UpdateModifier(Optimizer):
     """
-    Meta optimizer, which takes the update mechanism implemented by another optimizer and modifies
+    Update modifier, which takes the update mechanism implemented by another optimizer and modifies
     it.
 
     Args:
-        name (string): Module name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         optimizer (specification): Optimizer configuration
             (<span style="color:#C00000"><b>required</b></span>).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
+        arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(self, name, optimizer, summary_labels=None):
-        super().__init__(name=name, summary_labels=summary_labels)
+    def __init__(self, *, optimizer, name=None, arguments_spec=None):
+        super().__init__(name=name, arguments_spec=arguments_spec)
 
-        self.optimizer = self.add_module(
-            name='inner-optimizer', module=optimizer, modules=tensorforce.core.optimizer_modules
+        self.optimizer = self.submodule(
+            name=name, module=optimizer, modules=tensorforce.core.optimizer_modules,
+            arguments_spec=self.arguments_spec
         )

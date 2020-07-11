@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,19 +15,15 @@
 
 import tensorflow as tf
 
-from tensorforce import util
+from tensorforce.core import TensorSpec, tf_util
 from tensorforce.core.parameters import Parameter
 
 
 class OrnsteinUhlenbeck(Parameter):
     """
-    Ornstein-Uhlenbeck process.
+    Ornstein-Uhlenbeck process (specification key: `ornstein_uhlenbeck`).
 
     Args:
-        name (string): Module name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
-        dtype ("bool" | "int" | "long" | "float"): Tensor type
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         theta (float > 0.0): Theta value
             (<span style="color:#00C000"><b>default</b></span>: 0.15).
         sigma (float > 0.0): Sigma value
@@ -36,51 +32,47 @@ class OrnsteinUhlenbeck(Parameter):
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
         absolute (bool): Absolute value
             (<span style="color:#00C000"><b>default</b></span>: false).
-        min_value (dtype-compatible value): Lower parameter value bound
-            (<span style="color:#0000C0"><b>internal use</b></span>).
-        max_value (dtype-compatible value): Upper parameter value bound
-            (<span style="color:#0000C0"><b>internal use</b></span>).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): <span style="color:#0000C0"><b>internal use</b></span>.
+        dtype (type): <span style="color:#0000C0"><b>internal use</b></span>.
+        min_value (dtype-compatible value): <span style="color:#0000C0"><b>internal use</b></span>.
+        max_value (dtype-compatible value): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
-        self, name, dtype, theta=0.15, sigma=0.3, mu=0.0, absolute=False, min_value=None,
-        max_value=None, summary_labels=None
+        self, *, theta=0.15, sigma=0.3, mu=0.0, absolute=False, name=None, dtype=None,
+        min_value=None, max_value=None
     ):
         self.theta = theta
         self.mu = mu
         self.sigma = sigma
         self.absolute = absolute
 
-        super().__init__(
-            name=name, dtype=dtype, min_value=min_value, max_value=max_value,
-            summary_labels=summary_labels
-        )
+        super().__init__(name=name, dtype=dtype, min_value=min_value, max_value=max_value)
 
     def min_value(self):
         if self.absolute:
-            return util.py_dtype(dtype=self.dtype)(0.0)
+            return self.spec.py_type()(0.0)
         else:
             super().min_value()
 
     def final_value(self):
-        return util.py_dtype(dtype=self.dtype)(self.mu)
+        return self.spec.py_type()(self.mu)
 
-    def parameter_value(self, step):
-        self.process = self.add_variable(
-            name='process', dtype='float', shape=(), is_trainable=False, initializer=self.mu
+    def initialize(self):
+        super().initialize()
+
+        self.process = self.variable(
+            name='process', spec=TensorSpec(type='float'), initializer=self.mu, is_trainable=False,
+            is_saved=True
         )
 
+    def parameter_value(self, *, step):
         delta = self.theta * (self.mu - self.process) + self.sigma * tf.random.normal(shape=())
         if self.absolute:
             parameter = self.process.assign(value=tf.math.abs(x=(self.process + delta)))
         else:
             parameter = self.process.assign_add(delta=delta)
 
-        if self.dtype != 'float':
-            parameter = tf.dtypes.cast(x=parameter, dtype=util.tf_dtype(dtype=self.dtype))
-        else:
-            parameter = tf.identity(input=parameter)
+        parameter = tf_util.cast(x=parameter, dtype=self.spec.type)
 
         return parameter

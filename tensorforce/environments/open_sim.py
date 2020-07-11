@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -32,18 +32,18 @@ class OpenSim(Environment):
 
     @classmethod
     def levels(cls):
-        return ['Arm2D', 'L2Run', 'Prosthetics']
+        return ['Arm2D', 'L2M2019', 'LegacyArm', 'LegacyRun']
 
-    def __init__(self, level, visualize=False, integrator_accuracy=5e-5):
+    def __init__(self, level, visualize=False, **kwargs):
         super().__init__()
 
-        from osim.env import L2RunEnv, Arm2DEnv, ProstheticsEnv
+        from osim.env import Arm2DEnv, L2M2019Env
+        from osim.env.legacy.arm import ArmEnv
+        from osim.env.legacy.run import RunEnv
 
-        environments = dict(Arm2D=Arm2DEnv, L2Run=L2RunEnv, Prosthetics=ProstheticsEnv)
+        environments = dict(Arm2D=Arm2DEnv, L2M2019=L2M2019Env, LegacyArm=ArmEnv, LegacyRun=RunEnv)
 
-        self.environment = environments[level](
-            visualize=visualize, integrator_accuracy=integrator_accuracy
-        )
+        self.environment = environments[level](visualize=visualize, **kwargs)
 
     def __str__(self):
         return super().__str__() + '({})'.format(self.environment)

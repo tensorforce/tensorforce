@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,14 +13,16 @@
 # limitations under the License.
 # ==============================================================================
 
-from collections import OrderedDict
+from collections import Counter
 
 import tensorflow as tf
 
-from tensorforce import TensorforceError, util
-from tensorforce.core import Module
-from tensorforce.core.layers import Layer, layer_modules, StatefulLayer, TemporalLayer
+from tensorforce import TensorforceError
+from tensorforce.core import Module, SignatureDict, TensorSpec, TensorsSpec, tf_function, tf_util
+from tensorforce.core.layers import Layer, layer_modules, MultiInputLayer, Register, \
+    StatefulLayer, TemporalLayer
 from tensorforce.core.parameters import Parameter
+from tensorforce.core.utils import ArrayDict
 
 
 class Network(Module):
@@ -28,86 +30,53 @@ class Network(Module):
     Base class for neural networks.
 
     Args:
-        name (string): Network name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
-        inputs_spec (specification): Input tensors specification
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         device (string): Device name
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): <span style="color:#0000C0"><b>internal use</b></span>.
+        inputs_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(
-        self, name, inputs_spec, device=None, summary_labels=None, l2_regularization=None
-    ):
-        super().__init__(
-            name=name, device=device, summary_labels=summary_labels,
-            l2_regularization=l2_regularization
-        )
+    def __init__(self, *, device=None, l2_regularization=None, name=None, inputs_spec=None):
+        super().__init__(name=name, device=device,  l2_regularization=l2_regularization)
 
         self.inputs_spec = inputs_spec
 
-    def get_output_spec(self):
+    def output_spec(self):
         raise NotImplementedError
 
-    @classmethod
-    def internals_spec(cls, network=None, **kwargs):
-        return OrderedDict()
+    @property
+    def internals_spec(self):
+        return TensorsSpec()
 
     def internals_init(self):
-        return OrderedDict()
+        return ArrayDict()
 
-    def max_past_horizon(self, is_optimization=False):
+    def max_past_horizon(self, *, on_policy):
+        return 0
+
+    def input_signature(self, *, function):
+        if function == 'apply':
+            return SignatureDict(
+                x=self.inputs_spec.signature(batched=True),
+                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                internals=self.internals_spec.signature(batched=True)
+            )
+
+        elif function == 'past_horizon':
+            return SignatureDict()
+
+        else:
+            return super().input_signature(function=function)
+
+    @tf_function(num_args=0)
+    def past_horizon(self, *, on_policy):
+        return tf_util.constant(value=0, dtype='int')
+
+    @tf_function(num_args=3)
+    def apply(self, *, x, horizons, internals, independent, return_internals):
         raise NotImplementedError
-
-    def tf_past_horizon(self, is_optimization=False):
-        raise NotImplementedError
-
-    def tf_apply(self, x, internals, return_internals=False):
-        Module.update_tensors(**x)
-
-    def create_tf_function(self, name, tf_function):
-        if tf_function.__name__ != 'tf_apply':
-            return super().create_tf_function(name=name, tf_function=tf_function)
-
-        def validated_tf_function(x, internals, return_internals=False):
-            if util.is_atomic_values_spec(values_spec=self.inputs_spec):
-                if not util.is_consistent_with_value_spec(value_spec=self.inputs_spec, x=x):
-                    raise TensorforceError("Invalid input arguments for tf_apply.")
-            else:
-                if not all(
-                    util.is_consistent_with_value_spec(value_spec=spec, x=x[name])
-                    for name, spec in self.inputs_spec.items()
-                ):
-                    raise TensorforceError("Invalid input arguments for tf_apply.")
-            if not all(
-                util.is_consistent_with_value_spec(value_spec=spec, x=internals[name])
-                for name, spec in self.__class__.internals_spec(network=self).items()
-            ):
-                raise TensorforceError("Invalid input arguments for tf_apply.")
-
-            if return_internals:
-                x, internals = tf_function(x=x, internals=internals, return_internals=True)
-            else:
-                x = tf_function(x=x, internals=internals, return_internals=False)
-
-            if not util.is_consistent_with_value_spec(value_spec=self.get_output_spec(), x=x):
-                raise TensorforceError("Invalid output arguments for tf_apply.")
-            if return_internals and not all(
-                util.is_consistent_with_value_spec(value_spec=spec, x=internals[name])
-                for name, spec in self.__class__.internals_spec(network=self).items()
-            ):
-                raise TensorforceError("Invalid output arguments for tf_apply.")
-
-            if return_internals:
-                return x, internals
-            else:
-                return x
-
-        return super().create_tf_function(name=name, tf_function=validated_tf_function)
 
 
 class LayerbasedNetwork(Network):
@@ -115,103 +84,205 @@ class LayerbasedNetwork(Network):
     Base class for networks using Tensorforce layers.
     """
 
-    def __init__(
-        self, name, inputs_spec, device=None, summary_labels=None, l2_regularization=None
-    ):
-        """
-        Layer-based network constructor.
-        """
+    def __init__(self, *, name, inputs_spec, device=None, l2_regularization=None):
         super().__init__(
-            name=name, inputs_spec=inputs_spec, device=device, summary_labels=summary_labels,
-            l2_regularization=l2_regularization
+            name=name, inputs_spec=inputs_spec, device=device, l2_regularization=l2_regularization
         )
 
-        if len(inputs_spec) == 1:
-            self.output_spec = next(iter(inputs_spec.values()))
-        else:
-            self.output_spec = None
+        self.registered_tensors_spec = self.inputs_spec.copy()
 
-    def get_output_spec(self):
-        return self.output_spec
+        self._output_spec = self.inputs_spec.value()
 
-    @classmethod
-    def internals_spec(cls, network=None, **kwargs):
-        internals_spec = OrderedDict()
+    def output_spec(self):
+        return self._output_spec
 
-        if network is not None:
-            for layer in network.modules.values():
-                if not isinstance(layer, StatefulLayer):
-                    continue
-                for name, spec in layer.__class__.internals_spec(layer=layer).items():
-                    name = '{}-{}-{}'.format(network.name, layer.name, name)
-                    if name in internals_spec:
-                        raise TensorforceError.unexpected()
-                    internals_spec[name] = spec
+    @property
+    def internals_spec(self):
+        internals_spec = super().internals_spec
+
+        for layer in self.this_submodules:
+            if isinstance(layer, TemporalLayer):
+                internals_spec[layer.name] = layer.internals_spec
 
         return internals_spec
 
     def internals_init(self):
-        internals_init = OrderedDict()
+        internals_init = super().internals_init()
 
-        for layer in self.modules.values():
-            if not isinstance(layer, StatefulLayer):
-                continue
-            for name, internal_init in layer.internals_init().items():
-                internals_init['{}-{}-{}'.format(self.name, layer.name, name)] = internal_init
+        for layer in self.this_submodules:
+            if isinstance(layer, TemporalLayer):
+                internals_init[layer.name] = layer.internals_init()
 
         return internals_init
 
-    def add_module(self, *args, **kwargs):
-        # Default modules set: layer_modules
-        if len(args) < 3 and 'modules' not in kwargs:
-            assert 'is_subscope' not in kwargs
-            kwargs['modules'] = layer_modules
-            kwargs['is_subscope'] = True
+    def max_past_horizon(self, *, on_policy):
+        past_horizons = [super().max_past_horizon(on_policy=on_policy)]
 
-        # if 'input_spec' in kwargs:
-        #     layer = super().add_module(*args, **kwargs)
-        #     self.output_spec = layer.output_spec
+        for layer in self.this_submodules:
+            if isinstance(layer, TemporalLayer):
+                past_horizons.append(layer.max_past_horizon(on_policy=on_policy))
 
-        # else:
-        if self.output_spec is None:
-            if util.is_atomic_values_spec(values_spec=self.inputs_spec):
-                self.output_spec = self.inputs_spec
-            elif len(self.inputs_spec) == 1:
-                self.output_spec = next(iter(self.inputs_spec.values()))
-            else:
-                self.output_spec = None
+        return max(past_horizons)
 
-        if self.output_spec is not None:
-            if 'input_spec' in kwargs:
-                kwargs['input_spec'] = util.unify_value_specs(
-                    value_spec1=kwargs['input_spec'], value_spec2=self.output_spec
+    @tf_function(num_args=0)
+    def past_horizon(self, *, on_policy):
+        past_horizons = [super().past_horizon(on_policy=on_policy)]
+
+        for layer in self.this_submodules:
+            if isinstance(layer, TemporalLayer):
+                past_horizons.append(layer.past_horizon(on_policy=on_policy))
+
+        return tf.math.reduce_max(input_tensor=tf.stack(values=past_horizons, axis=0), axis=0)
+
+    def submodule(
+        self, *, name, module=None, modules=None, default_module=None, is_trainable=True,
+        is_saved=True, **kwargs
+    ):
+        # Module class and args
+        if modules is None:
+            modules = layer_modules
+        module_cls, args, kwargs = Module.get_module_class_and_args(
+            name=name, module=module, modules=modules, default_module=default_module, **kwargs
+        )
+        if len(args) > 0:
+            assert len(kwargs) == 0
+            module_cls = args[0]
+
+        # Default input_spec
+        if not issubclass(module_cls, Layer):
+            pass
+
+        elif kwargs.get('input_spec') is None:
+            if issubclass(module_cls, MultiInputLayer):
+                if 'tensors' not in kwargs:
+                    raise TensorforceError.required(name='MultiInputLayer', argument='tensors')
+                if tuple(kwargs['tensors']) not in self.registered_tensors_spec:
+                    raise TensorforceError.exists_not(
+                        name='registered tensor', value=kwargs['tensors']
+                    )
+                kwargs['input_spec'] = self.registered_tensors_spec[tuple(kwargs['tensors'])]
+
+            elif self._output_spec is None:
+                raise TensorforceError.required(
+                    name='layer-based network', argument='first layer', expected='retrieve',
+                    condition='multiple state/input components'
                 )
+
             else:
-                kwargs['input_spec'] = self.output_spec
+                kwargs['input_spec'] = self._output_spec
 
-        layer = super().add_module(*args, **kwargs)
+        elif issubclass(module_cls, MultiInputLayer):
+            raise TensorforceError.invalid(name='MultiInputLayer', argument='input_spec')
 
-        self.output_spec = layer.output_spec
+        layer = super().submodule(
+            module=module_cls, modules=modules, default_module=default_module,
+            is_trainable=is_trainable, is_saved=is_saved, **kwargs
+        )
 
         if not isinstance(layer, (Layer, Parameter)):
             raise TensorforceError.type(
                 name='layer-based network', argument='sub-module', value=layer
             )
 
+        if isinstance(layer, Layer):
+            self._output_spec = layer.output_spec()
+
+            if isinstance(layer, Register):
+                if layer.tensor in self.registered_tensors_spec:
+                    raise TensorforceError.exists(name='registered tensor', value=layer.tensor)
+                self.registered_tensors_spec[layer.tensor] = layer.output_spec()
+
         return layer
 
-    def max_past_horizon(self, is_optimization):
-        past_horizons = [0]
-        for layer in self.modules.values():
-            if isinstance(layer, TemporalLayer):
-                if not isinstance(layer, StatefulLayer) or is_optimization:
-                    past_horizons.append(layer.dependency_horizon.max_value())
-        return max(past_horizons)
 
-    def tf_past_horizon(self, is_optimization):
-        past_horizons = [tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))]
-        for layer in self.modules.values():
-            if isinstance(layer, TemporalLayer):
-                if not isinstance(layer, StatefulLayer) or is_optimization:
-                    past_horizons.append(layer.dependency_horizon.value())
-        return tf.math.reduce_max(input_tensor=tf.stack(values=past_horizons, axis=0), axis=0)
+class LayeredNetwork(LayerbasedNetwork):
+    """
+    Network consisting of Tensorforce layers (specification key: `custom` or `layered`), which can
+    be specified as either a list of layer specifications in the case of a standard sequential
+    layer-stack architecture, or as a list of list of layer specifications in the case of a more
+    complex architecture consisting of multiple sequential layer-stacks. Note that the final
+    action/value layer of the policy/baseline network is implicitly added, so the network output can
+    be of arbitrary size and use any activation function, and is only required to be a rank-one
+    embedding vector, or optionally have the same shape as the action in the case of a higher-rank
+    action shape.
+
+    Args:
+        layers (iter[specification] | iter[iter[specification]]): Layers configuration, see the
+            [layers documentation](../modules/layers.html)
+            (<span style="color:#C00000"><b>required</b></span>).
+        device (string): Device name
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        l2_regularization (float >= 0.0): Scalar controlling L2 regularization
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): <span style="color:#0000C0"><b>internal use</b></span>.
+        inputs_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+    """
+
+    # (requires layers as first argument)
+    def __init__(self, layers, *, device=None, l2_regularization=None, name=None, inputs_spec=None):
+        super().__init__(
+            device=device, l2_regularization=l2_regularization, name=name, inputs_spec=inputs_spec
+        )
+
+        self.layers = list(self._parse_layers_spec(spec=layers, counter=Counter()))
+
+    def _parse_layers_spec(self, *, spec, counter):
+        if isinstance(spec, list):
+            for s in spec:
+                yield from self._parse_layers_spec(spec=s, counter=counter)
+
+        else:
+            if callable(spec):
+                spec = dict(type='function', function=spec)
+
+            # Deprecated
+            if spec.get('type') in ('internal_rnn', 'internal_lstm', 'internal_gru'):
+                raise TensorforceError.deprecated(
+                    name='Network layers', argument=spec['type'], replacement=spec['type'][9:]
+                )
+
+            if 'name' in spec:
+                spec = dict(spec)
+                name = spec.pop('name')
+
+            else:
+                layer_type = spec.get('type')
+                if not isinstance(layer_type, str):
+                    layer_type = 'layer'
+                name = layer_type + str(counter[layer_type])
+                counter[layer_type] += 1
+
+            yield self.submodule(name=name, module=spec)
+
+    @tf_function(num_args=3)
+    def apply(self, *, x, horizons, internals, independent, return_internals):
+        registered_tensors = x.copy()
+        x = x.value()
+
+        for layer in self.layers:
+            if isinstance(layer, Register):
+                if layer.tensor in registered_tensors:
+                    raise TensorforceError.exists(name='registered tensor', value=layer.tensor)
+                x = layer.apply(x=x)
+                registered_tensors[layer.tensor] = x
+
+            elif isinstance(layer, MultiInputLayer):
+                if layer.tensors not in registered_tensors:
+                    raise TensorforceError.exists_not(name='registered tensor', value=layer.tensors)
+                x = layer.apply(x=registered_tensors[layer.tensors])
+
+            elif isinstance(layer, StatefulLayer):
+                x = layer.apply(x=x, independent=independent)
+
+            elif isinstance(layer, TemporalLayer):
+                x, internals[layer.name] = layer.apply(
+                    x=x, horizons=horizons, internals=internals[layer.name]
+                )
+
+            else:
+                x = layer.apply(x=x)
+
+        if return_internals:
+            return x, internals
+        else:
+            return x

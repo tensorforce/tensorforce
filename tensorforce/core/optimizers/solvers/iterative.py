@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,8 +13,9 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce import util
-from tensorforce.core import parameter_modules
+import tensorflow as tf
+
+from tensorforce.core import parameter_modules, tf_util
 from tensorforce.core.optimizers.solvers import Solver
 
 
@@ -24,83 +25,75 @@ class Iterative(Solver):
     initialization step, the iteration loop body and the termination condition.
     """
 
-    def __init__(self, name, max_iterations, unroll_loop):
+    def __init__(self, *, name, max_iterations):
         """
         Creates a new iterative solver instance.
 
         Args:
             max_iterations (parameter, int >= 0): Maximum number of iterations before termination.
-            unroll_loop: Unrolls the TensorFlow while loop if true.
         """
         super().__init__(name=name)
 
-        assert isinstance(unroll_loop, bool)
-        self.unroll_loop = unroll_loop
+        self.max_iterations = self.submodule(
+            name='max_iterations', module=max_iterations, modules=parameter_modules,
+            dtype='int', min_value=0
+        )
 
-        if self.unroll_loop:
-            self.max_iterations = max_iterations
-        else:
-            self.max_iterations = self.add_module(
-                name='max-iterations', module=max_iterations, modules=parameter_modules,
-                dtype='int', min_value=0
-            )
+    def complete_initialize(self, arguments_spec, values_spec):
+        self.arguments_spec = arguments_spec
+        self.values_spec = values_spec
 
-    def tf_solve(self, fn_x, x_init, *args):
+    def solve(self, *, arguments, x_init, fn_x=None, **kwargs):
         """
         Iteratively solves an equation/optimization for $x$ involving an expression $f(x)$.
 
         Args:
-            fn_x: A callable returning an expression $f(x)$ given $x$.
+            arguments: ???
             x_init: Initial solution guess $x_0$.
-            *args: Additional solver-specific arguments.
+            fn_x: A callable returning an expression $f(x)$ given $x$.
+            **values: Additional solver-specific arguments.
 
         Returns:
             A solution $x$ to the problem as given by the solver.
         """
         self.fn_x = fn_x
+        signature = self.input_signature(function='step')
 
         # Initialization step
-        args = self.start(x_init, *args)
+        values = self.start(arguments=arguments, x_init=x_init, **kwargs)
 
         # Iteration loop with termination condition
-        if self.unroll_loop:
-            # Unrolled for loop
-            for _ in range(self.max_iterations):
-                next_step = self.next_step(*args)
-                step = (lambda: self.step(*args))
-                do_nothing = (lambda: args)
-                args = self.cond(pred=next_step, true_fn=step, false_fn=do_nothing)
-
-        else:
-            # TensorFlow while loop
-            max_iterations = self.max_iterations.value()
-            args = self.while_loop(
-                cond=self.next_step, body=self.step, loop_vars=args, back_prop=False,
-                maximum_iterations=max_iterations
-            )
-
-        solution = self.end(*args)
+        max_iterations = self.max_iterations.value()
+        values = signature.kwargs_to_args(kwargs=values, is_outer_args=True)
+        values = tf.while_loop(
+            cond=self.next_step, body=self.step, loop_vars=tuple(values),
+            maximum_iterations=tf_util.int32(x=max_iterations)
+        )
+        values = signature.args_to_kwargs(args=values)
+        solution = self.end(**values.to_kwargs())
 
         return solution
 
-    def tf_start(self, x_init, *args):
+    def start(self, *, arguments, x_init, **kwargs):
         """
         Initialization step preparing the arguments for the first iteration of the loop body.
 
         Args:
+            arguments: ???
             x_init: Initial solution guess $x_0$.
             *args: Additional solver-specific arguments.
 
         Returns:
-            Initial arguments for tf_step.
+            Initial arguments for step.
         """
-        return (x_init,) + args
+        return (arguments, x_init) + tuple(kwargs.values())
 
-    def tf_step(self, x, *args):
+    def step(self, *, arguments, x, **kwargs):
         """
         Iteration loop body of the iterative solver.
 
         Args:
+            arguments: ???
             x: Current solution estimate.
             *args: Additional solver-specific arguments.
 
@@ -109,28 +102,30 @@ class Iterative(Solver):
         """
         raise NotImplementedError
 
-    def tf_next_step(self, x, *args):
+    def next_step(self, *, arguments, x, **kwargs):
         """
         Termination condition (default: max number of iterations).
 
         Args:
+            arguments: ???
             x: Current solution estimate.
             *args: Additional solver-specific arguments.
 
         Returns:
             True if another iteration should be performed.
         """
-        return util.tf_always_true()
+        return tf_util.constant(value=True, dtype='bool')
 
-    def tf_end(self, x_final, *args):
+    def end(self, *, arguments, x, **kwargs):
         """
         Termination step preparing the return value.
 
         Args:
+            arguments: ???
             x: Final solution estimate.
             *args: Additional solver-specific arguments.
 
         Returns:
             Final solution.
         """
-        return x_final
+        return x

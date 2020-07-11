@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -54,7 +54,7 @@ class UnittestEnvironment(Environment):
     @classmethod
     def random_states_function(cls, states_spec, actions_spec=None):
         if actions_spec is None:
-            if util.is_atomic_values_spec(values_spec=states_spec):
+            if 'shape' in states_spec:
                 return (lambda: cls.random_state_function(state_spec=states_spec)())
             else:
                 return (lambda: {
@@ -62,8 +62,8 @@ class UnittestEnvironment(Environment):
                     for name, state_spec in states_spec.items()
                 })
 
-        elif util.is_atomic_values_spec(values_spec=states_spec):
-            if util.is_atomic_values_spec(values_spec=actions_spec):
+        elif 'shape' in states_spec:
+            if 'type' in actions_spec:
 
                 def fn():
                     random_states = cls.random_state_function(state_spec=states_spec)()
@@ -87,7 +87,7 @@ class UnittestEnvironment(Environment):
                     return random_states
 
         else:
-            if util.is_atomic_values_spec(values_spec=actions_spec):
+            if 'type' in actions_spec:
 
                 def fn():
                     random_states = {
@@ -150,7 +150,7 @@ class UnittestEnvironment(Environment):
 
     @classmethod
     def is_valid_actions_function(cls, actions_spec):
-        if util.is_atomic_values_spec(values_spec=actions_spec):
+        if 'type' in actions_spec:
             return (lambda actions, states:
                 cls.is_valid_action_function(action_spec=actions_spec)(actions, 'action', states)
             )
@@ -169,8 +169,9 @@ class UnittestEnvironment(Environment):
 
         if dtype == 'bool':
             return (lambda action, name, states: (
-                (isinstance(action, util.np_dtype('bool')) and shape == ()) or
                 (
+                    isinstance(action, util.py_dtype('bool')) and shape == ()
+                ) or (
                     isinstance(action, np.ndarray) and
                     action.dtype == util.np_dtype('bool') and action.shape == shape
                 )
@@ -180,15 +181,15 @@ class UnittestEnvironment(Environment):
             num_values = action_spec['num_values']
             return (lambda action, name, states: (
                 (
-                    (isinstance(action, util.np_dtype('int')) and shape == ()) or
-                    (
-                        isinstance(action, np.ndarray) and
-                        action.dtype == util.np_dtype('int') and action.shape == shape
-                    )
-                ) and (0 <= action).all() and (action < num_values).all() and
-                np.take_along_axis(
-                    states[name + '_mask'], indices=np.expand_dims(action, axis=-1), axis=-1
-                ).all()
+                    isinstance(action, util.py_dtype('int')) and shape == () and
+                    0 <= action and action < num_values and states[name + '_mask'][action]
+                ) or (
+                    isinstance(action, np.ndarray) and action.dtype == util.np_dtype('int') and
+                    action.shape == shape and (0 <= action).all() and
+                    (action < num_values).all() and np.take_along_axis(
+                        states[name + '_mask'], indices=np.expand_dims(action, axis=-1), axis=-1
+                    ).all()
+                )
             ))
 
         elif dtype == 'float':
@@ -197,18 +198,20 @@ class UnittestEnvironment(Environment):
                 max_value = action_spec['max_value']
                 return (lambda action, name, states: (
                     (
-                        (isinstance(action, util.np_dtype('float')) and shape == ()) or
-                        (
-                            isinstance(action, np.ndarray) and
-                            action.dtype == util.np_dtype('float') and action.shape == shape
-                        )
-                    ) and (min_value <= action).all() and (action <= max_value).all()
+                        isinstance(action, util.py_dtype('float')) and shape == () and
+                        min_value <= action and action <= max_value
+                    ) or (
+                        isinstance(action, np.ndarray) and
+                        action.dtype == util.np_dtype('float') and action.shape == shape and
+                        (min_value <= action).all() and (action <= max_value).all()
+                    )
                 ))
 
             else:
                 return (lambda action, name, states: (
-                    (isinstance(action, util.np_dtype('float')) and shape == ()) or
                     (
+                        isinstance(action, util.py_dtype('float')) and shape == ()
+                    ) or (
                         isinstance(action, np.ndarray) and
                         action.dtype == util.np_dtype('float') and action.shape == shape
                     )
@@ -221,6 +224,7 @@ class UnittestEnvironment(Environment):
 
     def execute(self, actions):
         if not self.is_valid_actions(actions, self._states):
+            print(actions, self._states, self.actions_spec)
             raise TensorforceError.value(name='execute', argument='actions', value=actions)
 
         self.timestep += 1

@@ -1,19 +1,15 @@
 {
     "agent": "ppo",
-    "network": {"type": "auto", "internal_rnn": false},
+    "network": {"type": "auto", "rnn": false},
     "batch_size": 12,
     "update_frequency": 1,
     "learning_rate": 0.001813150053725916,
     "subsampling_fraction": 0.9131375430837279,
-    "optimization_steps": 5,
+    "multi_step": 5,
     "likelihood_ratio_clipping": 0.09955676846552193,
     "discount": 0.9985351346308641,
-    "critic_network": {"type": "auto", "internal_rnn": false},
-    "critic_optimizer": {
-        "type": "multi_step",
-        "optimizer": {"type": "adam", "learning_rate": 0.003670157218888348},
-        "num_steps": 10
-    },
+    "baseline_network": {"type": "auto", "rnn": false},
+    "baseline_optimizer": {"optimizer": "adam", "learning_rate": 0.003670157218888348, "multi_step": 10},
     "preprocessing": null,
     "exploration": 0.0,
     "variable_noise": 0.0,

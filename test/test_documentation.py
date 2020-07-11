@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -99,7 +99,7 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
             internals = agent.initial_internals()
             terminal = False
             while not terminal:
-                actions, internals = agent.act(states=states, internals=internals, evaluation=True)
+                actions, internals = agent.act(states=states, internals=internals, independent=True)
                 states, terminal, reward = environment.execute(actions=actions)
                 sum_rewards += reward
 
@@ -155,25 +155,55 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
 
         self.finished_test()
 
-    def test_states_actions_multi_input(self):
-        self.start_tests(name='states-actions-multi-input')
+    def test_modules(self):
+        self.start_tests(name='modules')
 
-        agent, environment = self.prepare(
+        # distributions
+        self.unittest(
+            policy=dict(distributions=dict(
+                float=dict(type='gaussian', global_stddev=True),
+                bounded_action=dict(type='beta')
+            ))
+        )
+
+        # layers
+        import tensorflow as tf
+        self.unittest(
+            states=dict(type='float', shape=(2,)),
+            policy=dict(network=[
+                (lambda x: tf.clip_by_value(x, -1.0, 1.0)),
+                dict(type='dense', size=8, activation='tanh')
+            ])
+        )
+
+        # memories
+        self.unittest(
+            memory=100
+        )
+
+        # networks
+        self.unittest(
+            states=dict(type='float', shape=(2,)),
+            policy=dict(network=[
+                dict(type='dense', size=8, activation='tanh'),
+                dict(type='dense', size=8, activation='tanh')
+            ])
+        )
+        self.unittest(
             states=dict(
-                observation=dict(type='float', shape=(16, 16, 3)),
+                observation=dict(type='float', shape=(4, 4, 3)),
                 attributes=dict(type='int', shape=(4, 2), num_values=5)
             ),
-            actions=dict(type='float', shape=10),
             policy=[
                 [
-                    dict(type='retrieve', tensors='observation'),
-                    dict(type='conv2d', size=16),
+                    dict(type='retrieve', tensors=['observation']),
+                    dict(type='conv2d', size=8),
                     dict(type='flatten'),
                     dict(type='register', tensor='obs-embedding')
                 ],
                 [
-                    dict(type='retrieve', tensors='attributes'),
-                    dict(type='embedding', size=16),
+                    dict(type='retrieve', tensors=['attributes']),
+                    dict(type='embedding', size=8),
                     dict(type='flatten'),
                     dict(type='register', tensor='attr-embedding')
                 ],
@@ -182,14 +212,73 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
                         type='retrieve', tensors=['obs-embedding', 'attr-embedding'],
                         aggregation='concat'
                     ),
-                    dict(type='dense', size=32)
+                    dict(type='dense', size=16)
                 ]
             ]
         )
 
-        agent.close()
-        environment.close()
-        self.finished_test()
+        # optimizers
+        self.unittest(
+            optimizer=dict(
+                optimizer='adam', learning_rate=1e-3, clipping_threshold=1e-2,
+                multi_step=3, linesearch_iterations=3, subsampling_fraction=8
+            )
+        )
+
+        # parameters
+        self.unittest(
+            exploration=0.1
+        )
+        self.unittest(
+            optimizer=dict(optimizer='adam', learning_rate=dict(
+                type='decaying', decay='exponential', unit='timesteps',
+                num_steps=2, initial_value=0.01, decay_rate=0.5
+            ))
+        )
+        self.unittest(
+            reward_estimation=dict(horizon=dict(
+                type='linear', unit='episodes', num_steps=2,
+                initial_value=4, final_value=10
+            ))
+        )
+
+        # preprocessing
+        self.unittest(
+            states=dict(type='float', shape=(8, 8, 3)),
+            preprocessing=dict(
+                state=[
+                    dict(type='image', height=4, width=4, grayscale=True),
+                    dict(type='exponential_normalization')
+                ],
+                reward=dict(type='clipping', lower=-1.0, upper=1.0)
+            )
+        )
+
+        # policy
+        self.unittest(
+            states=dict(type='float', shape=(2,)),
+            policy=[
+                dict(type='dense', size=8, activation='tanh'),
+                dict(type='dense', size=8, activation='tanh')
+            ]
+        )
+        self.unittest(
+            states=dict(type='float', shape=(2,)),
+            policy=dict(
+                network=[
+                    dict(type='dense', size=8, activation='tanh'),
+                    dict(type='dense', size=8, activation='tanh')
+                ],
+                distributions=dict(
+                    float=dict(type='gaussian', global_stddev=True),
+                    bounded_action=dict(type='beta')
+                ),
+                temperature=dict(
+                    type='decaying', decay='exponential', unit='episodes',
+                    num_steps=2, initial_value=0.01, decay_rate=0.5
+                )
+            )
+        )
 
     def test_masking(self):
         self.start_tests(name='masking')

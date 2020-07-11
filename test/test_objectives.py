@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,18 +20,22 @@ from test.unittest_base import UnittestBase
 
 class TestObjectives(UnittestBase, unittest.TestCase):
 
-    require_observe = True
-
     def test_deterministic_policy_gradient(self):
         self.start_tests(name='deterministic-policy-gradient')
 
         objective = dict(type='deterministic_policy_gradient')
-        self.unittest(actions=dict(type='float', shape=()), objective=objective)
+        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=1))
+        baseline_objective = dict(type='value', value='action')
+        self.unittest(
+            actions=dict(type='float', shape=(1,)), objective=objective,
+            baseline_policy=baseline_policy, baseline_objective=baseline_objective
+        )
 
     def test_plus(self):
         self.start_tests(name='plus')
 
-        objective = dict(type='plus', objective1='value', objective2='policy_gradient')
+        # TODO: should be objective1='value'
+        objective = dict(type='plus', objective1='policy_gradient', objective2='policy_gradient')
         self.unittest(objective=objective)
 
     def test_policy_gradient(self):
@@ -40,13 +44,13 @@ class TestObjectives(UnittestBase, unittest.TestCase):
         objective = dict(type='policy_gradient')
         self.unittest(objective=objective)
 
-        objective = dict(type='policy_gradient', ratio_based=True)
+        objective = dict(type='policy_gradient', importance_sampling=True)
         self.unittest(objective=objective)
 
         objective = dict(type='policy_gradient', clipping_value=1.0)
         self.unittest(objective=objective)
 
-        objective = dict(type='policy_gradient', ratio_based=True, clipping_value=0.2)
+        objective = dict(type='policy_gradient', importance_sampling=True, clipping_value=0.2)
         self.unittest(objective=objective)
 
         objective = dict(type='policy_gradient', early_reduce=True)
@@ -58,8 +62,10 @@ class TestObjectives(UnittestBase, unittest.TestCase):
         objective = dict(type='value', value='state')
         self.unittest(objective=objective)
 
+        # TODO: action value doesn't exist for Beta
+        policy = dict(network=dict(type='auto', size=8, depth=1, rnn=2))
         objective = dict(type='value', value='action')
-        self.unittest(exclude_bounded_action=True, objective=objective)
+        self.unittest(policy=policy, objective=objective)
 
         objective = dict(type='value', huber_loss=1.0)
         self.unittest(objective=objective)

@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -57,13 +57,34 @@ class RandomAgent(Agent):
             (<span style="color:#00C000"><b>default</b></span>: not given, better implicitly
             specified via `environment` argument for `Agent.create(...)`).
 
-        seed (int): Random seed to set for Python, NumPy (both set globally!) and TensorFlow,
-            environment seed has to be set separately for a fully deterministic execution
-            (<span style="color:#00C000"><b>default</b></span>: none).
-        name (string): Agent name, used e.g. for TensorFlow scopes
+        config (specification): Additional configuration options:
+            <ul>
+            <li><b>name</b> (<i>string</i>) &ndash; Agent name, used e.g. for TensorFlow scopes
             (<span style="color:#00C000"><b>default</b></span>: "agent").
-        device (string): Device name
+            <li><b>device</b> (<i>string</i>) &ndash; Device name
             (<span style="color:#00C000"><b>default</b></span>: TensorFlow default).
+            <li><b>seed</b> (<i>int</i>) &ndash; Random seed to set for Python, NumPy (both set
+            globally!) and TensorFlow, environment seed may have to be set separately for fully
+            deterministic execution
+            (<span style="color:#00C000"><b>default</b></span>: none).</li>
+            <li><b>buffer_observe</b> (<i>false | "episode" | int > 0</i>) &ndash; Number of
+            timesteps within an episode to buffer before calling the internal observe function, to
+            reduce calls to TensorFlow for improved performance
+            (<span style="color:#00C000"><b>default</b></span>: configuration-specific maximum
+            number which can be buffered without affecting performance).</li>
+            <li><b>always_apply_exploration</b> (<i>bool</i>) &ndash; Whether to always apply
+            exploration, also for independent `act()` calls (final value in case of schedule)
+            (<span style="color:#00C000"><b>default</b></span>: false).</li>
+            <li><b>always_apply_variable_noise</b> (<i>bool</i>) &ndash; Whether to always apply
+            variable noise, also for independent `act()` calls (final value in case of schedule)
+            (<span style="color:#00C000"><b>default</b></span>: false).</li>
+            <li><b>enable_int_action_masking</b> (<i>bool</i>) &ndash; Whether int action options
+            can be masked via an optional "[ACTION-NAME]_mask" state input
+            (<span style="color:#00C000"><b>default</b></span>: true).</li>
+            <li><b>create_tf_assertions</b> (<i>bool</i>) &ndash; Whether to create internal
+            TensorFlow assertion operations
+            (<span style="color:#00C000"><b>default</b></span>: true).</li>
+            </ul>
         summarizer (specification): TensorBoard summarizer configuration with the following
             attributes (<span style="color:#00C000"><b>default</b></span>: no summarizer):
             <ul>
@@ -76,7 +97,7 @@ class RandomAgent(Agent):
             <li><b>max-summaries</b> (<i>int > 0</i>) &ndash; maximum number of summaries to keep
             (<span style="color:#00C000"><b>default</b></span>: 5).</li>
             <li><b>custom</b> (<i>dict[spec]</i>) &ndash; custom summaries which are recorded via
-            `agent.summarize(...)`, specification with either type "scalar", type "histogram" with
+            agent.summarize(...), specification with either type "scalar", type "histogram" with
             optional "buckets", type "image" with optional "max_outputs"
             (<span style="color:#00C000"><b>default</b></span>: 3), or type "audio"
             (<span style="color:#00C000"><b>default</b></span>: no custom summaries).</li>
@@ -103,24 +124,23 @@ class RandomAgent(Agent):
     def __init__(
         # Environment
         self, states, actions, max_episode_timesteps=None,
-        # TensorFlow etc
-        name='agent', device=None, seed=None, summarizer=None, recorder=None, config=None
+        # Config, summarizer, recorder
+        config=None, summarizer=None, recorder=None
     ):
-        self.spec = OrderedDict(
-            agent='random',
-            states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
-            name=name, device=device, seed=seed, summarizer=summarizer, recorder=recorder,
-            config=config
-        )
+        if not hasattr(self, 'spec'):
+            self.spec = OrderedDict(
+                agent='random',
+                states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
+                config=config, summarizer=summarizer, recorder=recorder
+            )
 
         super().__init__(
             states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
-            parallel_interactions=1, buffer_observe=True, seed=seed, recorder=recorder
+            parallel_interactions=1, config=config, recorder=recorder
         )
 
         self.model = RandomModel(
-            # Model
-            name=name, device=device, parallel_interactions=self.parallel_interactions,
-            buffer_observe=self.buffer_observe, seed=seed, summarizer=summarizer, config=config,
             states=self.states_spec, actions=self.actions_spec,
+            parallel_interactions=self.parallel_interactions,
+            config=self.config, summarizer=summarizer
         )

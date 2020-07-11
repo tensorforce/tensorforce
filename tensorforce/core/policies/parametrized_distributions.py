@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,13 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 
-from collections import OrderedDict
-
 import tensorflow as tf
 
-from tensorforce import TensorforceError, util
-from tensorforce.core import distribution_modules, layer_modules, Module, network_modules
-from tensorforce.core.networks import Network
+from tensorforce import TensorforceError
+from tensorforce.core import distribution_modules, layer_modules, ModuleDict, network_modules, \
+    TensorDict, tf_function
 from tensorforce.core.policies import Stochastic, ActionValue
 
 
@@ -30,8 +28,6 @@ class ParametrizedDistributions(Stochastic, ActionValue):
     policy interface) (specification key: `parametrized_distributions`).
 
     Args:
-        name (string): Module name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         network ('auto' | specification): Policy network configuration, see
             [networks](../modules/networks.html)
             (<span style="color:#00C000"><b>default</b></span>: 'auto', automatically configured
@@ -44,288 +40,301 @@ class ParametrizedDistributions(Stochastic, ActionValue):
             actions, Gaussian distribution for unbounded continuous actions, Beta distribution for
             bounded continuous actions).
         temperature (parameter | dict[parameter], float >= 0.0): Sampling temperature, global or
-            per action (<span style="color:#00C000"><b>default</b></span>: 0.0).
+            per action (<span style="color:#00C000"><b>default</b></span>: 1.0).
         use_beta_distribution (bool): Whether to use the Beta distribution for bounded continuous
             actions by default.
-            (<span style="color:#00C000"><b>default</b></span>: true).
-        infer_state_value (False | "action-values" | "distribution"): Whether to infer the state
-            value from either the action values or (experimental) the distribution parameters
             (<span style="color:#00C000"><b>default</b></span>: false).
+        state_value_mode ("independent" | "max-action-values" | "infer-from-distributions" | "no-state-value" | "no-distributions"):
+            How to estimate state value, either via a separate linear layer independent of
+            distributions ("independent"), or inferred as maximum of discrete bool/int action
+            values, or inferred from distribution parameters ("infer-from-distributions",
+            experimental), or special degenerate "no-state-value"/"no-distributions" policy
+            (<span style="color:#00C000"><b>default</b></span>: "independent").
         device (string): Device name
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
-        states_spec (specification): States specification
-            (<span style="color:#0000C0"><b>internal use</b></span>).
-        actions_spec (specification): Actions specification
-            (<span style="color:#0000C0"><b>internal use</b></span>).
+        name (string): <span style="color:#0000C0"><b>internal use</b></span>.
+        states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        auxiliaries_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     # Network first
     def __init__(
-        self, name, network='auto', distributions=None, temperature=0.0, use_beta_distribution=True,
-        infer_state_value=False, device=None, summary_labels=None, l2_regularization=None,
-        states_spec=None, actions_spec=None
+        self, network='auto', *, distributions=None, temperature=1.0, use_beta_distribution=False,
+        state_value_mode='independent', device=None,  l2_regularization=None, name=None,
+        states_spec=None, auxiliaries_spec=None, internals_spec=None, actions_spec=None
     ):
-        if isinstance(network, Network):
-            assert device is None
-            device = network.device
-            network.device = None
-
         super().__init__(
-            name=name, states_spec=states_spec, actions_spec=actions_spec, temperature=temperature,
-            device=device, summary_labels=summary_labels, l2_regularization=l2_regularization
+            temperature=temperature, device=device, l2_regularization=l2_regularization, name=name,
+            states_spec=states_spec, auxiliaries_spec=auxiliaries_spec, actions_spec=actions_spec
         )
 
         # Network
-        self.network = self.add_module(
-            name=(self.name + '-network'), module=network, modules=network_modules,
-            inputs_spec=self.states_spec
+        self.network = self.submodule(
+            name='network', module=network, modules=network_modules, inputs_spec=self.states_spec
         )
-        output_spec = self.network.get_output_spec()
-        if output_spec['type'] != 'float':
-            raise TensorforceError(
-                "Invalid output type for network: {}.".format(output_spec['type'])
+        output_spec = self.network.output_spec()
+        if output_spec.type != 'float':
+            raise TensorforceError.type(
+                name='ParametrizedDistributions', argument='network output', dtype=output_spec.type
             )
-        Module.register_tensor(name=self.name, spec=output_spec, batched=True)
-        embedding_shape = output_spec['shape']
+
+        # State value mode
+        if state_value_mode not in (
+            'independent', 'max-action-values', 'infer-from-distributions', 'no-state-value',
+            'no-distributions'
+        ):
+            raise TensorforceError.value(
+                name='ParametrizedDistributions', argument='state_value_mode',
+                value=state_value_mode, hint='not from {independent,max-action-values,infer-from-di'
+                                             'stributions,no-state-value,no-distributions}'
+            )
+        self.state_value_mode = state_value_mode
 
         # Distributions
-        self.distributions = OrderedDict()
-        for name, spec in self.actions_spec.items():
-            if spec['type'] == 'bool':
-                default_module = 'bernoulli'
-            elif spec['type'] == 'int':
-                default_module = 'categorical'
-            elif spec['type'] == 'float':
-                if use_beta_distribution and 'min_value' in spec:
-                    default_module = 'beta'
+        if self.state_value_mode != 'no-distributions':
+            self.distributions = ModuleDict()
+            for name, spec in self.actions_spec.items():
+                if spec.type == 'bool':
+                    default_module = 'bernoulli'
+                elif spec.type == 'int':
+                    assert spec.num_values is not None
+                    default_module = 'categorical'
+                elif spec.type == 'float':
+                    if use_beta_distribution and spec.min_value is not None:
+                        default_module = 'beta'
+                    else:
+                        default_module = 'gaussian'
+
+                if distributions is None:
+                    module = None
                 else:
-                    default_module = 'gaussian'
+                    module = dict()
+                    if name in distributions:
+                        if isinstance(distributions[name], str):
+                            module = distributions[name]
+                        else:
+                            module.update(distributions[name])
+                    elif spec.type in distributions:
+                        if isinstance(distributions[spec.type], str):
+                            module = distributions[spec.type]
+                        else:
+                            module.update(distributions[spec.type])
 
-            if distributions is None:
-                module = None
-            else:
-                module = dict()
-                if spec['type'] in distributions:
-                    if isinstance(distributions[spec['type']], str):
-                        module = distributions[spec['type']]
-                    else:
-                        module.update(distributions[spec['type']])
-                if name in distributions:
-                    if isinstance(distributions[name], str):
-                        module = distributions[name]
-                    else:
-                        module.update(distributions[name])
-
-            self.distributions[name] = self.add_module(
-                name=(name + '-distribution'), module=module, modules=distribution_modules,
-                default_module=default_module, action_spec=spec, embedding_shape=embedding_shape
-            )
+                self.distributions[name] = self.submodule(
+                    name=(name + '_distribution'), module=module, modules=distribution_modules,
+                    default_module=default_module, action_spec=spec, input_spec=output_spec
+                )
 
         # State value
-        assert infer_state_value in (False, 'action-values', 'distribution')
-        self.infer_state_value = infer_state_value
-        if self.infer_state_value is False:
-            self.value = self.add_module(
-                name='states-value', module='linear', modules=layer_modules, size=0,
+        if self.state_value_mode == 'independent' or self.state_value_mode == 'no-distributions':
+            self.value = self.submodule(
+                name='states_value', module='linear', modules=layer_modules, size=0,
                 input_spec=output_spec
             )
 
-    @classmethod
-    def internals_spec(cls, network=None, policy=None, name=None, states_spec=None, **kwargs):
-        if policy is None:
-            if network is None:
-                network = 'auto'
-            assert name is not None and states_spec is not None
-
-            network_cls, first_arg, kwargs = Module.get_module_class_and_kwargs(
-                name=(name + '-network'), module=network, modules=network_modules,
-                inputs_spec=states_spec
-            )
-
-            if first_arg is None:
-                return network_cls.internals_spec(name=(name + '-network'), **kwargs)
-            else:
-                return network_cls.internals_spec(first_arg, name=(name + '-network'), **kwargs)
-
-        else:
-            assert network is None and name is None and states_spec is None
-            return policy.network.__class__.internals_spec(network=policy.network)
+    @property
+    def internals_spec(self):
+        return self.network.internals_spec
 
     def internals_init(self):
         return self.network.internals_init()
 
-    def max_past_horizon(self, is_optimization):
-        return self.network.max_past_horizon(is_optimization=is_optimization)
+    def max_past_horizon(self, *, on_policy):
+        return self.network.max_past_horizon(on_policy=on_policy)
 
-    def tf_past_horizon(self, is_optimization):
-        return self.network.past_horizon(is_optimization=is_optimization)
+    @tf_function(num_args=0)
+    def past_horizon(self, *, on_policy):
+        return self.network.past_horizon(on_policy=on_policy)
 
-    def tf_act(self, states, internals, auxiliaries, return_internals):
-        return Stochastic.tf_act(
-            self=self, states=states, internals=internals, auxiliaries=auxiliaries,
+    @tf_function(num_args=4)
+    def act(self, *, states, horizons, internals, auxiliaries, independent, return_internals):
+        if independent:  # TODO: or temp constant 0.0
+            embedding = self.network.apply(
+                x=states, horizons=horizons, internals=internals, independent=independent,
+                return_internals=return_internals
+            )
+            if return_internals:
+                embedding, internals = embedding
+
+            def function(name, distribution):
+                conditions = auxiliaries.get(name, default=TensorDict())
+                parameters = distribution.parametrize(x=embedding, conditions=conditions)
+                return distribution.mode(parameters=parameters)
+
+            actions = self.distributions.fmap(function=function, cls=TensorDict, with_names=True)
+
+            if return_internals:
+                return actions, internals
+            else:
+                return actions
+
+        else:
+            return Stochastic.act(
+                self=self, states=states, horizons=horizons, internals=internals,
+                auxiliaries=auxiliaries, independent=independent, return_internals=return_internals
+            )
+
+    @tf_function(num_args=5)
+    def sample_actions(
+        self, *, states, horizons, internals, auxiliaries, temperatures, independent,
+        return_internals
+    ):
+        embedding = self.network.apply(
+            x=states, horizons=horizons, internals=internals, independent=independent,
             return_internals=return_internals
         )
-
-    def tf_sample_actions(self, states, internals, auxiliaries, temperature, return_internals):
         if return_internals:
-            embedding, internals = self.network.apply(
-                x=states, internals=internals, return_internals=return_internals
-            )
-        else:
-            embedding = self.network.apply(
-                x=states, internals=internals, return_internals=return_internals
-            )
+            embedding, internals = embedding
 
-        Module.update_tensor(name=self.name, tensor=embedding)
+        # TODO: conditional, global or per action, whether to call sample() or mode()
+        # Get rid of deterministic parameter
 
-        actions = OrderedDict()
-        for name, spec, distribution, temp in util.zip_items(
-            self.actions_spec, self.distributions, temperature
-        ):
-            if spec['type'] == 'int':
-                mask = auxiliaries[name + '_mask']
-                parameters = distribution.parametrize(x=embedding, mask=mask)
-            else:
-                parameters = distribution.parametrize(x=embedding)
-            actions[name] = distribution.sample(parameters=parameters, temperature=temp)
+        def function(name, distribution, temperature):
+            conditions = auxiliaries.get(name, default=TensorDict())
+            parameters = distribution.parametrize(x=embedding, conditions=conditions)
+            return distribution.sample(parameters=parameters, temperature=temperature)
+
+        actions = self.distributions.fmap(
+            function=function, cls=TensorDict, with_names=True, zip_values=temperatures
+        )
 
         if return_internals:
             return actions, internals
         else:
             return actions
 
-    def tf_log_probabilities(self, states, internals, auxiliaries, actions):
-        embedding = self.network.apply(x=states, internals=internals)
-        Module.update_tensor(name=self.name, tensor=embedding)
-
-        log_probabilities = OrderedDict()
-        for name, spec, distribution, action in util.zip_items(
-            self.actions_spec, self.distributions, actions
-        ):
-            if spec['type'] == 'int':
-                mask = auxiliaries[name + '_mask']
-                parameters = distribution.parametrize(x=embedding, mask=mask)
-            else:
-                parameters = distribution.parametrize(x=embedding)
-            log_probabilities[name] = distribution.log_probability(
-                parameters=parameters, action=action
-            )
-
-        return log_probabilities
-
-    def tf_entropies(self, states, internals, auxiliaries):
-        embedding = self.network.apply(x=states, internals=internals)
-        Module.update_tensor(name=self.name, tensor=embedding)
-
-        entropies = OrderedDict()
-        for name, spec, distribution in util.zip_items(self.actions_spec, self.distributions):
-            if spec['type'] == 'int':
-                mask = auxiliaries[name + '_mask']
-                parameters = distribution.parametrize(x=embedding, mask=mask)
-            else:
-                parameters = distribution.parametrize(x=embedding)
-            entropies[name] = distribution.entropy(parameters=parameters)
-
-        return entropies
-
-    def tf_kl_divergences(self, states, internals, auxiliaries, other=None):
-        parameters = self.kldiv_reference(
-            states=states, internals=internals, auxiliaries=auxiliaries
+    @tf_function(num_args=5)
+    def log_probabilities(self, *, states, horizons, internals, auxiliaries, actions):
+        embedding = self.network.apply(
+            x=states, horizons=horizons, internals=internals, independent=True,
+            return_internals=False
         )
 
-        if other is None:
-            other = util.fmap(function=tf.stop_gradient, xs=parameters)
-        elif isinstance(other, ParametrizedDistributions):
-            other = other.kldiv_reference(
-                states=states, internals=internals, auxiliaries=auxiliaries
-            )
-            other = util.fmap(function=tf.stop_gradient, xs=other)
-        elif isinstance(other, dict):
-            if any(name not in other for name in self.actions_spec):
-                raise TensorforceError.unexpected()
-        else:
-            raise TensorforceError.unexpected()
+        def function(name, distribution, action):
+            conditions = auxiliaries.get(name, default=TensorDict())
+            parameters = distribution.parametrize(x=embedding, conditions=conditions)
+            return distribution.log_probability(parameters=parameters, action=action)
 
-        kl_divergences = OrderedDict()
-        for name, distribution in self.distributions.items():
-            kl_divergences[name] = distribution.kl_divergence(
-                parameters1=parameters[name], parameters2=other[name]
-            )
+        return self.distributions.fmap(
+            function=function, cls=TensorDict, with_names=True, zip_values=actions
+        )
 
-        return kl_divergences
+    @tf_function(num_args=4)
+    def entropies(self, *, states, horizons, internals, auxiliaries):
+        embedding = self.network.apply(
+            x=states, horizons=horizons, internals=internals, independent=True,
+            return_internals=False
+        )
 
-    def tf_kldiv_reference(self, states, internals, auxiliaries):
-        embedding = self.network.apply(x=states, internals=internals)
+        def function(name, distribution):
+            conditions = auxiliaries.get(name, default=TensorDict())
+            parameters = distribution.parametrize(x=embedding, conditions=conditions)
+            return distribution.entropy(parameters=parameters)
 
-        kldiv_reference = OrderedDict()
-        for name, spec, distribution in util.zip_items(self.actions_spec, self.distributions):
-            if spec['type'] == 'int':
-                mask = auxiliaries[name + '_mask']
-                kldiv_reference[name] = distribution.parametrize(x=embedding, mask=mask)
-            else:
-                kldiv_reference[name] = distribution.parametrize(x=embedding)
+        return self.distributions.fmap(function=function, cls=TensorDict, with_names=True)
 
-        return kldiv_reference
+    @tf_function(num_args=5)
+    def kl_divergences(self, *, states, horizons, internals, auxiliaries, reference):
+        parameters = self.kldiv_reference(
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries
+        )
+        reference = reference.fmap(function=tf.stop_gradient)
 
-    def tf_states_values(self, states, internals, auxiliaries):
-        if self.infer_state_value == 'action-values':
-            return ActionValue.tf_states_values(
-                self=self, states=states, internals=internals, auxiliaries=auxiliaries
-            )
+        def function(distribution, parameters1, parameters2):
+            return distribution.kl_divergence(parameters1=parameters1, parameters2=parameters2)
 
-        else:
-            embedding = self.network.apply(x=states, internals=internals)
-            Module.update_tensor(name=self.name, tensor=embedding)
+        return self.distributions.fmap(
+            function=function, cls=TensorDict, zip_values=(parameters, reference)
+        )
 
-            states_values = OrderedDict()
-            for name, spec, distribution in util.zip_items(self.actions_spec, self.distributions):
-                if spec['type'] == 'int':
-                    mask = auxiliaries[name + '_mask']
-                    parameters = distribution.parametrize(x=embedding, mask=mask)
-                else:
-                    parameters = distribution.parametrize(x=embedding)
-                states_values[name] = distribution.states_value(parameters=parameters)
+    @tf_function(num_args=4)
+    def kldiv_reference(self, *, states, horizons, internals, auxiliaries):
+        embedding = self.network.apply(
+            x=states, horizons=horizons, internals=internals, independent=True,
+            return_internals=False
+        )
 
-            return states_values
+        def function(name, distribution):
+            conditions = auxiliaries.get(name, default=TensorDict())
+            return distribution.parametrize(x=embedding, conditions=conditions)
 
-    def tf_actions_values(self, states, internals, auxiliaries, actions=None):
-        embedding = self.network.apply(x=states, internals=internals)
-        Module.update_tensor(name=self.name, tensor=embedding)
+        return self.distributions.fmap(function=function, cls=TensorDict, with_names=True)
 
-        actions_values = OrderedDict()
-        for name, spec, distribution in util.zip_items(self.actions_spec, self.distributions):
-            if spec['type'] == 'int':
-                mask = auxiliaries[name + '_mask']
-                parameters = distribution.parametrize(x=embedding, mask=mask)
-            else:
-                parameters = distribution.parametrize(x=embedding)
-            if actions is None:
-                action = None
-            else:
-                action = actions[name]
-            actions_values[name] = distribution.action_value(parameters=parameters, action=action)
-
-        return actions_values
-
-    def tf_states_value(
-        self, states, internals, auxiliaries, reduced=True, include_per_action=False
-    ):
-        if self.infer_state_value is False:
-            if not reduced or include_per_action:
+    @tf_function(num_args=4)
+    def states_value(self, *, states, horizons, internals, auxiliaries, reduced, return_per_action):
+        if self.state_value_mode == 'independent' or self.state_value_mode == 'no-distributions':
+            if not reduced or return_per_action:
                 raise TensorforceError.invalid(name='policy.states_value', argument='reduced')
 
-            embedding = self.network.apply(x=states, internals=internals)
-            Module.update_tensor(name=self.name, tensor=embedding)
+            embedding = self.network.apply(
+                x=states, horizons=horizons, internals=internals, independent=True,
+                return_internals=False
+            )
 
-            states_value = self.value.apply(x=embedding)
-            return states_value
+            return self.value.apply(x=embedding)
 
         else:
-            return ActionValue.tf_states_value(
-                self=self, states=states, internals=internals, auxiliaries=auxiliaries,
-                reduced=reduced, include_per_action=include_per_action
+            return super().states_value(
+                states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+                reduced=reduced, return_per_action=return_per_action
             )
+
+    @tf_function(num_args=4)
+    def states_values(self, *, states, horizons, internals, auxiliaries):
+        if self.state_value_mode == 'max-action-values':
+            return super().states_values(
+                states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries
+            )
+
+        else:
+            embedding = self.network.apply(
+                x=states, horizons=horizons, internals=internals, independent=True,
+                return_internals=False
+            )
+
+            def function(name, distribution):
+                conditions = auxiliaries.get(name, default=TensorDict())
+                parameters = distribution.parametrize(x=embedding, conditions=conditions)
+                return distribution.states_value(parameters=parameters)
+
+        return self.distributions.fmap(function=function, cls=TensorDict, with_names=True)
+
+    @tf_function(num_args=5)
+    def actions_values(self, *, states, horizons, internals, auxiliaries, actions):
+        embedding = self.network.apply(
+            x=states, horizons=horizons, internals=internals, independent=True,
+            return_internals=False
+        )
+
+        def function(name, distribution, action):
+            conditions = auxiliaries.get(name, default=TensorDict())
+            parameters = distribution.parametrize(x=embedding, conditions=conditions)
+            return distribution.action_value(parameters=parameters, action=action)
+
+        return self.distributions.fmap(
+            function=function, cls=TensorDict, with_names=True, zip_values=actions
+        )
+
+    @tf_function(num_args=4)
+    def all_actions_values(self, *, states, horizons, internals, auxiliaries):
+        if not all(spec.type in ('bool', 'int') for spec in self.actions_spec.values()):
+            raise TensorforceError.value(
+                name='ParametrizedDistributions', argument='state_value_mode',
+                value='max-action-values', condition='action types not bool/int'
+            )
+
+        embedding = self.network.apply(
+            x=states, horizons=horizons, internals=internals, independent=True,
+            return_internals=False
+        )
+
+        def function(name, distribution):
+            conditions = auxiliaries.get(name, default=TensorDict())
+            parameters = distribution.parametrize(x=embedding, conditions=conditions)
+            return distribution.all_action_values(parameters=parameters)
+
+        return self.distributions.fmap(function=function, cls=TensorDict, with_names=True)

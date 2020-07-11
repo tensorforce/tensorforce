@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -89,7 +89,7 @@ class ArcadeLearningEnvironment(Environment):
 
     def states(self):
         width, height = self.environment.getScreenDims()
-        return dict(type='float', shape=(height, width, 3))
+        return dict(type='float', shape=(height, width, 3), min_value=0.0, max_value=1.0)
 
     def actions(self):
         return dict(type='int', num_values=len(self.available_actions))

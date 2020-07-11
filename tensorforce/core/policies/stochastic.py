@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,12 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
-from collections import OrderedDict
-
-import tensorflow as tf
-
-from tensorforce import util
-from tensorforce.core import Module, parameter_modules
+from tensorforce.core import ModuleDict, parameter_modules, SignatureDict, TensorDict, TensorSpec, \
+    TensorsSpec, tf_function, tf_util
 from tensorforce.core.policies import Policy
 
 
@@ -27,159 +23,208 @@ class Stochastic(Policy):
     Base class for stochastic policies.
 
     Args:
-        name (string): Module name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
-        states_spec (specification): States specification
-            (<span style="color:#0000C0"><b>internal use</b></span>).
-        actions_spec (specification): Actions specification
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         temperature (parameter | dict[parameter], float >= 0.0): Sampling temperature, global or
             per action (<span style="color:#00C000"><b>default</b></span>: 0.0).
         device (string): Device name
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): <span style="color:#0000C0"><b>internal use</b></span>.
+        states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        auxiliaries_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
-        self, name, states_spec, actions_spec, temperature=0.0, device=None, summary_labels=None,
-        l2_regularization=None
+        self, *, temperature=0.0, device=None, l2_regularization=None, name=None, states_spec=None,
+        auxiliaries_spec=None, internals_spec=None, actions_spec=None
     ):
         super().__init__(
-            name=name, states_spec=states_spec, actions_spec=actions_spec, device=device,
-            summary_labels=summary_labels, l2_regularization=l2_regularization
+            device=device, l2_regularization=l2_regularization, name=name, states_spec=states_spec,
+            auxiliaries_spec=auxiliaries_spec, actions_spec=actions_spec
         )
 
         # Sampling temperature
-        if isinstance(temperature, dict) and \
-                all(name in self.actions_spec for name in temperature):
+        if isinstance(temperature, dict) and all(name in self.actions_spec for name in temperature):
             # Different temperature per action
-            self.temperature = OrderedDict()
-            for name in self.actions_spec:
+
+            def function(name, spec):
                 if name in temperature:
-                    self.temperature[name] = self.add_module(
-                        name=(name + '-temperature'), module=temperature[name],
+                    return self.submodule(
+                        name=(name + '_temperature'), module=temperature[name],
                         modules=parameter_modules, is_trainable=False, dtype='float', min_value=0.0
                     )
+                else:
+                    return None
+
+            self.temperature = self.actions_spec.fmap(
+                function=function, cls=ModuleDict, with_names=True
+            )
+
         else:
             # Same temperature for all actions
-            self.temperature = self.add_module(
+            self.temperature = self.submodule(
                 name='temperature', module=temperature, modules=parameter_modules,
                 is_trainable=False, dtype='float', min_value=0.0
             )
 
-    def tf_act(self, states, internals, auxiliaries, return_internals):
-        deterministic = Module.retrieve_tensor(name='deterministic')
+    def input_signature(self, *, function):
+        if function == 'entropy':
+            return SignatureDict(
+                states=self.states_spec.signature(batched=True),
+                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                internals=self.internals_spec.signature(batched=True),
+                auxiliaries=self.auxiliaries_spec.signature(batched=True)
+            )
 
-        zero = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
-        temperature = OrderedDict()
-        if isinstance(self.temperature, dict):
-            for name in self.actions_spec:
-                if name in self.temperature:
-                    temperature[name] = tf.where(
-                        condition=deterministic, x=zero, y=self.temperature[name].value()
-                    )
-                else:
-                    temperature[name] = zero
+        elif function == 'entropies':
+            return SignatureDict(
+                states=self.states_spec.signature(batched=True),
+                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                internals=self.internals_spec.signature(batched=True),
+                auxiliaries=self.auxiliaries_spec.signature(batched=True)
+            )
+
+        elif function == 'kl_divergence':
+            return SignatureDict(
+                states=self.states_spec.signature(batched=True),
+                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                internals=self.internals_spec.signature(batched=True),
+                auxiliaries=self.auxiliaries_spec.signature(batched=True),
+                reference=self.distributions.fmap(
+                    function=(lambda x: x.parameters_spec), cls=TensorsSpec
+                ).signature(batched=True)
+            )
+
+        elif function == 'kl_divergences':
+            return SignatureDict(
+                states=self.states_spec.signature(batched=True),
+                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                internals=self.internals_spec.signature(batched=True),
+                auxiliaries=self.auxiliaries_spec.signature(batched=True),
+                reference=self.distributions.fmap(
+                    function=(lambda x: x.parameters_spec), cls=TensorsSpec
+                ).signature(batched=True)
+            )
+
+        elif function == 'kldiv_reference':
+            return SignatureDict(
+                states=self.states_spec.signature(batched=True),
+                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                internals=self.internals_spec.signature(batched=True),
+                auxiliaries=self.auxiliaries_spec.signature(batched=True)
+            )
+
+        elif function == 'log_probability':
+            return SignatureDict(
+                states=self.states_spec.signature(batched=True),
+                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                internals=self.internals_spec.signature(batched=True),
+                auxiliaries=self.auxiliaries_spec.signature(batched=True),
+                actions=self.actions_spec.signature(batched=True)
+            )
+
+        elif function == 'log_probabilities':
+            return SignatureDict(
+                states=self.states_spec.signature(batched=True),
+                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                internals=self.internals_spec.signature(batched=True),
+                auxiliaries=self.auxiliaries_spec.signature(batched=True),
+                actions=self.actions_spec.signature(batched=True)
+            )
+
+        elif function == 'sample_actions':
+            return SignatureDict(
+                states=self.states_spec.signature(batched=True),
+                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                internals=self.internals_spec.signature(batched=True),
+                auxiliaries=self.auxiliaries_spec.signature(batched=True),
+                temperatures=self.actions_spec.fmap(
+                    function=(lambda _: TensorSpec(type='float', shape=()))
+                ).signature(batched=False)
+            )
+
         else:
-            value = tf.where(condition=deterministic, x=zero, y=self.temperature.value())
-            for name in self.actions_spec:
-                temperature[name] = value
+            return super().input_signature(function=function)
+
+    @tf_function(num_args=4)
+    def act(self, *, states, horizons, internals, auxiliaries, independent, return_internals):
+        if independent:
+            return super().act(
+                states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+                independent=independent, return_internals=return_internals
+            )
+            # zero = tf_util.constant(value=0.0, dtype='float')
+            # temperatures = self.actions_spec.fmap(function=(lambda _: zero), cls=TensorDict)
+
+        if isinstance(self.temperature, dict):
+            zero = tf_util.constant(value=0.0, dtype='float')
+            temperatures = self.temperature.fmap(
+                function=(lambda temp: zero if temp is None else temp.value()), cls=TensorDict
+            )
+        else:
+            temperature = self.temperature.value()
+            temperatures = self.actions_spec.fmap(function=(lambda _: temperature), cls=TensorDict)
 
         return self.sample_actions(
-            states=states, internals=internals, auxiliaries=auxiliaries,
-            temperature=temperature, return_internals=return_internals
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+            temperatures=temperatures, independent=independent, return_internals=return_internals
         )
 
-    def tf_log_probability(
-        self, states, internals, auxiliaries, actions, reduced=True, include_per_action=False
+    @tf_function(num_args=5)
+    def log_probability(
+        self, *, states, horizons, internals, auxiliaries, actions, reduced, return_per_action
     ):
         log_probabilities = self.log_probabilities(
-            states=states, internals=internals, auxiliaries=auxiliaries, actions=actions
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+            actions=actions
         )
 
-        for name, spec, log_probability in util.zip_items(self.actions_spec, log_probabilities):
-            log_probabilities[name] = tf.reshape(
-                tensor=log_probability, shape=(-1, util.product(xs=spec['shape']))
-            )
+        return self.join_value_per_action(
+            values=log_probabilities, reduced=reduced, return_per_action=return_per_action
+        )
 
-        log_probability = tf.concat(values=tuple(log_probabilities.values()), axis=1)
-        if reduced:
-            log_probability = tf.math.reduce_mean(input_tensor=log_probability, axis=1)
-            if include_per_action:
-                for name in self.actions_spec:
-                    log_probabilities[name] = tf.math.reduce_mean(
-                        input_tensor=log_probabilities[name], axis=1
-                    )
+    @tf_function(num_args=4)
+    def entropy(self, *, states, horizons, internals, auxiliaries, reduced, return_per_action):
+        entropies = self.entropies(
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries
+        )
 
-        if include_per_action:
-            log_probabilities['*'] = log_probability
-            return log_probabilities
-        else:
-            return log_probability
+        return self.join_value_per_action(
+            values=entropies, reduced=reduced, return_per_action=return_per_action
+        )
 
-    def tf_entropy(self, states, internals, auxiliaries, reduced=True, include_per_action=False):
-        entropies = self.entropies(states=states, internals=internals, auxiliaries=auxiliaries)
-
-        for name, spec, entropy in util.zip_items(self.actions_spec, entropies):
-            entropies[name] = tf.reshape(
-                tensor=entropy, shape=(-1, util.product(xs=spec['shape']))
-            )
-
-        entropy = tf.concat(values=tuple(entropies.values()), axis=1)
-
-        if reduced:
-            entropy = tf.math.reduce_mean(input_tensor=entropy, axis=1)
-            if include_per_action:
-                for name in self.actions_spec:
-                    entropies[name] = tf.math.reduce_mean(input_tensor=entropies[name], axis=1)
-
-        if include_per_action:
-            entropies['*'] = entropy
-            return entropies
-        else:
-            return entropy
-
-    def tf_kl_divergence(
-        self, states, internals, auxiliaries, other=None, reduced=True, include_per_action=False
+    @tf_function(num_args=5)
+    def kl_divergence(
+        self, *, states, horizons, internals, auxiliaries, reference, reduced, return_per_action
     ):
         kl_divergences = self.kl_divergences(
-            states=states, internals=internals, auxiliaries=auxiliaries, other=other
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+            reference=reference
         )
 
-        for name, spec, kl_divergence in util.zip_items(self.actions_spec, kl_divergences):
-            kl_divergences[name] = tf.reshape(
-                tensor=kl_divergence, shape=(-1, util.product(xs=spec['shape']))
-            )
+        return self.join_value_per_action(
+            values=kl_divergences, reduced=reduced, return_per_action=return_per_action
+        )
 
-        kl_divergence = tf.concat(values=tuple(kl_divergences.values()), axis=1)
-        if reduced:
-            kl_divergence = tf.math.reduce_mean(input_tensor=kl_divergence, axis=1)
-            if include_per_action:
-                for name in self.actions_spec:
-                    kl_divergences[name] = tf.math.reduce_mean(
-                        input_tensor=kl_divergences[name], axis=1
-                    )
-
-        if include_per_action:
-            kl_divergences['*'] = kl_divergence
-            return kl_divergences
-        else:
-            return kl_divergence
-
-    def tf_sample_actions(self, states, internals, auxiliaries, temperature, return_internals):
+    @tf_function(num_args=5)
+    def sample_actions(
+        self, *, states, horizons, internals, auxiliaries, temperatures, return_internals
+    ):
         raise NotImplementedError
 
-    def tf_log_probabilities(self, states, internals, auxiliaries, actions):
+    @tf_function(num_args=5)
+    def log_probabilities(self, *, states, horizons, internals, auxiliaries, actions):
         raise NotImplementedError
 
-    def tf_entropies(self, states, internals, auxiliaries):
+    @tf_function(num_args=4)
+    def entropies(self, *, states, horizons, internals, auxiliaries):
         raise NotImplementedError
 
-    def tf_kl_divergences(self, states, internals, auxiliaries, other=None):
+    @tf_function(num_args=5)
+    def kl_divergences(self, *, states, horizons, internals, auxiliaries, reference):
         raise NotImplementedError
 
-    def tf_kldiv_reference(self, states, internals, auxiliaries):
+    @tf_function(num_args=4)
+    def kldiv_reference(self, *, states, horizons, internals, auxiliaries):
         raise NotImplementedError

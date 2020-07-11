@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,9 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 
-from collections import OrderedDict
+import tensorflow as tf
 
+from tensorforce import util
 import tensorforce.core
+from tensorforce.core import TensorSpec, tf_function, tf_util
 from tensorforce.core.objectives import Objective
 
 
@@ -24,89 +26,94 @@ class Plus(Objective):
     Additive combination of two objectives (specification key: `plus`).
 
     Args:
-        name (string): Module name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         objective1 (specification): First objective configuration
             (<span style="color:#C00000"><b>required</b></span>).
         objective2 (specification): Second objective configuration
             (<span style="color:#C00000"><b>required</b></span>).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): <span style="color:#0000C0"><b>internal use</b></span>.
+        states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        auxiliaries_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        reward_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(self, name, objective1, objective2, summary_labels=None):
-        super().__init__(name=name, summary_labels=summary_labels)
-
-        self.objective1 = self.add_module(
-            name='first-objective', module=objective1, modules=tensorforce.core.objective_modules
-        )
-        self.objective2 = self.add_module(
-            name='second-objective', module=objective2, modules=tensorforce.core.objective_modules
-        )
-
-    def tf_loss_per_instance(
-        self, policy, states, internals, auxiliaries, actions, reward, **kwargs
+    def __init__(
+        self, *, objective1, objective2, name=None, states_spec=None,
+        internals_spec=None, auxiliaries_spec=None, actions_spec=None, reward_spec=None
     ):
-        kwargs1 = OrderedDict()
-        kwargs2 = OrderedDict()
-        for key, value in kwargs.items():
-            assert len(value) == 2 and (value[0] is not None or value[1] is not None)
-            if value[0] is not None:
-                kwargs1[key] = value[0]
-            if value[1] is not None:
-                kwargs2[key] = value[1]
-
-        loss1 = self.objective1.loss_per_instance(
-            policy=policy, states=states, internals=internals, auxiliaries=auxiliaries,
-            actions=actions, reward=reward, **kwargs1
+        super().__init__(
+            name=name, states_spec=states_spec, internals_spec=internals_spec,
+            auxiliaries_spec=auxiliaries_spec, actions_spec=actions_spec, reward_spec=reward_spec
         )
 
-        loss2 = self.objective2.loss_per_instance(
-            policy=policy, states=states, internals=internals, auxiliaries=auxiliaries,
-            actions=actions, reward=reward, **kwargs2
+        self.objective1 = self.submodule(
+            name='objective1', module=objective1, modules=tensorforce.core.objective_modules,
+            states_spec=states_spec, internals_spec=internals_spec,
+            auxiliaries_spec=auxiliaries_spec, actions_spec=actions_spec, reward_spec=reward_spec
         )
 
-        return loss1 + loss2
+        self.objective2 = self.submodule(
+            name='objective2', module=objective2, modules=tensorforce.core.objective_modules,
+            states_spec=states_spec, internals_spec=internals_spec,
+            auxiliaries_spec=auxiliaries_spec, actions_spec=actions_spec, reward_spec=reward_spec
+        )
+
+    def reference_spec(self):
+        reference_spec1 = self.objective1.reference_spec()
+        reference_spec2 = self.objective2.reference_spec()
+        assert reference_spec1.type + reference_spec2.type
+        shape = (reference_spec1.size + reference_spec2.size,)
+        return TensorSpec(type=reference_spec1.type, shape=shape)
 
     def optimizer_arguments(self, **kwargs):
         arguments = super().optimizer_arguments()
-        arguments1 = self.objective1.optimizer_arguments(**kwargs)
-        arguments2 = self.objective1.optimizer_arguments(**kwargs)
-        for key, function in arguments1:
-            if key in arguments2:
-
-                def plus_function(states, internals, auxiliaries, actions, reward):
-                    value1 = function(
-                        states=states, internals=internals, auxiliaries=auxiliaries,
-                        actions=actions, reward=reward
-                    )
-                    value2 = arguments2[key](
-                        states=states, internals=internals, auxiliaries=auxiliaries,
-                        actions=actions, reward=reward
-                    )
-                    return (value1, value2)
-
-            else:
-
-                def plus_function(states, internals, auxiliaries, actions, reward):
-                    value1 = function(
-                        states=states, internals=internals, auxiliaries=auxiliaries,
-                        actions=actions, reward=reward
-                    )
-                    return (value1, None)
-
-            arguments[key] = plus_function
-
-        for key, function in arguments2:
-            if key not in arguments1:
-
-                def plus_function(states, internals, auxiliaries, actions, reward):
-                    value2 = function(
-                        states=states, internals=internals, auxiliaries=auxiliaries,
-                        actions=actions, reward=reward
-                    )
-                    return (None, value2)
-
-            arguments[key] = plus_function
-
+        util.deep_disjoint_update(
+            target=arguments, source=self.objective1.optimizer_arguments(**kwargs)
+        )
+        util.deep_disjoint_update(
+            target=arguments, source=self.objective2.optimizer_arguments(**kwargs)
+        )
         return arguments
+
+    @tf_function(num_args=6)
+    def reference(self, *, states, horizons, internals, auxiliaries, actions, reward, policy):
+        reference1 = self.objective1.reference(
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+            actions=actions, reward=reward, policy=policy
+        )
+
+        reference2 = self.objective2.reference(
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+            actions=actions, reward=reward, policy=policy
+        )
+
+        shape = (-1, self.objective1.reference_spec().size)
+        reference1 = tf.reshape(tensor=reference1, shape=shape)
+        shape = (-1, self.objective2.reference_spec().size)
+        reference2 = tf.reshape(tensor=reference2, shape=shape)
+
+        return tf.concat(values=(reference1, reference2), axis=1)
+
+    @tf_function(num_args=7)
+    def loss(self, *, states, horizons, internals, auxiliaries, actions, reward, reference, policy):
+        reference_spec1 = self.objective1.reference_spec()
+        reference_spec2 = self.objective2.reference_spec()
+        assert tf_util.shape(x=reference)[1] == reference_spec1.size + reference_spec2.size
+
+        reference1 = reference[:, :reference_spec1.size]
+        reference1 = tf.reshape(tensor=reference1, shape=((-1,) + reference_spec1.shape))
+        reference2 = reference[:, reference_spec1.size:]
+        reference2 = tf.reshape(tensor=reference2, shape=((-1,) + reference_spec2.shape))
+
+        loss1 = self.objective1.loss(
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+            actions=actions, reward=reward, reference=reference1, policy=policy
+        )
+
+        loss2 = self.objective2.loss(
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+            actions=actions, reward=reward, reference=reference2, policy=policy
+        )
+
+        return loss1 + loss2

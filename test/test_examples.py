@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
+import os
+from tempfile import TemporaryDirectory
 import unittest
 
 from tensorforce import Agent, Environment, Runner
@@ -25,43 +27,113 @@ class TestExamples(UnittestBase, unittest.TestCase):
     def test_quickstart(self):
         self.start_tests(name='quickstart')
 
-        # ====================
+        with TemporaryDirectory() as saver_directory, TemporaryDirectory() as summarizer_directory:
 
-        # Create an OpenAI-Gym environment
-        environment = Environment.create(environment='gym', level='CartPole-v1')
+            # ====================
 
-        # Create a PPO agent
-        agent = Agent.create(
-            agent='ppo', environment=environment,
-            # Automatically configured network
-            network='auto',
-            # Optimization
-            batch_size=10, update_frequency=2, learning_rate=1e-3, subsampling_fraction=0.2,
-            optimization_steps=5,
-            # Reward estimation
-            likelihood_ratio_clipping=0.2, discount=0.99, estimate_terminal=False,
-            # Critic
-            critic_network='auto',
-            critic_optimizer=dict(optimizer='adam', multi_step=10, learning_rate=1e-3),
-            # Preprocessing
-            preprocessing=None,
-            # Exploration
-            exploration=0.0, variable_noise=0.0,
-            # Regularization
-            l2_regularization=0.0, entropy_regularization=0.0,
-            # TensorFlow etc
-            name='agent', device=None, parallel_interactions=1, seed=None, execution=None, saver=None,
-            summarizer=None, recorder=None
-        )
+            # Create an OpenAI-Gym environment
+            environment = Environment.create(environment='gym', level='CartPole-v1')
 
-        # Initialize the runner
-        runner = Runner(agent=agent, environment=environment)
+            # Create a PPO agent
+            agent = Agent.create(
+                agent='ppo', environment=environment,
+                # Automatically configured network
+                network='auto',
+                # PPO optimization parameters
+                batch_size=10, update_frequency=2, learning_rate=3e-4, multi_step=10,
+                subsampling_fraction=0.33,
+                # Reward estimation
+                likelihood_ratio_clipping=0.2, discount=0.99, predict_terminal_values=False,
+                # Baseline network and optimizer
+                baseline_network=dict(type='auto', size=32, depth=1),
+                baseline_optimizer=dict(optimizer='adam', learning_rate=1e-3, multi_step=10),
+                # Preprocessing
+                preprocessing=None,
+                # Exploration
+                exploration=0.0, variable_noise=0.0,
+                # Regularization
+                l2_regularization=0.0, entropy_regularization=0.0,
+                # No parallelization
+                parallel_interactions=1,
+                # Default additional config values
+                config=None,
+                # Save model every 10 updates and keep the 5 most recent checkpoints
+                saver=dict(directory=saver_directory, frequency=10, max_checkpoints=5),
+                # Log all available Tensorboard summaries
+                summarizer=dict(directory=summarizer_directory, labels='all'),
+                # Do not record agent-environment interaction trace
+                recorder=None
+            )
 
-        # Start the runner
-        runner.run(num_episodes=50)
-        runner.close()
+            # Initialize the runner
+            runner = Runner(agent=agent, environment=environment)
 
-        # ====================
+            # Start the runner
+            runner.run(num_episodes=20)
+            runner.close()
+
+            # ====================
+
+            files = set(os.listdir(path=saver_directory))
+            self.assertTrue(files == {
+                'agent.json', 'agent-0.data-00000-of-00001', 'agent-0.index',
+                'agent-10.data-00000-of-00001', 'agent-10.index', 'checkpoint'
+            })
+
+            directories = os.listdir(path=summarizer_directory)
+            self.assertEqual(len(directories), 1)
+            files = os.listdir(path=os.path.join(summarizer_directory, directories[0]))
+            self.assertEqual(len(files), 1)
+            self.assertTrue(files[0].startswith('events.out.tfevents.'))
+
+        self.finished_test()
+
+    def test_record_and_pretrain(self):
+        self.start_tests(name='record-and-pretrain')
+
+        with TemporaryDirectory() as directory:
+
+            # ====================
+
+            # Start recording traces after the first 100 episodes -- by then, the agent
+            # has solved the environment
+            runner = Runner(
+                agent=dict(
+                    agent='benchmarks/configs/ppo.json',
+                    recorder=dict(directory=directory, start=8)
+                ), environment='benchmarks/configs/cartpole.json'
+            )
+            runner.run(num_episodes=10)
+            runner.close()
+
+            # Pretrain a new agent on the recorded traces: for 30 iterations, feed the
+            # experience of one episode to the agent and subsequently perform one update
+            environment = Environment.create(environment='benchmarks/configs/cartpole.json')
+            agent = Agent.create(agent='benchmarks/configs/ppo.json', environment=environment)
+            agent.pretrain(
+                directory='test/data/ppo-traces', num_iterations=30, num_traces=1, num_updates=1
+            )
+
+            # Evaluate the pretrained agent
+            runner = Runner(agent=agent, environment=environment)
+            runner.run(num_episodes=10, evaluation=True)
+            self.assertTrue(
+                all(episode_reward == 500.0 for episode_reward in runner.episode_rewards)
+            )
+            runner.close()
+
+            # Close agent and environment
+            agent.close()
+            environment.close()
+
+            # ====================
+
+            files = sorted(os.listdir(path=directory))
+            self.assertEqual(len(files), 2)
+            self.assertTrue(all(
+                file.startswith('trace-') and file.endswith('0000000{}.npz'.format(n))
+                for n, file in enumerate(files, start=8)
+            ))
 
         self.finished_test()
 
@@ -200,9 +272,7 @@ class TestExamples(UnittestBase, unittest.TestCase):
                 ## terminal == False means episode is not done
                 ## terminal == True means it is done.
                 terminal = False
-                if self.timestep > self.max_episode_timesteps():
-                    terminal = True
-                
+
                 return self.current_temp, terminal, reward
 
         ###-----------------------------------------------------------------------------
@@ -241,7 +311,7 @@ class TestExamples(UnittestBase, unittest.TestCase):
         ### Run an episode
         temp = [environment.environment.current_temp[0]]
         while not terminal:
-            actions, internals = agent.act(states=states, internals=internals, evaluation=True)
+            actions, internals = agent.act(states=states, internals=internals, independent=True)
             states, terminal, reward = environment.execute(actions=actions)
             temp += [states[0]]
 
@@ -287,7 +357,7 @@ class TestExamples(UnittestBase, unittest.TestCase):
         ### Run an episode
         temp = [environment.environment.current_temp[0]]
         while not terminal:
-            actions, internals = agent.act(states=states, internals=internals, evaluation=True)
+            actions, internals = agent.act(states=states, internals=internals, independent=True)
             states, terminal, reward = environment.execute(actions=actions)
             temp += [states[0]]
 

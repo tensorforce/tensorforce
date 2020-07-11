@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,8 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-import copy
-import time
 import unittest
 
 from tensorforce import Runner
@@ -22,14 +20,6 @@ from test.unittest_base import UnittestBase
 
 
 class TestRunner(UnittestBase, unittest.TestCase):
-
-    min_timesteps = 6
-    agent = dict(
-        policy=dict(network=dict(type='auto', size=8, depth=1, internal_rnn=2)),
-        update=dict(unit='episodes', batch_size=12),
-        objective='policy_gradient', reward_estimation=dict(horizon=3)
-    )
-    require_observe = True
 
     def test_single(self):
         self.start_tests(name='single')

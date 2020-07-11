@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core import parameter_modules
+from tensorforce.core import parameter_modules, TensorSpec, tf_function, tf_util
 from tensorforce.core.objectives import Objective
 
 
@@ -26,60 +26,78 @@ class PolicyGradient(Objective):
     target reward value (specification key: `policy_gradient`).
 
     Args:
-        name (string): Module name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
-        ratio_based (bool): Whether to scale the likelihood-ratio instead of the log-likelihood
+        importance_sampling (bool): Whether to use the importance sampling version of the policy
+            gradient objective
             (<span style="color:#00C000"><b>default</b></span>: false).
-        clipping_value (parameter, float >= 0.0): Clipping threshold for the maximized value
+        clipping_value (parameter, float > 0.0): Clipping threshold for the maximized value
             (<span style="color:#00C000"><b>default</b></span>: no clipping).
         early_reduce (bool): Whether to compute objective for reduced likelihoods instead of per
             likelihood (<span style="color:#00C000"><b>default</b></span>: true).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): <span style="color:#0000C0"><b>internal use</b></span>.
+        states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        auxiliaries_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        reward_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
-        self, name, ratio_based=False, clipping_value=0.0, early_reduce=True,
-        summary_labels=None
+        self, *, importance_sampling=False, clipping_value=None, early_reduce=False, name=None,
+        states_spec=None, internals_spec=None, auxiliaries_spec=None, actions_spec=None,
+        reward_spec=None
     ):
-        super().__init__(name=name, summary_labels=summary_labels)
+        super().__init__(
+            name=name, states_spec=states_spec, internals_spec=internals_spec,
+            auxiliaries_spec=auxiliaries_spec, actions_spec=actions_spec, reward_spec=reward_spec
+        )
 
-        self.ratio_based = ratio_based
+        self.importance_sampling = importance_sampling
 
         clipping_value = 0.0 if clipping_value is None else clipping_value
-        self.clipping_value = self.add_module(
-            name='clipping-value', module=clipping_value, modules=parameter_modules, dtype='float',
+        self.clipping_value = self.submodule(
+            name='clipping_value', module=clipping_value, modules=parameter_modules, dtype='float',
             min_value=0.0
         )
 
         self.early_reduce = early_reduce
 
-    def tf_loss_per_instance(
-        self, policy, states, internals, auxiliaries, actions, reward, reference=None
-    ):
-        assert self.ratio_based or reference is None
+    def reference_spec(self):
+        if self.early_reduce:
+            return TensorSpec(type='float', shape=())
 
-        log_probability = policy.log_probability(
-            states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
-            reduced=self.early_reduce
+        else:
+            num_actions = 0
+            for spec in self.parent.actions_spec.values():
+                num_actions += spec.size
+            return TensorSpec(type='float', shape=(num_actions,))
+
+    @tf_function(num_args=6)
+    def reference(self, *, states, horizons, internals, auxiliaries, actions, reward, policy):
+        return policy.log_probability(
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+            actions=actions, reduced=self.early_reduce, return_per_action=False
         )
 
-        zero = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
-        one = tf.constant(value=1.0, dtype=util.tf_dtype(dtype='float'))
+    @tf_function(num_args=7)
+    def loss(self, *, states, horizons, internals, auxiliaries, actions, reward, reference, policy):
+        log_probability = policy.log_probability(
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+            actions=actions, reduced=self.early_reduce, return_per_action=False
+        )
+        reference = tf.stop_gradient(input=reference)
 
-        clipping_value = self.clipping_value.value()
+        one = tf_util.constant(value=1.0, dtype='float')
+        clipping_value = one + self.clipping_value.value()
 
-        if self.ratio_based:
-            if reference is None:
-                reference = log_probability
-            scaling = tf.exp(x=(log_probability - tf.stop_gradient(input=reference)))
-            min_value = one / (one + clipping_value)
-            max_value = one + clipping_value
+        if self.importance_sampling:
+            scaling = tf.math.exp(x=(log_probability - reference))
+            min_value = tf.math.reciprocal(x=clipping_value)
+            max_value = clipping_value
 
         else:
             scaling = log_probability
-            min_value = -clipping_value
-            max_value = log_probability + one
+            min_value = reference - tf.math.log(x=clipping_value)
+            max_value = reference + tf.math.log(x=clipping_value)
 
         if not self.early_reduce:
             reward = tf.expand_dims(input=reward, axis=1)
@@ -91,10 +109,10 @@ class PolicyGradient(Objective):
             clipped_scaling = tf.clip_by_value(
                 t=scaling, clip_value_min=min_value, clip_value_max=max_value
             )
-            return tf.minimum(x=(scaling * reward), y=(clipped_scaling * reward))
+            return tf.math.minimum(x=(scaling * reward), y=(clipped_scaling * reward))
 
-        skip_clipping = tf.math.equal(x=clipping_value, y=zero)
-        scaled = self.cond(pred=skip_clipping, true_fn=no_clipping, false_fn=apply_clipping)
+        skip_clipping = tf.math.equal(x=clipping_value, y=one)
+        scaled = tf.cond(pred=skip_clipping, true_fn=no_clipping, false_fn=apply_clipping)
 
         loss = -scaled
 
@@ -102,26 +120,3 @@ class PolicyGradient(Objective):
             loss = tf.math.reduce_mean(input_tensor=loss, axis=1)
 
         return loss
-
-    def tf_reference(self, policy, states, internals, auxiliaries, actions):
-        reference = policy.log_probability(
-            states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
-            reduced=self.early_reduce
-        )
-
-        return reference
-
-    def optimizer_arguments(self, policy, **kwargs):
-        arguments = super().optimizer_arguments()
-
-        if self.ratio_based:
-
-            def fn_reference(states, internals, auxiliaries, actions, reward):
-                return self.reference(
-                    policy=policy, states=states, internals=internals, auxiliaries=auxiliaries,
-                    actions=actions
-                )
-
-            arguments['fn_reference'] = fn_reference
-
-        return arguments

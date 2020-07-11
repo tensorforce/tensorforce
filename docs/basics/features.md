@@ -4,42 +4,7 @@ Features
 
 ### Multi-input and non-sequential network architectures
 
-Multi-input and other non-sequential networks are specified as list of layer lists, as opposed to
-simply a list of layers for sequential networks. The following example illustrates how to specify
-such a more complex network, by using the special layers `Register` and `Retrieve` to combine the
-multiple sequential layer stacks.
-
-```python
-Agent.create(
-    states=dict(
-        observation=dict(type='float', shape=(16, 16, 3)),
-        attributes=dict(type='int', shape=(4, 2), num_values=5)
-    ),
-    ...
-    policy=[
-        [
-            dict(type='retrieve', tensors='observation'),
-            dict(type='conv2d', size=16),
-            dict(type='flatten'),
-            dict(type='register', tensor='obs-embedding')
-        ],
-        [
-            dict(type='retrieve', tensors='attributes'),
-            dict(type='embedding', size=16),
-            dict(type='flatten'),
-            dict(type='register', tensor='attr-embedding')
-        ],
-        [
-            dict(
-                type='retrieve', tensors=['obs-embedding', 'attr-embedding'],
-                aggregation='concat'
-            ),
-            dict(type='dense', size=32)
-        ]
-    ],
-    ...
-)
-```
+See [networks documentation](../modules.networks.html).
 
 
 
@@ -103,28 +68,6 @@ python run.py --agent benchmarks/configs/ppo1.json --episodes 100 \
 
 
 
-### Record & pretrain
-
-```python
-agent = Agent.create(...
-    recorder=dict(
-        directory='data/traces',
-        frequency=100  # record a traces file every 100 episodes
-    ), ...
-)
-...
-agent.close()
-
-# Pretrain agent on recorded traces
-agent = Agent.create(...)
-agent.pretrain(
-    directory='data/traces',
-    num_iterations=100  # perform 100 update iterations on traces (more configurations possible)
-)
-```
-
-
-
 ### Save & restore
 
 ##### TensorFlow saver (full model)
@@ -133,7 +76,7 @@ agent.pretrain(
 agent = Agent.create(...
     saver=dict(
         directory='data/checkpoints',
-        frequency=600  # save checkpoint every 600 seconds (10 minutes)
+        frequency=100  # save checkpoint every 100 updates
     ), ...
 )
 ...
@@ -147,12 +90,7 @@ agent = Agent.load(directory='data/checkpoints')
 ##### NumPy / HDF5 (only weights)
 
 ```python
-agent = Agent.create(...
-    saver=dict(
-        directory='data/checkpoints',
-        frequency=600  # save checkpoint every 600 seconds (10 minutes)
-    ), ...
-)
+agent = Agent.create(...)
 ...
 agent.save(directory='data/checkpoints', format='numpy', append='episodes')
 
@@ -169,15 +107,13 @@ Agent.create(...
     summarizer=dict(
         directory='data/summaries',
         # list of labels, or 'all'
-        labels=['graph', 'entropy', 'kl-divergence', 'losses', 'rewards'],
-        frequency=100,  # store values every 100 timesteps
-        # (infrequent update summaries every update; other configurations possible)
-        custom=dict(  # custom summaries which need to be recorded explicitly
-            custom_summary1=dict(type='image', max_outputs=10), ...
-        )
+        labels=['entropy', 'graph', 'kl-divergence', 'loss', 'reward', 'update-norm']
     ), ...
 )
-...
-# custom summary recording
-agent.summarize(summary='custom_summary1', value=image)
 ```
+
+
+
+### Record & pretrain
+
+See [record-and-pretrain example](https://github.com/tensorforce/tensorforce/blob/master/examples/record_and_pretrain.py).

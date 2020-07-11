@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 import tensorflow as tf
 
 import tensorforce.core
+from tensorforce.core import tf_function
 from tensorforce.core.optimizers import Optimizer
 
 
@@ -24,31 +25,32 @@ class Plus(Optimizer):
     Additive combination of two optimizers (specification key: `plus`).
 
     Args:
-        name (string): Module name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         optimizer1 (specification): First optimizer configuration
             (<span style="color:#C00000"><b>required</b></span>).
         optimizer2 (specification): Second optimizer configuration
             (<span style="color:#C00000"><b>required</b></span>).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
+        arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(self, name, optimizer1, optimizer2, summary_labels=None):
-        super().__init__(name=name, summary_labels=summary_labels)
+    def __init__(self, *, optimizer1, optimizer2, name=None, arguments_spec=None):
+        super().__init__(name=name, arguments_spec=arguments_spec)
 
-        self.optimizer1 = self.add_module(
-            name='first-optimizer', module=optimizer1, modules=tensorforce.core.optimizer_modules
+        self.optimizer1 = self.submodule(
+            name=(name + '1'), module=optimizer1, modules=tensorforce.core.optimizer_modules,
+            arguments_spec=self.arguments_spec
         )
-        self.optimizer2 = self.add_module(
-            name='second-optimizer', module=optimizer2, modules=tensorforce.core.optimizer_modules
+        self.optimizer2 = self.submodule(
+            name=(name + '2'), module=optimizer2, modules=tensorforce.core.optimizer_modules,
+            arguments_spec=self.arguments_spec
         )
 
-    def tf_step(self, **kwargs):
-        deltas1 = self.optimizer1.step(**kwargs)
+    @tf_function(num_args=1)
+    def step(self, *, arguments, **kwargs):
+        deltas1 = self.optimizer1.step(arguments=arguments, **kwargs)
 
         with tf.control_dependencies(control_inputs=deltas1):
-            deltas2 = self.optimizer2.step(**kwargs)
+            deltas2 = self.optimizer2.step(arguments=arguments, **kwargs)
 
         with tf.control_dependencies(control_inputs=deltas2):
             return [delta1 + delta2 for delta1, delta2 in zip(deltas1, deltas2)]

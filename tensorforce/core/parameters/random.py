@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,29 +15,16 @@
 
 import tensorflow as tf
 
-from tensorforce import util
 from tensorforce.core.parameters import Parameter
 
 
 class Random(Parameter):
     """
-    Random hyperparameter.
+    Random hyperparameter (specification key: `random`).
 
     Args:
-        name (string): Module name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
-        dtype ("bool" | "int" | "long" | "float"): Tensor type
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         distribution ("normal" | "uniform"): Distribution type for random hyperparameter value
             (<span style="color:#C00000"><b>required</b></span>).
-        shape (iter[int > 0]): Tensor shape
-            (<span style="color:#0000C0"><b>internal use</b></span>).
-        min_value (dtype-compatible value): Lower parameter value bound
-            (<span style="color:#0000C0"><b>internal use</b></span>).
-        max_value (dtype-compatible value): Upper parameter value bound
-            (<span style="color:#0000C0"><b>internal use</b></span>).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         kwargs: Additional arguments dependent on distribution type.<br>
             Normal distribution:
             <ul>
@@ -54,68 +41,64 @@ class Random(Parameter):
             (<span style="color:#00C000"><b>default</b></span>: 1.0 for float,
             <span style="color:#C00000"><b>required</b></span> for int).</li>
             </ul>
-        """
+        name (string): <span style="color:#0000C0"><b>internal use</b></span>.
+        dtype (type): <span style="color:#0000C0"><b>internal use</b></span>.
+        shape (iter[int > 0]): <span style="color:#0000C0"><b>internal use</b></span>.
+        min_value (dtype-compatible value): <span style="color:#0000C0"><b>internal use</b></span>.
+        max_value (dtype-compatible value): <span style="color:#0000C0"><b>internal use</b></span>.
+    """
 
     def __init__(
-        self, name, dtype, distribution, shape=(), min_value=None, max_value=None,
-        summary_labels=None, **kwargs
+        self, *, distribution, name=None, dtype=None, shape=(), min_value=None, max_value=None,
+        **kwargs
     ):
-        assert dtype in ('int', 'long', 'float')
+        assert dtype in ('int', 'float')
         assert distribution in ('normal', 'uniform')
 
         self.distribution = distribution
         self.kwargs = kwargs
 
         super().__init__(
-            name=name, dtype=dtype, shape=shape, min_value=min_value, max_value=max_value,
-            summary_labels=summary_labels
+            name=name, dtype=dtype, shape=shape, min_value=min_value, max_value=max_value
         )
 
     def min_value(self):
         if self.distribution == 'uniform':
-            if self.dtype == 'int' or self.dtype == 'long':
-                return int(self.kwargs.get('minval', 0))
-            elif self.dtype == 'float':
-                return int(self.kwargs.get('minval', 0.0))
+            return self.spec.py_type()(self.kwargs.get('minval', 0))
+
         else:
             return super().min_value()
 
     def max_value(self):
         if self.distribution == 'uniform':
-            if self.dtype == 'int' or self.dtype == 'long':
-                return float(self.kwargs['maxval'])
-            elif self.dtype == 'float':
-                return float(self.kwargs.get('maxval', 1.0))
+            return self.spec.py_type()(self.kwargs.get('maxval', 1.0))
+
         else:
             return super().max_value()
 
     def final_value(self):
         if self.distribution == 'normal':
-            return util.py_dtype(dtype=self.dtype)(self.kwargs.get('mean', 0.0))
+            return self.spec.py_type()(self.kwargs.get('mean', 0.0))
 
         elif self.distribution == 'uniform':
-            if self.kwargs.get('maxval', None) is None:
-                return 0.5
-
-            else:
-                return util.py_dtype(dtype=self.dtype)(
-                    self.kwargs['maxval'] - self.kwargs.get('minval', 0)
-                )
+            return self.spec.py_type()(
+                (self.kwargs.get('maxval', 1.0) + self.kwargs.get('minval', 0.0)) / 2.0
+            )
 
         else:
-            assert False
+            return super().final_value()
 
-    def parameter_value(self, step):
+    def parameter_value(self, *, step):
         if self.distribution == 'normal':
             parameter = tf.random.normal(
-                shape=self.shape, dtype=util.tf_dtype(dtype=self.dtype),
-                mean=self.kwargs.get('mean', 0.0), stddev=self.kwargs.get('stddev', 1.0)
+                shape=self.spec.shape, dtype=self.spec.tf_type(), mean=self.kwargs.get('mean', 0.0),
+                stddev=self.kwargs.get('stddev', 1.0)
             )
 
         elif self.distribution == 'uniform':
             parameter = tf.random.uniform(
-                shape=self.shape, dtype=util.tf_dtype(dtype=self.dtype),
-                minval=self.kwargs.get('minval', 0), maxval=self.kwargs.get('maxval', None)
+                shape=self.spec.shape, dtype=self.spec.tf_type(),
+                minval=self.kwargs.get('minval', 0), maxval=self.kwargs.get('maxval')
             )
 
         return parameter

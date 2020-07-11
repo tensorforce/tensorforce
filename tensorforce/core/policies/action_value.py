@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,11 +13,9 @@
 # limitations under the License.
 # ==============================================================================
 
-from collections import OrderedDict
-
 import tensorflow as tf
 
-from tensorforce import util
+from tensorforce.core import SignatureDict, TensorSpec, tf_function
 from tensorforce.core.policies import Policy
 
 
@@ -26,102 +24,99 @@ class ActionValue(Policy):
     Base class for action-value-based policies.
 
     Args:
-        name (string): Module name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
-        states_spec (specification): States specification
-            (<span style="color:#0000C0"><b>internal use</b></span>).
-        actions_spec (specification): Actions specification
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         device (string): Device name
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): <span style="color:#0000C0"><b>internal use</b></span>.
+        states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        auxiliaries_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def tf_act(self, states, internals, auxiliaries, return_internals):
-        assert return_internals
-
-        actions_values = self.actions_values(
-            states=states, internals=internals, auxiliaries=auxiliaries
-        )
-
-        actions = OrderedDict()
-        for name, spec, action_values in util.zip_items(self.actions_spec, actions_values):
-            actions[name] = tf.math.argmax(
-                input=action_values, axis=-1, output_type=util.tf_dtype(spec['type'])
+    def input_signature(self, *, function):
+        if function == 'actions_value':
+            return SignatureDict(
+                states=self.states_spec.signature(batched=True),
+                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                internals=self.internals_spec.signature(batched=True),
+                auxiliaries=self.auxiliaries_spec.signature(batched=True),
+                actions=self.actions_spec.signature(batched=True)
             )
 
-        return actions
-
-    def tf_states_value(
-        self, states, internals, auxiliaries, reduced=True, include_per_action=False
-    ):
-        states_values = self.states_values(
-            states=states, internals=internals, auxiliaries=auxiliaries
-        )
-
-        for name, spec, states_value in util.zip_items(self.actions_spec, states_values):
-            states_values[name] = tf.reshape(
-                tensor=states_value, shape=(-1, util.product(xs=spec['shape']))
+        elif function == 'actions_values':
+            return SignatureDict(
+                states=self.states_spec.signature(batched=True),
+                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                internals=self.internals_spec.signature(batched=True),
+                auxiliaries=self.auxiliaries_spec.signature(batched=True),
+                actions=self.actions_spec.signature(batched=True)
             )
 
-        states_value = tf.concat(values=tuple(states_values.values()), axis=1)
-        if reduced:
-            states_value = tf.math.reduce_mean(input_tensor=states_value, axis=1)
-            if include_per_action:
-                for name in self.actions_spec:
-                    states_values[name] = tf.math.reduce_mean(
-                        input_tensor=states_values[name], axis=1
-                    )
+        elif function == 'all_actions_values':
+            return SignatureDict(
+                states=self.states_spec.signature(batched=True),
+                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                internals=self.internals_spec.signature(batched=True),
+                auxiliaries=self.auxiliaries_spec.signature(batched=True)
+            )
 
-        if include_per_action:
-            states_values['*'] = states_value
-            return states_values
+        elif function == 'states_value':
+            return SignatureDict(
+                states=self.states_spec.signature(batched=True),
+                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                internals=self.internals_spec.signature(batched=True),
+                auxiliaries=self.auxiliaries_spec.signature(batched=True)
+            )
+
+        elif function == 'states_values':
+            return SignatureDict(
+                states=self.states_spec.signature(batched=True),
+                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                internals=self.internals_spec.signature(batched=True),
+                auxiliaries=self.auxiliaries_spec.signature(batched=True)
+            )
+
         else:
-            return states_value
+            return super().input_signature(function=function)
 
-    def tf_actions_value(
-        self, states, internals, auxiliaries, actions, reduced=True, include_per_action=False
+    @tf_function(num_args=5)
+    def actions_value(
+        self, *, states, horizons, internals, auxiliaries, actions, reduced, return_per_action
     ):
         actions_values = self.actions_values(
-            states=states, internals=internals, auxiliaries=auxiliaries, actions=actions
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+            actions=actions
         )
 
-        for name, spec, actions_value in util.zip_items(self.actions_spec, actions_values):
-            actions_values[name] = tf.reshape(
-                tensor=actions_value, shape=(-1, util.product(xs=spec['shape']))
-            )
-
-        actions_value = tf.concat(values=tuple(actions_values.values()), axis=1)
-        if reduced:
-            actions_value = tf.math.reduce_mean(input_tensor=actions_value, axis=1)
-            if include_per_action:
-                for name in self.actions_spec:
-                    actions_values[name] = tf.math.reduce_mean(
-                        input_tensor=actions_values[name], axis=1
-                    )
-
-        if include_per_action:
-            actions_values['*'] = actions_value
-            return actions_values
-        else:
-            return actions_value
-
-    def tf_states_values(self, states, internals, auxiliaries):
-        if not all(spec['type'] == 'int' for spec in self.actions_spec.values()):
-            raise NotImplementedError
-
-        actions_values = self.actions_values(
-            states=states, internals=internals, auxiliaries=auxiliaries
+        return self.join_value_per_action(
+            values=actions_values, reduced=reduced, return_per_action=return_per_action
         )
 
-        states_values = OrderedDict()
-        for name, spec, action_values in util.zip_items(self.actions_spec, actions_values):
-            states_values[name] = tf.math.reduce_max(input_tensor=action_values, axis=-1)
-
-        return states_values
-
-    def tf_actions_values(self, states, internals, auxiliaries, actions=None):
+    @tf_function(num_args=5)
+    def actions_values(self, *, states, horizons, internals, auxiliaries, actions):
         raise NotImplementedError
+
+    @tf_function(num_args=4)
+    def all_actions_values(self, *, states, horizons, internals, auxiliaries):
+        raise NotImplementedError
+
+    @tf_function(num_args=4)
+    def states_value(self, *, states, horizons, internals, auxiliaries, reduced, return_per_action):
+        states_values = self.states_values(
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries
+        )
+
+        return self.join_value_per_action(
+            values=states_values, reduced=reduced, return_per_action=return_per_action
+        )
+
+    @tf_function(num_args=4)
+    def states_values(self, *, states, horizons, internals, auxiliaries):
+        actions_values = self.all_actions_values(
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries
+        )
+
+        return actions_values.fmap(
+            function=(lambda action_values: tf.math.reduce_max(input_tensor=action_values, axis=-1))
+        )

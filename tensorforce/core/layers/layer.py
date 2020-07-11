@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,7 +19,8 @@ import tensorflow as tf
 
 from tensorforce import TensorforceError, util
 import tensorforce.core
-from tensorforce.core import Module, parameter_modules
+from tensorforce.core import ArrayDict, Module, parameter_modules, SignatureDict, TensorSpec, \
+    TensorsSpec, tf_function, tf_util
 from tensorforce.core.parameters import Parameter
 
 
@@ -28,106 +29,521 @@ class Layer(Module):
     Base class for neural network layers.
 
     Args:
-        name (string): Layer name
-            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
-        input_spec (specification): Input tensor specification
-            (<span style="color:#00C000"><b>internal use</b></span>).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): Layer name
+            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
+        input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    layers = None
+    _TF_MODULE_IGNORED_PROPERTIES = Module._TF_MODULE_IGNORED_PROPERTIES | {'registered_layers'}
 
-    def __init__(self, name, input_spec=None, summary_labels=None, l2_regularization=None):
-        super().__init__(
-            name=name, summary_labels=summary_labels, l2_regularization=l2_regularization
-        )
+    registered_layers = OrderedDict()
+
+    def __init__(self, *, l2_regularization=None, name=None, input_spec=None):
+        super().__init__(l2_regularization=l2_regularization, name=name)
+
+        Layer.registered_layers[self.name] = self
 
         self.input_spec = self.default_input_spec()
-        self.input_spec = util.valid_value_spec(
-            value_spec=self.input_spec, accept_underspecified=True, return_normalized=True
-        )
+        if not isinstance(self.input_spec, TensorSpec):
+            raise TensorforceError.unexpected()
 
-        if input_spec is not None:
-            input_spec = util.valid_value_spec(
-                value_spec=input_spec, accept_underspecified=True, return_normalized=True
-            )
-
-            self.input_spec = util.unify_value_specs(
-                value_spec1=self.input_spec, value_spec2=input_spec
-            )
-
-        # Copy so that spec can be modified
-        self.output_spec = self.get_output_spec(input_spec=dict(self.input_spec))
-        self.output_spec = util.valid_value_spec(
-            value_spec=self.output_spec, accept_underspecified=True, return_normalized=True
-        )
-
-        # Register layer globally
-        if Layer.layers is None:
-            Layer.layers = OrderedDict()
-        # if self.name in Layer.layers:
-        #     raise TensorforceError.unexpected()
-        Layer.layers[self.name] = self
-
-    @classmethod
-    def output_spec(cls, input_spec, **kwargs):
-        return dict(input_spec)
+        self.input_spec = self.input_spec.unify(other=input_spec)
 
     def default_input_spec(self):
-        """
-        Returns the general, context-independent input tensor specification of this layer.
+        return TensorSpec(type=None, shape=None, overwrite=True)
 
-        Returns:
-            General input tensor specification.
-        """
-        raise NotImplementedError
+    def output_spec(self):
+        return self.input_spec.copy(overwrite=True)
 
-    def get_output_spec(self, input_spec):
-        """
-        Returns the output tensor specification for a given input tensor specification.
-
-        Args:
-            input_spec (specification): Input tensor specification.
-
-        Returns:
-            Output tensor specification.
-        """
-        return input_spec
-
-    def add_module(self, *args, **kwargs):
-        layer = super().add_module(*args, **kwargs)
+    def submodule(self, *args, **kwargs):
+        layer = super().submodule(*args, **kwargs)
 
         if not isinstance(layer, (Layer, Parameter)):
-            raise TensorforceError.type(name='layer', argument='sub-module', dtype=type(layer))
+            raise TensorforceError.type(name='layer', argument='submodule', dtype=type(layer))
 
         return layer
 
-    def tf_apply(self, x):
-        return x
-
-    def create_tf_function(self, name, tf_function):
-        if tf_function.__name__ == 'tf_apply':
-
-            def validated_tf_function(x):
-                if self.input_spec is not None and \
-                        not util.is_consistent_with_value_spec(value_spec=self.input_spec, x=x):
-                    raise TensorforceError.value(name='layer.apply', argument='input', value=x)
-
-                x = tf_function(x=x)
-
-                if self.output_spec is not None and \
-                        not util.is_consistent_with_value_spec(value_spec=self.output_spec, x=x):
-                    raise TensorforceError.value(name='layer.apply', argument='output', value=x)
-
-                return x
-
-            return super().create_tf_function(name=name, tf_function=validated_tf_function)
+    def input_signature(self, *, function):
+        if function == 'apply':
+            return SignatureDict(x=self.input_spec.signature(batched=True))
 
         else:
-            return super().create_tf_function(name=name, tf_function=tf_function)
+            return super().input_signature(function=function)
+
+    @tf_function(num_args=1)
+    def apply(self, *, x):
+        return x
+
+
+class MultiInputLayer(Layer):
+    """
+    Base class for multi-input layers.
+
+    Args:
+        tensors (iter[string]): Names of tensors to retrieve, either state names or previously
+            registered tensors
+            (<span style="color:#C00000"><b>required</b></span>).
+        l2_regularization (float >= 0.0): Scalar controlling L2 regularization
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): Layer name
+            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
+        input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
+    """
+
+    def __init__(self, *, tensors, l2_regularization=None, name=None, input_spec=None):
+        super(Layer, self).__init__(l2_regularization=l2_regularization, name=name)
+
+        Layer.registered_layers[self.name] = self
+
+        if not util.is_iterable(x=tensors):
+            raise TensorforceError.type(
+                name='MultiInputLayer', argument='tensors', dtype=type(tensors)
+            )
+        elif len(tensors) == 0:
+            raise TensorforceError.value(
+                name='MultiInputLayer', argument='tensors', value=tensors, hint='zero length'
+            )
+
+        self.tensors = tuple(tensors)
+
+        self.input_spec = self.default_input_spec()
+        if not isinstance(self.input_spec, TensorsSpec):
+            raise TensorforceError.unexpected()
+
+        self.input_spec = self.input_spec.unify(other=input_spec)
+
+    def default_input_spec(self):
+        return TensorsSpec(
+            ((tensor, TensorSpec(type=None, shape=None, overwrite=True)) for tensor in self.tensors)
+        )
+
+    def output_spec(self):
+        return TensorSpec(type=None, shape=None, overwrite=True)
+
+    @tf_function(num_args=1)
+    def apply(self, *, x):
+        raise NotImplementedError
+
+
+class Register(Layer):
+    """
+    Tensor retrieval layer, which is useful when defining more complex network architectures which
+    do not follow the sequential layer-stack pattern, for instance, when handling multiple inputs
+    (specification key: `register`).
+
+    Args:
+        tensor (string): Name under which tensor will be registered
+            (<span style="color:#C00000"><b>required</b></span>).
+        name (string): Layer name
+            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
+        input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
+    """
+
+    def __init__(self, *, tensor, name=None, input_spec=None):
+        super().__init__(name=name, input_spec=input_spec)
+
+        if not isinstance(tensor, str):
+            raise TensorforceError.type(name='register', argument='tensor', dtype=type(tensor))
+
+        self.tensor = tensor
+
+
+class Retrieve(MultiInputLayer):
+    """
+    Tensor retrieval layer, which is useful when defining more complex network architectures which
+    do not follow the sequential layer-stack pattern, for instance, when handling multiple inputs
+    (specification key: `retrieve`).
+
+    Args:
+        tensors (iter[string]): Names of tensors to retrieve, either state names or previously
+            registered tensors
+            (<span style="color:#C00000"><b>required</b></span>).
+        aggregation ('concat' | 'product' | 'stack' | 'sum'): Aggregation type in case of multiple
+            tensors
+            (<span style="color:#00C000"><b>default</b></span>: 'concat').
+        axis (int >= 0): Aggregation axis, excluding batch axis
+            (<span style="color:#00C000"><b>default</b></span>: 0).
+        name (string): Layer name
+            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
+        input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
+    """
+
+    def __init__(self, *, tensors, aggregation='concat', axis=0, name=None, input_spec=None):
+        super().__init__(tensors=tensors, name=name, input_spec=input_spec)
+
+        if aggregation not in ('concat', 'product', 'stack', 'sum'):
+            raise TensorforceError.value(
+                name='retrieve', argument='aggregation', value=aggregation,
+                hint='not in {concat,product,stack,sum}'
+            )
+
+        self.aggregation = aggregation
+        self.axis = axis
+
+    def output_spec(self):
+        if len(self.tensors) == 1:
+            return self.input_spec[self.tensors[0]]
+
+        # Get tensor types and shapes
+        dtypes = list()
+        shapes = list()
+        for spec in self.input_spec.values():
+            dtypes.append(spec.type)
+            shapes.append(spec.shape)
+
+        # Check tensor types
+        if all(dtype == dtypes[0] for dtype in dtypes):
+            dtype = dtypes[0]
+        else:
+            raise TensorforceError.value(name='retrieve', argument='tensor types', value=dtypes)
+
+        if self.aggregation == 'concat':
+            if any(len(shape) != len(shapes[0]) for shape in shapes):
+                raise TensorforceError.value(
+                    name='retrieve', argument='tensor shapes', value=shapes
+                )
+            elif any(
+                shape[n] != shapes[0][n] for shape in shapes for n in range(len(shape))
+                if n != self.axis
+            ):
+                raise TensorforceError.value(
+                    name='retrieve', argument='tensor shapes', value=shapes
+                )
+            shape = tuple(
+                sum(shape[n] for shape in shapes) if n == self.axis else shapes[0][n]
+                for n in range(len(shapes[0]))
+            )
+
+        elif self.aggregation == 'stack':
+            if any(len(shape) != len(shapes[0]) for shape in shapes):
+                raise TensorforceError.value(
+                    name='retrieve', argument='tensor shapes', value=shapes
+                )
+            elif any(shape[n] != shapes[0][n] for shape in shapes for n in range(len(shape))):
+                raise TensorforceError.value(
+                    name='retrieve', argument='tensor shapes', value=shapes
+                )
+            shape = tuple(
+                len(shapes) if n == self.axis else shapes[0][n - int(n > self.axis)]
+                for n in range(len(shapes[0]) + 1)
+            )
+
+        else:
+            # Check and unify tensor shapes
+            for shape in shapes:
+                if len(shape) != len(shapes[0]):
+                    raise TensorforceError.value(
+                        name='retrieve', argument='tensor shapes', value=shapes
+                    )
+                if any(x != y and x != 1 and y != 1 for x, y in zip(shape, shapes[0])):
+                    raise TensorforceError.value(
+                        name='retrieve', argument='tensor shapes', value=shapes
+                    )
+            shape = tuple(max(shape[n] for shape in shapes) for n in range(len(shapes[0])))
+
+        # TODO: Missing num_values, min/max_value
+        return TensorSpec(type=dtype, shape=shape)
+
+    @tf_function(num_args=1)
+    def apply(self, *, x):
+        if len(self.tensors) == 1:
+            return x[self.tensors[0]]
+
+        x = list(x.values())
+
+        shape = self.output_spec().shape
+        for n, tensor in enumerate(x):
+            for axis in range(tf_util.rank(x=tensor), len(shape)):
+                tensor = tf.expand_dims(input=tensor, axis=axis)
+            x[n] = tensor
+
+        if self.aggregation == 'concat':
+            x = tf.concat(values=x, axis=(self.axis + 1))
+
+        elif self.aggregation == 'product':
+            x = tf.stack(values=x, axis=(self.axis + 1))
+            x = tf.reduce_prod(input_tensor=x, axis=(self.axis + 1))
+
+        elif self.aggregation == 'stack':
+            x = tf.stack(values=x, axis=(self.axis + 1))
+
+        elif self.aggregation == 'sum':
+            x = tf.stack(values=x, axis=(self.axis + 1))
+            x = tf.reduce_sum(input_tensor=x, axis=(self.axis + 1))
+
+        return x
+
+
+class Reuse(Layer):
+    """
+    Reuse layer (specification key: `reuse`).
+
+    Args:
+        layer (string): Name of a previously defined layer
+            (<span style="color:#C00000"><b>required</b></span>).
+        name (string): Layer name
+            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
+        input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
+    """
+
+    # _TF_MODULE_IGNORED_PROPERTIES = Module._TF_MODULE_IGNORED_PROPERTIES | {'reused_layer'}
+
+    def __init__(self, *, layer, name=None, input_spec=None):
+        if layer not in Layer.registered_layers:
+            raise TensorforceError.value(name='reuse', argument='layer', value=layer)
+
+        self.layer = layer
+
+        super().__init__(name=name, input_spec=input_spec, l2_regularization=0.0)
+
+    @property
+    def reused_layer(self):
+        return Layer.registered_layers[self.layer]
+
+    def default_input_spec(self):
+        return self.reused_layer.input_spec.copy()
+
+    def output_spec(self):
+        return self.reused_layer.output_spec()
+
+    @tf_function(num_args=1)
+    def apply(self, *, x):
+        return self.reused_layer.apply(x=x)
+
+    # TODO: other Module functions?
+    def get_available_summaries(self):
+        summaries = super().get_available_summaries()
+        summaries.update(self.reused_layer.get_available_summaries())
+        return sorted(summaries)
+
+
+class StatefulLayer(Layer):  # TODO: WeaklyStatefulLayer ?
+    """
+    Base class for stateful layers, i.e. layers which update an internal state for on-policy calls.
+
+    Args:
+        l2_regularization (float >= 0.0): Scalar controlling L2 regularization
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): Layer name
+            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
+        input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
+    """
+
+    @tf_function(num_args=1)
+    def apply(self, *, x, independent):
+        raise NotImplementedError
+
+
+class TemporalLayer(Layer):
+    """
+    Base class for temporal layers, i.e. layers whose output depends on previous states.
+
+    Args:
+        temporal_processing ('cumulative' | 'iterative'): Temporal processing type
+            (<span style="color:#C00000"><b>required</b></span>).
+        horizon (parameter, int >= 0): Past horizon
+            (<span style="color:#C00000"><b>required</b></span>).
+        l2_regularization (float >= 0.0): Scalar controlling L2 regularization
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): Layer name
+            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
+        input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
+        kwargs: Additional arguments for potential parent class.
+    """
+
+    def __init__(
+        self, *, temporal_processing, horizon, l2_regularization=None, name=None, input_spec=None,
+        **kwargs
+    ):
+        if temporal_processing not in ('cumulative', 'iterative'):
+            raise TensorforceError.value(
+                name='temporal-layer', argument='temporal_processing', value=temporal_processing,
+                hint='not in {cumulative,iterative}'
+            )
+        self.temporal_processing = temporal_processing
+
+        super().__init__(
+            l2_regularization=l2_regularization, name=name, input_spec=input_spec, **kwargs
+        )
+
+        if self.temporal_processing == 'cumulative' and len(self.internals_spec) > 0:
+            raise TensorforceError.invalid(
+                name='temporal-layer', argument='temporal_processing', expected='iterative',
+                condition='num internals > 0'
+            )
+
+        self.horizon = self.submodule(
+            name='horizon', module=horizon, modules=parameter_modules, is_trainable=False,
+            dtype='int', min_value=0
+        )
+
+    @property
+    def internals_spec(self):
+        return TensorsSpec()
+
+    def internals_init(self):
+        return ArrayDict()
+
+    def max_past_horizon(self, *, on_policy):
+        if self.temporal_processing == 'iterative' and on_policy:
+            return 0
+        else:
+            return self.horizon.max_value()
+
+    def input_signature(self, *, function):
+        if function == 'apply':
+            assert len(self.internals_spec) == 0 or self.temporal_processing == 'iterative'
+            return SignatureDict(
+                x=self.input_spec.signature(batched=True),
+                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                internals=self.internals_spec.signature(batched=True)
+            )
+
+        elif function == 'cumulative_apply':
+            assert self.temporal_processing == 'cumulative'
+            cumulative_input_spec = self.input_spec.copy()
+            cumulative_input_spec.shape = (None,) + cumulative_input_spec.shape
+            return SignatureDict(
+                xs=cumulative_input_spec.signature(batched=True),
+                lengths=TensorSpec(type='int', shape=()).signature(batched=True)
+            )
+
+        elif function == 'iterative_apply':
+            assert self.temporal_processing == 'iterative'
+            return SignatureDict(
+                x=self.input_spec.signature(batched=True),
+                internals=self.internals_spec.signature(batched=True)
+            )
+
+        elif function == 'past_horizon':
+            return SignatureDict()
+
+        else:
+            return super().input_signature(function=function)
+
+    @tf_function(num_args=0)
+    def past_horizon(self, *, on_policy):
+        if self.temporal_processing == 'iterative' and on_policy:
+            return tf_util.constant(value=0, dtype='int')
+        else:
+            return self.horizon.value()
+
+    @tf_function(num_args=3)
+    def apply(self, *, x, horizons, internals):
+        zero = tf_util.constant(value=0, dtype='int')
+        one = tf_util.constant(value=1, dtype='int')
+
+        batch_size = tf_util.cast(x=tf.shape(input=horizons)[0], dtype='int')
+
+        zeros = tf_util.zeros(shape=(batch_size,), dtype='int')
+        ones = tf_util.ones(shape=(batch_size,), dtype='int')
+
+        # including 0th step
+        horizon = self.horizon.value() + one
+        # in case of longer horizon than necessary (e.g. main vs baseline policy)
+        starts = horizons[:, 0] + tf.maximum(x=(horizons[:, 1] - horizon), y=zeros)
+        lengths = horizons[:, 1] - tf.maximum(x=(horizons[:, 1] - horizon), y=zeros)
+        horizon = tf.minimum(x=horizon, y=tf.math.reduce_max(input_tensor=lengths, axis=0))
+        output_spec = self.output_spec()
+
+        if self.temporal_processing == 'cumulative':
+
+            def body(indices, remaining, xs):
+                current_x = tf.gather(params=x, indices=indices)
+                current_x = tf.expand_dims(input=current_x, axis=1)
+                xs = tf.concat(values=(xs, current_x), axis=1)
+                remaining -= tf.where(
+                    condition=tf.math.equal(x=remaining, y=zeros), x=zeros, y=ones
+                )
+                indices += tf.where(condition=tf.math.equal(x=remaining, y=zeros), x=zeros, y=ones)
+                return indices, remaining, xs
+
+            initial_xs = tf_util.zeros(
+                shape=((batch_size, 0) + output_spec.shape), dtype=output_spec.type
+            )
+
+            final_indices, final_remaining, xs = tf.while_loop(
+                cond=tf_util.always_true, body=body, loop_vars=(starts, lengths, initial_xs),
+                maximum_iterations=tf_util.int64(x=horizon)
+            )
+
+            x = self.cumulative_apply(xs=xs, lengths=lengths)
+
+        elif self.temporal_processing == 'iterative':
+            internals_signature = self.internals_spec.signature(batched=True)
+
+            def body(indices, remaining, current_x, current_internals):
+                current_internals = internals_signature.args_to_kwargs(args=current_internals)
+                current_x = tf.gather(params=x, indices=indices)
+                next_x, next_internals = self.iterative_apply(
+                    x=current_x, internals=current_internals
+                )
+
+                with tf.control_dependencies(control_inputs=(current_x, next_x)):
+                    is_finished = tf.math.equal(x=remaining, y=zeros)
+                    if isinstance(next_internals, dict):
+                        for name, current_internal, next_internal in current_internals.zip_items(
+                            next_internals
+                        ):
+                            condition = is_finished
+                            for _ in range(tf_util.rank(x=current_internal) - 1):
+                                condition = tf.expand_dims(input=condition, axis=1)
+                            next_internals[name] = tf.where(
+                                condition=condition, x=current_internal, y=next_internal
+                            )
+
+                    else:
+                        condition = is_finished
+                        for _ in range(tf_util.rank(x=current_internals) - 1):
+                            condition = tf.expand_dims(input=condition, axis=1)
+                        next_internals = tf.where(
+                            condition=condition, x=current_internals, y=next_internals
+                        )
+
+                    remaining -= tf.where(condition=is_finished, x=zeros, y=ones)
+                    indices += tf.where(
+                        condition=tf.math.equal(x=remaining, y=zeros), x=zeros, y=ones
+                    )
+
+                next_internals = internals_signature.kwargs_to_args(kwargs=next_internals)
+                return indices, remaining, next_x, next_internals
+
+            initial_x = tf_util.zeros(
+                shape=((batch_size,) + output_spec.shape), dtype=output_spec.type
+            )
+
+            internals = internals_signature.kwargs_to_args(kwargs=internals)
+            final_indices, final_remaining, x, final_internals = tf.while_loop(
+                cond=tf_util.always_true, body=body,
+                loop_vars=(starts, lengths, initial_x, internals),
+                maximum_iterations=tf_util.int32(x=horizon)
+            )
+            internals = internals_signature.args_to_kwargs(args=final_internals)
+
+        assertions = list()
+        if self.config.create_tf_assertions:
+            assertions.append(tf.debugging.assert_equal(
+                x=final_indices, y=(tf.math.cumsum(x=lengths) - ones)
+            ))
+            assertions.append(tf.debugging.assert_equal(
+                x=tf.math.reduce_sum(input_tensor=final_remaining), y=zero
+            ))
+
+        with tf.control_dependencies(control_inputs=assertions):
+            if self.temporal_processing == 'cumulative':
+                return tf_util.identity(input=super().apply(x=x))
+            elif self.temporal_processing == 'iterative':
+                return tf_util.identity(input=super().apply(x=x)), internals
+
+    @tf_function(num_args=1)
+    def cumulative_apply(self, *, xs, lengths):
+        raise NotImplementedError
+
+    @tf_function(num_args=2)
+    def iterative_apply(self, *, x, internals):
+        raise NotImplementedError
 
 
 class TransformationBase(Layer):
@@ -135,8 +551,6 @@ class TransformationBase(Layer):
     Base class for transformation layers.
 
     Args:
-        name (string): Layer name
-            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         size (int >= 0): Layer output size, 0 implies additionally removing the axis
             (<span style="color:#C00000"><b>required</b></span>).
         bias (bool): Whether to add a trainable bias variable
@@ -146,78 +560,59 @@ class TransformationBase(Layer):
             (<span style="color:#00C000"><b>default</b></span>: none).
         dropout (parameter, 0.0 <= float < 1.0): Dropout rate
             (<span style="color:#00C000"><b>default</b></span>: 0.0).
-        is_trainable (bool): Whether layer variables are trainable
+        vars_trainable (bool): Whether layer variables are trainable
             (<span style="color:#00C000"><b>default</b></span>: true).
-        input_spec (specification): Input tensor specification
-            (<span style="color:#00C000"><b>internal use</b></span>).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): Layer name
+            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
+        input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
         kwargs: Additional arguments for potential parent class.
     """
 
     def __init__(
-        self, name, size, bias=False, activation=None, dropout=0.0, is_trainable=True,
-        input_spec=None, summary_labels=None, l2_regularization=None, **kwargs
+        self, *, size, bias=False, activation=None, dropout=0.0, vars_trainable=True,
+        l2_regularization=None, name=None, input_spec=None, **kwargs
     ):
-        self.squeeze = (size == 0)
-        self.size = max(size, 1)
-        self.activation = None
-        self.dropout = None
-
         super().__init__(
-            name=name, input_spec=input_spec, summary_labels=summary_labels,
-            l2_regularization=l2_regularization, **kwargs
+            l2_regularization=l2_regularization, name=name, input_spec=input_spec, **kwargs
         )
 
+        self.squeeze = (size == 0)
+        self.size = max(size, 1)
         self.bias = bias
+
         if activation is None:
             self.activation = None
         else:
-            self.activation = self.add_module(
-                name=(self.name + '-activation'), module='activation',
-                modules=tensorforce.core.layer_modules, nonlinearity=activation,
-                input_spec=self.output_spec
+            self.activation = self.submodule(
+                name='activation', module='activation', modules=tensorforce.core.layer_modules,
+                nonlinearity=activation, input_spec=self.output_spec()
             )
-        if dropout is None or dropout == 0.0:
+
+        if dropout == 0.0:
             self.dropout = None
         else:
-            self.dropout = self.add_module(
-                name=(self.name + '-dropout'), module='dropout',
-                modules=tensorforce.core.layer_modules, rate=dropout, input_spec=self.output_spec
+            self.dropout = self.submodule(
+                name='dropout', module='dropout', modules=tensorforce.core.layer_modules,
+                rate=dropout, input_spec=self.output_spec()
             )
-        self.is_trainable = is_trainable
 
-    def specify_input_output_spec(self, input_spec):
-        super().specify_input_output_spec(input_spec=input_spec)
+        self.vars_trainable = vars_trainable
 
-        if self.activation is not None:
-            self.activation.specify_input_output_spec(input_spec=self.output_spec)
-            assert self.activation.output_spec == self.output_spec
-        if self.dropout is not None:
-            self.dropout.specify_input_output_spec(input_spec=self.output_spec)
-            assert self.dropout.output_spec == self.output_spec
-
-    def tf_initialize(self):
-        super().tf_initialize()
+    def initialize(self):
+        super().initialize()
 
         if self.bias:
-            self.bias = self.add_variable(
-                name='bias', dtype='float', shape=(self.size,), is_trainable=self.is_trainable,
-                initializer=('zeros' if self.is_trainable else 'normal')
+            self.bias = self.variable(
+                name='bias', spec=TensorSpec(type='float', shape=(self.size,)), initializer='zeros',
+                is_trainable=self.vars_trainable, is_saved=True
             )
-
         else:
             self.bias = None
 
-    def tf_apply(self, x):
-        # shape = self.get_output_spec()['shape']
-        # if self.squeeze:
-        #     shape = shape + (1,)
-        # if not util.is_dtype(x=x, dtype='float') or util.shape(x=x)[1:] != shape:
-        #     raise TensorforceError("Invalid input tensor for generic layer: {}.".format(x))
-
+    @tf_function(num_args=1)
+    def apply(self, *, x):
         if self.bias is not None:
             x = tf.nn.bias_add(value=x, bias=self.bias)
 
@@ -231,339 +626,3 @@ class TransformationBase(Layer):
             x = self.dropout.apply(x=x)
 
         return x
-
-
-class TemporalLayer(Layer):
-    """
-    Base class for temporal layers, i.e. layers with a temporal dependency on previous states.
-    """
-
-    def __init__(
-        self, name, processing, dependency_horizon, input_spec=None, summary_labels=None,
-        l2_regularization=None, **kwargs
-    ):
-        """
-        Temporal layer constructor.
-
-        Args:
-            processing ('cumulative' | 'iterative'): Temporal processing type (**required**).
-            dependency_horizon (parameter, long >= 0): (**required**).
-            kwargs: Additional arguments for potential parent class.
-        """
-        super().__init__(
-            name=name, input_spec=input_spec, summary_labels=summary_labels,
-            l2_regularization=l2_regularization, **kwargs
-        )
-
-        if processing not in ('cumulative', 'iterative'):
-            raise TensorforceError.value(
-                name='temporal-layer', argument='processing', value=processing,
-                hint='not in {cumulative,iterative}'
-            )
-
-        self.processing = processing
-
-        self.dependency_horizon = self.add_module(
-            name='dependency-horizon', module=dependency_horizon, modules=parameter_modules,
-            is_trainable=False, dtype='long', min_value=0
-        )
-
-    def tf_apply(self, x, initial=None):
-        zero = tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
-        one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
-        dependency_starts = Module.retrieve_tensor(name='dependency_starts')
-        dependency_lengths = Module.retrieve_tensor(name='dependency_lengths')
-        if util.tf_dtype(dtype='long') in (tf.int32, tf.int64):
-            batch_size = tf.shape(input=dependency_starts, out_type=util.tf_dtype(dtype='long'))[0]
-        else:
-            batch_size = tf.dtypes.cast(
-                x=tf.shape(input=dependency_starts)[0], dtype=util.tf_dtype(dtype='long')
-            )
-        zeros = tf.zeros(shape=(batch_size,), dtype=util.tf_dtype(dtype='long'))
-        ones = tf.ones(shape=(batch_size,), dtype=util.tf_dtype(dtype='long'))
-        # maximum_iterations = tf.math.reduce_max(input_tensor=lengths, axis=0)
-        horizon = self.dependency_horizon.value() + one  # including 0th step
-        starts = dependency_starts + tf.maximum(x=(dependency_lengths - horizon), y=zeros)
-        lengths = dependency_lengths - tf.maximum(x=(dependency_lengths - horizon), y=zeros)
-        horizon = tf.minimum(x=horizon, y=tf.math.reduce_max(input_tensor=lengths, axis=0))
-
-        if self.processing == 'cumulative':
-
-            def body(indices, remaining, xs):
-                current_x = tf.gather(params=x, indices=indices)
-                current_x = tf.expand_dims(input=current_x, axis=1)
-                xs = tf.concat(values=(xs, current_x), axis=1)
-                remaining -= tf.where(condition=tf.math.equal(x=remaining, y=zeros), x=zeros, y=ones)
-                indices += tf.where(condition=tf.math.equal(x=remaining, y=zeros), x=zeros, y=ones)
-                return indices, remaining, xs
-
-            initial_xs = tf.zeros(
-                shape=((batch_size, 0) + self.output_spec['shape']),
-                dtype=util.tf_dtype(dtype=self.output_spec['type'])
-            )
-
-            final_indices, final_remaining, final_xs = self.while_loop(
-                cond=util.tf_always_true, body=body, loop_vars=(starts, lengths, initial_xs),
-                back_prop=True, maximum_iterations=horizon
-            )
-
-            # initial_xs = tf.gather(params=x, indices=starts)
-            # initial_xs = tf.expand_dims(input=initial_xs, axis=1)
-            # missing = tf.expand_dims(input=horizon, axis=0) - lengths
-            # missing -= tf.where(condition=tf.math.equal(x=missing, y=zeros), x=zeros, y=ones)
-            # starts += tf.where(condition=tf.math.equal(x=missing, y=zeros), x=ones, y=zeros)
-
-            # final_indices, final_counter, final_xs = self.while_loop(
-            #     cond=util.tf_always_true, body=body, loop_vars=(starts, missing, initial_xs),
-            #     back_prop=True, maximum_iterations=(horizon - one)
-            # )
-
-        elif self.processing == 'iterative':
-
-            def body(indices, remaining, current_x, current_aggregates):
-                current_x = tf.gather(params=x, indices=indices)
-                next_x, next_aggregates = self.iterative_step(
-                    x=current_x, previous=current_aggregates
-                )
-                with tf.control_dependencies(control_inputs=(current_x, next_x)):
-                    is_finished = tf.math.equal(x=remaining, y=zeros)
-                    if isinstance(next_aggregates, dict):
-                        for name, current_aggregate, next_aggregate in util.zip_items(
-                            current_aggregates, next_aggregates
-                        ):
-                            condition = is_finished
-                            for _ in range(util.rank(x=current_aggregate) - 1):
-                                condition = tf.expand_dims(input=condition, axis=1)
-                            next_aggregates[name] = tf.where(
-                                condition=condition, x=current_aggregate, y=next_aggregate
-                            )
-                    else:
-                        condition = is_finished
-                        for _ in range(util.rank(x=current_aggregates) - 1):
-                            condition = tf.expand_dims(input=condition, axis=1)
-                        next_aggregates = tf.where(
-                            condition=condition, x=current_aggregates, y=next_aggregates
-                        )
-                    remaining -= tf.where(condition=is_finished, x=zeros, y=ones)
-                    indices += tf.where(
-                        condition=tf.math.equal(x=remaining, y=zeros), x=zeros, y=ones
-                    )
-                return indices, remaining, next_x, next_aggregates
-
-            initial_x = tf.zeros(
-                shape=((batch_size,) + self.output_spec['shape']),
-                dtype=util.tf_dtype(dtype=self.output_spec['type'])
-            )
-
-            if initial is None:
-                initial_aggregates = self.initial_values()
-            else:
-                initial_aggregates = initial
-
-            final_indices, final_remaining, final_x, final_aggregates = self.while_loop(
-                cond=util.tf_always_true, body=body,
-                loop_vars=(starts, lengths, initial_x, initial_aggregates), back_prop=True,
-                maximum_iterations=horizon
-            )
-
-        # assertions = [
-        #     tf.debugging.assert_equal(
-        #         x=final_indices, y=(tf.math.cumsum(x=dependency_lengths) - ones)
-        #     ),
-        #     tf.debugging.assert_equal(
-        #         x=tf.math.reduce_sum(input_tensor=final_remaining, axis=0), y=zero
-        #     )
-        # ]
-
-        # with tf.control_dependencies(control_inputs=assertions):
-        if self.processing == 'cumulative':
-            return super().tf_apply(x=self.cumulative_apply(xs=final_xs))
-        elif self.processing == 'iterative':
-            if initial is None:
-                return util.identity_operation(x=super().tf_apply(x=final_x))
-            else:
-                return util.identity_operation(x=super().tf_apply(x=final_x)), final_aggregates
-
-    def tf_cumulative_apply(self, xs):
-        raise NotImplementedError
-
-    def tf_initial_values(self):
-        raise NotImplementedError
-
-    def tf_iterative_step(self, x, previous):
-        raise NotImplementedError
-
-    def create_tf_function(self, name, tf_function):
-        if tf_function.__name__ == 'tf_apply':
-
-            def validated_tf_function(x, initial=None):
-                if not util.is_consistent_with_value_spec(value_spec=self.input_spec, x=x):
-                    raise TensorforceError.value(name='layer.apply', argument='input', value=x)
-
-                # initial spec!
-
-                if initial is None:
-                    x = tf_function(x=x)
-                else:
-                    x, final = tf_function(x=x, initial=initial)
-
-                if not util.is_consistent_with_value_spec(value_spec=self.output_spec, x=x):
-                    raise TensorforceError.value(name='layer.apply', argument='output', value=x)
-
-                if initial is None:
-                    return x
-                else:
-                    return x, final
-
-            return super().create_tf_function(name=name, tf_function=validated_tf_function)
-
-        elif tf_function.__name__ == 'tf_cumulative_apply':
-
-            def validated_tf_function(xs):
-                x = xs[:, 0, :]
-                if not util.is_consistent_with_value_spec(value_spec=self.input_spec, x=x):
-                    raise TensorforceError.value(name='layer.apply', argument='input', value=x)
-
-                x = tf_function(xs=xs)
-
-                if not util.is_consistent_with_value_spec(value_spec=self.output_spec, x=x):
-                    raise TensorforceError.value(name='layer.apply', argument='output', value=x)
-
-                return x
-
-            return super().create_tf_function(name=name, tf_function=validated_tf_function)
-
-        elif tf_function.__name__ == 'tf_iterative_step':
-
-            def validated_tf_function(x, previous):
-                if not util.is_consistent_with_value_spec(value_spec=self.input_spec, x=x):
-                    raise TensorforceError.value(name='layer.apply', argument='input', value=x)
-
-                # previous spec!
-
-                x, previous = tf_function(x=x, previous=previous)
-
-                if not util.is_consistent_with_value_spec(value_spec=self.output_spec, x=x):
-                    raise TensorforceError.value(name='layer.apply', argument='output', value=x)
-
-                return x, previous
-
-            return super().create_tf_function(name=name, tf_function=validated_tf_function)
-
-        else:
-            return super().create_tf_function(name=name, tf_function=tf_function)
-
-
-class StatefulLayer(TemporalLayer):
-    """
-    Base class for stateful layers, i.e. layers with a temporally evolving internal state.
-    """
-
-    def __init__(
-        self, name, optimization_horizon, input_spec=None, summary_labels=None,
-        l2_regularization=None, **kwargs
-    ):
-        """
-        Stateful layer constructor.
-
-        Args:
-            optimization_horizon (parameter, long > 0): (**required**).
-            kwargs: Additional arguments for potential parent class.
-        """
-        super().__init__(
-            name=name, processing='iterative', dependency_horizon=optimization_horizon,
-            input_spec=input_spec, summary_labels=summary_labels,
-            l2_regularization=l2_regularization, **kwargs
-        )
-
-    @classmethod
-    def internals_spec(cls, layer=None, **kwargs):
-        raise NotImplementedError
-
-    def internals_init(self):
-        raise NotImplementedError
-
-    # internals spec below!
-
-    # def create_tf_function(self, name, tf_function):
-    #     # if name[-6:] != '.apply':
-    #     if tf_function.__name__ == 'tf_apply' or tf_function.__name__ == 'tf_apply_step':
-
-    #         def validated_tf_function(x, previous):
-    #             if not util.is_consistent_with_value_spec(value_spec=self.input_spec, x=x):
-    #                 raise TensorforceError("Invalid input arguments for tf_apply.")
-    #             if not all(
-    #                 util.is_consistent_with_value_spec(value_spec=spec, x=previous[name])
-    #                 for name, spec in self.__class__.internals_spec(layer=self).items()
-    #             ):
-    #                 raise TensorforceError("Invalid input arguments for tf_apply.")
-
-    #             x, previous = tf_function(x=x, previous=previous)
-
-    #             if not util.is_consistent_with_value_spec(value_spec=self.output_spec, x=x):
-    #                 raise TensorforceError("Invalid output arguments for tf_apply.")
-    #             if not all(
-    #                 util.is_consistent_with_value_spec(value_spec=spec, x=previous[name])
-    #                 for name, spec in self.__class__.internals_spec(layer=self).items()
-    #             ):
-    #                 raise TensorforceError("Invalid input arguments for tf_apply.")
-
-    #             return x, previous
-
-    #         return super().create_tf_function(name=name, tf_function=validated_tf_function)
-
-    #     else:
-    #         return super().create_tf_function(name=name, tf_function=tf_function)
-
-
-    # def tf_apply(self, x, **internals):
-
-    #     # optimization = tf.math.logical_not(x=Module.retrieve_tensor(name='???'))
-
-    #     # def true_fn():
-    #     batch_size = tf.shape(
-    #         input=next(iter(internals.values())), out_type=util.tf_dtype(dtype='long')
-    #     )[0]
-    #     zeros = tf.zeros(shape=(batch_size,), dtype=util.tf_dtype(dtype='long'))
-    #     ones = tf.ones(shape=(batch_size,), dtype=util.tf_dtype(dtype='long'))
-
-    #     def body(indices, remaining, current_x, current_internals):
-    #         current_x = tf.gather(params=x, indices=indices)
-    #         next_x, next_internals = self.apply_step(x=current_x, **current_internals)
-    #         is_finished = tf.math.equal(x=remaining, y=zeros)
-    #         for name, internal, next_internal in util.zip_items(current_internals, next_internals):
-    #             next_internals[name] = tf.where(
-    #                 condition=is_finished, x=internal, y=next_internal
-    #             )
-    #         remaining -= tf.where(condition=is_finished, x=zeros, y=ones)
-    #         indices += tf.where(condition=tf.math.equal(x=remaining, y=zeros), x=zeros, y=ones)
-    #         return indices, remaining, next_x, next_internals
-
-    #     starts = Module.retrieve_tensor(name='sequence_starts')
-    #     lengths = Module.retrieve_tensor(name='sequence_lengths')
-    #     initial_x = tf.gather(params=x, indices=starts)  # could be constant zeros!
-    #     maximum_iterations = tf.math.reduce_max(input_tensor=lengths, axis=0)
-    #     final_indices, final_remaining, final_x, final_internals = self.while_loop(
-    #         cond=util.tf_always_true, body=body, loop_vars=(starts, lengths, initial_x, internals),
-    #         back_prop=True, maximum_iterations=maximum_iterations
-    #     )
-
-    #     assertions = [
-    #         tf.debugging.assert_equal(x=final_indices, y=(tf.math.cumsum(x=lengths) - ones)),
-    #         tf.debugging.assert_equal(
-    #             x=tf.math.reduce_sum(input_tensor=final_remaining, axis=0),
-    #             y=tf.constant(value=0, dtype=util.tf_dtype(dtype='long'))
-    #         )
-    #     ]
-
-    #     with tf.control_dependencies(control_inputs=assertions):
-    #         return super().tf_apply(x=final_x), final_internals
-
-    #     # return final_x, final_internals
-
-    #     # def false_fn():
-    #     #     return self.apply_step(x=x, **internals)
-
-    #     # x, internals = self.cond(pred=optimization, true_fn=true_fn, false_fn=false_fn)
-
-    #     # return super().tf_apply(x=x), internals

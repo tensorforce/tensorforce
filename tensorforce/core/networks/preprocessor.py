@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,140 +13,97 @@
 # limitations under the License.
 # ==============================================================================
 
-from collections import Counter, OrderedDict
-
-import tensorflow as tf
-
-from tensorforce import TensorforceError, util
-from tensorforce.core import Module
-from tensorforce.core.layers import layer_modules, PreprocessingLayer, StatefulLayer, TemporalLayer
-from tensorforce.core.networks import LayerbasedNetwork
+from tensorforce import TensorforceError
+from tensorforce.core import SignatureDict, TensorDict, TensorSpec, TensorsSpec, tf_function, \
+    tf_util
+from tensorforce.core.layers import MultiInputLayer, PreprocessingLayer, Register, StatefulLayer
+from tensorforce.core.networks import LayeredNetwork
 
 
-class Preprocessor(LayerbasedNetwork):
+class Preprocessor(LayeredNetwork):
     """
     Special preprocessor network following a sequential layer-stack architecture, which can be
     specified as either a single or a list of layer specifications.
 
     Args:
-        name (string): Network name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
-        input_spec (specification): Input tensor specification
-            (<span style="color:#0000C0"><b>internal use</b></span>).
-        layers (iter[specification] | iter[iter[specification]]): Layers configuration, see
-            [layers](../modules/layers.html)
+        layers (iter[specification] | iter[iter[specification]]): Layers configuration, see the
+            [layers documentation](../modules/layers.html)
             (<span style="color:#C00000"><b>required</b></span>).
         device (string): Device name
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): <span style="color:#0000C0"><b>internal use</b></span>.
+        input_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(
-        self, name, input_spec, layers, device=None, summary_labels=None, l2_regularization=None
-    ):
+    def __init__(self, *, layers, device=None, l2_regularization=None, name=None, input_spec=None):
+        if not isinstance(input_spec, TensorSpec):
+            raise TensorforceError.type(
+                name='preprocessor', argument='inputs_spec', dtype=type(input_spec)
+            )
+
         super().__init__(
-            name=name, inputs_spec=input_spec, device=device, summary_labels=summary_labels,
-            l2_regularization=l2_regularization
+            layers=[layers], device=device, l2_regularization=l2_regularization, name=name,
+            inputs_spec=TensorsSpec(x=input_spec)
         )
 
-        if isinstance(layers, (dict, str)):
-            layers = [layers]
-
-        layer_counter = Counter()
-        for layer_spec in layers:
-            if 'name' in layer_spec:
-                layer_name = layer_spec['name']
-            else:
-                if isinstance(layer_spec, dict) and isinstance(layer_spec.get('type'), str):
-                    layer_type = layer_spec['type']
-                else:
-                    layer_type = 'layer'
-                layer_name = layer_type + str(layer_counter[layer_type])
-                layer_counter[layer_type] += 1
-
-            # layer_name = self.name + '-' + layer_name
-            self.add_module(name=layer_name, module=layer_spec)
-
-    @classmethod
-    def internals_spec(cls, network=None, **kwargs):
+    @property
+    def internals_spec(self):
         raise NotImplementedError
-
-    @classmethod
-    def output_spec(cls, input_spec, layers, **kwargs):
-        input_spec = dict(input_spec)
-        if isinstance(layers, (dict, str)):
-            layers = [layers]
-
-        layer_counter = Counter()
-        for layer_spec in layers:
-            if 'name' in layer_spec:
-                layer_name = layer_spec['name']
-            else:
-                if isinstance(layer_spec, dict) and isinstance(layer_spec.get('type'), str):
-                    layer_type = layer_spec['type']
-                else:
-                    layer_type = 'layer'
-                layer_name = layer_type + str(layer_counter[layer_type])
-                layer_counter[layer_type] += 1
-
-            layer_cls, first_arg, kwargs = Module.get_module_class_and_kwargs(
-                name=layer_name, module=layer_spec, modules=layer_modules, input_spec=input_spec
-            )
-            if first_arg is None:
-                input_spec = layer_cls.output_spec(**kwargs)
-            else:
-                input_spec = layer_cls.output_spec(first_arg, **kwargs)
-
-        return input_spec
 
     def internals_init(self):
         raise NotImplementedError
 
-    def add_module(self, *args, **kwargs):
-        layer = super().add_module(*args, **kwargs)
+    def max_past_horizon(self, *, on_policy):
+        raise NotImplementedError
 
-        if isinstance(layer, (TemporalLayer, StatefulLayer)):
-            raise TensorforceError.type(
-                name='preprocessor network', argument='sub-module', value=layer
-            )
+    def past_horizon(self, *, on_policy):
+        raise NotImplementedError
 
-        return layer
+    def input_signature(self, *, function):
+        if function == 'apply':
+            return self.inputs_spec.signature(batched=True)
 
-    def tf_reset(self):
+        elif function == 'reset':
+            return SignatureDict()
+
+        else:
+            return super().input_signature(function=function)
+
+    @tf_function(num_args=0)
+    def reset(self):
         operations = list()
-        for layer in self.modules.values():
+
+        for layer in self.layers:
             if isinstance(layer, PreprocessingLayer):
                 operations.append(layer.reset())
-        return tf.group(*operations)
 
-    def tf_apply(self, x):
-        for layer in self.modules.values():
-            x = layer.apply(x=x)
-        return x
+        if len(operations) > 0:
+            return tf_util.identity(input=operations[0])
+        else:
+            return tf_util.constant(value=False, dtype='bool')
 
-    def create_tf_function(self, name, tf_function):
-        if tf_function.__name__ != 'tf_apply':
-            return super().create_tf_function(name=name, tf_function=tf_function)
+    @tf_function(num_args=1)
+    def apply(self, *, x, independent):
+        registered_tensors = TensorDict(x=x)
 
-        def validated_tf_function(x):
-            if util.is_atomic_values_spec(values_spec=self.inputs_spec):
-                if not util.is_consistent_with_value_spec(value_spec=self.inputs_spec, x=x):
-                    raise TensorforceError("Invalid input arguments for tf_apply.")
+        for layer in self.layers:
+            if isinstance(layer, Register):
+                if layer.tensor in registered_tensors:
+                    raise TensorforceError.exists(name='registered tensor', value=layer.tensor)
+                x = layer.apply(x=x)
+                registered_tensors[layer.tensor] = x
+
+            elif isinstance(layer, MultiInputLayer):
+                if layer.tensors not in registered_tensors:
+                    raise TensorforceError.exists_not(name='registered tensor', value=layer.tensors)
+                x = layer.apply(x=registered_tensors[layer.tensors])
+
+            elif isinstance(layer, StatefulLayer):
+                x = layer.apply(x=x, independent=independent)
+
             else:
-                if not all(
-                    util.is_consistent_with_value_spec(value_spec=spec, x=x[name])
-                    for name, spec in self.inputs_spec.items()
-                ):
-                    raise TensorforceError("Invalid input arguments for tf_apply.")
+                x = layer.apply(x=x)
 
-            x = tf_function(x=x)
-
-            if not util.is_consistent_with_value_spec(value_spec=self.get_output_spec(), x=x):
-                raise TensorforceError("Invalid output arguments for tf_apply.")
-
-            return x
-
-        return super().create_tf_function(name=name, tf_function=validated_tf_function)
+        return x

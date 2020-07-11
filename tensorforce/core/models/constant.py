@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,12 +13,10 @@
 # limitations under the License.
 # ==============================================================================
 
-from collections import OrderedDict
-
-import numpy as np
 import tensorflow as tf
 
-from tensorforce import util
+from tensorforce import TensorforceError
+from tensorforce.core import TensorDict, tf_function, tf_util
 from tensorforce.core.models import Model
 
 
@@ -28,87 +26,84 @@ class ConstantModel(Model):
     """
 
     def __init__(
-        self,
-        # Model
-        name, device, parallel_interactions, buffer_observe, seed, summarizer, config, states,
-        actions,
-        # ConstantModel
-        action_values
+        self, *, states, actions, parallel_interactions, summarizer, config, action_values
     ):
         super().__init__(
-            # Model
-            name=name, device=None, parallel_interactions=parallel_interactions,
-            buffer_observe=buffer_observe, seed=seed, execution=None, saver=None,
-            summarizer=summarizer, config=config, states=states, internals=OrderedDict(),
-            actions=actions, preprocessing=None, exploration=0.0, variable_noise=0.0,
-            l2_regularization=0.0
+            states=states, actions=actions, l2_regularization=0.0,
+            parallel_interactions=parallel_interactions, saver=None, summarizer=summarizer,
+            config=config
         )
 
-        # check values
-        self.action_values = action_values
+        self.action_values = dict()
+        if action_values is not None:
+            for name, spec in self.actions_spec.items():
+                if name not in action_values:
+                    continue
+                value = spec.py_type()(action_values[name])
+                if spec.type != 'bool' and spec.min_value is not None and value < spec.min_value:
+                    raise TensorforceError.value(
+                        name='ConstantAgent', argument='action_values[{}]'.format(name),
+                        value=value, hint='> max_value'
+                    )
+                if spec.type != 'bool' and spec.max_value is not None and value > spec.max_value:
+                    raise TensorforceError.value(
+                        name='ConstantAgent', argument='action_values[{}]'.format(name),
+                        value=value, hint='> max_value'
+                    )
+                self.action_values[name] = value
 
-    def tf_core_act(self, states, internals, auxiliaries):
+    @tf_function(num_args=4)
+    def core_act(self, *, states, internals, auxiliaries, parallel, independent):
         assert len(internals) == 0
 
-        actions = OrderedDict()
+        actions = TensorDict()
         for name, spec in self.actions_spec.items():
-            some_state = next(iter(states.values()))
-            if util.tf_dtype(dtype='int') in (tf.int32, tf.int64):
-                batch_size = tf.shape(input=some_state, out_type=util.tf_dtype(dtype='int'))[0:1]
-            else:
-                batch_size = tf.dtypes.cast(
-                    x=tf.shape(input=some_state)[0:1], dtype=util.tf_dtype(dtype='int')
+            shape = tf.concat(values=(
+                tf_util.cast(x=tf.shape(input=states.value())[:1], dtype='int'),
+                tf_util.constant(value=spec.shape, dtype='int')
+            ), axis=0)
+
+            if self.action_values is not None and name in self.action_values:
+                # If user-specified, choose given action
+                action = tf_util.constant(value=self.action_values[name], dtype=spec.type)
+                actions[name] = tf.fill(dims=shape, value=action)
+
+            elif self.config.enable_int_action_masking and spec.type == 'int' and \
+                    spec.num_values is not None:
+                # If masking, choose first unmasked action
+                mask = auxiliaries[name]['mask']
+                choices = tf_util.constant(
+                    value=list(range(spec.num_values)), dtype='int',
+                    shape=(tuple(1 for _ in spec.shape) + (1, spec.num_values))
                 )
-            shape = tf.constant(value=spec['shape'], dtype=util.tf_dtype(dtype='int'))
-            shape = tf.concat(values=(batch_size, shape), axis=0)
-            dtype = util.tf_dtype(dtype=spec['type'])
-
-            if spec['type'] == 'int':
-                # Action choices
-                int_dtype = util.tf_dtype(dtype='int')
-                choices = list(range(spec['num_values']))
-                choices_tile = ((1,) + spec['shape'] + (1,))
-                choices = np.tile(A=[choices], reps=choices_tile)
-                choices_shape = ((1,) + spec['shape'] + (spec['num_values'],))
-                choices = tf.constant(value=choices, dtype=int_dtype, shape=choices_shape)
-                ones = tf.ones(shape=(len(spec['shape']) + 1,), dtype=int_dtype)
-                batch_size = tf.dtypes.cast(x=shape[0:1], dtype=int_dtype)
-                multiples = tf.concat(values=(batch_size, ones), axis=0)
+                one = tf_util.constant(value=1, dtype='int', shape=(1,))
+                multiples = tf.concat(values=(shape, one), axis=0)
                 choices = tf.tile(input=choices, multiples=multiples)
-
-                # First unmasked action
-                mask = auxiliaries[name + '_mask']
-                num_values = tf.math.count_nonzero(input=mask, axis=-1, dtype=int_dtype)
-                offset = tf.math.cumsum(x=num_values, axis=-1, exclusive=True)
-                if self.action_values is not None and name in self.action_values:
-                    action = self.action_values[name]
-                    num_values = tf.math.count_nonzero(
-                        input=mask[..., :action], axis=-1, dtype=int_dtype
-                    )
-                    action = tf.math.cumsum(x=num_values, axis=-1, exclusive=True)
-                else:
-                    action = tf.zeros_like(input=offset)
                 choices = tf.boolean_mask(tensor=choices, mask=mask)
-                actions[name] = tf.gather(params=choices, indices=(action + offset))
+                mask = tf_util.cast(x=mask, dtype='int')
+                num_unmasked = tf.math.reduce_sum(input_tensor=mask, axis=(spec.rank + 1))
+                masked_offset = tf.math.cumsum(x=num_unmasked, axis=spec.rank, exclusive=True)
+                actions[name] = tf.gather(params=choices, indices=masked_offset)
 
-            elif spec['type'] == 'float' and 'min_value' in spec:
-                min_value = spec['min_value']
-                max_value = spec['max_value']
-                if self.action_values is not None and name in self.action_values:
-                    assert min_value <= self.action_values[name] <= max_value
-                    action = self.action_values[name]
+            elif spec.type != 'bool' and spec.min_value is not None:
+                if spec.max_value is not None:
+                    # If min/max_value given, choose mean action
+                    action = spec.min_value + 0.5 * (spec.max_value - spec.min_value)
+                    action = tf_util.constant(value=action, dtype=spec.type)
+                    actions[name] = tf.fill(dims=shape, value=action)
+
                 else:
-                    action = min_value + 0.5 * (max_value - min_value)
-                actions[name] = tf.fill(dims=shape, value=tf.constant(value=action, dtype=dtype))
+                    # If only min_value given, choose min_value
+                    action = tf_util.constant(value=spec.min_value, dtype=spec.type)
+                    actions[name] = tf.fill(dims=shape, value=action)
 
-            elif self.action_values is not None and name in self.action_values:
-                value = self.action_values[name]
-                actions[name] = tf.fill(dims=shape, value=tf.constant(value=value, dtype=dtype))
+            elif spec.type != 'bool' and spec.max_value is not None:
+                # If only max_value given, choose max_value
+                action = tf_util.constant(value=spec.max_value, dtype=spec.type)
+                actions[name] = tf.fill(dims=shape, value=action)
 
             else:
-                actions[name] = tf.zeros(shape=shape, dtype=dtype)
+                # Else choose zero
+                actions[name] = tf_util.zeros(shape=shape, dtype=spec.type)
 
-        return actions, OrderedDict()
-
-    def tf_core_observe(self, states, internals, auxiliaries, actions, terminal, reward):
-        return util.no_operation()
+        return actions, TensorDict()

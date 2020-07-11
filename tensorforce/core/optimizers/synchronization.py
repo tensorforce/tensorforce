@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,56 +15,57 @@
 
 import tensorflow as tf
 
-from tensorforce import util
-from tensorforce.core import Module, parameter_modules
+from tensorforce.core import parameter_modules, TensorSpec, tf_function, tf_util
 from tensorforce.core.optimizers import Optimizer
 
 
 class Synchronization(Optimizer):
     """
-    Synchronization optimizer, which updates variables periodically to the value of a corresponding  
+    Synchronization optimizer, which updates variables periodically to the value of a corresponding
     set of source variables (specification key: `synchronization`).
 
     Args:
-        name (string): Module name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         optimizer (specification): Optimizer configuration
             (<span style="color:#C00000"><b>required</b></span>).
         sync_frequency (parameter, int >= 1): Interval between updates which also perform a
             synchronization step (<span style="color:#00C000"><b>default</b></span>: every update).
         update_weight (parameter, 0.0 <= float <= 1.0): Update weight
             (<span style="color:#00C000"><b>default</b></span>: 1.0).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
+        arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(self, name, sync_frequency=1, update_weight=1.0, summary_labels=None):
-        super().__init__(name=name, summary_labels=summary_labels)
+    def __init__(self, *, sync_frequency=1, update_weight=1.0, name=None, arguments_spec=None):
+        super().__init__(name=name, arguments_spec=arguments_spec)
 
-        self.sync_frequency = self.add_module(
-            name='sync-frequency', module=sync_frequency, modules=parameter_modules, dtype='long',
+        self.sync_frequency = self.submodule(
+            name='sync_frequency', module=sync_frequency, modules=parameter_modules, dtype='int',
             min_value=1
         )
 
-        self.update_weight = self.add_module(
-            name='update-weight', module=update_weight, modules=parameter_modules, dtype='float',
+        self.update_weight = self.submodule(
+            name='update_weight', module=update_weight, modules=parameter_modules, dtype='float',
             min_value=0.0, max_value=1.0
         )
 
-    def tf_initialize(self):
-        super().tf_initialize()
+    def initialize(self):
+        super().initialize()
 
-        self.next_sync = self.add_variable(
-            name='next-sync', dtype='long', shape=(), is_trainable=False
+        self.next_sync = self.variable(
+            name='next-sync', spec=TensorSpec(type='int'), initializer='zeros', is_trainable=False,
+            is_saved=True
         )
 
-    def tf_step(self, variables, source_variables, **kwargs):
+    @tf_function(num_args=1)
+    def step(self, *, arguments, variables, **kwargs):
+        source_variables = kwargs['source_variables']
+
         assert all(
-            util.shape(source) == util.shape(target)
+            tf_util.shape(x=source) == tf_util.shape(x=target)
             for source, target in zip(source_variables, variables)
         )
 
-        one = tf.constant(value=1, dtype=util.tf_dtype(dtype='long'))
+        one = tf_util.constant(value=1, dtype='int')
 
         def apply_sync():
             next_sync_updated = self.next_sync.assign(
@@ -74,14 +75,15 @@ class Synchronization(Optimizer):
             with tf.control_dependencies(control_inputs=(next_sync_updated,)):
                 update_weight = self.update_weight.value()
                 deltas = list()
+                assignments = list()
                 for source_variable, target_variable in zip(source_variables, variables):
                     delta = update_weight * (source_variable - target_variable)
                     deltas.append(delta)
-                applied = self.apply_step(variables=variables, deltas=deltas)
+                    assignments.append(target_variable.assign_add(delta=delta, read_value=False))
 
-            with tf.control_dependencies(control_inputs=(applied,)):
+            with tf.control_dependencies(control_inputs=assignments):
                 # Trivial operation to enforce control dependency
-                return util.fmap(function=util.identity_operation, xs=deltas)
+                return [tf_util.identity(input=delta) for delta in deltas]
 
         def no_sync():
             next_sync_updated = self.next_sync.assign_sub(delta=one, read_value=False)
@@ -89,12 +91,10 @@ class Synchronization(Optimizer):
             with tf.control_dependencies(control_inputs=(next_sync_updated,)):
                 deltas = list()
                 for variable in variables:
-                    delta = tf.zeros(
-                        shape=util.shape(variable), dtype=util.tf_dtype(dtype='float')
-                    )
+                    delta = tf_util.zeros(shape=tf_util.shape(x=variable), dtype='float')
                     deltas.append(delta)
                 return deltas
 
         skip_sync = tf.math.greater(x=self.next_sync, y=one)
 
-        return self.cond(pred=skip_sync, true_fn=no_sync, false_fn=apply_sync)
+        return tf.cond(pred=skip_sync, true_fn=no_sync, false_fn=apply_sync)

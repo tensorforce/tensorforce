@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,8 +15,7 @@
 
 import tensorflow as tf
 
-from tensorforce import TensorforceError, util
-from tensorforce.core import Module
+from tensorforce.core import Module, SignatureDict, tf_function, tf_util
 
 
 class Optimizer(Module):
@@ -24,76 +23,104 @@ class Optimizer(Module):
     Base class for optimizers.
 
     Args:
-        name (string): Module name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
+        arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(self, name, summary_labels=None):
-        super().__init__(name=name, summary_labels=summary_labels)
+    def __init__(self, *, name=None, arguments_spec=None):
+        super().__init__(name=name)
 
-    def tf_step(self, variables, **kwargs):
+        self.arguments_spec = arguments_spec
+
+        self.is_initialized_given_variables = False
+
+    def initialize(self):
+        super().initialize()
+
+        name = self.name[:self.name.index('_')] + '-update/norm'
+        self.register_summary(label='update-norm', name=name)
+
+    def initialize_given_variables(self, *, variables, register_summaries):
+        assert not self.root.is_initialized and not self.is_initialized_given_variables
+
+        for module in self.this_submodules:
+            if isinstance(module, Optimizer):
+                module.initialize_given_variables(variables=variables, register_summaries=False)
+
+        if register_summaries:
+            assert self.is_initialized
+            self.is_initialized = False
+            prefix = self.name[:self.name.index('_')] + '-updates/'
+            names = list()
+            for variable in variables:
+                assert variable.name.startswith(self.root.name + '/') and variable.name[-2:] == ':0'
+                names.append(prefix + variable.name[len(self.root.name) + 1: -2] + '-mean')
+                names.append(prefix + variable.name[len(self.root.name) + 1: -2] + '-variance')
+            self.register_summary(label='updates', name=names)
+            self.is_initialized = True
+
+        self.is_initialized_given_variables = True
+
+    def input_signature(self, *, function):
+        if function == 'step' or function == 'update':
+            return SignatureDict(arguments=self.arguments_spec.signature(batched=True))
+
+        else:
+            return super().input_signature(function=function)
+
+    @tf_function(num_args=1)
+    def step(self, *, arguments, variables, **kwargs):
         raise NotImplementedError
 
-    def tf_apply_step(self, variables, deltas):
-        if len(variables) != len(deltas):
-            raise TensorforceError("Invalid variables and deltas lists.")
+    @tf_function(num_args=1)
+    def update(self, *, arguments, variables, **kwargs):
+        assert self.is_initialized_given_variables
+        assert all(variable.dtype.is_floating for variable in variables)
 
-        assignments = list()
-        for variable, delta in zip(variables, deltas):
-            assignments.append(variable.assign_add(delta=delta, read_value=False))
+        deltas = self.step(arguments=arguments, variables=variables, **kwargs)
+        dependencies = list(deltas)
 
-        with tf.control_dependencies(control_inputs=assignments):
-            return util.no_operation()
-
-    def tf_minimize(self, variables, **kwargs):
-        if any(variable.dtype != util.tf_dtype(dtype='float') for variable in variables):
-            raise TensorforceError.unexpected()
-
-        deltas = self.step(variables=variables, **kwargs)
-
-        update_norm = tf.linalg.global_norm(t_list=deltas)
-        deltas = self.add_summary(
-            label='update-norm', name='update-norm', tensor=update_norm, pass_tensors=deltas
-        )
-
-        for n in range(len(variables)):
-            name = variables[n].name
-            if name[-2:] != ':0':
-                raise TensorforceError.unexpected()
-            deltas[n] = self.add_summary(
-                label='updates', name=('update-' + name[:-2]), tensor=deltas[n], mean_variance=True
-            )
-            deltas[n] = self.add_summary(
-                label='updates-histogram', name=('update-' + name[:-2]), tensor=deltas[n]
+        def fn_summary():
+            return tf.linalg.global_norm(
+                t_list=[tf_util.cast(x=delta, dtype='float') for delta in deltas]
             )
 
-        # TODO: experimental
-        # with tf.control_dependencies(control_inputs=deltas):
-        #     zero = tf.constant(value=0.0, dtype=util.tf_dtype(dtype='float'))
-        #     false = tf.constant(value=False, dtype=util.tf_dtype(dtype='bool'))
-        #     deltas = [self.cond(
-        #         pred=tf.math.reduce_all(input_tensor=tf.math.equal(x=delta, y=zero)),
-        #         true_fn=(lambda: tf.Print(delta, (variable.name,))),
-        #         false_fn=(lambda: delta)) for delta, variable in zip(deltas, variables)
-        #     ]
-        #     assertions = [
-        #         tf.debugging.assert_equal(
-        #             x=tf.math.reduce_all(input_tensor=tf.math.equal(x=delta, y=zero)), y=false,
-        #             message="Zero delta check."
-        #         ) for delta, variable in zip(deltas, variables)
-        #         if util.product(xs=util.shape(x=delta)) > 4 and 'distribution' not in variable.name
-        #     ]
+        assertions = list(deltas)
+        # if self.config.create_debug_assertions:
+        #     if self.__class__.__name__ != 'Synchronization':
+        #         for delta, variable in zip(deltas, variables):
+        #             if variable.shape.num_elements() <= 4:
+        #                 continue
+        #             if '/policy/' in variable.name and '_distribution/' in variable.name:
+        #                 continue
+        #             assertions.append(tf.debugging.assert_equal(
+        #                 x=tf.math.reduce_any(
+        #                     input_tensor=tf.math.not_equal(x=delta, y=tf.zeros_like(input=delta))
+        #                 ), y=tf_util.constant(value=True, dtype='bool'), message=variable.name
+        #             ))
 
-        # with tf.control_dependencies(control_inputs=assertions):
-        with tf.control_dependencies(control_inputs=deltas):
-            return util.no_operation()
-
-    def add_variable(self, name, dtype, shape, is_trainable=False, initializer='zeros'):
-        if is_trainable:
-            raise TensorforceError("Invalid trainable variable.")
-
-        return super().add_variable(
-            name=name, dtype=dtype, shape=shape, is_trainable=is_trainable, initializer=initializer
+        name = self.name[:self.name.index('_')] + '-update/norm'
+        dependencies.extend(
+            self.summary(label='update-norm', name=name, data=fn_summary, step='updates')
         )
+
+        with tf.control_dependencies(control_inputs=assertions):
+
+            def fn_summary():
+                xs = list()
+                for variable in variables:
+                    xs.extend(tf.nn.moments(x=variable, axes=list(range(tf_util.rank(x=variable)))))
+                return xs
+
+            prefix = self.name[:self.name.index('_')] + '-updates/'
+            names = list()
+            for variable in variables:
+                assert variable.name.startswith(self.root.name + '/') and variable.name[-2:] == ':0'
+                names.append(prefix + variable.name[len(self.root.name) + 1: -2] + '-mean')
+                names.append(prefix + variable.name[len(self.root.name) + 1: -2] + '-variance')
+            dependencies.extend(
+                self.summary(label='updates', name=names, data=fn_summary, step='updates')
+            )
+
+        with tf.control_dependencies(control_inputs=dependencies):
+            return tf_util.identity(input=tf_util.constant(value=True, dtype='bool'))

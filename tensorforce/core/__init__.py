@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,7 +13,13 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce.core.module import Module
+# utils
+from tensorforce.core.utils import ArrayDict, ListDict, ModuleDict, NestedDict, SignatureDict, \
+    TensorDict, TensorSpec, TensorsSpec, tf_util, VariableDict
+
+# Basics
+from tensorforce.core.config import TensorforceConfig
+from tensorforce.core.module import Module, tf_function  # TODO: part of Module
 from tensorforce.core.parameters import parameter_modules
 
 # Require parameter_modules
@@ -27,9 +33,12 @@ from tensorforce.core.distributions import distribution_modules
 from tensorforce.core.networks import network_modules
 
 # Require network_modules
+from tensorforce.core.policies import policy_modules
+
+# TODO: import models?
 
 
 __all__ = [
     'distribution_modules', 'layer_modules', 'memory_modules', 'Module', 'network_modules',
-    'optimizer_modules', 'parameter_modules'
+    'objective_modules', 'optimizer_modules', 'parameter_modules', 'policy_modules', 'tf_function'
 ]

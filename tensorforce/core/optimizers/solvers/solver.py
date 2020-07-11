@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,17 +18,17 @@ from tensorforce.core import Module
 
 class Solver(Module):
     """
-    Generic TensorFlow-based solver which solves a not yet further specified  
-    equation/optimization problem.
+    Generic TensorFlow-based solver which solves a not yet further specified equation/optimization
+    problem.
     """
 
-    def tf_solve(self, fn_x, *args):
+    def solve(self, *args, fn_x=None):
         """
         Solves an equation/optimization for $x$ involving an expression $f(x)$.
 
         Args:
-            fn_x: A callable returning an expression $f(x)$ given $x$.
             *args: Additional solver-specific arguments.
+            fn_x: A callable returning an expression $f(x)$ given $x$.
 
         Returns:
             A solution $x$ to the problem as given by the solver.

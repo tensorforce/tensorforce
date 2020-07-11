@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 
 import unittest
 
+from tensorforce.core import tf_function
 from tensorforce.core.memories import Replay
 from tensorforce.core.networks import LayerbasedNetwork
 from test.unittest_base import UnittestBase
@@ -25,10 +26,11 @@ class TestNetwork(LayerbasedNetwork):
     def __init__(self, name, inputs_spec):
         super().__init__(name=name, inputs_spec=inputs_spec)
 
-        self.layer1 = self.add_module(name='dense0', module=dict(type='dense', size=8))
-        self.layer2 = self.add_module(name='dense1', module=dict(type='dense', size=8))
+        self.layer1 = self.submodule(name='dense0', module=dict(type='dense', size=8))
+        self.layer2 = self.submodule(name='dense1', module=dict(type='dense', size=8))
 
-    def tf_apply(self, x, internals, return_internals=False):
+    @tf_function(num_args=3)
+    def apply(self, x, horizons, internals, independent, return_internals):
         x = self.layer2.apply(x=self.layer1.apply(x=next(iter(x.values()))))
         if return_internals:
             return x, dict()

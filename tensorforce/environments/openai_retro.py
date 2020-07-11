@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -46,14 +46,14 @@ class OpenAIRetro(OpenAIGym):
     def create_level(cls, level, max_episode_steps, reward_threshold, tags, **kwargs):
         import retro
 
-        assert max_episode_steps is False and reward_threshold is None and tags is None
+        assert max_episode_steps is None and reward_threshold is None and tags is None
 
-        return retro.make(game=level, **kwargs), max_episode_steps
+        return retro.make(game=level, **kwargs), None
 
     def __init__(self, level, visualize=False, visualize_directory=None, **kwargs):
         import retro
 
         super().__init__(
-            level=level, visualize=visualize, max_episode_steps=False, terminal_reward=0.0,
+            level=level, visualize=visualize, max_episode_steps=None, terminal_reward=0.0,
             reward_threshold=None, tags=None, visualize_directory=visualize_directory, **kwargs
         )

@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,30 +20,25 @@ from test.unittest_base import UnittestBase
 
 class TestOptimizers(UnittestBase, unittest.TestCase):
 
-    require_observe = True
-
     def test_evolutionary(self):
         self.start_tests(name='evolutionary')
 
-        optimizer = dict(type='evolutionary', learning_rate=1e-3)
-        self.unittest(optimizer=optimizer)
+        self.unittest(optimizer=dict(type='evolutionary', learning_rate=1e-3))
 
-    def test_meta_optimizer_wrapper(self):
-        self.start_tests(name='meta-optimizer-wrapper')
+    def test_optimizer_wrapper(self):
+        self.start_tests(name='optimizer-wrapper')
 
-        optimizer = dict(
-            optimizer='adam', learning_rate=1e-3, multi_step=5, subsampling_fraction=0.5,
-            clipping_threshold=1e-2, optimizing_iterations=3
-        )
-        self.unittest(optimizer=optimizer)
-        # agent.close()
-        # environment.close()
+        self.unittest(optimizer=dict(
+            optimizer='adam', learning_rate=1e-3, clipping_threshold=1e-2, multi_step=5,
+            linesearch_iterations=3, subsampling_fraction=0.5
+        ))
+
+        self.unittest(optimizer=dict(optimizer='adam', subsampling_fraction=2))
 
     def test_natural_gradient(self):
         self.start_tests(name='natural-gradient')
 
-        optimizer = dict(type='natural_gradient', learning_rate=1e-3)
-        self.unittest(optimizer=optimizer)
+        self.unittest(optimizer=dict(type='natural_gradient', learning_rate=1e-3))
 
     def test_plus(self):
         self.start_tests(name='plus')
@@ -57,26 +52,25 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
     def test_synchronization(self):
         self.start_tests(name='synchronization')
 
-        optimizer = dict(type='synchronization')
         self.unittest(
-            baseline_policy=dict(network=dict(type='auto', size=8, depth=1, internal_rnn=2)),
-            baseline_optimizer=optimizer
+            policy=dict(network=dict(type='auto', size=8, depth=1, rnn=2)),
+            optimizer='synchronization',
+            baseline_policy=dict(network=dict(type='auto', size=8, depth=1, rnn=1)),
+            baseline_optimizer='adam', baseline_objective='policy_gradient'
         )
 
     def test_tf_optimizer(self):
         self.start_tests(name='tf-optimizer')
 
-        optimizer = dict(type='adam', learning_rate=1e-3)
-        self.unittest(optimizer=optimizer)
+        self.unittest(optimizer=dict(type='adam', learning_rate=1e-3))
 
         try:
             import tensorflow_addons as tfa
 
-            optimizer = dict(
-                type='radam', learning_rate=1e-3, decoupled_weight_decay=0.01, lookahead=True,
-                moving_average=True
-            )
-            self.unittest(optimizer=optimizer)
+            self.unittest(optimizer=dict(
+                type='tf_optimizer', optimizer='radam', learning_rate=1e-3,
+                decoupled_weight_decay=0.01, lookahead=True, moving_average=True
+            ))
 
         except ModuleNotFoundError:
             pass

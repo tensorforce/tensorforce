@@ -1,5 +1,5 @@
-Environment interface
-=====================
+General environment interface
+=============================
 
 Initialization and termination
 ------------------------------
@@ -7,7 +7,7 @@ Initialization and termination
 .. automethod:: tensorforce.environments.Environment.create
 .. automethod:: tensorforce.environments.Environment.close
 
-Attributes
+Properties
 ----------
 
 .. automethod:: tensorforce.environments.Environment.states

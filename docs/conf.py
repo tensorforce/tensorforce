@@ -42,7 +42,7 @@ import tensorforce
 extensions = [
     'recommonmark',
     'sphinx.ext.autodoc', 'sphinx.ext.autosummary', 'sphinx.ext.doctest', 'sphinx.ext.todo',
-    'sphinx.ext.coverage', 'sphinx.ext.viewcode', 'sphinx.ext.githubpages', 'sphinx.ext.napoleon'
+    'sphinx.ext.coverage', 'sphinx.ext.githubpages', 'sphinx.ext.napoleon'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -51,9 +51,6 @@ templates_path = ['_templates']
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
 source_suffix = ['.rst', '.md']
-
-# # Source parsers.
-# source_parsers = {'.md': 'recommonmark.parser.CommonMarkParser'}
 
 # The master toctree document.
 master_doc = 'index'

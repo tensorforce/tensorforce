@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import numpy as np
 
 from tensorforce import TensorforceError, util
 from tensorforce.agents import Agent
+from tensorforce.core import ArrayDict
 from tensorforce.core.models import TensorforceModel
 
 
@@ -36,7 +37,7 @@ class TensorforceAgent(Agent):
     Args:
         states (specification): States specification
             (<span style="color:#C00000"><b>required</b></span>, better implicitly specified via
-            `environment` argument for `Agent.create(...)`), arbitrarily nested dictionary of state
+            `environment` argument for `Agent.create()`), arbitrarily nested dictionary of state
             descriptions (usually taken from `Environment.states()`) with the following attributes:
             <ul>
             <li><b>type</b> (<i>"bool" | "int" | "float"</i>) &ndash; state data type
@@ -50,7 +51,7 @@ class TensorforceAgent(Agent):
             </ul>
         actions (specification): Actions specification
             (<span style="color:#C00000"><b>required</b></span>, better implicitly specified via
-            `environment` argument for `Agent.create(...)`), arbitrarily nested dictionary of
+            `environment` argument for `Agent.create()`), arbitrarily nested dictionary of
             action descriptions (usually taken from `Environment.actions()`) with the following
             attributes:
             <ul>
@@ -65,13 +66,14 @@ class TensorforceAgent(Agent):
             </ul>
         max_episode_timesteps (int > 0): Upper bound for numer of timesteps per episode
             (<span style="color:#00C000"><b>default</b></span>: not given, better implicitly
-            specified via `environment` argument for `Agent.create(...)`).
+            specified via `environment` argument for `Agent.create()`).
 
-        policy (specification): Policy configuration, see [policies](../modules/policies.html)
+        policy (specification): Policy configuration, see the
+            [policies documentation](../modules/policies.html)
             (<span style="color:#00C000"><b>default</b></span>: "default", action distributions
             parametrized by an automatically configured network).
-        memory (int | specification): Memory configuration, see
-            [memories](../modules/memories.html)
+        memory (int | specification): Memory configuration, see the
+            [memories documentation](../modules/memories.html)
             (<span style="color:#00C000"><b>default</b></span>: replay memory with either given or
             minimum capacity).
         update (int | specification): Model update configuration with the following attributes
@@ -80,154 +82,177 @@ class TensorforceAgent(Agent):
             <ul>
             <li><b>unit</b> (<i>"timesteps" | "episodes"</i>) &ndash; unit for update attributes
             (<span style="color:#C00000"><b>required</b></span>).</li>
-            <li><b>batch_size</b> (<i>parameter, long > 0</i>) &ndash; size of update batch in
-            number of units (<span style="color:#C00000"><b>required</b></span>).</li>
-            <li><b>frequency</b> (<i>"never" | parameter, long > 0</i>) &ndash; frequency of
-            updates (<span style="color:#00C000"><b>default</b></span>: batch_size).</li>
-            <li><b>start</b> (<i>parameter, long >= batch_size</i>) &ndash; number of units
-            before first update (<span style="color:#00C000"><b>default</b></span>: none).</li>
+            <li><b>batch_size</b>
+            (<i><a href="../modules/parameters.html">parameter</a>, int > 0</i>) &ndash;
+            size of update batch in number of units
+            (<span style="color:#C00000"><b>required</b></span>).</li>
+            <li><b>frequency</b>
+            (<i>"never" | <a href="../modules/parameters.html">parameter</a>, int > 0</i>) &ndash;
+            frequency of updates
+            (<span style="color:#00C000"><b>default</b></span>: batch_size).</li>
+            <li><b>start</b>
+            (<i><a href="../modules/parameters.html">parameter</a>, int >= batch_size</i>) &ndash;
+            number of units before first update
+            (<span style="color:#00C000"><b>default</b></span>: none).</li>
             </ul>
-        optimizer (specification): Optimizer configuration, see
-            [optimizers](../modules/optimizers.html)
+        optimizer (specification): Optimizer configuration, see the
+            [optimizers documentation](../modules/optimizers.html)
             (<span style="color:#00C000"><b>default</b></span>: Adam optimizer).
-        objective (specification): Optimization objective configuration, see
-            [objectives](../modules/objectives.html)
+        objective (specification): Optimization objective configuration, see the
+            [objectives documentation](../modules/objectives.html)
             (<span style="color:#C00000"><b>required</b></span>).
         reward_estimation (specification): Reward estimation configuration with the following
             attributes (<span style="color:#C00000"><b>required</b></span>):
             <ul>
-            <li><b>horizon</b> (<i>"episode" | parameter, long >= 0</i>) &ndash; Horizon of
-            discounted-sum reward estimation
+            <li><b>horizon</b>
+            (<i>"episode" | <a href="../modules/parameters.html">parameter</a>, int >= 1</i>)
+            &ndash; Horizon of discounted-sum reward estimation
             (<span style="color:#C00000"><b>required</b></span>).</li>
-            <li><b>discount</b> (<i>parameter, 0.0 <= float <= 1.0</i>) &ndash; Discount factor for
-            future rewards of discounted-sum reward estimation
+            <li><b>discount</b>
+            (<i><a href="../modules/parameters.html">parameter</a>, 0.0 <= float <= 1.0</i>) &ndash;
+            Discount factor for future rewards of discounted-sum reward estimation
             (<span style="color:#00C000"><b>default</b></span>: 1.0).</li>
-            <li><b>estimate_horizon</b> (<i>false | "early" | "late"</i>) &ndash; Whether to
-            estimate the value of horizon states, and if so, whether to estimate early when
-            experience is stored, or late when it is retrieved
-            (<span style="color:#00C000"><b>default</b></span>: "late" if any of the baseline_*
-            arguments is specified, else false).</li>
-            <li><b>estimate_actions</b> (<i>bool</i>) &ndash; Whether to estimate state-action
-            values instead of state values
-            (<span style="color:#00C000"><b>default</b></span>: false).</li>
-            <li><b>estimate_terminal</b> (<i>bool</i>) &ndash; Whether to estimate the value of
-            (real) terminal states (<span style="color:#00C000"><b>default</b></span>: false).</li>
+            <li><b>estimate_horizon</b> (<i>false | "early" | "late"</i>) &ndash; Whether to include
+            a baseline estimate of the horizon value as part of the return estimation, and if so,
+            whether to compute the estimate early when experiences are stored to memory, or late
+            when batches of experience are retrieved for optimization
+            (<span style="color:#00C000"><b>default</b></span>: "late" if baseline_policy or
+            baseline_objective are specified, else false).</li>
             <li><b>estimate_advantage</b> (<i>bool</i>) &ndash; Whether to estimate the advantage
-            by subtracting the current estimate
+            instead of the return by subtracting the baseline value estimate from the return
+            (<span style="color:#00C000"><b>default</b></span>: false, unless baseline_policy is
+            specified but baseline_objective/optimizer are not).</li>
+            <li><b>estimate_action_values</b> (<i>bool</i>) &ndash; Whether to estimate state-action
+            instead of state values for the horizon and advantage estimate
+            (<span style="color:#00C000"><b>default</b></span>: false).</li>
+            <li><b>predict_terminal_values</b> (<i>bool</i>) &ndash; Whether to predict the value of
+            terminal states
             (<span style="color:#00C000"><b>default</b></span>: false).</li>
             </ul>
 
         baseline_policy (specification): Baseline policy configuration, main policy will be used as
             baseline if none
             (<span style="color:#00C000"><b>default</b></span>: none).
-        baseline_optimizer (float > 0.0 | specification): Baseline optimizer configuration, see
-            [optimizers](../modules/optimizers.html), main optimizer will be used for baseline if
-            none, a float implies none and specifies a custom weight for the baseline loss
+        baseline_optimizer (specification | <a href="../modules/parameters.html">parameter</a>, float > 0.0):
+            Baseline optimizer configuration, see the
+            [optimizers documentation](../modules/optimizers.html),
+            main optimizer will be used for baseline if none, a float implies none and specifies a
+            custom weight for the baseline loss
             (<span style="color:#00C000"><b>default</b></span>: none).
-        baseline_objective (specification): Baseline optimization objective configuration, see
-            [objectives](../modules/objectives.html), main objective will be used for baseline if
-            none (<span style="color:#00C000"><b>default</b></span>: none).
-
-        preprocessing (dict[specification]): Preprocessing as layer or list of layers, see
-            [preprocessing](../modules/preprocessing.html), specified per state-type or -name and
-            for reward
+        baseline_objective (specification): Baseline optimization objective configuration, see the
+            [objectives documentation](../modules/objectives.html),
+            required if baseline optimizer is specified, main objective will be used for baseline if
+            baseline objective and optimizer are not specified
             (<span style="color:#00C000"><b>default</b></span>: none).
 
-        exploration (parameter | dict[parameter], float >= 0.0): Exploration, global or per action,
-            defined as the probability for uniformly random output in case of `bool` and `int`
-            actions, and the standard deviation of Gaussian noise added to every output in case of
-            `float` actions (<span style="color:#00C000"><b>default</b></span>: 0.0).
-        variable_noise (parameter, float >= 0.0): Standard deviation of Gaussian noise added to all
-            trainable float variables (<span style="color:#00C000"><b>default</b></span>: 0.0).
+        l2_regularization (<a href="../modules/parameters.html">parameter</a>, float >= 0.0):
+            L2 regularization loss weight
+            (<span style="color:#00C000"><b>default</b></span>: no L2 regularization).
+        entropy_regularization (<a href="../modules/parameters.html">parameter</a>, float >= 0.0):
+            Entropy regularization loss weight, to discourage the policy distribution from being
+            "too certain"
+            (<span style="color:#00C000"><b>default</b></span>: no entropy regularization).
 
-        l2_regularization (parameter, float >= 0.0): Scalar controlling L2 regularization
-            (<span style="color:#00C000"><b>default</b></span>:
-            0.0).
-        entropy_regularization (parameter, float >= 0.0): Scalar controlling entropy
-            regularization, to discourage the policy distribution being too "certain" / spiked
-            (<span style="color:#00C000"><b>default</b></span>: 0.0).
+        preprocessing (dict[specification]): Preprocessing as layer or list of layers, see the
+            [preprocessing documentation](../modules/preprocessing.html),
+            specified per state-type or -name, and for reward/return/advantage
+            (<span style="color:#00C000"><b>default</b></span>: none).
+        exploration (<a href="../modules/parameters.html">parameter</a> | dict[<a href="../modules/parameters.html">parameter</a>], float >= 0.0):
+            Exploration, defined as the probability for uniformly random output in case of `bool`
+            and `int` actions, and the standard deviation of Gaussian noise added to every output in
+            case of `float` actions, specified globally or per action-type or -name
+            (<span style="color:#00C000"><b>default</b></span>: no exploration).
+        variable_noise (<a href="../modules/parameters.html">parameter</a>, float >= 0.0):
+            Add Gaussian noise with given standard deviation to all trainable variables, as
+            alternative exploration mechanism
+            (<span style="color:#00C000"><b>default</b></span>: no variable noise).
 
-        name (string): Agent name, used e.g. for TensorFlow scopes and saver default filename
-            (<span style="color:#00C000"><b>default</b></span>: "agent").
-        device (string): Device name
-            (<span style="color:#00C000"><b>default</b></span>: TensorFlow default).
         parallel_interactions (int > 0): Maximum number of parallel interactions to support,
-            for instance, to enable multiple parallel episodes, environments or (centrally
-            controlled) agents within an environment
+            for instance, to enable multiple parallel episodes, environments or agents within an
+            environment
             (<span style="color:#00C000"><b>default</b></span>: 1).
-        buffer_observe (bool | int > 0): Maximum number of timesteps within an episode to buffer
-            before executing internal observe operations, to reduce calls to TensorFlow for
-            improved performance
-            (<span style="color:#00C000"><b>default</b></span>: max_episode_timesteps or 1000,
-            unless summarizer specified).
-        seed (int): Random seed to set for Python, NumPy (both set globally!) and TensorFlow,
-            environment seed has to be set separately for a fully deterministic execution
-            (<span style="color:#00C000"><b>default</b></span>: none).
-        execution (specification): TensorFlow execution configuration with the following attributes
-            (<span style="color:#00C000"><b>default</b></span>: standard): ...
-        saver (specification): TensorFlow saver configuration for periodic implicit saving, as
-            alternative to explicit saving via agent.save(...), with the following attributes
-            (<span style="color:#00C000"><b>default</b></span>: no saver):
+        config (specification): Additional configuration options:
+            <ul>
+            <li><b>name</b> (<i>string</i>) &ndash; Agent name, used e.g. for TensorFlow scopes and
+            saver default filename
+            (<span style="color:#00C000"><b>default</b></span>: "agent").
+            <li><b>device</b> (<i>string</i>) &ndash; Device name
+            (<span style="color:#00C000"><b>default</b></span>: TensorFlow default).
+            <li><b>seed</b> (<i>int</i>) &ndash; Random seed to set for Python, NumPy (both set
+            globally!) and TensorFlow, environment seed may have to be set separately for fully
+            deterministic execution
+            (<span style="color:#00C000"><b>default</b></span>: none).</li>
+            <li><b>buffer_observe</b> (<i>false | "episode" | int > 0</i>) &ndash; Number of
+            timesteps within an episode to buffer before calling the internal observe function, to
+            reduce calls to TensorFlow for improved performance
+            (<span style="color:#00C000"><b>default</b></span>: configuration-specific maximum
+            number which can be buffered without affecting performance).</li>
+            <li><b>always_apply_exploration</b> (<i>bool</i>) &ndash; Whether to always apply
+            exploration, also for independent act() calls (final value in case of schedule)
+            (<span style="color:#00C000"><b>default</b></span>: false).</li>
+            <li><b>always_apply_variable_noise</b> (<i>bool</i>) &ndash; Whether to always apply
+            variable noise, also for independent act() calls (final value in case of schedule)
+            (<span style="color:#00C000"><b>default</b></span>: false).</li>
+            <li><b>enable_int_action_masking</b> (<i>bool</i>) &ndash; Whether int action options
+            can be masked via an optional "[ACTION-NAME]_mask" state input
+            (<span style="color:#00C000"><b>default</b></span>: true).</li>
+            <li><b>create_tf_assertions</b> (<i>bool</i>) &ndash; Whether to create internal
+            TensorFlow assertion operations
+            (<span style="color:#00C000"><b>default</b></span>: true).</li>
+            <li><b>eager_mode</b> (<i>bool</i>) &ndash; Whether to run functions eagerly instead of
+            running as a traced graph function, can be helpful for debugging
+            (<span style="color:#00C000"><b>default</b></span>: false).</li>
+            <li><b>tf_log_level</b> (<i>0 <= int <= 3</i>) &ndash; TensorFlow log level
+            (<span style="color:#00C000"><b>default</b></span>: 3, no logging).</li>
+            </ul>
+        saver (specification): TensorFlow checkpoint manager configuration for periodic implicit
+            saving, as alternative to explicit saving via agent.save(), with the following
+            attributes (<span style="color:#00C000"><b>default</b></span>: no saver):
             <ul>
             <li><b>directory</b> (<i>path</i>) &ndash; saver directory
             (<span style="color:#C00000"><b>required</b></span>).</li>
             <li><b>filename</b> (<i>string</i>) &ndash; model filename
             (<span style="color:#00C000"><b>default</b></span>: agent name).</li>
-            <li><b>frequency</b> (<i>int > 0</i>) &ndash; how frequently in seconds to save the
-            model (<span style="color:#00C000"><b>default</b></span>: 600 seconds).</li>
-            <li><b>load</b> (<i>bool | str</i>) &ndash; whether to load the existing model, or
-            which model filename to load
-            (<span style="color:#00C000"><b>default</b></span>: true).</li>
-            </ul>
-            <li><b>max-checkpoints</b> (<i>int > 0</i>) &ndash; maximum number of checkpoints to
+            <li><b>frequency</b> (<i>int > 0</i>) &ndash; how frequently to save the model
+            (<span style="color:#C00000"><b>required</b></span>).</li>
+            <li><b>unit</b> (<i>"timesteps" | "episodes" | "updates"</i>) &ndash; frequency unit
+            (<span style="color:#00C000"><b>default</b></span>: updates).</li>
+            <li><b>max_checkpoints</b> (<i>int > 0</i>) &ndash; maximum number of checkpoints to
             keep (<span style="color:#00C000"><b>default</b></span>: 5).</li>
+            <li><b>max_hour_frequency</b> (<i>int > 0</i>) &ndash; ignoring max-checkpoints,
+            definitely keep a checkpoint in given hour frequency
+            (<span style="color:#00C000"><b>default</b></span>: none).</li>
+            </ul>
         summarizer (specification): TensorBoard summarizer configuration with the following
             attributes (<span style="color:#00C000"><b>default</b></span>: no summarizer):
             <ul>
             <li><b>directory</b> (<i>path</i>) &ndash; summarizer directory
             (<span style="color:#C00000"><b>required</b></span>).</li>
-            <li><b>frequency</b> (<i>int > 0, dict[int > 0]</i>) &ndash; how frequently in
-            timesteps to record summaries for act-summaries if specified globally
-            (<span style="color:#00C000"><b>default</b></span>: always),
-            otherwise specified for act-summaries via "act" in timesteps, for
-            observe/experience-summaries via "observe"/"experience" in episodes, and for
-            update/variables-summaries via "update"/"variables" in updates
-            (<span style="color:#00C000"><b>default</b></span>: never).</li>
             <li><b>flush</b> (<i>int > 0</i>) &ndash; how frequently in seconds to flush the
             summary writer (<span style="color:#00C000"><b>default</b></span>: 10).</li>
-            <li><b>max-summaries</b> (<i>int > 0</i>) &ndash; maximum number of summaries to keep
+            <li><b>max_summaries</b> (<i>int > 0</i>) &ndash; maximum number of summaries to keep
             (<span style="color:#00C000"><b>default</b></span>: 5).</li>
-            <li><b>custom</b> (<i>dict[spec]</i>) &ndash; custom summaries which are recorded via
-            `agent.summarize(...)`, specification with either type "scalar", type "histogram" with
-            optional "buckets", type "image" with optional "max_outputs"
-            (<span style="color:#00C000"><b>default</b></span>: 3), or type "audio"
-            (<span style="color:#00C000"><b>default</b></span>: no custom summaries).</li>
-            <li><b>labels</b> (<i>"all" | iter[string]</i>) &ndash; all excluding "\*-histogram"
-            labels, or list of summaries to record, from the following labels
+            <li><b>labels</b> (<i>"all" | iter[string]</i>) &ndash; which summaries to record
             (<span style="color:#00C000"><b>default</b></span>: only "graph"):</li>
-            <li>"distributions" or "bernoulli", "categorical", "gaussian", "beta":
-            distribution-specific parameters</li>
-            <li>"dropout": dropout zero fraction</li>
-            <li>"entropies" or "entropy", "action-entropies": entropy of policy
-            distribution(s)</li>
-            <li>"graph": graph summary</li>
-            <li>"kl-divergences" or "kl-divergence", "action-kl-divergences": KL-divergence of
-            previous and updated polidcy distribution(s)</li>
-            <li>"losses" or "loss", "objective-loss", "regularization-loss", "baseline-loss",
-            "baseline-objective-loss", "baseline-regularization-loss": loss scalars</li>
-            <li>"parameters": parameter scalars</li>
-            <li>"relu": ReLU activation zero fraction</li>
-            <li>"rewards" or "timestep-reward", "episode-reward", "raw-reward", "empirical-reward",
-            "estimated-reward": reward scalar
-            </li>
-            <li>"update-norm": update norm</li>
-            <li>"updates": update mean and variance scalars</li>
-            <li>"updates-histogram": update histograms</li>
-            <li>"variables": variable mean and variance scalars</li>
-            <li>"variables-histogram": variable histograms</li>
+            <li>"distribution": distribution parameters like probabilities or mean and stddev
+            (timestep-based, interpretation not obvious in case of value-based algorithms)</li>
+            <li>"entropy": entropy of (per-action) policy distribution(s) (timestep-based,
+            interpretation not obvious in case of value-based algorithms)</li>
+            <li>"graph": computation graph</li>
+            <li>"kl-divergence": KL-divergence of previous and updated (per-action) policy
+            distribution(s) (update-based, interpretation not obvious in case of value-based
+            algorithms)</li>
+            <li>"loss": policy and baseline loss plus loss components (update-based)</li>
+            <li>"parameters": parameter values (according to parameter unit)</li>
+            <li>"reward": timestep and episode reward, plus intermediate reward/return estimates
+            (timestep/episode/update-based)</li>
+            <li>"update-norm": global norm of update (update-based)</li>
+            <li>"updates": mean and variance of update tensors per variable (update-based)</li>
+            <li>"variables": mean of trainable variables tensors (update-based)</li>
             </ul>
-        recorder (specification): Experience traces recorder configuration, currently not including
-            internal states, with the following attributes
+        recorder (specification): Experience traces recorder configuration (see
+            [record-and-pretrain script](https://github.com/tensorforce/tensorforce/blob/master/examples/record_and_pretrain.py)
+            for illustrative example), with the following attributes
             (<span style="color:#00C000"><b>default</b></span>: no recorder):
             <ul>
             <li><b>directory</b> (<i>path</i>) &ndash; recorder directory
@@ -249,85 +274,139 @@ class TensorforceAgent(Agent):
         policy='default', memory=None, optimizer='adam',
         # Baseline
         baseline_policy=None, baseline_optimizer=None, baseline_objective=None,
+        # Regularization
+        l2_regularization=0.0, entropy_regularization=0.0,
         # Preprocessing
         preprocessing=None,
         # Exploration
         exploration=0.0, variable_noise=0.0,
-        # Regularization
-        l2_regularization=0.0, entropy_regularization=0.0,
-        # TensorFlow etc
-        name='agent', device=None, parallel_interactions=1, buffer_observe=True, seed=None,
-        execution=None, saver=None, summarizer=None, recorder=None, config=None
+        # Parallel interactions
+        parallel_interactions=1,
+        # Config, saver, summarizer, recorder
+        config=None, saver=None, summarizer=None, recorder=None,
+        # Deprecated
+        name=None, buffer_observe=None, device=None, seed=None
     ):
+        if 'estimate_actions' in reward_estimation:
+            raise TensorforceError.deprecated(
+                name='Agent', argument='reward_estimation[estimate_actions]',
+                replacement='reward_estimation[estimate_action_values]'
+            )
+        if 'estimate_terminal' in reward_estimation:
+            raise TensorforceError.deprecated(
+                name='Agent', argument='reward_estimation[estimate_terminal]',
+                replacement='reward_estimation[estimate_terminals]'
+            )
+        if name is not None:
+            raise TensorforceError.deprecated(
+                name='Agent', argument='name', replacement='config[name]'
+            )
+        if buffer_observe is not None:
+            raise TensorforceError.deprecated(
+                name='Agent', argument='buffer_observe', replacement='config[buffer_observe]'
+            )
+        if device is not None:
+            raise TensorforceError.deprecated(
+                name='Agent', argument='device', replacement='config[device]'
+            )
+        if seed is not None:
+            raise TensorforceError.deprecated(
+                name='Agent', argument='seed', replacement='config[seed]'
+            )
+
         if not hasattr(self, 'spec'):
             self.spec = OrderedDict(
                 agent='tensorforce',
+                # Environment
                 states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
+                # Agent
                 policy=policy, memory=memory, update=update, optimizer=optimizer,
                 objective=objective, reward_estimation=reward_estimation,
+                # Baseline
                 baseline_policy=baseline_policy, baseline_optimizer=baseline_optimizer,
                 baseline_objective=baseline_objective,
-                preprocessing=preprocessing,
-                exploration=exploration, variable_noise=variable_noise,
+                # Regularization
                 l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
-                name=name, device=device, parallel_interactions=parallel_interactions,
-                buffer_observe=buffer_observe, seed=seed, execution=execution, saver=saver,
-                summarizer=summarizer, recorder=recorder, config=config
+                # Preprocessing
+                preprocessing=preprocessing,
+                # Exploration
+                exploration=exploration, variable_noise=variable_noise,
+                # Parallel interactions
+                parallel_interactions=parallel_interactions,
+                # Config, saver, summarizer, recorder
+                config=config, saver=saver, summarizer=summarizer, recorder=recorder
             )
-
-        if isinstance(update, int) or update['unit'] == 'timesteps':
-            if parallel_interactions > 1:
-                raise TensorforceError.value(
-                    name='agent', argument='update', value=update,
-                    condition='parallel_interactions > 1'
-                )
-            if buffer_observe is not True:
-                raise TensorforceError.invalid(
-                    name='agent', argument='buffer_observe', condition='update[unit] = timesteps'
-                )
-            buffer_observe = False
-
-        if buffer_observe is True and parallel_interactions == 1 and summarizer is not None:
-            buffer_observe = False
-
-        super().__init__(
-            states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
-            parallel_interactions=parallel_interactions, buffer_observe=buffer_observe, seed=seed,
-            recorder=recorder
-        )
 
         if isinstance(update, int):
             update = dict(unit='timesteps', batch_size=update)
 
-        reward_estimation = dict(reward_estimation)
-        if reward_estimation['horizon'] == 'episode':
-            if max_episode_timesteps is None:
-                raise TensorforceError.value(
-                    name='agent', argument='reward_estimation[horizon]', value='episode',
-                    condition='max_episode_timesteps is None'
-                )
-            reward_estimation['horizon'] = max_episode_timesteps
+        if config is None:
+            config = dict()
+        else:
+            config = dict(config)
 
-        self.model = TensorforceModel(
-            # Model
-            name=name, device=device, parallel_interactions=self.parallel_interactions,
-            buffer_observe=self.buffer_observe, seed=seed, execution=execution, saver=saver,
-            summarizer=summarizer, config=config, states=self.states_spec,
-            actions=self.actions_spec, preprocessing=preprocessing, exploration=exploration,
-            variable_noise=variable_noise, l2_regularization=l2_regularization,
-            # TensorforceModel
-            policy=policy, memory=memory, update=update, optimizer=optimizer, objective=objective,
-            reward_estimation=reward_estimation, baseline_policy=baseline_policy,
-            baseline_optimizer=baseline_optimizer, baseline_objective=baseline_objective,
-            entropy_regularization=entropy_regularization,
-            max_episode_timesteps=max_episode_timesteps
+        # TODO: should this change if summarizer is specified?
+        if parallel_interactions > 1:
+            if 'buffer_observe' not in config:
+                if max_episode_timesteps is None:
+                    raise TensorforceError.required(
+                        name='Agent', argument='max_episode_timesteps',
+                        condition='parallel_interactions > 1'
+                    )
+                config['buffer_observe'] = 'episode'
+            # elif config['buffer_observe'] < max_episode_timesteps:
+            #     raise TensorforceError.value(
+            #         name='Agent', argument='config[buffer_observe]',
+            #         hint='< max_episode_timesteps', condition='parallel_interactions > 1'
+            #     )
+
+        elif update['unit'] == 'timesteps':
+            update_frequency = update.get('frequency', update['batch_size'])
+            if 'buffer_observe' not in config:
+                if isinstance(update_frequency, int):
+                    config['buffer_observe'] = update_frequency
+                else:
+                    config['buffer_observe'] = 1
+            elif isinstance(update_frequency, int) and (
+                config['buffer_observe'] == 'episode' or config['buffer_observe'] > update_frequency
+            ):
+                raise TensorforceError.value(
+                    name='Agent', argument='config[buffer_observe]', value=config['buffer_observe'],
+                    hint='> update[frequency]', condition='update[unit] = "timesteps"'
+                )
+
+        elif update['unit'] == 'episodes':
+            if 'buffer_observe' not in config:
+                config['buffer_observe'] = 'episode'
+
+        # reward_estimation = dict(reward_estimation)
+        # if reward_estimation['horizon'] == 'episode':
+        #     if max_episode_timesteps is None:
+        #         raise TensorforceError.required(
+        #             name='Agent', argument='max_episode_timesteps',
+        #             condition='reward_estimation[horizon] = "episode"'
+        #         )
+        #     reward_estimation['horizon'] = max_episode_timesteps
+
+        super().__init__(
+            states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
+            parallel_interactions=parallel_interactions, config=config, recorder=recorder
         )
 
-        self.experience_size = self.model.estimator.capacity
+        self.model = TensorforceModel(
+            states=self.states_spec, actions=self.actions_spec,
+            max_episode_timesteps=self.max_episode_timesteps,
+            policy=policy, memory=memory, update=update, optimizer=optimizer, objective=objective,
+            reward_estimation=reward_estimation,
+            baseline_policy=baseline_policy, baseline_optimizer=baseline_optimizer,
+            baseline_objective=baseline_objective,
+            l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
+            preprocessing=preprocessing, exploration=exploration, variable_noise=variable_noise,
+            parallel_interactions=self.parallel_interactions,
+            config=self.config, saver=saver, summarizer=summarizer
+        )
 
-    def experience(
-        self, states, actions, terminal, reward, internals=None, query=None, **kwargs
-    ):
+    def experience(self, states, actions, terminal, reward, internals=None):
         """
         Feed experience traces.
 
@@ -341,119 +420,181 @@ class TensorforceAgent(Agent):
             reward (array[float]): Array of rewards
                 (<span style="color:#C00000"><b>required</b></span>).
             internals (dict[state]): Dictionary containing arrays of internal agent states
-                (<span style="color:#00C000"><b>default</b></span>: no internal states).
-            query (list[str]): Names of tensors to retrieve
-                (<span style="color:#00C000"><b>default</b></span>: none).
-            kwargs: Additional input values, for instance, for dynamic hyperparameters.
+                (<span style="color:#C00000"><b>required</b></span> if agent has internal states).
         """
-        assert (self.buffer_indices == 0).all()
-        assert util.reduce_all(predicate=util.not_nan_inf, xs=states)
-        assert internals is None or util.reduce_all(predicate=util.not_nan_inf, xs=internals)
-        assert util.reduce_all(predicate=util.not_nan_inf, xs=actions)
-        assert util.reduce_all(predicate=util.not_nan_inf, xs=reward)
+        if not all(len(buffer) == 0 for buffer in self.buffers['terminal']):
+            raise TensorforceError(message="Calling agent.experience is not possible mid-episode.")
 
-        # Auxiliaries
-        auxiliaries = OrderedDict()
-        if isinstance(states, dict):
-            states = OrderedDict(states)
-            for name, spec in self.actions_spec.items():
-                if spec['type'] == 'int' and name + '_mask' in states:
-                    auxiliaries[name + '_mask'] = np.asarray(states.pop(name + '_mask'))
-        auxiliaries = util.fmap(function=np.asarray, xs=auxiliaries, depth=1)
-
-        # Normalize states/actions dictionaries
-        states = util.normalize_values(
-            value_type='state', values=states, values_spec=self.states_spec
+        # Process states input and infer batching structure
+        states, batched, num_instances, is_iter_of_dicts, input_type = self._process_states_input(
+            states=states, function_name='Agent.experience'
         )
-        actions = util.normalize_values(
-            value_type='action', values=actions, values_spec=self.actions_spec
-        )
-        if internals is None:
-            internals = OrderedDict()
 
-        if isinstance(terminal, (bool, int)):
-            states = util.fmap(function=(lambda x: [x]), xs=states, depth=1)
-            internals = util.fmap(function=(lambda x: [x]), xs=internals, depth=1)
-            auxiliaries = util.fmap(function=(lambda x: [x]), xs=auxiliaries, depth=1)
-            actions = util.fmap(function=(lambda x: [x]), xs=actions, depth=1)
-            terminal = [terminal]
-            reward = [reward]
+        if is_iter_of_dicts:
+            # Input structure iter[dict[input]]
 
-        states = util.fmap(function=np.asarray, xs=states, depth=1)
-        internals = util.fmap(function=np.asarray, xs=internals, depth=1)
-        auxiliaries = util.fmap(function=np.asarray, xs=auxiliaries, depth=1)
-        actions = util.fmap(function=np.asarray, xs=actions, depth=1)
+            # Internals
+            if internals is None:
+                internals = ArrayDict()
+            elif not isinstance(internals, (tuple, list)):
+                raise TensorforceError.type(
+                    name='Agent.experience', argument='internals', dtype=type(internals),
+                    hint='is not tuple/list'
+                )
+            else:
+                internals = [ArrayDict(internal) for internal in internals]
+                internals = internals[0].fmap(
+                    function=(lambda *xs: np.stack(xs, axis=0)), zip_values=internals[1:]
+                )
 
-        if isinstance(terminal, np.ndarray):
-            if terminal.dtype is util.np_dtype(dtype='bool'):
-                zeros = np.zeros_like(terminal, dtype=util.np_dtype(dtype='long'))
-                ones = np.ones_like(terminal, dtype=util.np_dtype(dtype='long'))
-                terminal = np.where(terminal, ones, zeros)
+            # Actions
+            if self.single_action and isinstance(actions, np.ndarray):
+                actions = ArrayDict(action=actions)
+            elif not isinstance(actions, (tuple, list)):
+                raise TensorforceError.type(
+                    name='Agent.experience', argument='actions', dtype=type(actions),
+                    hint='is not tuple/list'
+                )
+            elif self.single_action and not isinstance(actions[0], dict):
+                actions = ArrayDict(action=actions)
+            else:
+                actions = [ArrayDict(action) for action in actions]
+                actions = internals[0].fmap(
+                    function=(lambda *xs: np.stack(xs, axis=0)), zip_values=actions[1:]
+                )
+
         else:
-            terminal = np.asarray([int(x) if isinstance(x, bool) else x for x in terminal])
-        reward = np.asarray(reward)
+            # Input structure dict[iter[input]]
+
+            # Internals
+            if internals is None:
+                internals = ArrayDict()
+            elif not isinstance(internals, dict):
+                raise TensorforceError.type(
+                    name='Agent.experience', argument='internals', dtype=type(internals),
+                    hint='is not dict'
+                )
+            else:
+                internals = ArrayDict(internals)
+
+            # Actions
+            if self.single_action and not isinstance(actions, dict):
+                actions = dict(action=actions)
+            elif not isinstance(actions, dict):
+                raise TensorforceError.type(
+                    name='Agent.experience', argument='actions', dtype=type(actions),
+                    hint='is not dict'
+                )
+            actions = ArrayDict(actions)
+
+        # Expand inputs if not batched
+        if not batched:
+            internals = internals.fmap(function=(lambda x: np.expand_dims(x, axis=0)))
+            actions = actions.fmap(function=(lambda x: np.expand_dims(x, axis=0)))
+            terminal = np.asarray([terminal])
+            reward = np.asarray([reward])
+        else:
+            terminal = np.asarray(terminal)
+            reward = np.asarray(reward)
+
+        # Check number of inputs
+        for name, internal in internals.items():
+            if internal.shape[0] != num_instances:
+                raise TensorforceError.value(
+                    name='Agent.experience', argument='len(internals[{}])'.format(name),
+                    value=internal.shape[0], hint='!= len(states)'
+                )
+        for name, action in actions.items():
+            if action.shape[0] != num_instances:
+                raise TensorforceError.value(
+                    name='Agent.experience', argument='len(actions[{}])'.format(name),
+                    value=action.shape[0], hint='!= len(states)'
+                )
+        if terminal.shape[0] != num_instances:
+            raise TensorforceError.value(
+                name='Agent.experience', argument='len(terminal)'.format(name),
+                value=terminal.shape[0], hint='!= len(states)'
+            )
+        if reward.shape[0] != num_instances:
+            raise TensorforceError.value(
+                name='Agent.experience', argument='len(reward)'.format(name),
+                value=reward.shape[0], hint='!= len(states)'
+            )
+
+        def function(name, spec):
+            auxiliary = ArrayDict()
+            if self.config.enable_int_action_masking and spec.type == 'int' and \
+                    spec.num_values is not None:
+                # Mask, either part of states or default all true
+                auxiliary['mask'] = states.pop(name + '_mask', np.ones(
+                    shape=(num_instances,) + spec.shape + (spec.num_values,), dtype=spec.np_type()
+                ))
+            return auxiliary
+
+        auxiliaries = self.actions_spec.fmap(function=function, cls=ArrayDict, with_names=True)
+
+        # Convert terminal to int if necessary
+        if terminal.dtype is util.np_dtype(dtype='bool'):
+            zeros = np.zeros_like(terminal, dtype=util.np_dtype(dtype='int'))
+            ones = np.ones_like(terminal, dtype=util.np_dtype(dtype='int'))
+            terminal = np.where(terminal, ones, zeros)
 
         # Batch experiences split into episodes and at most size buffer_observe
         last = 0
         for index in range(1, len(terminal) + 1):
-            if terminal[index - 1] == 0 and index - last < self.experience_size:
+            if terminal[index - 1] == 0:
                 continue
 
-            # Include terminal in batch if possible
-            if index < len(terminal) and terminal[index - 1] == 0 and terminal[index] > 0 and \
-                    index - last < self.experience_size:
-                index += 1
-
             function = (lambda x: x[last: index])
-            states_batch = util.fmap(function=function, xs=states, depth=1)
-            internals_batch = util.fmap(function=function, xs=internals, depth=1)
-            auxiliaries_batch = util.fmap(function=function, xs=auxiliaries, depth=1)
-            actions_batch = util.fmap(function=function, xs=actions, depth=1)
-            terminal_batch = terminal[last: index]
-            reward_batch = reward[last: index]
+            states_batch = states.fmap(function=function)
+            internals_batch = internals.fmap(function=function)
+            auxiliaries_batch = auxiliaries.fmap(function=function)
+            actions_batch = actions.fmap(function=function)
+            terminal_batch = function(terminal)
+            reward_batch = function(reward)
             last = index
 
+            # Inputs to tensors
+            states_batch = self.states_spec.to_tensor(value=states_batch, batched=True)
+            internals_batch = self.internals_spec.to_tensor(value=internals_batch, batched=True)
+            auxiliaries_batch = self.auxiliaries_spec.to_tensor(
+                value=auxiliaries_batch, batched=True
+            )
+            actions_batch = self.actions_spec.to_tensor(value=actions_batch, batched=True)
+            terminal_batch = self.terminal_spec.to_tensor(value=terminal_batch, batched=True)
+            reward_batch = self.reward_spec.to_tensor(value=reward_batch, batched=True)
+
             # Model.experience()
-            if query is None:
-                self.timesteps, self.episodes, self.updates = self.model.experience(
-                    states=states_batch, internals=internals_batch,
-                    auxiliaries=auxiliaries_batch, actions=actions_batch, terminal=terminal_batch,
-                    reward=reward_batch, **kwargs
-                )
+            timesteps, episodes, updates = self.model.experience(
+                states=states_batch, internals=internals_batch, auxiliaries=auxiliaries_batch,
+                actions=actions_batch, terminal=terminal_batch, reward=reward_batch
+            )
+            self.timesteps = timesteps.numpy().item()
+            self.episodes = episodes.numpy().item()
+            self.updates = updates.numpy().item
 
-            else:
-                self.timesteps, self.episodes, self.updates, queried = self.model.experience(
-                    states=states_batch, internals=internals_batch,
-                    auxiliaries=auxiliaries_batch, actions=actions_batch, terminal=terminal_batch,
-                    reward=reward_batch, query=query, **kwargs
-                )
-
-        if query is not None:
-            return queried
+        if self.model.saver is not None:
+            self.model.save()
 
     def update(self, query=None, **kwargs):
         """
         Perform an update.
-
-        Args:
-            query (list[str]): Names of tensors to retrieve
-                (<span style="color:#00C000"><b>default</b></span>: none).
-            kwargs: Additional input values, for instance, for dynamic hyperparameters.
         """
-        # Model.update()
-        if query is None:
-            self.timesteps, self.episodes, self.updates = self.model.update(**kwargs)
+        timesteps, episodes, updates = self.model.update()
+        self.timesteps = timesteps.numpy().item()
+        self.episodes = episodes.numpy().item()
+        self.updates = updates.numpy().item()
 
-        else:
-            self.timesteps, self.episodes, self.updates, queried = self.model.update(
-                query=query, **kwargs
-            )
-            return queried
+        if self.model.saver is not None:
+            self.model.save()
 
-    def pretrain(self, directory, num_iterations, num_traces=1, num_updates=1):
+    def pretrain(self, directory, num_iterations, num_traces=1, num_updates=1, extension='.npz'):
         """
         Naive pretraining approach as a combination of `experience()` and `update`, uses experience
         traces obtained e.g. via recorder argument.
+
+        See [record-and-pretrain script](https://github.com/tensorforce/tensorforce/blob/master/examples/record_and_pretrain.py)
+        for illustrative example.
 
         Args:
             directory (path): Directory with experience traces, e.g. obtained via recorder; episode
@@ -467,6 +608,8 @@ class TensorforceAgent(Agent):
                 (<span style="color:#00C000"><b>default</b></span>: 1).
             num_updates (int > 0): Number of updates per iteration
                 (<span style="color:#00C000"><b>default</b></span>: 1).
+            extension (str): Traces file extension to filter the given directory for
+                (<span style="color:#00C000"><b>default</b></span>: ".npz").
         """
         if not os.path.isdir(directory):
             raise TensorforceError.value(
@@ -474,7 +617,7 @@ class TensorforceAgent(Agent):
             )
         files = sorted(
             os.path.join(directory, f) for f in os.listdir(directory)
-            if os.path.isfile(os.path.join(directory, f)) and f.startswith('trace-')
+            if os.path.isfile(os.path.join(directory, f)) and os.path.splitext(f)[1] == extension
         )
         indices = list(range(len(files)))
 
@@ -485,28 +628,30 @@ class TensorforceAgent(Agent):
             else:
                 selection = indices[:num_traces]
 
-            states = OrderedDict(((name, list()) for name in self.states_spec))
-            for name, spec in self.actions_spec.items():
-                if spec['type'] == 'int':
-                    states[name + '_mask'] = list()
-            actions = OrderedDict(((name, list()) for name in self.actions_spec))
-            terminal = list()
-            reward = list()
+            # function = (lambda x: list())
+            # values = ListDict()
+            # values['states'] = self.states_spec.fmap(function=function, cls=ListDict)
+            # values['auxiliaries'] = self.auxiliaries_spec.fmap(function=function, cls=ListDict)
+            # values['actions'] = self.actions_spec.fmap(function=function, cls=ListDict)
+            # values['terminal'] = list()
+            # values['reward'] = list()
+            batch = None
             for index in selection:
-                trace = np.load(files[index])
-                for name in states:
-                    states[name].append(trace[name])
-                for name in actions:
-                    actions[name].append(trace[name])
-                terminal.append(trace['terminal'])
-                reward.append(trace['reward'])
+                trace = ArrayDict(np.load(files[index]))
+                if batch is None:
+                    batch = trace
+                else:
+                    batch = batch.fmap(
+                        function=(lambda x, y: np.concatenate([x, y], axis=0)), zip_values=(trace,)
+                    )
 
-            states = util.fmap(function=np.concatenate, xs=states, depth=1)
-            actions = util.fmap(function=np.concatenate, xs=actions, depth=1)
-            terminal = np.concatenate(terminal)
-            reward = np.concatenate(reward)
+            for name, value in batch.pop('auxiliaries', dict()).items():
+                assert name.endswith('/mask')
+                batch['states'][name[:-5] + '_mask'] = value
 
-            self.experience(states=states, actions=actions, terminal=terminal, reward=reward)
+            # values = values.fmap(function=np.concatenate, cls=ArrayDict)
+
+            self.experience(**batch.to_kwargs())
             for _ in range(num_updates):
                 self.update()
             # TODO: self.obliviate()

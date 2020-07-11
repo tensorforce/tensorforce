@@ -1,4 +1,4 @@
-# Copyright 2018 Tensorforce Team. All Rights Reserved.
+# Copyright 2020 Tensorforce Team. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,23 +13,16 @@
 # limitations under the License.
 # ==============================================================================
 
-from collections import OrderedDict
-
 from tensorforce import TensorforceError
-from tensorforce.core.layers import InternalLstm
-from tensorforce.core.networks import LayerbasedNetwork
+from tensorforce.core.networks import LayeredNetwork
 
 
-class AutoNetwork(LayerbasedNetwork):
+class AutoNetwork(LayeredNetwork):
     """
     Network which is automatically configured based on its input tensors, offering high-level
     customization (specification key: `auto`).
 
     Args:
-        name (string): Network name
-            (<span style="color:#0000C0"><b>internal use</b></span>).
-        inputs_spec (specification): Input tensors specification
-            (<span style="color:#0000C0"><b>internal use</b></span>).
         size (int > 0): Layer size, before concatenation if multiple states
             (<span style="color:#00C000"><b>default</b></span>: 64).
         depth (int > 0): Number of layers per state, before concatenation if multiple states
@@ -38,177 +31,108 @@ class AutoNetwork(LayerbasedNetwork):
             (<span style="color:#00C000"><b>default</b></span>: layer size).
         final_depth (int > 0): Number of layers after concatenation if multiple states
             (<span style="color:#00C000"><b>default</b></span>: 1).
-        internal_rnn (false | parameter, long >= 0): Whether to add an internal state LSTM cell
-            as last layer, and if so, horizon of the LSTM for truncated backpropagation through time
+        rnn (false | [parameter](../modules/parameters.html), int >= 0): Whether to add an LSTM cell
+            with internal state as last layer, and if so, horizon of the LSTM for truncated
+            backpropagation through time
             (<span style="color:#00C000"><b>default</b></span>: false).
         device (string): Device name
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
-        summary_labels ('all' | iter[string]): Labels of summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): <span style="color:#0000C0"><b>internal use</b></span>.
+        inputs_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
-        self, name, inputs_spec, size=64, depth=2, final_size=None, final_depth=1,
-        internal_rnn=False, device=None, summary_labels=None, l2_regularization=None
+        self, *, size=64, depth=2, final_size=None, final_depth=1, rnn=False, device=None,
+        l2_regularization=None, name=None, inputs_spec=None,
+        # Deprecated
+        internal_rnn=None
     ):
-        # Some defaults require change in internals_spec
-        super().__init__(
-            name=name, inputs_spec=inputs_spec, device=device, summary_labels=summary_labels,
-            l2_regularization=l2_regularization
-        )
+        if internal_rnn is not None:
+            raise TensorforceError.deprecated(
+                name='AutoNetwork', argument='internal_rnn', replacement='rnn'
+            )
 
-        self.size = size
-        self.depth = depth
-        self.final_size = size if final_size is None else final_size
-        self.final_depth = final_depth
-        self.internal_rnn = internal_rnn
+        if final_size is None:
+            final_size = size
 
-        # State-specific layers
-        self.state_specific_layers = OrderedDict()
-        # prefix = self.name + '-'
-        prefix = ''
-        for name, spec in inputs_spec.items():
-            layers = list()
+        layers = list()
+        for input_name, spec in inputs_spec.items():
+            state_layers = list()
+            layers.append(state_layers)
 
-            # Retrieve state
-            layers.append(self.add_module(
-                name=(prefix + name + '-retrieve'), module='retrieve', tensors=name
+            # Retrieve input state
+            state_layers.append(dict(
+                type='retrieve', name=(input_name + '_retrieve'), tensors=(input_name,)
             ))
 
             # Embed bool and int states
-            if spec['type'] in ('bool', 'int'):
-                layers.append(self.add_module(
-                    name=(prefix + name + '-embedding'), module='embedding', size=self.size
+            requires_embedding = (spec.type == 'bool' or spec.type == 'int')
+            if requires_embedding:
+                state_layers.append(dict(
+                    type='embedding', name=(input_name + '_embedding'), size=size
                 ))
-                embedding = 1
-            else:
-                embedding = 0
+
+            # Normalize bounded inputs to [-1.0, 1.0]
+            if spec.type == 'float' and spec.min_value is not None and spec.max_value is not None:
+                state_layers.append(dict(
+                    type='linear_normalization', min_value=spec.min_value, max_value=spec.max_value
+                ))
 
             # Shape-specific layer type
-            if len(spec['shape']) == 1 - embedding:
+            if spec.rank == 1 - requires_embedding:
                 layer = 'dense'
-            elif len(spec['shape']) == 2 - embedding:
+            elif spec.rank == 2 - requires_embedding:
                 layer = 'conv1d'
-            elif len(spec['shape']) == 3 - embedding:
+            elif spec.rank == 3 - requires_embedding:
                 layer = 'conv2d'
-            elif len(spec['shape']) == 0:
-                layers.append(self.add_module(name=(prefix + name + '-flatten'), module='flatten'))
+            elif spec.rank == 0:
+                state_layers.append(dict(type='flatten', name=(input_name + '_flatten')))
                 layer = 'dense'
             else:
-                raise TensorforceError.unexpected()
+                raise TensorforceError.value(
+                    name='AutoNetwork', argument='input rank', value=spec.rank, hint='>= 3'
+                )
 
             # Repeat layer according to depth (one less if embedded)
-            for n in range(self.depth - embedding):
-                layers.append(self.add_module(
-                    name=(prefix + name + '-' + layer + str(n)), module=layer, size=self.size
+            for n in range(depth - requires_embedding):
+                state_layers.append(dict(
+                    type=layer, name='{}_{}{}'.format(input_name, layer, n), size=size
                 ))
 
             # Max pool if rank greater than one
-            if len(spec['shape']) > 1 - embedding:
-                layers.append(self.add_module(
-                    name=(prefix + name + '-pooling'), module='pooling', reduction='max'
+            if spec.rank > 1 - requires_embedding:
+                state_layers.append(dict(
+                    type='pooling', name=(input_name + '_pooling'), reduction='max'
                 ))
 
             # Register state-specific embedding
-            layers.append(self.add_module(
-                name=(prefix + name + '-register'), module='register',
-                tensor='{}-{}-embedding'.format(self.name, name)
+            state_layers.append(dict(
+                type='register', name=(input_name + '_register'), tensor=(input_name + '-embedding')
             ))
 
-            self.state_specific_layers[name] = layers
-
         # Final combined layers
-        self.final_layers = list()
+        final_layers = list()
+        layers.append(final_layers)
 
         # Retrieve state-specific embeddings
-        self.final_layers.append(self.add_module(
-            name=(prefix + 'retrieve'), module='retrieve',
-            tensors=tuple('{}-{}-embedding'.format(self.name, name) for name in inputs_spec),
+        final_layers.append(dict(
+            type='retrieve', name='retrieve',
+            tensors=tuple(input_name + '-embedding' for input_name in inputs_spec),
             aggregation='concat'
         ))
 
         # Repeat layer according to depth
         if len(inputs_spec) > 1:
-            for n in range(self.final_depth):
-                self.final_layers.append(self.add_module(
-                    name=(prefix + 'dense' + str(n)), module='dense', size=self.final_size
-                ))
+            for n in range(final_depth):
+                final_layers.append(dict(type='dense', name=('dense' + str(n)), size=final_size))
 
-        # Internal Rnn
-        if self.internal_rnn is False:
-            self.internal_rnn = None
-        else:
-            self.internal_rnn = self.add_module(
-                name=(prefix + 'internal_lstm'), module='internal_lstm', size=self.final_size,
-                length=self.internal_rnn
-            )
+        # Rnn
+        if rnn is not False:
+            final_layers.append(dict(type='lstm', name='lstm', size=final_size, horizon=rnn))
 
-    @classmethod
-    def internals_spec(
-        cls, network=None, name=None, size=None, final_size=None, internal_rnn=None, **kwargs
-    ):
-        internals_spec = OrderedDict()
-
-        if network is None:
-            assert name is not None
-            if size is None:
-                size = 64
-            if internal_rnn is None:
-                internal_rnn = False
-
-            if internal_rnn > 0:
-                final_size = size if final_size is None else final_size
-                for internal_name, spec in InternalLstm.internals_spec(size=final_size).items():
-                    internals_spec[name + '-' + internal_name] = spec
-
-        else:
-            assert name is None and size is None and final_size is None and internal_rnn is None
-
-            if network.internal_rnn is not None:
-                for internal_name, spec in network.internal_rnn.__class__.internals_spec(
-                    layer=network.internal_rnn
-                ).items():
-                    internals_spec[network.name + '-' + internal_name] = spec
-
-        return internals_spec
-
-    def internals_init(self):
-        internals_init = OrderedDict()
-
-        if self.internal_rnn is not None:
-            for name, internal_init in self.internal_rnn.internals_init().items():
-                internals_init[self.name + '-' + name] = internal_init
-
-        return internals_init
-
-    def tf_apply(self, x, internals, return_internals=False):
-        super().tf_apply(x=x, internals=internals, return_internals=return_internals)
-
-        # State-specific layers
-        for name, layers in self.state_specific_layers.items():
-            tensor = x[name]
-            for layer in layers:
-                tensor = layer.apply(x=tensor)
-
-        # Final combined layers
-        for layer in self.final_layers:
-            tensor = layer.apply(x=tensor)
-
-        # Internal Rnn
-        next_internals = OrderedDict()
-        if self.internal_rnn is not None:
-            internals = {
-                name: internals[self.name + '-' + name]
-                for name in self.internal_rnn.__class__.internals_spec(layer=self.internal_rnn)
-            }
-            assert len(internals) > 0
-            tensor, internals = self.internal_rnn.apply(x=tensor, initial=internals)
-            for name, internal in internals.items():
-                next_internals[self.name + '-' + name] = internal
-
-        if return_internals:
-            return tensor, next_internals
-        else:
-            return tensor
+        super().__init__(
+            layers=layers, device=device, l2_regularization=l2_regularization, name=name,
+            inputs_spec=inputs_spec
+        )

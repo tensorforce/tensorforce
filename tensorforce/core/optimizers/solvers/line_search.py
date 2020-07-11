@@ -228,7 +228,7 @@ class LineSearch(Iterative):
             target_value = self.fn_x(arguments, deltas.fmap(function=(lambda delta: -delta)))
 
             dependencies = [target_value]
-            if self.config.create_tf_assertions:
+            if self.config.create_debug_assertions:
                 epsilon = tf_util.constant(value=util.epsilon, dtype='float')
                 epsilon = tf.math.maximum(x=epsilon, y=(epsilon * tf.math.abs(x=base_value)))
                 # target_value = tf.compat.v1.Print(target_value, (target_value - base_value - last_improvement, target_value, base_value, improvement, last_improvement, epsilon))

@@ -197,14 +197,18 @@ class LayerbasedNetwork(Network):
 
 class LayeredNetwork(LayerbasedNetwork):
     """
-    Network consisting of Tensorforce layers, which can be specified as either a list of layer
-    specifications in the case of a standard sequential layer-stack architecture, or as a list of
-    list of layer specifications in the case of a more complex architecture consisting of multiple
-    sequential layer-stacks (specification key: `custom` or `layered`).
+    Network consisting of Tensorforce layers (specification key: `custom` or `layered`), which can
+    be specified as either a list of layer specifications in the case of a standard sequential
+    layer-stack architecture, or as a list of list of layer specifications in the case of a more
+    complex architecture consisting of multiple sequential layer-stacks. Note that the final
+    action/value layer of the policy/baseline network is implicitly added, so the network output can
+    be of arbitrary size and use any activation function, and is only required to be a rank-one
+    embedding vector, or optionally have the same shape as the action in the case of a higher-rank
+    action shape.
 
     Args:
-        layers (iter[specification] | iter[iter[specification]]): Layers configuration, see
-            [layers](../modules/layers.html)
+        layers (iter[specification] | iter[iter[specification]]): Layers configuration, see the
+            [layers documentation](../modules/layers.html)
             (<span style="color:#C00000"><b>required</b></span>).
         device (string): Device name
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).

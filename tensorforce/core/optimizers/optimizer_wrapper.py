@@ -18,13 +18,15 @@ from tensorforce.core import tf_function
 from tensorforce.core.optimizers import UpdateModifier
 
 
-class UpdateModifierWrapper(UpdateModifier):
+class OptimizerWrapper(UpdateModifier):
     """
-    Update modifier wrapper (specification key: `update_modifier_wrapper`).
+    Optimizer wrapper (specification key: `optimizer_wrapper`).
 
     Args:
-        optimizer (specification): Optimizer configuration
+        optimizer (specification): Optimizer
             (<span style="color:#C00000"><b>required</b></span>).
+        learning_rate (parameter, float >= 0.0): Learning rate
+            (<span style="color:#00C000"><b>default</b></span>: 1e-3).
         clipping_threshold (parameter, float > 0.0): Clipping threshold
             (<span style="color:#00C000"><b>default</b></span>: no clipping).
         multi_step (parameter, int >= 1): Number of optimization steps
@@ -40,8 +42,8 @@ class UpdateModifierWrapper(UpdateModifier):
     """
 
     def __init__(
-        self, optimizer, *, clipping_threshold=None, multi_step=1, linesearch_iterations=0,
-        subsampling_fraction=1.0, name=None, arguments_spec=None,
+        self, optimizer, *, learning_rate=1e-3, clipping_threshold=None, multi_step=1,
+        linesearch_iterations=0, subsampling_fraction=1.0, name=None, arguments_spec=None,
         # Deprecated
         optimizing_iterations=None, **kwargs
     ):
@@ -51,7 +53,13 @@ class UpdateModifierWrapper(UpdateModifier):
                 replacement='linesearch_iterations'
             )
 
-        optimizer = dict(type=optimizer)
+        if isinstance(optimizer, dict):
+            if 'learning_rate' not in optimizer:
+                optimizer['learning_rate'] = learning_rate
+        else:
+            optimizer = dict(type=optimizer)
+            optimizer['learning_rate'] = learning_rate
+
         optimizer.update(kwargs)
 
         if subsampling_fraction != 1.0:

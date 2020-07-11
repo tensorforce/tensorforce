@@ -113,16 +113,16 @@ class ParametrizedDistributions(Stochastic, ActionValue):
                     module = None
                 else:
                     module = dict()
-                    if spec.type in distributions:
-                        if isinstance(distributions[spec.type], str):
-                            module = distributions[spec.type]
-                        else:
-                            module.update(distributions[spec.type])
                     if name in distributions:
                         if isinstance(distributions[name], str):
                             module = distributions[name]
                         else:
                             module.update(distributions[name])
+                    elif spec.type in distributions:
+                        if isinstance(distributions[spec.type], str):
+                            module = distributions[spec.type]
+                        else:
+                            module.update(distributions[spec.type])
 
                 self.distributions[name] = self.submodule(
                     name=(name + '_distribution'), module=module, modules=distribution_modules,

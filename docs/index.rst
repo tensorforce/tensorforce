@@ -31,14 +31,15 @@ Tensorforce follows a set of high-level design choices which differentiate it fr
   agents/constant
   agents/random
   agents/tensorforce
-  agents/dqn
-  agents/dueling_dqn
   agents/vpg
-  agents/ac
-  agents/a2c
-  agents/dpg
   agents/ppo
   agents/trpo
+  agents/dpg
+  agents/dqn
+  agents/double_dqn
+  agents/dueling_dqn
+  agents/ac
+  agents/a2c
 
 
 .. toctree::
@@ -52,8 +53,8 @@ Tensorforce follows a set of high-level design choices which differentiate it fr
    modules/objectives
    modules/optimizers
    modules/parameters
-   modules/preprocessing
    modules/policies
+   modules/preprocessing
 
 
 .. toctree::
@@ -68,10 +69,9 @@ Tensorforce follows a set of high-level design choices which differentiate it fr
    :caption: Environments
 
    environments/environment
-   environments/ale
-   environments/maze_explorer
-   environments/open_sim
    environments/openai_gym
+   environments/ale
    environments/openai_retro
+   environments/open_sim
    environments/ple
    environments/vizdoom

@@ -1,9 +1,17 @@
 Memories
 ========
 
-Default memory: ``Replay`` with default argument ``capacity``, so e.g. ``memory=10000``
+Default memory: ``Replay`` with default argument ``capacity``, so an ``int`` is a short-form specification of a replay memory with corresponding capacity:
 
+.. code-block:: python
 
-.. autoclass:: tensorforce.core.memories.Recent
+    Agent.create(
+        ...
+        memory=10000,
+        ...
+    )
+
 
 .. autoclass:: tensorforce.core.memories.Replay
+
+.. autoclass:: tensorforce.core.memories.Recent

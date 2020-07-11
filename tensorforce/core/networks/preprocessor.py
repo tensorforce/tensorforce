@@ -13,12 +13,10 @@
 # limitations under the License.
 # ==============================================================================
 
-import tensorflow as tf
-
 from tensorforce import TensorforceError
 from tensorforce.core import SignatureDict, TensorDict, TensorSpec, TensorsSpec, tf_function, \
     tf_util
-from tensorforce.core.layers import PreprocessingLayer, Register, Retrieve
+from tensorforce.core.layers import MultiInputLayer, PreprocessingLayer, Register, StatefulLayer
 from tensorforce.core.networks import LayeredNetwork
 
 
@@ -28,8 +26,8 @@ class Preprocessor(LayeredNetwork):
     specified as either a single or a list of layer specifications.
 
     Args:
-        layers (iter[specification] | iter[iter[specification]]): Layers configuration, see
-            [layers](../modules/layers.html)
+        layers (iter[specification] | iter[iter[specification]]): Layers configuration, see the
+            [layers documentation](../modules/layers.html)
             (<span style="color:#C00000"><b>required</b></span>).
         device (string): Device name
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
@@ -87,7 +85,7 @@ class Preprocessor(LayeredNetwork):
             return tf_util.constant(value=False, dtype='bool')
 
     @tf_function(num_args=1)
-    def apply(self, *, x):
+    def apply(self, *, x, independent):
         registered_tensors = TensorDict(x=x)
 
         for layer in self.layers:
@@ -97,13 +95,13 @@ class Preprocessor(LayeredNetwork):
                 x = layer.apply(x=x)
                 registered_tensors[layer.tensor] = x
 
-            elif isinstance(layer, Retrieve):
-                x = TensorDict()
-                for tensor in layer.tensors:
-                    if tensor not in registered_tensors:
-                        raise TensorforceError.exists_not(name='registered tensor', value=tensor)
-                    x[tensor] = registered_tensors[tensor]
-                x = layer.apply(x=x)
+            elif isinstance(layer, MultiInputLayer):
+                if layer.tensors not in registered_tensors:
+                    raise TensorforceError.exists_not(name='registered tensor', value=layer.tensors)
+                x = layer.apply(x=registered_tensors[layer.tensors])
+
+            elif isinstance(layer, StatefulLayer):
+                x = layer.apply(x=x, independent=independent)
 
             else:
                 x = layer.apply(x=x)

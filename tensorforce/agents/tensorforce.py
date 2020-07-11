@@ -68,11 +68,12 @@ class TensorforceAgent(Agent):
             (<span style="color:#00C000"><b>default</b></span>: not given, better implicitly
             specified via `environment` argument for `Agent.create()`).
 
-        policy (specification): Policy configuration, see [policies](../modules/policies.html)
+        policy (specification): Policy configuration, see the
+            [policies documentation](../modules/policies.html)
             (<span style="color:#00C000"><b>default</b></span>: "default", action distributions
             parametrized by an automatically configured network).
-        memory (int | specification): Memory configuration, see
-            [memories](../modules/memories.html)
+        memory (int | specification): Memory configuration, see the
+            [memories documentation](../modules/memories.html)
             (<span style="color:#00C000"><b>default</b></span>: replay memory with either given or
             minimum capacity).
         update (int | specification): Model update configuration with the following attributes
@@ -81,27 +82,35 @@ class TensorforceAgent(Agent):
             <ul>
             <li><b>unit</b> (<i>"timesteps" | "episodes"</i>) &ndash; unit for update attributes
             (<span style="color:#C00000"><b>required</b></span>).</li>
-            <li><b>batch_size</b> (<i>parameter, int > 0</i>) &ndash; size of update batch in
-            number of units (<span style="color:#C00000"><b>required</b></span>).</li>
-            <li><b>frequency</b> (<i>"never" | parameter, int > 0</i>) &ndash; frequency of
-            updates (<span style="color:#00C000"><b>default</b></span>: batch_size).</li>
-            <li><b>start</b> (<i>parameter, int >= batch_size</i>) &ndash; number of units
-            before first update (<span style="color:#00C000"><b>default</b></span>: none).</li>
+            <li><b>batch_size</b>
+            (<i><a href="../modules/parameters.html">parameter</a>, int > 0</i>) &ndash;
+            size of update batch in number of units
+            (<span style="color:#C00000"><b>required</b></span>).</li>
+            <li><b>frequency</b>
+            (<i>"never" | <a href="../modules/parameters.html">parameter</a>, int > 0</i>) &ndash;
+            frequency of updates
+            (<span style="color:#00C000"><b>default</b></span>: batch_size).</li>
+            <li><b>start</b>
+            (<i><a href="../modules/parameters.html">parameter</a>, int >= batch_size</i>) &ndash;
+            number of units before first update
+            (<span style="color:#00C000"><b>default</b></span>: none).</li>
             </ul>
-        optimizer (specification): Optimizer configuration, see
-            [optimizers](../modules/optimizers.html)
+        optimizer (specification): Optimizer configuration, see the
+            [optimizers documentation](../modules/optimizers.html)
             (<span style="color:#00C000"><b>default</b></span>: Adam optimizer).
-        objective (specification): Optimization objective configuration, see
-            [objectives](../modules/objectives.html)
+        objective (specification): Optimization objective configuration, see the
+            [objectives documentation](../modules/objectives.html)
             (<span style="color:#C00000"><b>required</b></span>).
         reward_estimation (specification): Reward estimation configuration with the following
             attributes (<span style="color:#C00000"><b>required</b></span>):
             <ul>
-            <li><b>horizon</b> (<i>"episode" | parameter, int >= 1</i>) &ndash; Horizon of
-            discounted-sum reward estimation
+            <li><b>horizon</b>
+            (<i>"episode" | <a href="../modules/parameters.html">parameter</a>, int >= 1</i>)
+            &ndash; Horizon of discounted-sum reward estimation
             (<span style="color:#C00000"><b>required</b></span>).</li>
-            <li><b>discount</b> (<i>parameter, 0.0 <= float <= 1.0</i>) &ndash; Discount factor for
-            future rewards of discounted-sum reward estimation
+            <li><b>discount</b>
+            (<i><a href="../modules/parameters.html">parameter</a>, 0.0 <= float <= 1.0</i>) &ndash;
+            Discount factor for future rewards of discounted-sum reward estimation
             (<span style="color:#00C000"><b>default</b></span>: 1.0).</li>
             <li><b>estimate_horizon</b> (<i>false | "early" | "late"</i>) &ndash; Whether to include
             a baseline estimate of the horizon value as part of the return estimation, and if so,
@@ -124,34 +133,38 @@ class TensorforceAgent(Agent):
         baseline_policy (specification): Baseline policy configuration, main policy will be used as
             baseline if none
             (<span style="color:#00C000"><b>default</b></span>: none).
-        baseline_optimizer (specification | parameter, float > 0.0): Baseline optimizer
-            configuration, see [optimizers](../modules/optimizers.html), main optimizer will be used
-            for baseline if none, a float implies none and specifies a custom weight for the
-            baseline loss
+        baseline_optimizer (specification | <a href="../modules/parameters.html">parameter</a>, float > 0.0):
+            Baseline optimizer configuration, see the
+            [optimizers documentation](../modules/optimizers.html),
+            main optimizer will be used for baseline if none, a float implies none and specifies a
+            custom weight for the baseline loss
             (<span style="color:#00C000"><b>default</b></span>: none).
-        baseline_objective (specification): Baseline optimization objective configuration, see
-            [objectives](../modules/objectives.html), required if baseline optimizer is specified,
-            main objective will be used for baseline if baseline objective and optimizer are not
-            specified
+        baseline_objective (specification): Baseline optimization objective configuration, see the
+            [objectives documentation](../modules/objectives.html),
+            required if baseline optimizer is specified, main objective will be used for baseline if
+            baseline objective and optimizer are not specified
             (<span style="color:#00C000"><b>default</b></span>: none).
 
-        l2_regularization (parameter, float >= 0.0): L2 regularization loss weight
+        l2_regularization (<a href="../modules/parameters.html">parameter</a>, float >= 0.0):
+            L2 regularization loss weight
             (<span style="color:#00C000"><b>default</b></span>: no L2 regularization).
-        entropy_regularization (parameter, float >= 0.0): Entropy regularization loss weight, to
-            discourage the policy distribution from being "too certain"
+        entropy_regularization (<a href="../modules/parameters.html">parameter</a>, float >= 0.0):
+            Entropy regularization loss weight, to discourage the policy distribution from being
+            "too certain"
             (<span style="color:#00C000"><b>default</b></span>: no entropy regularization).
 
-        preprocessing (dict[specification]): Preprocessing as layer or list of layers, see
-            [preprocessing](../modules/preprocessing.html), specified per state-type or -name, and
-            for reward/return/advantage
+        preprocessing (dict[specification]): Preprocessing as layer or list of layers, see the
+            [preprocessing documentation](../modules/preprocessing.html),
+            specified per state-type or -name, and for reward/return/advantage
             (<span style="color:#00C000"><b>default</b></span>: none).
-        exploration (parameter | dict[parameter], float >= 0.0): Exploration, defined as the
-            probability for uniformly random output in case of `bool` and `int` actions, and the
-            standard deviation of Gaussian noise added to every output in case of `float` actions,
-            specified globally or per action-type or -name
+        exploration (<a href="../modules/parameters.html">parameter</a> | dict[<a href="../modules/parameters.html">parameter</a>], float >= 0.0):
+            Exploration, defined as the probability for uniformly random output in case of `bool`
+            and `int` actions, and the standard deviation of Gaussian noise added to every output in
+            case of `float` actions, specified globally or per action-type or -name
             (<span style="color:#00C000"><b>default</b></span>: no exploration).
-        variable_noise (parameter, float >= 0.0): Add Gaussian noise with given standard deviation
-            to all trainable variables, as alternative exploration mechanism
+        variable_noise (<a href="../modules/parameters.html">parameter</a>, float >= 0.0):
+            Add Gaussian noise with given standard deviation to all trainable variables, as
+            alternative exploration mechanism
             (<span style="color:#00C000"><b>default</b></span>: no variable noise).
 
         parallel_interactions (int > 0): Maximum number of parallel interactions to support,
@@ -175,10 +188,10 @@ class TensorforceAgent(Agent):
             (<span style="color:#00C000"><b>default</b></span>: configuration-specific maximum
             number which can be buffered without affecting performance).</li>
             <li><b>always_apply_exploration</b> (<i>bool</i>) &ndash; Whether to always apply
-            exploration, also for independent `act()` calls (final value in case of schedule)
+            exploration, also for independent act() calls (final value in case of schedule)
             (<span style="color:#00C000"><b>default</b></span>: false).</li>
             <li><b>always_apply_variable_noise</b> (<i>bool</i>) &ndash; Whether to always apply
-            variable noise, also for independent `act()` calls (final value in case of schedule)
+            variable noise, also for independent act() calls (final value in case of schedule)
             (<span style="color:#00C000"><b>default</b></span>: false).</li>
             <li><b>enable_int_action_masking</b> (<i>bool</i>) &ndash; Whether int action options
             can be masked via an optional "[ACTION-NAME]_mask" state input
@@ -237,8 +250,9 @@ class TensorforceAgent(Agent):
             <li>"updates": mean and variance of update tensors per variable (update-based)</li>
             <li>"variables": mean of trainable variables tensors (update-based)</li>
             </ul>
-        recorder (specification): Experience traces recorder configuration, currently not including
-            internal states, with the following attributes
+        recorder (specification): Experience traces recorder configuration (see
+            [record-and-pretrain script](https://github.com/tensorforce/tensorforce/blob/master/examples/record_and_pretrain.py)
+            for illustrative example), with the following attributes
             (<span style="color:#00C000"><b>default</b></span>: no recorder):
             <ul>
             <li><b>directory</b> (<i>path</i>) &ndash; recorder directory
@@ -577,6 +591,9 @@ class TensorforceAgent(Agent):
     def pretrain(self, directory, num_iterations, num_traces=1, num_updates=1, extension='.npz'):
         """
         Pretrain from experience traces.
+
+        See [record-and-pretrain script](https://github.com/tensorforce/tensorforce/blob/master/examples/record_and_pretrain.py)
+        for illustrative example.
 
         Args:
             directory (path): Directory with experience traces, e.g. obtained via recorder; episode

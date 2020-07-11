@@ -13,19 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-import os
-import logging
-
-import tensorflow as tf
-
-from tensorforce.agents import Agent
-from tensorforce.environments import Environment
-from tensorforce.execution import Runner
-
-
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-logger = tf.get_logger()
-logger.setLevel(logging.ERROR)
+from tensorforce import Agent, Environment, Runner
 
 
 def main():

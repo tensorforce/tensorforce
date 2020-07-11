@@ -11,7 +11,7 @@
 
 #### Introduction
 
-Tensorforce is an open-source deep reinforcement learning framework, with an emphasis on modularized flexible library design and straightforward usability for applications in research and practice. Tensorforce is built on top of [Google's TensorFlow framework](https://www.tensorflow.org/) and compatible with Python 3 (Python 2 support was dropped with version 0.5).
+Tensorforce is an open-source deep reinforcement learning framework, with an emphasis on modularized flexible library design and straightforward usability for applications in research and practice. Tensorforce is built on top of [Google's TensorFlow framework](https://www.tensorflow.org/) and requires Python 3.
 
 Tensorforce follows a set of high-level design choices which differentiate it from other similar libraries:
 
@@ -60,17 +60,7 @@ cd tensorforce
 pip3 install -e .
 ```
 
-Tensorforce is built on top of [Google's TensorFlow](https://www.tensorflow.org/) and requires that either `tensorflow` or `tensorflow-gpu` is installed. To include the correct version of TensorFlow with the installation of Tensorforce, simply add the flag `tf` for the normal CPU version or `tf_gpu` for the GPU version:
-
-```bash
-# PyPI version plus TensorFlow CPU version
-pip3 install tensorforce[tf]
-
-# GitHub version plus TensorFlow GPU version
-pip3 install -e .[tf_gpu]
-```
-
-Some environments require additional packages, for which there are also options available (`mazeexp`, `gym`, `retro`, `vizdoom`; or `envs` for all environments), however, some require other tools to be installed (see [environments documentation](http://tensorforce.readthedocs.io)).
+Some environments require additional packages, for which there are also options available (`gym`, `retro`, `vizdoom`, `carla`; or `envs` for all environments), however, some require other tools to be installed separately (see [environments documentation](http://tensorforce.readthedocs.io)).
 
 
 

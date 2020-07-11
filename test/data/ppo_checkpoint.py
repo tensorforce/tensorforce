@@ -18,7 +18,12 @@ os.remove('test/data/ppo-checkpoint/saved_model.pb')
 os.rmdir('test/data/ppo-checkpoint')
 
 
-runner = Runner(agent='benchmarks/configs/ppo.json', environment='benchmarks/configs/cartpole.json')
+runner = Runner(
+    agent=dict(
+        agent='benchmarks/configs/ppo.json',
+        recorder=dict(directory='test/data/ppo-traces', start=80)
+    ), environment='benchmarks/configs/cartpole.json'
+)
 runner.run(num_episodes=100)
 runner.agent.save(directory='test/data', filename='ppo-checkpoint', format='checkpoint')
 runner.agent.save(directory='test/data', filename='ppo-checkpoint', format='numpy')

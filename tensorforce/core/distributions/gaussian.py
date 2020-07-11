@@ -24,7 +24,7 @@ from tensorforce.core.distributions import Distribution
 
 class Gaussian(Distribution):
     """
-    Gaussian distribution, for unbounded continuous actions (specification key: `gaussian`).
+    Gaussian distribution, for continuous actions (specification key: `gaussian`).
 
     Args:
         global_stddev (bool): Whether to use a separate set of trainable weights to parametrize

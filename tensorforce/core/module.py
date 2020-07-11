@@ -252,7 +252,7 @@ class Module(tf.Module):
         if self.checkpoint is None:
             self.checkpoint = tf.train.Checkpoint(**{self.name: self})
         try:
-            self.checkpoint.restore(save_path=os.path.join(directory, filename)).assert_consumed()
+            self.checkpoint.restore(save_path=os.path.join(directory, filename)).expect_partial()
         except AssertionError as exc:
             if len(exc.args) != 1 or not re.match(
                 pattern=r"Some Python objects were not bound to checkpointed values, likely due to "
@@ -571,7 +571,9 @@ class Module(tf.Module):
         elif initializer == 'ones':
             initializer = tf_util.ones(shape=spec.shape, dtype=spec.type)
         elif initializer == 'constant':
-            initializer = tf_util.fill(dims=spec.shape, value=self.initialization_scale)
+            initializer = tf.fill(
+                dims=spec.shape, value=tf_util.constant(value=initialization_scale, dtype=spec.type)
+            )
 
         # Variable
         variable = tf.Variable(

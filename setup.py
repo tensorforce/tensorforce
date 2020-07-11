@@ -101,11 +101,7 @@ setup(
     python_requires='>=3.5',
     install_requires=install_requires,
     extras_require=dict(
-        tf=['tensorflow >= 2.2.0'],
-        tf_gpu=['tensorflow-gpu >= 2.2.0'],
-        tfa=['tensorflow-addons >= 0.10.0'],
         docs=['m2r >= 0.2.1', 'recommonmark >= 0.6.0', 'sphinx >= 3.1.1', 'sphinx-rtd-theme >= 0.5.0'],
-        tune=['hpbandster >= 0.7.4'],
         envs=['gym[atari,box2d,classic_control] >= 0.17.2', 'gym-retro >= 0.8.0', 'vizdoom >= 1.1.7'],
         gym=['gym[atari,box2d,classic_control] >= 0.17.2'],
         retro=['gym-retro >= 0.8.0'],

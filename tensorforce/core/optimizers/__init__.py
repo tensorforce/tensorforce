@@ -30,15 +30,14 @@ from tensorforce.core.optimizers.subsampling_step import SubsamplingStep
 from tensorforce.core.optimizers.synchronization import Synchronization
 from tensorforce.core.optimizers.tf_optimizer import TFOptimizer, tensorflow_optimizers
 
-from tensorforce.core.optimizers.update_modifier_wrapper import UpdateModifierWrapper
+from tensorforce.core.optimizers.optimizer_wrapper import OptimizerWrapper
 
 
 optimizer_modules = dict(
-    clipping_step=ClippingStep, default=UpdateModifierWrapper, evolutionary=Evolutionary,
+    clipping_step=ClippingStep, default=OptimizerWrapper, evolutionary=Evolutionary,
     global_optimizer=GlobalOptimizer, linesearch_step=LinesearchStep, multi_step=MultiStep,
-    natural_gradient=NaturalGradient, plus=Plus, subsampling_step=SubsamplingStep,
-    synchronization=Synchronization, tf_optimizer=TFOptimizer,
-    update_modifier_wrapper=UpdateModifierWrapper
+    natural_gradient=NaturalGradient, optimizer_wrapper=OptimizerWrapper, plus=Plus,
+    subsampling_step=SubsamplingStep, synchronization=Synchronization, tf_optimizer=TFOptimizer
 )
 
 

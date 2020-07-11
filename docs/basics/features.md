@@ -4,42 +4,7 @@ Features
 
 ### Multi-input and non-sequential network architectures
 
-Multi-input and other non-sequential networks are specified as list of layer lists, as opposed to
-simply a list of layers for sequential networks. The following example illustrates how to specify
-such a more complex network, by using the special layers `Register` and `Retrieve` to combine the
-multiple sequential layer stacks.
-
-```python
-Agent.create(
-    states=dict(
-        observation=dict(type='float', shape=(16, 16, 3)),
-        attributes=dict(type='int', shape=(4, 2), num_values=5)
-    ),
-    ...
-    policy=[
-        [
-            dict(type='retrieve', tensors=['observation']),
-            dict(type='conv2d', size=16),
-            dict(type='flatten'),
-            dict(type='register', tensor='obs-embedding')
-        ],
-        [
-            dict(type='retrieve', tensors=['attributes']),
-            dict(type='embedding', size=16),
-            dict(type='flatten'),
-            dict(type='register', tensor='attr-embedding')
-        ],
-        [
-            dict(
-                type='retrieve', tensors=['obs-embedding', 'attr-embedding'],
-                aggregation='concat'
-            ),
-            dict(type='dense', size=32)
-        ]
-    ],
-    ...
-)
-```
+See [networks documentation](../modules.networks.html).
 
 
 
@@ -151,20 +116,4 @@ Agent.create(...
 
 ### Record & pretrain
 
-```python
-agent = Agent.create(...
-    recorder=dict(
-        directory='data/traces',
-        frequency=100  # record a traces file every 100 episodes
-    ), ...
-)
-...
-agent.close()
-
-# Pretrain agent on recorded traces (memory size needs to be compatible)
-agent = Agent.create(...)
-agent.pretrain(
-    directory='data/traces',
-    num_iterations=100  # perform 100 update iterations on traces (more configurations possible)
-)
-```
+See [record-and-pretrain example](https://github.com/tensorforce/tensorforce/blob/master/examples/record_and_pretrain.py).

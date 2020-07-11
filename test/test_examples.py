@@ -88,6 +88,55 @@ class TestExamples(UnittestBase, unittest.TestCase):
 
         self.finished_test()
 
+    def test_record_and_pretrain(self):
+        self.start_tests(name='record-and-pretrain')
+
+        with TemporaryDirectory() as directory:
+
+            # ====================
+
+            # Start recording traces after the first 100 episodes -- by then, the agent
+            # has solved the environment
+            runner = Runner(
+                agent=dict(
+                    agent='benchmarks/configs/ppo.json',
+                    recorder=dict(directory=directory, start=8)
+                ), environment='benchmarks/configs/cartpole.json'
+            )
+            runner.run(num_episodes=10)
+            runner.close()
+
+            # Pretrain a new agent on the recorded traces: for 30 iterations, feed the
+            # experience of one episode to the agent and subsequently perform one update
+            environment = Environment.create(environment='benchmarks/configs/cartpole.json')
+            agent = Agent.create(agent='benchmarks/configs/ppo.json', environment=environment)
+            agent.pretrain(
+                directory='test/data/ppo-traces', num_iterations=30, num_traces=1, num_updates=1
+            )
+
+            # Evaluate the pretrained agent
+            runner = Runner(agent=agent, environment=environment)
+            runner.run(num_episodes=10, evaluation=True)
+            self.assertTrue(
+                all(episode_reward == 500.0 for episode_reward in runner.episode_rewards)
+            )
+            runner.close()
+
+            # Close agent and environment
+            agent.close()
+            environment.close()
+
+            # ====================
+
+            files = sorted(os.listdir(path=directory))
+            self.assertEqual(len(files), 2)
+            self.assertTrue(all(
+                file.startswith('trace-') and file.endswith('0000000{}.npz'.format(n))
+                for n, file in enumerate(files, start=8)
+            ))
+
+        self.finished_test()
+
     def test_temperature_controller(self):
         self.start_tests(name='temperature-controller')
 

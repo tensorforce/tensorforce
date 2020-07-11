@@ -740,9 +740,9 @@ class TensorforceModel(Model):
             # Preprocessing
             for name in states:
                 if name in self.preprocessing:
-                    states[name] = self.preprocessing[name].apply(x=states[name])
+                    states[name] = self.preprocessing[name].apply(x=states[name], independent=False)
             if 'reward' in self.preprocessing:
-                reward = self.preprocessing['reward'].apply(x=reward)
+                reward = self.preprocessing['reward'].apply(x=reward, independent=False)
 
             # Core experience
             experienced = self.core_experience(
@@ -825,7 +825,9 @@ class TensorforceModel(Model):
             # State preprocessing (after variable noise)
             for name in self.states_spec:
                 if name in self.preprocessing:
-                    states[name] = self.preprocessing[name].apply(x=states[name])
+                    states[name] = self.preprocessing[name].apply(
+                        x=states[name], independent=independent
+                    )
 
             # Policy act (after variable noise)
             batch_size = tf_util.cast(x=tf.shape(input=states.value())[0], dtype='int')
@@ -1072,7 +1074,7 @@ class TensorforceModel(Model):
 
         # Reward preprocessing
         if 'reward' in self.preprocessing:
-            reward = self.preprocessing['reward'].apply(x=reward)
+            reward = self.preprocessing['reward'].apply(x=reward, independent=False)
 
             # Preprocessed reward summary
             if self.summary_labels == 'all' or 'reward' in self.summary_labels:
@@ -1793,7 +1795,7 @@ class TensorforceModel(Model):
         # reward = self.add_summary(label=('return', 'rewards'), name='return', tensor=reward)  # TODO: need to be moved to episode?
         if 'return' in self.preprocessing:
             # TODO: Can't require state, reset!
-            reward = self.preprocessing['return'].apply(x=reward)
+            reward = self.preprocessing['return'].apply(x=reward, independent=False)
             # reward = self.add_summary(
             #     label=('return', 'rewards'), name='preprocessed-return', tensor=reward
             # )
@@ -1857,7 +1859,7 @@ class TensorforceModel(Model):
                 # )
                 if 'advantage' in self.preprocessing:
                     # TODO: Can't require state, reset!
-                    reward = self.preprocessing['advantage'].apply(x=reward)
+                    reward = self.preprocessing['advantage'].apply(x=reward, independent=False)
                     # reward = self.add_summary(
                     #     label=('advantage', 'rewards'), name='preprocessed-advantage', tensor=reward
                     # )
@@ -1913,7 +1915,7 @@ class TensorforceModel(Model):
                     # )
                     if 'advantage' in self.preprocessing:
                         # TODO: Can't require state, reset!
-                        reward = self.preprocessing['advantage'].apply(x=reward)
+                        reward = self.preprocessing['advantage'].apply(x=reward, independent=False)
                         # reward = self.add_summary(
                         #     label=('advantage', 'rewards'), name='preprocessed-advantage', tensor=reward
                         # )

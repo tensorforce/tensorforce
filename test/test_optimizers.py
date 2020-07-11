@@ -25,8 +25,8 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
 
         self.unittest(optimizer=dict(type='evolutionary', learning_rate=1e-3))
 
-    def test_update_modifier_wrapper(self):
-        self.start_tests(name='update-modifier-wrapper')
+    def test_optimizer_wrapper(self):
+        self.start_tests(name='optimizer-wrapper')
 
         self.unittest(optimizer=dict(
             optimizer='adam', learning_rate=1e-3, clipping_threshold=1e-2, multi_step=5,

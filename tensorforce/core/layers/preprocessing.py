@@ -13,10 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
-import numpy as np
 import tensorflow as tf
 
-from tensorforce import TensorforceError
 from tensorforce.core import parameter_modules, SignatureDict, TensorSpec, tf_function, tf_util
 from tensorforce.core.layers import Layer
 
@@ -244,48 +242,6 @@ class Image(Layer):
             x = tf.image.rgb_to_grayscale(images=x)
 
         return x
-
-
-class LinearNormalization(Layer):
-    """
-    Linear normalization layer which scales and shifts the input to [-1.0, 1.0], for states with
-    min/max_value
-    (specification key: `linear_normalization`).
-
-    Args:
-        min_value (float | array[float]): Lower bound of the value
-        max_value (float | array[float]): Upper bound of the value range
-        name (string): Layer name
-            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
-        input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
-    """
-
-    def __init__(self, *, min_value, max_value, name=None, input_spec=None):
-        self.min_value = np.asarray(min_value)
-        self.max_value = np.asarray(max_value)
-        if (self.min_value >= self.max_value).any():
-            raise TensorforceError(
-                name='LinearNormalization', argument='min/max_value',
-                value=(self.min_value, self.max_value), hint='not less than'
-            )
-
-        super().__init__(name=name, input_spec=input_spec)
-
-    def default_input_spec(self):
-        return TensorSpec(
-            type='float', shape=None, min_value=self.min_value, max_value=self.max_value
-        )
-
-    @tf_function(num_args=1)
-    def apply(self, *, x):
-        is_inf = np.logical_or(np.isinf(self.min_value), np.isinf(self.max_value))
-        is_inf = tf_util.constant(value=is_inf, dtype='bool')
-        min_value = tf_util.constant(value=self.min_value, dtype='float')
-        max_value = tf_util.constant(value=self.max_value, dtype='float')
-
-        return tf.where(
-            condition=is_inf, x=x, y=(2.0 * (x - min_value) / (max_value - min_value) - 1.0)
-        )
 
 
 class Sequence(PreprocessingLayer):

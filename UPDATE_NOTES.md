@@ -32,6 +32,7 @@ This file records all major updates and new features, starting from version 0.5.
 - Added `Gaussian` distribution arguments `global_stddev` and `bounded_transform` (for improved bounded action space handling)
 - Changed `tune.py` arguments
 - Renamed `update_modifier_wrapper` to `optimizer_wrapper`
+- Default preprocessing `linear_normalization`
 
 
 

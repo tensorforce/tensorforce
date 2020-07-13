@@ -23,10 +23,11 @@ from tensorforce.core.layers.embedding import Embedding
 from tensorforce.core.layers.input_rnn import InputGru, InputLstm, InputRnn
 from tensorforce.core.layers.keras import Keras
 from tensorforce.core.layers.misc import Activation, Block, Dropout, Function, Reshape
-from tensorforce.core.layers.normalization import ExponentialNormalization, InstanceNormalization
+from tensorforce.core.layers.normalization import ExponentialNormalization, InstanceNormalization, \
+    LinearNormalization
 from tensorforce.core.layers.pooling import Flatten, Pooling, Pool1d, Pool2d
-from tensorforce.core.layers.preprocessing import Clipping, Deltafier, Image, LinearNormalization, \
-    PreprocessingLayer, Sequence
+from tensorforce.core.layers.preprocessing import Clipping, Deltafier, Image, PreprocessingLayer, \
+    Sequence
 from tensorforce.core.layers.rnn import Gru, Lstm, Rnn
 
 # Require Dense, Conv1d, Conv2d

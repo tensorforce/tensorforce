@@ -27,7 +27,7 @@ class TestObjectives(UnittestBase, unittest.TestCase):
         baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=1))
         baseline_objective = dict(type='value', value='action')
         self.unittest(
-            actions=dict(type='float', shape=(1,)), objective=objective,
+            actions=dict(type='float', shape=(), min_value=1.0, max_value=2.0), objective=objective,
             baseline_policy=baseline_policy, baseline_objective=baseline_objective
         )
 

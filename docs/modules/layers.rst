@@ -78,6 +78,8 @@ Pooling layers
 Normalization layers
 --------------------
 
+.. autoclass:: tensorforce.core.layers.LinearNormalization
+
 .. autoclass:: tensorforce.core.layers.ExponentialNormalization
 
 .. autoclass:: tensorforce.core.layers.InstanceNormalization

@@ -156,7 +156,8 @@ class TensorforceAgent(Agent):
         preprocessing (dict[specification]): Preprocessing as layer or list of layers, see the
             [preprocessing documentation](../modules/preprocessing.html),
             specified per state-type or -name, and for reward/return/advantage
-            (<span style="color:#00C000"><b>default</b></span>: none).
+            (<span style="color:#00C000"><b>default</b></span>: linear normalization of bounded
+            float states to [-2.0, 2.0]).
         exploration (<a href="../modules/parameters.html">parameter</a> | dict[<a href="../modules/parameters.html">parameter</a>], float >= 0.0):
             Exploration, defined as the probability for uniformly random output in case of `bool`
             and `int` actions, and the standard deviation of Gaussian noise added to every output in
@@ -271,13 +272,13 @@ class TensorforceAgent(Agent):
         # Environment
         max_episode_timesteps=None,
         # Agent
-        policy='default', memory=None, optimizer='adam',
+        policy='default', memory='minimum', optimizer='adam',
         # Baseline
         baseline_policy=None, baseline_optimizer=None, baseline_objective=None,
         # Regularization
         l2_regularization=0.0, entropy_regularization=0.0,
         # Preprocessing
-        preprocessing=None,
+        preprocessing='linear_normalization',
         # Exploration
         exploration=0.0, variable_noise=0.0,
         # Parallel interactions
@@ -336,6 +337,9 @@ class TensorforceAgent(Agent):
                 # Config, saver, summarizer, recorder
                 config=config, saver=saver, summarizer=summarizer, recorder=recorder
             )
+
+        if memory == 'minimum':
+            memory = None
 
         if isinstance(update, int):
             update = dict(unit='timesteps', batch_size=update)

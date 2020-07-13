@@ -13,11 +13,77 @@
 # limitations under the License.
 # ==============================================================================
 
+import numpy as np
 import tensorflow as tf
 
-from tensorforce import util
+from tensorforce import TensorforceError, util
 from tensorforce.core import parameter_modules, TensorSpec, tf_function, tf_util
 from tensorforce.core.layers import Layer, StatefulLayer
+
+
+class LinearNormalization(Layer):
+    """
+    Linear normalization layer which scales and shifts the input to [-2.0, 2.0], for bounded states
+    with min/max_value (specification key: `linear_normalization`).
+
+    Args:
+        min_value (float | array[float]): Lower bound of the value
+            (<span style="color:#00C000"><b>default</b></span>: based on input_spec).
+        max_value (float | array[float]): Upper bound of the value range
+            (<span style="color:#00C000"><b>default</b></span>: based on input_spec).
+        name (string): Layer name
+            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
+        input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
+    """
+
+    def __init__(self, *, min_value=None, max_value=None, name=None, input_spec=None):
+        if min_value is None:
+            if input_spec.min_value is None:
+                raise TensorforceError.required(name='LinearNormalization', argument='min_value')
+            min_value = input_spec.min_value
+
+        if max_value is None:
+            if input_spec.max_value is None:
+                raise TensorforceError.required(name='LinearNormalization', argument='max_value')
+            max_value = input_spec.max_value
+
+        self.min_value = np.asarray(min_value)
+        self.max_value = np.asarray(max_value)
+
+        if (self.min_value >= self.max_value).any():
+            raise TensorforceError(
+                name='LinearNormalization', argument='min/max_value',
+                value=(self.min_value, self.max_value), hint='not less than'
+            )
+
+        super().__init__(name=name, input_spec=input_spec)
+
+    def default_input_spec(self):
+        return TensorSpec(
+            type='float', shape=None, min_value=self.min_value, max_value=self.max_value
+        )
+
+    def output_spec(self):
+        output_spec = super().output_spec()
+        is_inf = np.logical_or(np.isinf(self.min_value), np.isinf(self.max_value))
+        if is_inf.any():
+            output_spec['min_value'] = np.where(is_inf, self.min_value, -2.0)
+            output_spec['max_value'] = np.where(is_inf, self.max_value, 2.0)
+        else:
+            output_spec['min_value'] = -2.0
+            output_spec['max_value'] = 2.0
+        return output_spec
+
+    @tf_function(num_args=1)
+    def apply(self, *, x):
+        is_inf = np.logical_or(np.isinf(self.min_value), np.isinf(self.max_value))
+        is_inf = tf_util.constant(value=is_inf, dtype='bool')
+        min_value = tf_util.constant(value=self.min_value, dtype='float')
+        max_value = tf_util.constant(value=self.max_value, dtype='float')
+
+        return tf.where(
+            condition=is_inf, x=x, y=(4.0 * (x - min_value) / (max_value - min_value) - 2.0)
+        )
 
 
 class ExponentialNormalization(StatefulLayer):

@@ -8,6 +8,12 @@ See [networks documentation](../modules.networks.html).
 
 
 
+### Abort-terminal due to timestep limit
+
+Besides `terminal=False` or `=0` for non-terminal and `terminal=True` or `=1` for true terminal, Tensorforce recognizes `terminal=2` as abort-terminal and handles it accordingly for reward estimation. Environments created via `Environment.create(..., max_episode_timesteps=?, ...)` will automatically return the appropriate terminal depending on whether an episode truly terminates or is aborted because it reached the time limit.
+
+
+
 ### Action masking
 
 ```python

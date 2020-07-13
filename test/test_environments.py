@@ -45,10 +45,7 @@ class TestEnvironments(UnittestBase, unittest.TestCase):
         self.unittest(environment=dict(environment='gym', level='CartPole-v0'), num_episodes=2)
 
         # state: discrete, action: box
-        self.unittest(
-            environment=dict(environment='gym', level='GuessingGame', max_episode_steps=False),
-            num_episodes=2
-        )
+        self.unittest(environment=dict(environment='gym', level='GuessingGame'), num_episodes=2)
 
         # state: discrete, action: tuple(discrete)
         from gym.envs.algorithmic import ReverseEnv

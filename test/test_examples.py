@@ -48,7 +48,7 @@ class TestExamples(UnittestBase, unittest.TestCase):
                 baseline_network=dict(type='auto', size=32, depth=1),
                 baseline_optimizer=dict(optimizer='adam', learning_rate=1e-3, multi_step=10),
                 # Preprocessing
-                preprocessing=None,
+                preprocessing='linear_normalization',
                 # Exploration
                 exploration=0.0, variable_noise=0.0,
                 # Regularization

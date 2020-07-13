@@ -234,6 +234,8 @@ class LayeredNetwork(LayerbasedNetwork):
         else:
             if callable(spec):
                 spec = dict(type='function', function=spec)
+            elif isinstance(spec, str):
+                spec = dict(type=spec)
 
             # Deprecated
             if spec.get('type') in ('internal_rnn', 'internal_lstm', 'internal_gru'):

@@ -41,7 +41,7 @@ class TestNetwork(LayerbasedNetwork):
 class TestSpecifications(UnittestBase, unittest.TestCase):
 
     def specification_unittest(self, network, memory):
-        states = dict(type='float', shape=(3,))
+        states = dict(type='float', shape=(3,), min_value=1.0, max_value=2.0)
 
         agent, environment = self.prepare(
             states=states, policy=dict(network=network), memory=memory

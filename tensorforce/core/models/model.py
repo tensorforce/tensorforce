@@ -14,6 +14,7 @@
 # ==============================================================================
 
 from collections import OrderedDict
+import logging
 import os
 import time
 
@@ -63,6 +64,17 @@ class Model(Module):
 
         # State space specification
         self.states_spec = TensorsSpec(states)
+        for name, spec in self.states_spec.items():
+            if spec.type != 'float':
+                continue
+            elif spec.min_value is None:
+                logging.warning("No min_value bound specified for state {}.".format(name))
+            elif np.isinf(spec.min_value).any():
+                logging.warning("Infinite min_value bound for state {}.".format(name))
+            elif spec.max_value is None:
+                logging.warning("No max_value bound specified for state {}.".format(name))
+            elif np.isinf(spec.max_value).any():
+                logging.warning("Infinite max_value bound for state {}.".format(name))
 
         # Check for name collisions
         for name in self.states_spec:
@@ -72,6 +84,17 @@ class Model(Module):
 
         # Action space specification
         self.actions_spec = TensorsSpec(actions)
+        for name, spec in self.actions_spec.items():
+            if spec.type != 'float':
+                continue
+            elif spec.min_value is None:
+                logging.warning("No min_value specified for action {}.".format(name))
+            elif np.isinf(spec.min_value).any():
+                raise TensorforceError("Infinite min_value bound for action {}.".format(name))
+            elif spec.max_value is None:
+                logging.warning("No max_value specified for action {}.".format(name))
+            elif np.isinf(spec.max_value).any():
+                raise TensorforceError("Infinite max_value bound for action {}.".format(name))
 
         # Check for name collisions
         for name in self.actions_spec:

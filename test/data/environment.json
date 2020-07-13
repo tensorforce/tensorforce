@@ -1,4 +1,6 @@
 {
     "environment": "gym",
-    "level": "CartPole"
+    "level": "CartPole",
+    "min_value": -3.0,
+    "max_value": 3.0
 }

@@ -74,12 +74,6 @@ class AutoNetwork(LayeredNetwork):
                     type='embedding', name=(input_name + '_embedding'), size=size
                 ))
 
-            # Normalize bounded inputs to [-1.0, 1.0]
-            if spec.type == 'float' and spec.min_value is not None and spec.max_value is not None:
-                state_layers.append(dict(
-                    type='linear_normalization', min_value=spec.min_value, max_value=spec.max_value
-                ))
-
             # Shape-specific layer type
             if spec.rank == 1 - requires_embedding:
                 layer = 'dense'

@@ -169,7 +169,7 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
         # layers
         import tensorflow as tf
         self.unittest(
-            states=dict(type='float', shape=(2,)),
+            states=dict(type='float', shape=(2,), min_value=-1.0, max_value=2.0),
             policy=dict(network=[
                 (lambda x: tf.clip_by_value(x, -1.0, 1.0)),
                 dict(type='dense', size=8, activation='tanh')
@@ -183,7 +183,7 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
 
         # networks
         self.unittest(
-            states=dict(type='float', shape=(2,)),
+            states=dict(type='float', shape=(2,), min_value=1.0, max_value=2.0),
             policy=dict(network=[
                 dict(type='dense', size=8, activation='tanh'),
                 dict(type='dense', size=8, activation='tanh')
@@ -191,7 +191,7 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
         )
         self.unittest(
             states=dict(
-                observation=dict(type='float', shape=(4, 4, 3)),
+                observation=dict(type='float', shape=(4, 4, 3), min_value=-1.0, max_value=2.0),
                 attributes=dict(type='int', shape=(4, 2), num_values=5)
             ),
             policy=[
@@ -244,7 +244,7 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
 
         # preprocessing
         self.unittest(
-            states=dict(type='float', shape=(8, 8, 3)),
+            states=dict(type='float', shape=(8, 8, 3), min_value=-1.0, max_value=2.0),
             preprocessing=dict(
                 state=[
                     dict(type='image', height=4, width=4, grayscale=True),
@@ -256,14 +256,14 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
 
         # policy
         self.unittest(
-            states=dict(type='float', shape=(2,)),
+            states=dict(type='float', shape=(2,), min_value=-1.0, max_value=2.0),
             policy=[
                 dict(type='dense', size=8, activation='tanh'),
                 dict(type='dense', size=8, activation='tanh')
             ]
         )
         self.unittest(
-            states=dict(type='float', shape=(2,)),
+            states=dict(type='float', shape=(2,), min_value=-1.0, max_value=2.0),
             policy=dict(
                 network=[
                     dict(type='dense', size=8, activation='tanh'),
@@ -284,7 +284,7 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
         self.start_tests(name='masking')
 
         agent, environment = self.prepare(
-            states=dict(type='float', shape=(10,)),
+            states=dict(type='float', shape=(10,), min_value=-1.0, max_value=2.0),
             actions=dict(type='int', shape=(), num_values=3)
         )
         states = environment.reset()

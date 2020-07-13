@@ -109,7 +109,8 @@ class DeepQNetwork(TensorforceAgent):
         preprocessing (dict[specification]): Preprocessing as layer or list of layers, see the
             [preprocessing documentation](../modules/preprocessing.html),
             specified per state-type or -name, and for reward/return/advantage
-            (<span style="color:#00C000"><b>default</b></span>: none).
+            (<span style="color:#00C000"><b>default</b></span>: linear normalization of bounded
+            float states to [-2.0, 2.0]).
         exploration (<a href="../modules/parameters.html">parameter</a> | dict[<a href="../modules/parameters.html">parameter</a>], float >= 0.0):
             Exploration, defined as the probability for uniformly random output in case of `bool`
             and `int` actions, and the standard deviation of Gaussian noise added to every output in
@@ -131,13 +132,13 @@ class DeepQNetwork(TensorforceAgent):
         # Network
         network='auto',
         # Optimization
-        update_frequency=None, start_updating=None, learning_rate=1e-3, huber_loss=0.0,
+        update_frequency='batch_size', start_updating=None, learning_rate=1e-3, huber_loss=0.0,
         # Reward estimation
         horizon=1, discount=0.99, predict_terminal_values=False,
         # Target network
         target_sync_frequency=1, target_update_weight=1.0,
         # Preprocessing
-        preprocessing=None,
+        preprocessing='linear_normalization',
         # Exploration
         exploration=0.0, variable_noise=0.0,
         # Regularization
@@ -175,7 +176,7 @@ class DeepQNetwork(TensorforceAgent):
         memory = dict(type='replay', capacity=memory)
 
         update = dict(unit='timesteps', batch_size=batch_size)
-        if update_frequency is not None:
+        if update_frequency != 'batch_size':
             update['frequency'] = update_frequency
         if start_updating is not None:
             update['start'] = start_updating

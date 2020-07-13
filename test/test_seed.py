@@ -27,11 +27,11 @@ class TestSeed(UnittestBase, unittest.TestCase):
 
         states = dict(
             int_state=dict(type='int', shape=(2,), num_values=4),
-            float_state=dict(type='float', shape=(2,)),
+            float_state=dict(type='float', shape=(2,), min_value=1.0, max_value=2.0),
         )
         actions = dict(
             int_action=dict(type='int', shape=(2,), num_values=4),
-            float_action=dict(type='float', shape=(2,)),
+            float_action=dict(type='float', shape=(2,), min_value=1.0, max_value=2.0),
         )
 
         agent, environment = self.prepare(

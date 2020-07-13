@@ -117,7 +117,8 @@ class ProximalPolicyOptimization(TensorforceAgent):
         preprocessing (dict[specification]): Preprocessing as layer or list of layers, see the
             [preprocessing documentation](../modules/preprocessing.html),
             specified per state-type or -name, and for reward/return/advantage
-            (<span style="color:#00C000"><b>default</b></span>: none).
+            (<span style="color:#00C000"><b>default</b></span>: linear normalization of bounded
+            float states to [-2.0, 2.0]).
         exploration (<a href="../modules/parameters.html">parameter</a> | dict[<a href="../modules/parameters.html">parameter</a>], float >= 0.0):
             Exploration, defined as the probability for uniformly random output in case of `bool`
             and `int` actions, and the standard deviation of Gaussian noise added to every output in
@@ -137,15 +138,15 @@ class ProximalPolicyOptimization(TensorforceAgent):
         # Network
         network='auto', use_beta_distribution=False,
         # Memory
-        memory=None,
+        memory='minimum',
         # Optimization
-        update_frequency=None, learning_rate=1e-3, multi_step=10, subsampling_fraction=0.33,
+        update_frequency='batch_size', learning_rate=1e-3, multi_step=10, subsampling_fraction=0.33,
         # Reward estimation
         likelihood_ratio_clipping=0.25, discount=0.99, predict_terminal_values=False,
         # Baseline
         baseline_network=None, baseline_optimizer=None,
         # Preprocessing
-        preprocessing=None,
+        preprocessing='linear_normalization',
         # Exploration
         exploration=0.0, variable_noise=0.0,
         # Regularization
@@ -195,12 +196,12 @@ class ProximalPolicyOptimization(TensorforceAgent):
 
         policy = dict(network=network, temperature=1.0, use_beta_distribution=use_beta_distribution)
 
-        if memory is None:
+        if memory == 'minimum':
             memory = dict(type='recent')
         else:
             memory = dict(type='recent', capacity=memory)
 
-        if update_frequency is None:
+        if update_frequency == 'batch_size':
             update = dict(unit='episodes', batch_size=batch_size)
         else:
             update = dict(unit='episodes', batch_size=batch_size, frequency=update_frequency)

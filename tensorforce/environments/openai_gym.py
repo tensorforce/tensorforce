@@ -35,9 +35,10 @@ class OpenAIGym(Environment):
             (<span style="color:#C00000"><b>required</b></span>).
         visualize (bool): Whether to visualize interaction
             (<span style="color:#00C000"><b>default</b></span>: false).
-        max_episode_steps (false | int > 0): Whether to terminate an episode after a while,
-            and if so, maximum number of timesteps per episode
-            (<span style="color:#00C000"><b>default</b></span>: Gym default).
+        min_value (float): Lower bound clipping for otherwise unbounded state values
+            (<span style="color:#00C000"><b>default</b></span>: no clipping).
+        max_value (float): Upper bound clipping for otherwise unbounded state values
+            (<span style="color:#00C000"><b>default</b></span>: no clipping).
         terminal_reward (float): Additional reward for early termination, if otherwise
             indistinguishable from termination due to maximum number of timesteps
             (<span style="color:#00C000"><b>default</b></span>: Gym default).
@@ -134,7 +135,7 @@ class OpenAIGym(Environment):
         return gym.make(id=level, **kwargs), max_episode_steps
 
     def __init__(
-        self, level, visualize=False, max_episode_steps=None, terminal_reward=0.0,
+        self, level, visualize=False, min_value=None, max_value=None, terminal_reward=0.0,
         reward_threshold=None, drop_states_indices=None, visualize_directory=None, **kwargs
     ):
         super().__init__()
@@ -149,15 +150,13 @@ class OpenAIGym(Environment):
         if isinstance(level, gym.Env):
             self.environment = self.level
             self.level = self.level.__class__.__name__
-            self._max_episode_timesteps = max_episode_steps
         elif isinstance(level, type) and issubclass(level, gym.Env):
             self.environment = self.level(**kwargs)
             self.level = self.level.__class__.__name__
-            self._max_episode_timesteps = max_episode_steps
         else:
             self.environment, self._max_episode_timesteps = self.__class__.create_level(
-                level=self.level, max_episode_steps=max_episode_steps,
-                reward_threshold=reward_threshold, **kwargs
+                level=self.level, max_episode_steps=None, reward_threshold=reward_threshold,
+                **kwargs
             )
 
         if visualize_directory is not None:
@@ -165,9 +164,21 @@ class OpenAIGym(Environment):
                 env=self.environment, directory=visualize_directory
             )
 
-        self.states_spec = OpenAIGym.specs_from_gym_space(
-            space=self.environment.observation_space, allow_infinite_box_bounds=True
-        )
+        self.min_value = min_value
+        self.max_value = max_value
+        if min_value is not None:
+            if max_value is None:
+                raise TensorforceError.required(name='OpenAIGym', argument='max_value')
+            self.states_spec = OpenAIGym.specs_from_gym_space(
+                space=self.environment.observation_space, min_value=min_value, max_value=max_value
+            )
+        elif max_value is not None:
+            raise TensorforceError.required(name='OpenAIGym', argument='min_value')
+        else:
+            self.states_spec = OpenAIGym.specs_from_gym_space(
+                space=self.environment.observation_space, allow_infinite_box_bounds=True
+            )
+
         if drop_states_indices is None:
             self.drop_states_indices = None
         else:
@@ -177,9 +188,7 @@ class OpenAIGym(Environment):
             num_dropped = len(self.drop_states_indices)
             self.states_spec['shape'] = (self.states_spec['shape'][0] - num_dropped,)
 
-        self.actions_spec = OpenAIGym.specs_from_gym_space(
-            space=self.environment.action_space, allow_infinite_box_bounds=False
-        )
+        self.actions_spec = OpenAIGym.specs_from_gym_space(space=self.environment.action_space)
 
     def __str__(self):
         return super().__str__() + '({})'.format(self.level)
@@ -202,6 +211,8 @@ class OpenAIGym(Environment):
         states = self.environment.reset()
         self.timestep = 0
         states = OpenAIGym.flatten_state(state=states, states_spec=self.states_spec)
+        if self.min_value is not None:
+            states = np.clip(states, self.states_spec['min_value'], self.states_spec['max_value'])
         if self.drop_states_indices is not None:
             for index in reversed(self.drop_states_indices):
                 states = np.concatenate([states[:index], states[index + 1:]])
@@ -224,13 +235,17 @@ class OpenAIGym(Environment):
         else:
             terminal = 0
         states = OpenAIGym.flatten_state(state=states, states_spec=self.states_spec)
+        if self.min_value is not None:
+            states = np.clip(states, self.states_spec['min_value'], self.states_spec['max_value'])
         if self.drop_states_indices is not None:
             for index in reversed(self.drop_states_indices):
                 states = np.concatenate([states[:index], states[index + 1:]])
         return states, terminal, reward
 
     @staticmethod
-    def specs_from_gym_space(space, allow_infinite_box_bounds):
+    def specs_from_gym_space(
+        space, allow_infinite_box_bounds=False, min_value=None, max_value=None
+    ):
         import gym
 
         if isinstance(space, gym.spaces.Discrete):
@@ -256,26 +271,36 @@ class OpenAIGym(Environment):
             spec = dict(type='float', shape=space.shape)
 
             if (space.low == space.low.item(0)).all():
-                min_value = float(space.low.item(0))
-                if min_value > -10e7:
+                _min_value = float(space.low.item(0))
+                if _min_value > -10e7:
+                    spec['min_value'] = _min_value
+                else:
                     spec['min_value'] = min_value
             elif allow_infinite_box_bounds:
-                min_value = np.where(space.low <= -10e7, -np.inf, space.low)
-                spec['min_value'] = min_value.astype(util.np_dtype(dtype='float'))
+                _min_value = np.where(space.low <= -10e7, -np.inf, space.low)
+                spec['min_value'] = _min_value.astype(util.np_dtype(dtype='float'))
             else:
-                spec = None
+                if min_value is None:
+                    raise TensorforceError("Invalid infinite box bounds")
+                _min_value = np.where(space.low <= -10e7, min_value, space.low)
+                spec['min_value'] = _min_value.astype(util.np_dtype(dtype='float'))
 
             if spec is None:
                 pass
             elif (space.high == space.high.item(0)).all():
-                max_value = float(space.high.item(0))
-                if max_value < 10e7:
+                _max_value = float(space.high.item(0))
+                if _max_value < 10e7:
+                    spec['max_value'] = _max_value
+                else:
                     spec['max_value'] = max_value
             elif allow_infinite_box_bounds:
-                max_value = np.where(space.high >= 10e7, np.inf, space.high)
-                spec['max_value'] = max_value.astype(util.np_dtype(dtype='float'))
+                _max_value = np.where(space.high >= 10e7, np.inf, space.high)
+                spec['max_value'] = _max_value.astype(util.np_dtype(dtype='float'))
             else:
-                spec = None
+                if max_value is None:
+                    raise TensorforceError("OpenAIGym: Invalid infinite box bounds")
+                _max_value = np.where(space.high >= 10e7, max_value, space.high)
+                spec['max_value'] = _max_value.astype(util.np_dtype(dtype='float'))
 
             if spec is None:
                 specs = dict()

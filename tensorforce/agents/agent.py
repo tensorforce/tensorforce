@@ -282,7 +282,7 @@ class Agent(object):
 
     def initialize(self):
         """
-        Initializes the agent. Automatically triggered as part of Agent.create/load.
+        Initialize the agent. Automatically triggered as part of Agent.create/load.
         """
         # Check whether already initialized
         if self.is_initialized:

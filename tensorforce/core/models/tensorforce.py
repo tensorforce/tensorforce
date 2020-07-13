@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
+import logging
+
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
@@ -51,6 +53,13 @@ class TensorforceModel(Model):
         for name, spec in self.states_spec.items():
             if preprocessing is None:
                 layers = None
+            elif isinstance(preprocessing, str):
+                if preprocessing == 'linear_normalization':
+                    layers = None
+                else:
+                    raise TensorforceError.value(
+                        name='Agent', argument='preprocessing', value=preprocessing
+                    )
             elif name in preprocessing:
                 # TODO: recursive lookup
                 layers = preprocessing[name]
@@ -58,6 +67,19 @@ class TensorforceModel(Model):
                 layers = preprocessing[spec.type]
             else:
                 layers = None
+            # Normalize bounded inputs to [-2.0, 2.0]
+            if spec.type == 'float' and spec.min_value is not None and spec.max_value is not None:
+                if layers is None:
+                    layers = ['linear_normalization']
+                elif isinstance(layers, (str, dict)) or callable(layers):
+                    if not isinstance(layers, str) or layers != 'linear_normalization':
+                        layers = [layers, 'linear_normalization']
+                elif isinstance(layers, list):
+                    if layers[-1] != 'linear_normalization':
+                        layers.append('linear_normalization')
+                else:
+                    logging.warning("Could not add default linear normalization preprocessing for "
+                                    "state {}.".format(name))
             if layers is None:
                 self.processed_states_spec[name] = self.states_spec[name]
             else:

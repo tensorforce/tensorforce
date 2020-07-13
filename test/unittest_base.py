@@ -30,15 +30,13 @@ class UnittestBase(object):
     # Environment
     states = dict(
         bool_state=dict(type='bool', shape=(1,)),
-        int_state=dict(type='int', shape=(2,), num_values=4),
-        float_state=dict(type='float', shape=(1, 2)),
-        bounded_state=dict(type='float', shape=(), min_value=1.0, max_value=2.0)
+        int_state=dict(type='int', shape=(1, 2), num_values=4),
+        float_state=dict(type='float', shape=(), min_value=1.0, max_value=2.0)
     )
     actions = dict(
         bool_action=dict(type='bool', shape=(1,)),
         int_action=dict(type='int', shape=(2,), num_values=4),
-        float_action=dict(type='float', shape=(1, 2)),
-        bounded_action=dict(type='float', shape=(2,), min_value=1.0, max_value=2.0),
+        float_action=dict(type='float', shape=(1, 2), min_value=1.0, max_value=2.0),
         beta_action=dict(type='float', shape=(), min_value=1.0, max_value=2.0)
     )
     min_timesteps = 5

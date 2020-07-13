@@ -24,6 +24,9 @@ Example of how to specify state and reward preprocessing:
 .. autoclass:: tensorforce.core.layers.Image
     :noindex:
 
+.. autoclass:: tensorforce.core.layers.LinearNormalization
+    :noindex:
+
 .. autoclass:: tensorforce.core.layers.ExponentialNormalization
     :noindex:
 

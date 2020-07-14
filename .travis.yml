@@ -8,7 +8,7 @@ branches:
     - master
 
 install:
-  - pip install .[tfa,tune,envs]
+  - pip install .[tfa,tune,ale,gym,retro]
   - pip install pygame git+https://github.com/ntasfi/PyGame-Learning-Environment.git
 
 script:

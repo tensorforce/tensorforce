@@ -122,7 +122,7 @@ class TestEnvironments(UnittestBase, unittest.TestCase):
         self.unittest(environment=dict(environment='ple', level='Snake'), num_episodes=2)
         self.unittest(environment=dict(environment='ple', level='WaterWorld'), num_episodes=2)
 
-    # @pytest.mark.skip(reason='not installed as part of travis')
+    @pytest.mark.skip(reason='not installed as part of travis')
     def test_vizdoom(self):
         self.start_tests(name='vizdoom')
         self.unittest(

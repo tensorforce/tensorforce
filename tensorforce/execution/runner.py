@@ -693,7 +693,7 @@ class Runner(object):
         self.episode_seconds.append(time.time() - self.episode_start[parallel])
         self.episode_agent_seconds.append(self.episode_agent_second[parallel])
         if self.is_environment_remote:
-            self.episode_env_seconds.append(self.environments[parallel].episode_seconds)
+            self.episode_env_seconds.append(self.environments[parallel]._episode_seconds)
 
         # Maximum number of episodes or episode callback (after counter increment!)
         self.episodes += 1
@@ -721,7 +721,7 @@ class Runner(object):
         self.evaluation_seconds.append(time.time() - self.evaluation_start)
         self.evaluation_agent_seconds.append(self.evaluation_agent_second)
         if self.is_environment_remote:
-            self.evaluation_env_seconds.append(self.environments[-1].episode_seconds)
+            self.evaluation_env_seconds.append(self.environments[-1]._episode_seconds)
 
         # Evaluation callback
         if self.save_best_agent is not None:

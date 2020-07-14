@@ -345,28 +345,28 @@ class EnvironmentWrapper(Environment):
                 environment.max_episode_timesteps() < max_episode_timesteps:
             raise TensorforceError.unexpected()
 
-        self.environment = environment
+        self._environment = environment
         if max_episode_timesteps is None:
-            self._max_episode_timesteps = self.environment._max_episode_timesteps
+            self._max_episode_timesteps = self._environment._max_episode_timesteps
         else:
             self._max_episode_timesteps = max_episode_timesteps
         self._timestep = None
 
     def __str__(self):
-        return str(self.environment)
+        return str(self._environment)
 
     def states(self):
-        return self.environment.states()
+        return self._environment.states()
 
     def actions(self):
-        return self.environment.actions()
+        return self._environment.actions()
 
     def close(self):
-        return self.environment.close()
+        return self._environment.close()
 
     def reset(self):
         self._timestep = 0
-        states = self.environment.reset()
+        states = self._environment.reset()
         if isinstance(states, dict):
             states = states.copy()
         return states
@@ -377,7 +377,7 @@ class EnvironmentWrapper(Environment):
                 message="An environment episode has to be initialized by calling reset() first."
             )
         assert self._max_episode_timesteps is None or self._timestep < self._max_episode_timesteps
-        states, terminal, reward = self.environment.execute(actions=actions)
+        states, terminal, reward = self._environment.execute(actions=actions)
         if isinstance(states, dict):
             states = states.copy()
         terminal = int(terminal)
@@ -389,14 +389,22 @@ class EnvironmentWrapper(Environment):
             self._timestep = None
         return states, terminal, reward
 
-    def __getattr__(self, name):
-        try:
-            return super().__getattr__(name)
-        except BaseException:
-            return getattr(self.environment, name)
+    _ATTRIBUTES = frozenset([
+        '_actions', 'create', '_environment', '_expect_receive', '_max_episode_timesteps',
+        '_timestep'
+    ])
 
-    # def __delattr__(self, name):
-    # def __setattr__(self, name, value):
+    def __getattr__(self, name):
+        if name in EnvironmentWrapper._ATTRIBUTES:
+            return super().__getattr__(name)
+        else:
+            return getattr(self._environment, name)
+
+    def __setattr__(self, name, value):
+        if name in EnvironmentWrapper._ATTRIBUTES:
+            super().__setattr__(name, value)
+        else:
+            return setattr(self._environment, name, value)
 
 
 class RemoteEnvironment(Environment):
@@ -434,21 +442,41 @@ class RemoteEnvironment(Environment):
             )
 
             while True:
-                function, kwargs = cls.remote_receive(connection=connection)
+                attribute, kwargs = cls.remote_receive(connection=connection)
 
-                if function in ('reset', 'execute'):
+                if attribute in ('reset', 'execute'):
                     environment_start = time.time()
-                result = getattr(env, function)(**kwargs)
-                if function in ('reset', 'execute'):
+
+                try:
+                    result = getattr(env, attribute)
+                    if callable(result):
+                        if kwargs is None:
+                            result = None
+                        else:
+                            result = result(**kwargs)
+                    elif kwargs is None:
+                        pass
+                    elif len(kwargs) == 1 and 'value' in kwargs:
+                        setattr(env, attribute, kwargs['value'])
+                        result = None
+                    else:
+                        raise TensorforceError(message="Invalid remote attribute/function access.")
+                except AttributeError:
+                    if kwargs is None or len(kwargs) != 1 or 'value' not in kwargs:
+                        raise TensorforceError(message="Invalid remote attribute/function access.")
+                    setattr(env, attribute, kwargs['value'])
+                    result = None
+
+                if attribute in ('reset', 'execute'):
                     seconds = time.time() - environment_start
-                    if function == 'reset':
+                    if attribute == 'reset':
                         result = (result, seconds)
                     else:
                         result += (seconds,)
 
                 cls.remote_send(connection=connection, success=True, result=result)
 
-                if function == 'close':
+                if attribute == 'close':
                     break
 
         except BaseException:
@@ -475,12 +503,13 @@ class RemoteEnvironment(Environment):
 
     def __init__(self, connection, blocking=False):
         super().__init__()
-        self.connection = connection
-        self.blocking = blocking
-        self.observation = None
-        self.thread = None
+        self._connection = connection
+        self._blocking = blocking
+        self._observation = None
+        self._thread = None
+        self._episode_seconds = None
 
-    def send(self, function, **kwargs):
+    def send(self, function, kwargs):
         if self._expect_receive is not None:
             assert function != 'close'
             self.close()
@@ -488,9 +517,9 @@ class RemoteEnvironment(Environment):
         self._expect_receive = function
 
         try:
-            self.__class__.proxy_send(connection=self.connection, function=function, **kwargs)
+            self.__class__.proxy_send(connection=self._connection, function=function, kwargs=kwargs)
         except BaseException:
-            self.__class__.proxy_close(connection=self.connection)
+            self.__class__.proxy_close(connection=self._connection)
             raise
 
     def receive(self, function):
@@ -501,101 +530,131 @@ class RemoteEnvironment(Environment):
         self._expect_receive = None
 
         try:
-            success, result = self.__class__.proxy_receive(connection=self.connection)
+            success, result = self.__class__.proxy_receive(connection=self._connection)
         except BaseException:
-            self.__class__.proxy_close(connection=self.connection)
+            self.__class__.proxy_close(connection=self._connection)
             raise
 
         if success:
             return result
         else:
-            self.__class__.proxy_close(connection=self.connection)
+            self.__class__.proxy_close(connection=self._connection)
             etype, value, traceback = result
             raise TensorforceError(message='\n{}\n{}: {}`'.format(''.join(traceback), etype, value))
 
+    _ATTRIBUTES = frozenset([
+        '_actions', '_blocking', '_connection', 'create', '_episode_seconds', '_expect_receive',
+        '_max_episode_timesteps', '_observation', '_thread'
+    ])
+
+    def __getattr__(self, name):
+        if name in RemoteEnvironment._ATTRIBUTES:
+            return super().__getattr__(name)
+        else:
+            self.send(function=name, kwargs=None)
+            result = self.receive(function=name)
+            if result is None:
+                def proxy_function(*args, **kwargs):
+                    if len(args) > 0:
+                        raise TensorforceError(
+                            message="Remote environment function call requires keyword arguments."
+                        )
+                    self.send(function=name, kwargs=kwargs)
+                    return self.receive(function=name)
+                return proxy_function
+            else:
+                return result
+
+    def __setattr__(self, name, value):
+        if name in RemoteEnvironment._ATTRIBUTES:
+            super().__setattr__(name, value)
+        else:
+            self.send(function=name, kwargs=dict(value=value))
+            result = self.receive(function=name)
+            assert result is None
+
     def __str__(self):
-        self.send(function='__str__')
+        self.send(function='__str__', kwargs=dict())
         return self.receive(function='__str__')
 
     def states(self):
-        self.send(function='states')
+        self.send(function='states', kwargs=dict())
         return self.receive(function='states')
 
     def actions(self):
-        self.send(function='actions')
+        self.send(function='actions', kwargs=dict())
         return self.receive(function='actions')
 
     def max_episode_timesteps(self):
-        self.send(function='max_episode_timesteps')
+        self.send(function='max_episode_timesteps', kwargs=dict())
         return self.receive(function='max_episode_timesteps')
 
     def close(self):
-        if self.thread is not None:
-            self.thread.join()
+        if self._thread is not None:
+            self._thread.join()
         if self._expect_receive is not None:
             self.receive(function=self._expect_receive)
-        self.send(function='close')
+        self.send(function='close', kwargs=dict())
         self.receive(function='close')
-        self.__class__.proxy_close(connection=self.connection)
-        self.connection = None
-        self.observation = None
-        self.thread = None
+        self.__class__.proxy_close(connection=self._connection)
+        self._connection = None
+        self._observation = None
+        self._thread = None
 
     def reset(self):
-        self.episode_seconds = 0.0
-        self.send(function='reset')
+        self._episode_seconds = 0.0
+        self.send(function='reset', kwargs=dict())
         states, seconds = self.receive(function='reset')
-        self.episode_seconds += seconds
+        self._episode_seconds += seconds
         return states
 
     def execute(self, actions):
-        self.send(function='execute', actions=actions)
+        self.send(function='execute', kwargs=dict(actions=actions))
         states, terminal, reward, seconds = self.receive(function='execute')
-        self.episode_seconds += seconds
+        self._episode_seconds += seconds
         return states, int(terminal), reward
 
     def start_reset(self):
-        self.episode_seconds = 0.0
-        if self.blocking:
-            self.send(function='reset')
+        self._episode_seconds = 0.0
+        if self._blocking:
+            self.send(function='reset', kwargs=dict())
         else:
-            if self.thread is not None:  # TODO: not expected
-                self.thread.join()
-            self.observation = None
-            self.thread = Thread(target=self.finish_reset)
-            self.thread.start()
+            if self._thread is not None:  # TODO: not expected
+                self._thread.join()
+            self._observation = None
+            self._thread = Thread(target=self.finish_reset)
+            self._thread.start()
 
     def finish_reset(self):
-        assert self.thread is not None and self.observation is None
-        self.observation = (self.reset(), -1, None)
-        self.thread = None
+        assert self._thread is not None and self._observation is None
+        self._observation = (self.reset(), -1, None)
+        self._thread = None
 
     def start_execute(self, actions):
-        if self.blocking:
-            self.send(function='execute', actions=actions)
+        if self._blocking:
+            self.send(function='execute', kwargs=dict(actions=actions))
         else:
-            assert self.thread is None and self.observation is None
-            self.thread = Thread(target=self.finish_execute, kwargs=dict(actions=actions))
-            self.thread.start()
+            assert self._thread is None and self._observation is None
+            self._thread = Thread(target=self.finish_execute, kwargs=dict(actions=actions))
+            self._thread.start()
 
     def finish_execute(self, actions):
-        assert self.thread is not None and self.observation is None
-        self.observation = self.execute(actions=actions)
-        self.thread = None
+        assert self._thread is not None and self._observation is None
+        self._observation = self.execute(actions=actions)
+        self._thread = None
 
     def receive_execute(self):
-        if self.blocking:
+        if self._blocking:
             if self._expect_receive == 'reset':
                 return self.receive(function='reset'), -1, None
             else:
                 states, terminal, reward = self.receive(function='execute')
                 return states, int(terminal), reward
         else:
-            if self.thread is not None:
-                # assert self.observation is None
+            if self._thread is not None:
                 return None
             else:
-                assert self.observation is not None
-                observation = self.observation
-                self.observation = None
+                assert self._observation is not None
+                observation = self._observation
+                self._observation = None
                 return observation

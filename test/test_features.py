@@ -57,7 +57,6 @@ class TestFeatures(UnittestBase, unittest.TestCase):
         runner.close()
         server1.join()
         server2.join()
-
         self.finished_test()
 
     def test_act_experience_update(self):

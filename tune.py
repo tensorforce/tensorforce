@@ -54,7 +54,7 @@ class TensorforceWorker(Worker):
         policy = dict(network=dict(type='auto', size=64, depth=2, rnn=False))
         optimizer = dict(
             optimizer='adam', learning_rate=config['learning_rate'],
-            multi_step=config['multi_step'], linesearch_iterations=5, subsampling_fraction=256
+            multi_step=config['multi_step'], linesearch_iterations=5  # , subsampling_fraction=256
         )
 
         if config['clipping_value'] > 1.0:
@@ -350,10 +350,6 @@ def main():
         len(results.get_id2config_mapping())
     ))
     print('A total of {} runs where executed.'.format(len(results.get_all_runs())))
-    print('Total budget corresponds to {:.1f} full function evaluations.'.format(
-        sum([r.budget for r in results.get_all_runs()]) /
-        math.pow(args.selection_factor, len(runs_per_round) - 1)
-    ))
 
 
 if __name__ == '__main__':

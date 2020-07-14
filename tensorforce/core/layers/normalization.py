@@ -67,11 +67,11 @@ class LinearNormalization(Layer):
         output_spec = super().output_spec()
         is_inf = np.logical_or(np.isinf(self.min_value), np.isinf(self.max_value))
         if is_inf.any():
-            output_spec['min_value'] = np.where(is_inf, self.min_value, -2.0)
-            output_spec['max_value'] = np.where(is_inf, self.max_value, 2.0)
+            output_spec.min_value = np.where(is_inf, self.min_value, -2.0)
+            output_spec.max_value = np.where(is_inf, self.max_value, 2.0)
         else:
-            output_spec['min_value'] = -2.0
-            output_spec['max_value'] = 2.0
+            output_spec.min_value = -2.0
+            output_spec.max_value = 2.0
         return output_spec
 
     @tf_function(num_args=1)

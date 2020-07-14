@@ -302,14 +302,14 @@ class TestExamples(UnittestBase, unittest.TestCase):
         ## class, like to set the initial temp to a custom value, like here,
         ## you need to access the `environment` member of this wrapped class.
         ## That is why you see the way to set the current_temp like below.
-        environment.environment.current_temp = np.array([0.5])
-        states = environment.environment.current_temp
+        environment.current_temp = np.array([0.5])
+        states = environment.current_temp
 
         internals = agent.initial_internals()
         terminal = False
 
         ### Run an episode
-        temp = [environment.environment.current_temp[0]]
+        temp = [environment.current_temp[0]]
         while not terminal:
             actions, internals = agent.act(states=states, internals=internals, independent=True)
             states, terminal, reward = environment.execute(actions=actions)
@@ -348,14 +348,14 @@ class TestExamples(UnittestBase, unittest.TestCase):
         ## class, like to set the initial temp to a custom value, like here,
         ## you need to access the `environment` member of this wrapped class.
         ## That is why you see the way to set the current_temp like below.
-        environment.environment.current_temp = np.array([1.0])
-        states = environment.environment.current_temp
+        environment.current_temp = np.array([1.0])
+        states = environment.current_temp
 
         internals = agent.initial_internals()
         terminal = False
 
         ### Run an episode
-        temp = [environment.environment.current_temp[0]]
+        temp = [environment.current_temp[0]]
         while not terminal:
             actions, internals = agent.act(states=states, internals=internals, independent=True)
             states, terminal, reward = environment.execute(actions=actions)

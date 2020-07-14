@@ -24,7 +24,7 @@ class MultiprocessingEnvironment(RemoteEnvironment):
     """
 
     @classmethod
-    def proxy_send(cls, connection, function, **kwargs):
+    def proxy_send(cls, connection, function, kwargs):
         connection[0].send(obj=(function, kwargs))
 
     @classmethod

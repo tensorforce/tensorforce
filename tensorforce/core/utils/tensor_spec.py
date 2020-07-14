@@ -430,18 +430,30 @@ class TensorSpec(object):
                             condition='min_value = {}'.format(self.min_value)
                         )
                 else:
-                    if name == 'min_value' and self.max_value is not None and \
-                            value > self.max_value:
-                        raise TensorforceError.value(
-                            name='TensorSpec', argument=name, value=value,
-                            condition='max_value = {}'.format(self.max_value)
-                        )
-                    elif name == 'max_value' and self.min_value is not None and \
-                            value < self.min_value:
-                        raise TensorforceError.value(
-                            name='TensorSpec', argument=name, value=value,
-                            condition='min_value = {}'.format(self.min_value)
-                        )
+                    if name == 'min_value' and self.max_value is not None:
+                        if isinstance(self.max_value, np.ndarray):
+                            if (value > self.max_value).any():
+                                raise TensorforceError.value(
+                                    name='TensorSpec', argument=name, value=value,
+                                    condition='max_value = {}'.format(self.max_value)
+                                )
+                        elif value > self.max_value:
+                            raise TensorforceError.value(
+                                name='TensorSpec', argument=name, value=value,
+                                condition='max_value = {}'.format(self.max_value)
+                            )
+                    elif name == 'max_value' and self.min_value is not None:
+                        if isinstance(self.min_value, np.ndarray):
+                            if (value < self.min_value).any():
+                                raise TensorforceError.value(
+                                    name='TensorSpec', argument=name, value=value,
+                                    condition='min_value = {}'.format(self.min_value)
+                                )
+                        elif value < self.min_value:
+                            raise TensorforceError.value(
+                                name='TensorSpec', argument=name, value=value,
+                                condition='min_value = {}'.format(self.min_value)
+                            )
 
             # Set min/max_value attribute
             super().__setattr__(name, value)

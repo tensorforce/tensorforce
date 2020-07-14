@@ -26,16 +26,6 @@ class ArcadeLearningEnvironment(Environment):
     May require:
     ```bash
     sudo apt-get install libsdl1.2-dev libsdl-gfx1.2-dev libsdl-image1.2-dev cmake
-
-    git clone https://github.com/mgbellemare/Arcade-Learning-Environment.git
-    cd Arcade-Learning-Environment
-
-    mkdir build && cd build
-    cmake -DUSE_SDL=ON -DUSE_RLGLUE=OFF -DBUILD_EXAMPLES=ON ..
-    make -j 4
-    cd ..
-
-    pip3 install .
     ```
 
     Args:
@@ -61,7 +51,7 @@ class ArcadeLearningEnvironment(Environment):
     ):
         super().__init__()
 
-        from ale_python_interface import ALEInterface
+        from ale_py import ALEInterface
 
         self.environment = ALEInterface()
         self.rom_file = level
@@ -95,7 +85,8 @@ class ArcadeLearningEnvironment(Environment):
         return dict(type='int', num_values=len(self.available_actions))
 
     def close(self):
-        self.environment.__del__()
+        # Causes "Segmentation fault (core dumped)"
+        # self.environment.__del__()
         self.environment = None
 
     def get_states(self):

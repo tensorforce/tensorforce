@@ -35,8 +35,7 @@ class PyGameLearningEnvironment(Environment):
     libx11-dev fluid-soundfont-gm timgm6mb-soundfont xfonts-base xfonts-100dpi xfonts-75dpi \
     xfonts-cyrillic fontconfig fonts-freefont-ttf libfreetype6-dev
 
-    pip3 install git+https://github.com/pygame/pygame.git
-
+    pip3 install pygame
     pip3 install git+https://github.com/ntasfi/PyGame-Learning-Environment.git
     ```
 

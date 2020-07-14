@@ -24,11 +24,11 @@ class TestEnvironments(UnittestBase, unittest.TestCase):
     agent = dict(agent='random', config=dict(eager_mode=True, create_debug_assertions=True))
 
     # @pytest.mark.skip(reason='not installed as part of travis')
-    # def test_ale(self):
-    #     self.start_tests(name='ale')
-    #     self.unittest(
-    #         environment=dict(environment='ale', level='test/data/Breakout.bin'), num_episodes=2
-    #     )
+    def test_ale(self):
+        self.start_tests(name='ale')
+        self.unittest(
+            environment=dict(environment='ale', level='test/data/Breakout.bin'), num_episodes=2
+        )
 
     @pytest.mark.skip(reason='not installed as part of travis')
     def test_open_sim(self):
@@ -55,8 +55,6 @@ class TestEnvironments(UnittestBase, unittest.TestCase):
         from gym.envs.toy_text import BlackjackEnv
         self.unittest(environment=BlackjackEnv(), num_episodes=2)
 
-    @pytest.mark.skip(reason='breaks / takes too long')
-    def test_openai_gym2(self):
         # Classic control
         self.unittest(environment='CartPole-v1', num_episodes=2)
         self.unittest(environment='MountainCar-v0', num_episodes=2)
@@ -98,6 +96,8 @@ class TestEnvironments(UnittestBase, unittest.TestCase):
         self.unittest(environment='CubeCrashScreenBecomesBlack-v0', num_episodes=2)
         self.unittest(environment='MemorizeDigits-v0', num_episodes=2)
 
+    # @pytest.mark.skip(reason='breaks / takes too long')
+    def test_openai_gym2(self):
         # state: box, action: box with non-uniform bounds
         # xvfb-run -s "-screen 0 1400x900x24" python -m unittest ...
         self.unittest(environment='CarRacing-v0', num_episodes=2)
@@ -108,12 +108,21 @@ class TestEnvironments(UnittestBase, unittest.TestCase):
             environment=dict(environment='retro', level='Airstriker-Genesis'), num_episodes=2
         )
 
-    @pytest.mark.skip(reason='not installed as part of travis')
+    # @pytest.mark.skip(reason='not installed as part of travis')
     def test_ple(self):
         self.start_tests(name='pygame-learning-environment')
+        self.unittest(environment=dict(environment='ple', level='Catcher'), num_episodes=2)
+        # Assets missing:
+        # self.unittest(environment=dict(environment='ple', level='FlappyBird'), num_episodes=2)
+        # self.unittest(environment=dict(environment='ple', level='MonsterKong'), num_episodes=2)
+        self.unittest(environment=dict(environment='ple', level='Pixelcopter'), num_episodes=2)
         self.unittest(environment=dict(environment='ple', level='Pong'), num_episodes=2)
+        self.unittest(environment=dict(environment='ple', level='PuckWorld'), num_episodes=2)
+        self.unittest(environment=dict(environment='ple', level='RaycastMaze'), num_episodes=2)
+        self.unittest(environment=dict(environment='ple', level='Snake'), num_episodes=2)
+        self.unittest(environment=dict(environment='ple', level='WaterWorld'), num_episodes=2)
 
-    @pytest.mark.skip(reason='not installed as part of travis')
+    # @pytest.mark.skip(reason='not installed as part of travis')
     def test_vizdoom(self):
         self.start_tests(name='vizdoom')
         self.unittest(

@@ -57,10 +57,9 @@ class SubsamplingStep(UpdateModifier):
 
         batch_size = tf_util.cast(x=tf.shape(input=arguments['reward'])[0], dtype='int')
         if self.is_fraction_absolute:
-            if self.fraction.is_constant() is None:
+            fraction = self.fraction.is_constant()
+            if fraction is None:
                 fraction = self.fraction.value()
-            else:
-                fraction = self.fraction.is_constant()
         else:
             fraction = self.fraction.value() * tf_util.cast(x=batch_size, dtype='float')
             fraction = tf_util.cast(x=fraction, dtype='int')

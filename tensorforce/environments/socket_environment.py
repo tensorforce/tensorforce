@@ -49,7 +49,7 @@ class SocketEnvironment(RemoteEnvironment):
         )
 
     @classmethod
-    def proxy_send(cls, connection, function, **kwargs):
+    def proxy_send(cls, connection, function, kwargs):
         str_function = function.encode()
         num_bytes = len(str_function)
         str_num_bytes = '{:08d}'.format(num_bytes).encode()

@@ -321,11 +321,9 @@ class Sequence(PreprocessingLayer):
                 message="Sequence preprocessor currently not compatible with batched Agent.act."
             ))
 
-        def first_timestep():
-            assignment = self.has_previous.assign(
-                value=tf_util.constant(value=True, dtype='bool'), read_value=False
-            )
-            with tf.control_dependencies(control_inputs=(assignment,)):
+        with tf.control_dependencies(control_inputs=assertions):
+
+            def empty_batch():
                 if self.concatenate:
                     current = x
                 else:
@@ -336,36 +334,51 @@ class Sequence(PreprocessingLayer):
                 )
                 return tf.tile(input=current, multiples=multiples)
 
-        def other_timesteps():
-            if self.concatenate:
-                current = x
-            else:
-                current = tf.expand_dims(input=x, axis=(self.axis + 1))
-            return tf.concat(values=(self.previous, current), axis=(self.axis + 1))
+            def not_empty_batch():
 
-        with tf.control_dependencies(control_inputs=assertions):
-            empty_batch = tf.math.equal(x=tf.shape(input=x)[0], y=0)
-            pred = tf.math.logical_or(x=self.has_previous, y=empty_batch)
-            xs = tf.cond(pred=pred, true_fn=other_timesteps, false_fn=first_timestep)
+                def first_timestep():
+                    assignment = self.has_previous.assign(
+                        value=tf_util.constant(value=True, dtype='bool'), read_value=False
+                    )
+                    with tf.control_dependencies(control_inputs=(assignment,)):
+                        if self.concatenate:
+                            current = x
+                        else:
+                            current = tf.expand_dims(input=x, axis=(self.axis + 1))
+                        multiples = tuple(
+                            self.length if dims == self.axis + 1 else 1
+                            for dims in range(self.output_spec().rank + 1)
+                        )
+                        return tf.tile(input=current, multiples=multiples)
 
-            if self.concatenate:
-                begin = tuple(
-                    self.input_spec.shape[dims - 1] if dims == self.axis + 1 else 0
-                    for dims in range(self.output_spec().rank + 1)
+                def other_timesteps():
+                    if self.concatenate:
+                        current = x
+                    else:
+                        current = tf.expand_dims(input=x, axis=(self.axis + 1))
+                    return tf.concat(values=(self.previous, current), axis=(self.axis + 1))
+
+                xs = tf.cond(
+                    pred=self.has_previous, true_fn=other_timesteps, false_fn=first_timestep
                 )
-            else:
-                begin = tuple(
-                    1 if dims == self.axis + 1 else 0 for dims in range(self.output_spec().rank + 1)
-                )
 
-            # TODO: hack for empty batch
-            def assignment():
-                return self.previous.assign(
+                if self.concatenate:
+                    begin = tuple(
+                        self.input_spec.shape[dims - 1] if dims == self.axis + 1 else 0
+                        for dims in range(self.output_spec().rank + 1)
+                    )
+                else:
+                    begin = tuple(
+                        1 if dims == self.axis + 1 else 0
+                        for dims in range(self.output_spec().rank + 1)
+                    )
+                assignment = self.previous.assign(
                     value=tf.slice(input_=xs, begin=begin, size=self.previous.shape),
                     read_value=False
                 )
 
-            assignment = tf.cond(pred=empty_batch, true_fn=tf.no_op, false_fn=assignment)
+                with tf.control_dependencies(control_inputs=(assignment,)):
+                    return tf_util.identity(input=xs)
 
-        with tf.control_dependencies(control_inputs=(assignment,)):
-            return tf_util.identity(input=xs)
+            is_empty_batch = tf.math.equal(x=tf.shape(input=x)[0], y=0)
+            return tf.cond(pred=is_empty_batch, true_fn=empty_batch, false_fn=not_empty_batch)

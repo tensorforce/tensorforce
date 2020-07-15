@@ -32,13 +32,13 @@ The project was part of a Master thesis in Computer Engineering at Università d
 
 
 ### SimPyFab
-<img width=400 style="float: right;" src="https://github.com/AndreasKuhnle/SimPyRLFab/blob/master/docu/layout.png?raw=true">
+<img width=400 style="float: right;" src="https://github.com/AndreasKuhnle/SimRLFab/blob/master/docu/layout.png?raw=true">
 
 Complex job shop manufacturing systems are motivated by the manufacturing characteristics of the semiconductor wafer fabrication. A job shop consists of several machines (processing resources) that process jobs (products, orders) based on a defined list or process steps. After every process, the job is dispatched and transported to the next processing machine. Machines are usually grouped in sub-areas by the type processing type, i.e. similar processing capabilities are next to each other.
 
 This framework provides an integrated simulation and reinforcement learning model to investigate the potential of data-driven reinforcement learning in production planning and control of complex job shop systems. The simulation model allows parametrization of a broad range of job shop-like manufacturing systems. Furthermore, performance statistics and logging of performance indicators are provided. Reinforcement learning is implemented to control the order dispatching and several dispatchin heuristics provide benchmarks that are used in practice.
 
-[GitHub Project](https://github.com/AndreasKuhnle/SimPyRLFab)
+[GitHub Project](https://github.com/AndreasKuhnle/SimRLFab)
 
 
 

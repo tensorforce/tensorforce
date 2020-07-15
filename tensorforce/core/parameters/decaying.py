@@ -22,8 +22,8 @@ from tensorforce.core.parameters import Parameter
 
 class Decaying(Parameter):
     """
-    Decaying hyperparameter (specification key: `tf_optimizer`, `adadelta`, `adagrad`, `adam`,
-    `adamax`, `adamw`, `ftrl`, `lazyadam`, `nadam`, `radam`, `ranger`, `rmsprop`, `sgd`, `sgdw`).
+    Decaying hyperparameter (specification key: `decaying`, `exponential`, `polynomial`,
+    `inverse_time`, `cosine`, `cosine_restarts`, `linear_cosine`, `linear_cosine_noisy`).
 
     Args:
         decay ("linear" | "exponential" | "polynomial" | "inverse_time" | "cosine" | "cosine_restarts" | "linear_cosine" | "linear_cosine_noisy"):

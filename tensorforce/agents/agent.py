@@ -812,9 +812,8 @@ class Agent(object):
                                 os.remove(filename)
 
                         # Write recording file
-                        filename = os.path.join(directory, 'trace-{}-{:09d}.npz'.format(
-                            time.strftime('%Y%m%d-%H%M%S'), self.episodes
-                        ))
+                        filename = os.path.join(directory, 'trace-{:09d}.npz'.format(self.episodes))
+                        # time.strftime('%Y%m%d-%H%M%S')
                         kwargs = self.recorded.fmap(function=np.concatenate, cls=ArrayDict).items()
                         np.savez_compressed(file=filename, **dict(kwargs))
 

@@ -211,8 +211,8 @@ class DeterministicPolicyGradient(TensorforceAgent):
         )
 
         action_spec = next(iter(self.actions_spec.values()))
-        if len(self.actions_spec) > 1 or action_spec['type'] != 'float' or \
-                (action_spec['shape'] != () and action_spec['shape'] != (1,)):
+        if len(self.actions_spec) > 1 or action_spec.type != 'float' or \
+                (action_spec.shape != () and action_spec.shape != (1,)):
             raise TensorforceError.value(
                 name='DeterministicPolicyGradient', argument='actions', value=actions,
                 hint='contains more than a single float action'

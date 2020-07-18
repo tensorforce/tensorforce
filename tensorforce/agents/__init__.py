@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
+from tensorforce.agents.recorder import Recorder
+
 from tensorforce.agents.agent import Agent
 
 from tensorforce.agents.constant import ConstantAgent
@@ -49,7 +51,8 @@ agents = dict(
     ddpg=DeterministicPolicyGradient, ddqn=DoubleDQN, default=TensorforceAgent,
     dpg=DeterministicPolicyGradient, double_dqn=DoubleDQN, dqn=DeepQNetwork, dueling_dqn=DuelingDQN,
     tensorforce=TensorforceAgent, ppo=ProximalPolicyOptimization, random=RandomAgent,
-    reinforce=VanillaPolicyGradient, trpo=TrustRegionPolicyOptimization, vpg=VanillaPolicyGradient
+    recorder=Recorder, reinforce=VanillaPolicyGradient, trpo=TrustRegionPolicyOptimization,
+    vpg=VanillaPolicyGradient
 )
 
 

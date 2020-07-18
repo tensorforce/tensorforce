@@ -426,7 +426,7 @@ class TensorforceAgent(Agent):
             internals (dict[state]): Dictionary containing arrays of internal agent states
                 (<span style="color:#C00000"><b>required</b></span> if agent has internal states).
         """
-        if not all(len(buffer) == 0 for buffer in self.buffers['terminal']):
+        if not all(len(buffer) == 0 for buffer in self.terminal_buffer):
             raise TensorforceError(message="Calling agent.experience is not possible mid-episode.")
 
         # Process states input and infer batching structure

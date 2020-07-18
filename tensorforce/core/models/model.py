@@ -63,7 +63,7 @@ class Model(Module):
         self.value_names.add('parallel')
 
         # State space specification
-        self.states_spec = TensorsSpec(states)
+        self.states_spec = states
         for name, spec in self.states_spec.items():
             if spec.type != 'float':
                 continue
@@ -83,7 +83,7 @@ class Model(Module):
             self.value_names.add(name)
 
         # Action space specification
-        self.actions_spec = TensorsSpec(actions)
+        self.actions_spec = actions
         for name, spec in self.actions_spec.items():
             if spec.type != 'float':
                 continue

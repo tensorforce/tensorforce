@@ -14,11 +14,12 @@
 # ==============================================================================
 
 import os
+from random import random
 from tempfile import TemporaryDirectory
 from threading import Thread
 import unittest
 
-from tensorforce import Agent, Environment, Runner
+from tensorforce import Environment, Runner
 from test.unittest_base import UnittestBase
 
 
@@ -84,30 +85,20 @@ class TestFeatures(UnittestBase, unittest.TestCase):
         # FEATURES.MD
         self.start_tests(name='pretrain')
 
+        def fn_act(states):
+            return int(states[2] >= 0.0)
+
         with TemporaryDirectory() as directory:
-            agent, environment = self.prepare(recorder=dict(directory=directory))
-
-            for _ in range(3):
-                states = environment.reset()
-                terminal = False
-                while not terminal:
-                    actions = agent.act(states=states)
-                    states, terminal, reward = environment.execute(actions=actions)
-                    agent.observe(terminal=terminal, reward=reward)
-
-            agent.close()
-
-            # TODO: recorder currently does not include internal states
-            agent = Agent.create(agent=self.agent_spec(
-                policy=dict(network=dict(type='auto', size=8, depth=1, rnn=False))
-            ), memory=10, environment=environment)
-
-            agent.pretrain(directory=directory, num_iterations=2, num_traces=2, num_updates=3)
-
-            agent.close()
-            environment.close()
+            runner = Runner(
+                agent=dict(agent=fn_act, recorder=dict(directory=directory)),
+                environment='benchmarks/configs/cartpole.json'
+            )
+            # or: agent = Agent.create(agent=fn_act, recorder=dict(directory='traces'))
+            runner.run(num_episodes=10)
+            runner.close()
 
             files = os.listdir(path=directory)
+            self.assertEqual(len(files), 10)
             self.assertTrue(
                 all(file.startswith('trace-') and file.endswith('.npz') for file in files)
             )

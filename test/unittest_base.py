@@ -18,7 +18,6 @@ from datetime import datetime
 import sys
 
 from tensorforce import Agent, Environment, Runner
-from tensorforce.core.layers import Layer
 from test.unittest_environment import UnittestEnvironment
 
 
@@ -105,8 +104,6 @@ class UnittestBase(object):
         """
         Generic unit-test preparation.
         """
-        Layer.layers = None
-
         if environment is None:
             environment = self.environment_spec(states=states, actions=actions)
             environment = Environment.create(environment=environment)

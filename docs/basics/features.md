@@ -123,3 +123,18 @@ Agent.create(...
 ### Record & pretrain
 
 See [record-and-pretrain example](https://github.com/tensorforce/tensorforce/blob/master/examples/record_and_pretrain.py).
+
+Alternatively, interaction traces can be recorded for any act-function mapping states to actions:
+
+```python
+def fn_act(states):
+    ...
+    return actions
+
+runner = Runner(
+    agent=dict(agent=fn_act, recorder=dict(directory='traces')),
+    environment='benchmarks/configs/cartpole.json'
+)
+# or: agent = Agent.create(agent=fn_act, recorder=dict(directory='traces'))
+runner.run(num_episodes=100)
+runner.close()

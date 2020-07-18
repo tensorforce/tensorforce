@@ -1,10 +1,8 @@
 import math
 import numpy as np
 
-from typing import Optional
 from datetime import datetime
 
-from tensorforce.agents import Agent
 from tensorforce.environments import Environment
 
 try:
@@ -198,7 +196,7 @@ class CARLAEnvironment(Environment):
         for sensor in self.sensors.values():
             sensor.destroy()
 
-    def train(self, agent: Optional[Agent], num_episodes: int, max_episode_timesteps: int, weights_dir='weights/agents',
+    def train(self, agent, num_episodes: int, max_episode_timesteps: int, weights_dir='weights/agents',
               agent_name='carla-agent', load_agent=False, record_dir='data/recordings', skip_frames=25):
         record_path = None
         should_record = isinstance(record_dir, str)
@@ -255,7 +253,7 @@ class CARLAEnvironment(Environment):
                                                   image_size_x=self.window_size[0], image_size_y=self.window_size[1],
                                                   sensor_tick=self.tick_time))
 
-    def default_agent(self, **kwargs) -> Agent:
+    def default_agent(self, **kwargs):
         """Returns a predefined agent for this environment"""
         raise NotImplementedError('Implement this to define your own default agent!')
 

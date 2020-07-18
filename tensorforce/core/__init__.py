@@ -35,8 +35,6 @@ from tensorforce.core.networks import network_modules
 # Require network_modules
 from tensorforce.core.policies import policy_modules
 
-# TODO: import models?
-
 
 __all__ = [
     'distribution_modules', 'layer_modules', 'memory_modules', 'Module', 'network_modules',

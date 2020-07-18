@@ -211,7 +211,7 @@ class DuelingDQN(TensorforceAgent):
             entropy_regularization=entropy_regularization, **kwargs
         )
 
-        if any(spec['type'] != 'int' for spec in self.actions_spec.values()):
+        if any(spec.type != 'int' for spec in self.actions_spec.values()):
             raise TensorforceError.value(
                 name='DuelingDQN', argument='actions', value=actions, hint='contains non-int action'
             )

@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
+import numpy as np
 import tensorflow as tf
 
 from tensorforce import util
@@ -90,7 +91,13 @@ class PolicyGradient(Objective):
         clipping_value = one + self.clipping_value.value()
 
         if self.importance_sampling:
-            scaling = tf.math.exp(x=(log_probability - reference))
+            log_ratio = log_probability - reference
+            # Clip log_ratio for numerical stability (epsilon < 1.0, hence negative)
+            log_epsilon = tf_util.constant(value=np.log(util.epsilon), dtype='float')
+            log_ratio = tf.clip_by_value(
+                t=log_ratio, clip_value_min=log_epsilon, clip_value_max=-log_epsilon
+            )
+            scaling = tf.math.exp(x=log_ratio)
             min_value = tf.math.reciprocal(x=clipping_value)
             max_value = clipping_value
 

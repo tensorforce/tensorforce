@@ -16,4 +16,4 @@ cd tensorforce
 pip3 install -e .
 ```
 
-Some environments require additional packages, for which there are also options available (`mazeexp`, `gym`, `retro`, `vizdoom`; or `envs` for all environments), however, some require other tools to be installed separately (see [environments documentation](../environments/environment.html)).
+Environments require additional packages for which there are setup options available (`ale`, `gym`, `retro`, `vizdoom`, `carla`; or `envs` for all environments), however, some require additional tools to be installed separately (see [environments documentation](http://tensorforce.readthedocs.io)).

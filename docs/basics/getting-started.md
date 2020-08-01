@@ -60,12 +60,13 @@ class CustomEnvironment(Environment):
     def actions(self):
         return dict(type='int', num_values=4)
 
-    # Optional, should only be defined if environment has a natural maximum
-    # episode length
+    # Optional: should only be defined if environment has a natural fixed
+    # maximum episode length; restrict training timesteps via
+    #     Environment.create(..., max_episode_timesteps=???)
     def max_episode_timesteps(self):
         return super().max_episode_timesteps()
 
-    # Optional
+    # Optional additional steps to close environment
     def close(self):
         super().close()
 
@@ -80,15 +81,23 @@ class CustomEnvironment(Environment):
         return next_state, terminal, reward
 ```
 
-Custom environment implementations can be loaded by passing their module path:
+Custom environment implementations can be loaded by passing either the environment object itself:
 
 ```python
 environment = Environment.create(
-    environment='custom_env.CustomEnvironment', max_episode_timesteps=10
+    environment=CustomEnvironment, max_episode_timesteps=100
 )
 ```
 
-It is strongly recommended to specify the `max_episode_timesteps` argument of `Environment.create(...)` unless specified by the environment (or for evaluation), as otherwise more agent parameters may require specification.
+or its module path:
+
+```python
+environment = Environment.create(
+    environment='custom_env.CustomEnvironment', max_episode_timesteps=100
+)
+```
+
+It is generally recommended to specify the `max_episode_timesteps` argument of `Environment.create(...)` (at least for training), as some agent parameters may rely on this value.
 
 
 
@@ -137,7 +146,7 @@ Agent config files can be loaded by passing their file path:
 agent = Agent.create(agent='agent.json', environment=environment)
 ```
 
-It is recommended to pass the environment object returned by `Environment.create(...)` as `environment` argument of `Agent.create(...)`, so that the `states`, `actions` and `max_episode_timesteps` argument are automatically specified accordingly.
+While it is possible to specify the agent arguments `states`, `actions` and `max_episode_timesteps`, it is generally recommended to specify the `environment` argument instead (which will automatically infer the other values accordingly), by passing the environment object as returned by `Environment.create(...)`.
 
 
 
@@ -166,7 +175,24 @@ runner.run(num_episodes=100, evaluation=True)
 runner.close()
 ```
 
-The execution utility classes take care of handling the agent-environment interaction correctly, and thus should be used where possible. Alternatively, if more detailed control over the agent-environment interaction is required, a simple training and evaluation loop can be written as follows:
+The same interface also makes it possible to run experiments involving multiple parallelized environments:
+
+```python
+runner = Runner(
+    agent='agent.json',
+    environment=dict(environment='gym', level='CartPole'),
+    max_episode_timesteps=500,
+    num_parallel=5, remote='multiprocessing'
+)
+
+runner.run(num_episodes=100)
+
+runner.close()
+```
+
+Note that in this case both agent and environment are created as part of `Runner`, not via `Agent.create(...)` and `Environment.create(...)`. If agent and environment are specified separately, the user is required to take care of passing the agent arguments `environment` and `parallel_interactions` (in the parallelized case) as well as closing both agent and environment separately at the end.
+
+The execution utility classes take care of handling the agent-environment interaction correctly, and thus should be used where possible. Alternatively, if more detailed control over the agent-environment interaction is required, a simple training and evaluation loop can be defined as follows:
 
 ```python
 # Create agent and environment

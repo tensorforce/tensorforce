@@ -26,7 +26,7 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
         self.start_tests(name='getting-started-environment')
 
         environment = Environment.create(
-            environment='gym', level='CartPole', max_episode_timesteps=500
+            environment='gym', level='CartPole', max_episode_timesteps=50
         )
         self.finished_test()
 
@@ -34,12 +34,18 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
         self.finished_test()
 
         environment = Environment.create(
-            environment='test/data/environment.json', max_episode_timesteps=500
+            environment='test/data/environment.json', max_episode_timesteps=50
         )
         self.finished_test()
 
         environment = Environment.create(
             environment='test.data.custom_env.CustomEnvironment', max_episode_timesteps=10
+        )
+        self.finished_test()
+
+        from test.data.custom_env import CustomEnvironment
+        environment = Environment.create(
+            environment=CustomEnvironment, max_episode_timesteps=10
         )
         self.finished_test()
 
@@ -74,6 +80,14 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
         )
         runner.run(num_episodes=10)
         runner.run(num_episodes=5, evaluation=True)
+        runner.close()
+        self.finished_test()
+
+        runner = Runner(
+            agent='test/data/agent.json', environment=dict(environment='gym', level='CartPole'),
+            max_episode_timesteps=500, num_parallel=5, remote='multiprocessing'
+        )
+        runner.run(num_episodes=10)
         runner.close()
         self.finished_test()
 

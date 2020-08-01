@@ -13,16 +13,18 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce import Agent, Environment, Runner
+from tensorforce import Runner
 
 
 def main():
-    # Create an OpenAI-Gym environment
-    environment = Environment.create(environment='gym', level='CartPole-v1')
+    # OpenAI-Gym environment specification
+    environment = dict(environment='gym', level='CartPole-v1')
+    # or: environment = Environment.create(
+    #         environment='gym', level='CartPole-v1', max_episode_timesteps=500)
 
-    # Create a PPO agent
-    agent = Agent.create(
-        agent='ppo', environment=environment,
+    # PPO agent specification
+    agent = dict(
+        agent='ppo',
         # Automatically configured network
         network='auto',
         # PPO optimization parameters
@@ -39,8 +41,6 @@ def main():
         exploration=0.0, variable_noise=0.0,
         # Regularization
         l2_regularization=0.0, entropy_regularization=0.0,
-        # No parallelization
-        parallel_interactions=1,
         # Default additional config values
         config=None,
         # Save model every 10 updates and keep the 5 most recent checkpoints
@@ -50,13 +50,17 @@ def main():
         # Do not record agent-environment interaction trace
         recorder=None
     )
+    # or: Agent.create(agent='ppo', environment=environment, ...)
+    # with additional argument "environment" and, if applicable, "parallel_interactions"
 
     # Initialize the runner
-    runner = Runner(agent=agent, environment=environment)
+    runner = Runner(agent=agent, environment=environment, max_episode_timesteps=500)
 
     # Start the runner
     runner.run(num_episodes=200)
     runner.close()
+
+    # plus agent.close() and environment.close() if created separately
 
 
 if __name__ == '__main__':

@@ -112,7 +112,7 @@ setup(
         tfa=['tensorflow-addons >= 0.10.0'],
         tune=['hpbandster >= 0.7.4'],
         envs=['ale-py', 'gym[atari,box2d,classic_control] >= 0.17.2', 'box2d >= 2.3.10', 'gym-retro >= 0.8.0', 'vizdoom >= 1.1.7'],
-        ale=['ale-py >= 0.6.0'],
+        ale=['ale-py'],
         gym=['gym[atari,box2d,classic_control] >= 0.17.2', 'box2d >= 2.3.10'],
         retro=['gym-retro >= 0.8.0'],
         vizdoom=['vizdoom >= 1.1.7'],

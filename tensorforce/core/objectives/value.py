@@ -29,8 +29,8 @@ class Value(Objective):
             (<span style="color:#00C000"><b>default</b></span>: "state").
         huber_loss (parameter, float >= 0.0): Huber loss threshold
             (<span style="color:#00C000"><b>default</b></span>: no huber loss).
-        early_reduce (bool): Whether to compute objective for reduced values instead of value per
-            action (<span style="color:#00C000"><b>default</b></span>: true).
+        early_reduce (bool): Whether to compute objective for aggregated values instead of per
+            action (<span style="color:#00C000"><b>default</b></span>: false).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
         states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
@@ -40,7 +40,7 @@ class Value(Objective):
     """
 
     def __init__(
-        self, *, value='state', huber_loss=0.0, early_reduce=True, name=None, states_spec=None,
+        self, *, value='state', huber_loss=0.0, early_reduce=False, name=None, states_spec=None,
         internals_spec=None, auxiliaries_spec=None, actions_spec=None, reward_spec=None
     ):
         super().__init__(
@@ -61,19 +61,20 @@ class Value(Objective):
 
     @tf_function(num_args=7)
     def loss(self, *, states, horizons, internals, auxiliaries, actions, reward, policy, reference):
-        if not self.early_reduce:
-            reward = tf.expand_dims(input=reward, axis=1)
-
         if self.value == 'state':
             value = policy.states_value(
-                states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-                reduced=self.early_reduce, return_per_action=False
+                states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries
             )
         elif self.value == 'action':
             value = policy.actions_value(
                 states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-                actions=actions, reduced=self.early_reduce, return_per_action=False
+                actions=actions
             )
+
+        if self.early_reduce:
+            value = tf.math.reduce_mean(input_tensor=value, axis=1)
+        else:
+            reward = tf.expand_dims(input=reward, axis=1)
 
         difference = value - reward
 

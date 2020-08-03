@@ -47,9 +47,6 @@ class Distribution(Module):
                 action=self.action_spec.signature(batched=True)
             )
 
-        elif function == 'all_action_values':
-            return SignatureDict(parameters=self.parameters_spec.signature(batched=True))
-
         elif function == 'entropy':
             return SignatureDict(parameters=self.parameters_spec.signature(batched=True))
 
@@ -85,6 +82,44 @@ class Distribution(Module):
 
         else:
             return super().input_signature(function=function)
+
+    def output_signature(self, *, function):
+        if function == 'action_value':
+            return SignatureDict(singleton=TensorSpec(
+                type='float', shape=self.action_spec.shape
+            ).signature(batched=True))
+
+        elif function == 'entropy':
+            return SignatureDict(singleton=TensorSpec(
+                type='float', shape=self.action_spec.shape
+            ).signature(batched=True))
+
+        elif function == 'kl_divergence':
+            return SignatureDict(singleton=TensorSpec(
+                type='float', shape=self.action_spec.shape
+            ).signature(batched=True))
+
+        elif function == 'log_probability':
+            return SignatureDict(singleton=TensorSpec(
+                type='float', shape=self.action_spec.shape
+            ).signature(batched=True))
+
+        elif function == 'mode':
+            return SignatureDict(singleton=self.action_spec.signature(batched=True))
+
+        elif function == 'parametrize':
+            return SignatureDict(singleton=self.parameters_spec.signature(batched=True))
+
+        elif function == 'sample':
+            return SignatureDict(singleton=self.action_spec.signature(batched=True))
+
+        elif function == 'states_value':
+            return SignatureDict(singleton=TensorSpec(
+                type='float', shape=self.action_spec.shape
+            ).signature(batched=True))
+
+        else:
+            return super().output_signature(function=function)
 
     @tf_function(num_args=2)
     def parametrize(self, *, x, conditions):

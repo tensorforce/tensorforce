@@ -106,7 +106,7 @@ class Beta(Distribution):
         alpha = self.alpha.apply(x=x)
         # epsilon < 1.0, hence negative
         alpha = tf.clip_by_value(t=alpha, clip_value_min=log_epsilon, clip_value_max=-log_epsilon)
-        alpha = tf.math.softplus(features=alpha) + one
+        alpha = tf.math.exp(x=alpha) + one  # tf.math.softplus(features=beta) ???
         if len(self.input_spec.shape) == 1:
             alpha = tf.reshape(tensor=alpha, shape=shape)
 
@@ -114,7 +114,7 @@ class Beta(Distribution):
         beta = self.beta.apply(x=x)
         # epsilon < 1.0, hence negative
         beta = tf.clip_by_value(t=beta, clip_value_min=log_epsilon, clip_value_max=-log_epsilon)
-        beta = tf.math.softplus(features=beta) + one
+        beta = tf.math.exp(x=beta) + one  # tf.math.softplus(features=beta) ???
         if len(self.input_spec.shape) == 1:
             beta = tf.reshape(tensor=beta, shape=shape)
 

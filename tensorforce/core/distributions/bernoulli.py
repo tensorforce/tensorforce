@@ -16,8 +16,8 @@
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core import layer_modules, TensorDict, TensorSpec, TensorsSpec, tf_function, \
-    tf_util
+from tensorforce.core import layer_modules, SignatureDict, TensorDict, TensorSpec, TensorsSpec, \
+    tf_function, tf_util
 from tensorforce.core.distributions import Distribution
 
 
@@ -75,6 +75,22 @@ class Bernoulli(Distribution):
                 name='logit', module='linear', modules=layer_modules, size=size,
                 initialization_scale=0.01, input_spec=self.input_spec
             )
+
+    def input_signature(self, *, function):
+        if function == 'all_action_values':
+            return SignatureDict(parameters=self.parameters_spec.signature(batched=True))
+
+        else:
+            return super().input_signature(function=function)
+
+    def output_signature(self, *, function):
+        if function == 'all_action_values':
+            return SignatureDict(singleton=TensorSpec(
+                type='float', shape=(self.action_spec.shape + (2,))
+            ).signature(batched=True))
+
+        else:
+            return super().output_signature(function=function)
 
     def initialize(self):
         super().initialize()
@@ -155,9 +171,10 @@ class Bernoulli(Distribution):
         definite = tf.greater_equal(x=probability, y=half)
 
         # Non-deterministic: sample true if >= uniform distribution
-        e_true_logit = tf.math.exp(x=(true_logit / temperature))
-        e_false_logit = tf.math.exp(x=(false_logit / temperature))
-        probability = e_true_logit / (e_true_logit + e_false_logit)
+        # Exp numerically stable since logits <= 0.0
+        e_true_logit = tf.math.exp(x=(true_logit / tf.math.maximum(x=temperature, y=epsilon)))
+        e_false_logit = tf.math.exp(x=(false_logit / tf.math.maximum(x=temperature, y=epsilon)))
+        probability = e_true_logit / tf.math.maximum(x=(e_true_logit + e_false_logit), y=epsilon)
         uniform = tf.random.uniform(
             shape=tf.shape(input=probability), dtype=tf_util.get_dtype(type='float')
         )

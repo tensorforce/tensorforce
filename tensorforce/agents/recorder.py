@@ -96,18 +96,14 @@ class Recorder(object):
             self.fn_act = fn_act
 
         # States/actions, plus single state/action flag
-        if 'shape' in states:
-            self.states_spec = TensorsSpec(state=states)
-            self.single_state = True
+        if 'type' in states or 'shape' in states:
+            self.states_spec = TensorsSpec(singleton=states)
         else:
             self.states_spec = TensorsSpec(states)
-            self.single_state = False
-        if 'type' in actions:
-            self.actions_spec = TensorsSpec(action=actions)
-            self.single_action = True
+        if 'type' in actions or 'shape' in actions:
+            self.actions_spec = TensorsSpec(singleton=actions)
         else:
             self.actions_spec = TensorsSpec(actions)
-            self.single_action = False
 
         # Max episode timesteps
         self.max_episode_timesteps = max_episode_timesteps
@@ -312,20 +308,13 @@ class Recorder(object):
             if batched:
                 assert False
             else:
-                if self.single_state:
-                    if states['state'].shape == (1,):
-                        states = states['state'][0].item()
-                    else:
-                        states = states['state'][0]
+                states = states.fmap(function=(lambda x: x[0].item() if x.shape == (1,) else x[0]))
+                actions = self.fn_act(states.to_kwargs())
+                if self.actions_spec.is_singleton():
+                    actions = ArrayDict(singleton=np.asarray([actions]))
                 else:
-                    states = util.fmap(
-                        function=(lambda x: x[0].item() if x.shape == (1,) else x[0]), xs=states
-                    )
-                actions = self.fn_act(states)
-                if self.single_action:
-                    actions = dict(action=np.asarray([actions]))
-                else:
-                    actions = util.fmap(function=(lambda x: np.asarray([x])), xs=actions)
+                    actions = ArrayDict(actions)
+                    actions = actions.fmap(function=(lambda x: np.asarray([x])))
 
         # Buffer outputs for recording
         if self.recorder_spec is not None and not independent and \
@@ -338,10 +327,11 @@ class Recorder(object):
         if batched:
             # If inputs were batched, turn list of dicts into dict of lists
             function = (lambda x: x.item() if x.shape == () else x)
-            if self.single_action:
-                actions = input_type(function(actions['action'][n]) for n in range(num_parallel))
+            # TODO: recursive
+            if self.actions_spec.is_singleton():
+                actions = actions.singleton()
+                actions = input_type(function(actions[n]) for n in range(num_parallel))
             else:
-                # TODO: recursive
                 actions = input_type(
                     OrderedDict(((name, function(x[n])) for name, x in actions.items()))
                     for n in range(num_parallel)
@@ -357,8 +347,8 @@ class Recorder(object):
         else:
             # If inputs were not batched, unbatch outputs
             function = (lambda x: x.item() if x.shape == (1,) else x[0])
-            if self.single_action:
-                actions = function(actions['action'])
+            if self.actions_spec.is_singleton():
+                actions = function(actions.singleton())
             else:
                 actions = actions.fmap(function=function, cls=OrderedDict)
             if independent and not is_internals_none:
@@ -445,7 +435,7 @@ class Recorder(object):
         # Check whether episode is too long
         self.timestep_counter[parallel] += 1
         if self.max_episode_timesteps is not None and np.logical_and(
-            terminal == 0, self.timestep_counter > self.max_episode_timesteps
+            terminal == 0, self.timestep_counter[parallel] > self.max_episode_timesteps
         ).any():
             raise TensorforceError(message="Episode longer than max_episode_timesteps.")
         self.timestep_counter[parallel] = np.where(terminal > 0, 0, self.timestep_counter[parallel])
@@ -530,16 +520,16 @@ class Recorder(object):
             return 0
 
     def _process_states_input(self, states, function_name):
-        if self.single_state and not isinstance(states, dict) and not (
+        if self.states_spec.is_singleton() and not isinstance(states, dict) and not (
             util.is_iterable(x=states) and isinstance(states[0], dict)
         ):
             # Single state
             input_type = type(states)
             states = np.asarray(states)
 
-            if states.shape == self.states_spec['state'].shape:
+            if states.shape == self.states_spec.value().shape:
                 # Single state is not batched
-                states = ArrayDict(state=np.expand_dims(states, axis=0))
+                states = ArrayDict(singleton=np.expand_dims(states, axis=0))
                 batched = False
                 num_instances = 1
                 is_iter_of_dicts = None
@@ -547,10 +537,10 @@ class Recorder(object):
 
             else:
                 # Single state is batched, iter[state]
-                assert states.shape[1:] == self.states_spec['state'].shape
+                assert states.shape[1:] == self.states_spec.value().shape
                 assert input_type in (tuple, list, np.ndarray)
                 num_instances = states.shape[0]
-                states = ArrayDict(state=states)
+                states = ArrayDict(singleton=states)
                 batched = True
                 is_iter_of_dicts = True  # Default
 
@@ -586,6 +576,9 @@ class Recorder(object):
             states = ArrayDict(states)
 
             name, spec = self.states_spec.item()
+            if name is None:
+                name = 'state'
+
             if states[name].shape == spec.shape:
                 # States is not batched, dict[state]
                 states = states.fmap(function=(lambda state: np.expand_dims(state, axis=0)))

@@ -91,10 +91,10 @@ class TestAgents(UnittestBase, unittest.TestCase):
 
     def test_tensorforce(self):
         self.start_tests(name='Tensorforce')
-        # Explicit
+        # Explicit, single-state/action
         self.unittest(
             states=dict(type='float', shape=(), min_value=1.0, max_value=2.0),
-            actions=dict(type='float', shape=(), min_value=1.0, max_value=2.0),
+            actions=dict(type='int', shape=(), num_values=4),
             agent='tensorforce', policy=dict(network=dict(type='auto', size=8, depth=1, rnn=2)),
             update=4, objective='policy_gradient', reward_estimation=dict(horizon=3)
         )

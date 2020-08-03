@@ -36,14 +36,14 @@ class Layer(Module):
         input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    _TF_MODULE_IGNORED_PROPERTIES = Module._TF_MODULE_IGNORED_PROPERTIES | {'registered_layers'}
+    _TF_MODULE_IGNORED_PROPERTIES = Module._TF_MODULE_IGNORED_PROPERTIES | {'_REGISTERED_LAYERS'}
 
-    registered_layers = OrderedDict()
+    # _REGISTERED_LAYERS  # Initialized as part of model.__init__()
 
     def __init__(self, *, l2_regularization=None, name=None, input_spec=None):
         super().__init__(l2_regularization=l2_regularization, name=name)
 
-        Layer.registered_layers[self.name] = self
+        Layer._REGISTERED_LAYERS[self.name] = self
 
         self.input_spec = self.default_input_spec()
         if not isinstance(self.input_spec, TensorSpec):
@@ -72,6 +72,13 @@ class Layer(Module):
         else:
             return super().input_signature(function=function)
 
+    def output_signature(self, *, function):
+        if function == 'apply':
+            return SignatureDict(singleton=self.output_spec().signature(batched=True))
+
+        else:
+            return super().output_signature(function=function)
+
     @tf_function(num_args=1)
     def apply(self, *, x):
         return x
@@ -95,7 +102,7 @@ class MultiInputLayer(Layer):
     def __init__(self, *, tensors, l2_regularization=None, name=None, input_spec=None):
         super(Layer, self).__init__(l2_regularization=l2_regularization, name=name)
 
-        Layer.registered_layers[self.name] = self
+        Layer._REGISTERED_LAYERS[self.name] = self
 
         if not util.is_iterable(x=tensors):
             raise TensorforceError.type(
@@ -291,7 +298,7 @@ class Reuse(Layer):
     # _TF_MODULE_IGNORED_PROPERTIES = Module._TF_MODULE_IGNORED_PROPERTIES | {'reused_layer'}
 
     def __init__(self, *, layer, name=None, input_spec=None):
-        if layer not in Layer.registered_layers:
+        if layer not in Layer._REGISTERED_LAYERS:
             raise TensorforceError.value(name='reuse', argument='layer', value=layer)
 
         self.layer = layer
@@ -300,7 +307,7 @@ class Reuse(Layer):
 
     @property
     def reused_layer(self):
-        return Layer.registered_layers[self.layer]
+        return Layer._REGISTERED_LAYERS[self.layer]
 
     def default_input_spec(self):
         return self.reused_layer.input_spec.copy()
@@ -417,11 +424,60 @@ class TemporalLayer(Layer):
                 internals=self.internals_spec.signature(batched=True)
             )
 
+        elif function == 'iterative_body':
+            assert self.temporal_processing == 'iterative'
+            return SignatureDict(
+                x=self.input_spec.signature(batched=True),
+                indices=TensorSpec(type='int', shape=()).signature(batched=True),
+                remaining=TensorSpec(type='int', shape=()).signature(batched=True),
+                current_x=self.input_spec.signature(batched=True),
+                current_internals=self.internals_spec.signature(batched=True)
+            )
+
         elif function == 'past_horizon':
             return SignatureDict()
 
         else:
             return super().input_signature(function=function)
+
+    def output_signature(self, *, function):
+        if function == 'apply':
+            if self.temporal_processing == 'cumulative':
+                return SignatureDict(singleton=self.output_spec().signature(batched=True))
+            elif self.temporal_processing == 'iterative':
+                return SignatureDict(
+                    x=self.output_spec().signature(batched=True),
+                    internals=self.internals_spec.signature(batched=True)
+                )
+
+        elif function == 'cumulative_apply':
+            assert self.temporal_processing == 'cumulative'
+            return SignatureDict(singleton=self.output_spec().signature(batched=True))
+
+        elif function == 'iterative_apply':
+            assert self.temporal_processing == 'iterative'
+            return SignatureDict(
+                x=self.output_spec().signature(batched=True),
+                internals=self.internals_spec.signature(batched=True)
+            )
+
+        elif function == 'iterative_body':
+            assert self.temporal_processing == 'iterative'
+            return SignatureDict(
+                x=self.input_spec.signature(batched=True),
+                indices=TensorSpec(type='int', shape=()).signature(batched=True),
+                remaining=TensorSpec(type='int', shape=()).signature(batched=True),
+                current_x=self.input_spec.signature(batched=True),
+                current_internals=self.internals_spec.signature(batched=True)
+            )
+
+        elif function == 'past_horizon':
+            return SignatureDict(
+                singleton=TensorSpec(type='int', shape=()).signature(batched=False)
+            )
+
+        else:
+            return super().output_signature(function=function)
 
     @tf_function(num_args=0)
     def past_horizon(self, *, on_policy):
@@ -450,7 +506,7 @@ class TemporalLayer(Layer):
 
         if self.temporal_processing == 'cumulative':
 
-            def body(indices, remaining, xs):
+            def body(x, indices, remaining, xs):
                 current_x = tf.gather(params=x, indices=indices)
                 current_x = tf.expand_dims(input=current_x, axis=1)
                 xs = tf.concat(values=(xs, current_x), axis=1)
@@ -458,69 +514,32 @@ class TemporalLayer(Layer):
                     condition=tf.math.equal(x=remaining, y=zeros), x=zeros, y=ones
                 )
                 indices += tf.where(condition=tf.math.equal(x=remaining, y=zeros), x=zeros, y=ones)
-                return indices, remaining, xs
+                return x, indices, remaining, xs
 
             initial_xs = tf_util.zeros(
                 shape=((batch_size, 0) + output_spec.shape), dtype=output_spec.type
             )
 
-            final_indices, final_remaining, xs = tf.while_loop(
-                cond=tf_util.always_true, body=body, loop_vars=(starts, lengths, initial_xs),
+            _, final_indices, final_remaining, xs = tf.while_loop(
+                cond=tf_util.always_true, body=body, loop_vars=(x, starts, lengths, initial_xs),
                 maximum_iterations=tf_util.int64(x=horizon)
             )
 
             x = self.cumulative_apply(xs=xs, lengths=lengths)
 
         elif self.temporal_processing == 'iterative':
-            internals_signature = self.internals_spec.signature(batched=True)
-
-            def body(indices, remaining, current_x, current_internals):
-                current_internals = internals_signature.args_to_kwargs(args=current_internals)
-                current_x = tf.gather(params=x, indices=indices)
-                next_x, next_internals = self.iterative_apply(
-                    x=current_x, internals=current_internals
-                )
-
-                with tf.control_dependencies(control_inputs=(current_x, next_x)):
-                    is_finished = tf.math.equal(x=remaining, y=zeros)
-                    if isinstance(next_internals, dict):
-                        for name, current_internal, next_internal in current_internals.zip_items(
-                            next_internals
-                        ):
-                            condition = is_finished
-                            for _ in range(tf_util.rank(x=current_internal) - 1):
-                                condition = tf.expand_dims(input=condition, axis=1)
-                            next_internals[name] = tf.where(
-                                condition=condition, x=current_internal, y=next_internal
-                            )
-
-                    else:
-                        condition = is_finished
-                        for _ in range(tf_util.rank(x=current_internals) - 1):
-                            condition = tf.expand_dims(input=condition, axis=1)
-                        next_internals = tf.where(
-                            condition=condition, x=current_internals, y=next_internals
-                        )
-
-                    remaining -= tf.where(condition=is_finished, x=zeros, y=ones)
-                    indices += tf.where(
-                        condition=tf.math.equal(x=remaining, y=zeros), x=zeros, y=ones
-                    )
-
-                next_internals = internals_signature.kwargs_to_args(kwargs=next_internals)
-                return indices, remaining, next_x, next_internals
-
             initial_x = tf_util.zeros(
                 shape=((batch_size,) + output_spec.shape), dtype=output_spec.type
             )
 
-            internals = internals_signature.kwargs_to_args(kwargs=internals)
-            final_indices, final_remaining, x, final_internals = tf.while_loop(
-                cond=tf_util.always_true, body=body,
-                loop_vars=(starts, lengths, initial_x, internals),
+            signature = self.input_signature(function='iterative_body')
+            internals = signature['current_internals'].kwargs_to_args(kwargs=internals)
+            _, final_indices, final_remaining, x, final_internals = tf.while_loop(
+                cond=tf_util.always_true, body=self.iterative_body,
+                loop_vars=(x, starts, lengths, initial_x, internals),
                 maximum_iterations=tf_util.int32(x=horizon)
             )
-            internals = internals_signature.args_to_kwargs(args=final_internals)
+            internals = signature['current_internals'].args_to_kwargs(args=final_internals)
 
         assertions = list()
         if self.config.create_tf_assertions:
@@ -536,6 +555,45 @@ class TemporalLayer(Layer):
                 return tf_util.identity(input=super().apply(x=x))
             elif self.temporal_processing == 'iterative':
                 return tf_util.identity(input=super().apply(x=x)), internals
+
+    @tf_function(num_args=5, is_loop_body=True)
+    def iterative_body(self, x, indices, remaining, current_x, current_internals):
+        batch_size = tf_util.cast(x=tf.shape(input=current_x)[0], dtype='int')
+        zeros = tf_util.zeros(shape=(batch_size,), dtype='int')
+        ones = tf_util.ones(shape=(batch_size,), dtype='int')
+
+        current_x = tf.gather(params=x, indices=indices)
+        next_x, next_internals = self.iterative_apply(
+            x=current_x, internals=current_internals
+        )
+
+        with tf.control_dependencies(control_inputs=(current_x, next_x)):
+            is_finished = tf.math.equal(x=remaining, y=zeros)
+            if isinstance(next_internals, dict):
+                for name, current_internal, next_internal in current_internals.zip_items(
+                    next_internals
+                ):
+                    condition = is_finished
+                    for _ in range(tf_util.rank(x=current_internal) - 1):
+                        condition = tf.expand_dims(input=condition, axis=1)
+                    next_internals[name] = tf.where(
+                        condition=condition, x=current_internal, y=next_internal
+                    )
+
+            else:
+                condition = is_finished
+                for _ in range(tf_util.rank(x=current_internals) - 1):
+                    condition = tf.expand_dims(input=condition, axis=1)
+                next_internals = tf.where(
+                    condition=condition, x=current_internals, y=next_internals
+                )
+
+            remaining -= tf.where(condition=is_finished, x=zeros, y=ones)
+            indices += tf.where(
+                condition=tf.math.equal(x=remaining, y=zeros), x=zeros, y=ones
+            )
+
+        return x, indices, remaining, next_x, next_internals
 
     @tf_function(num_args=1)
     def cumulative_apply(self, *, xs, lengths):
@@ -603,7 +661,13 @@ class TransformationBase(Layer):
     def initialize(self):
         super().initialize()
 
-        if self.bias:
+        if isinstance(self.bias, str):
+            # Hack for Rnn to avoid name clash with Keras variable name
+            self.bias = self.variable(
+                name=self.bias, spec=TensorSpec(type='float', shape=(self.size,)),
+                initializer='zeros', is_trainable=self.vars_trainable, is_saved=True
+            )
+        elif self.bias:
             self.bias = self.variable(
                 name='bias', spec=TensorSpec(type='float', shape=(self.size,)), initializer='zeros',
                 is_trainable=self.vars_trainable, is_saved=True

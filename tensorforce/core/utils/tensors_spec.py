@@ -19,24 +19,57 @@ from tensorforce.core.utils import ArrayDict, NestedDict, SignatureDict, TensorD
 
 class TensorsSpec(NestedDict):
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, value_type=TensorSpec, overwrite=False, **kwargs)
+    def __init__(self, *args, singleton=None, **kwargs):
+        super().__init__(
+            *args, value_type=TensorSpec, overwrite=False, singleton=singleton, **kwargs
+        )
 
     def signature(self, *, batched):
-        return SignatureDict((
-            (name, spec.signature(batched=batched))
-            for name, spec in super(NestedDict, self).items()
-        ))
+        return self.fmap(function=(lambda spec: spec.signature(batched=batched)), cls=SignatureDict)
 
     def empty(self, *, batched):
-        return self.fmap(function=(lambda spec: spec.empty(batched=batched)), cls=TensorDict)
+        if self.is_singleton():
+            return self.singleton().empty(batched=batched)
 
-    def unify(self, *, other):
-        if set(self) != set(other):
-            raise TensorforceError.mismatch(
-                name='TensorsSpec.unify', argument='keys', value1=sorted(self), value2=sorted(other)
+        else:
+            tensor = TensorDict()
+            for name, spec in super(NestedDict, self).items():
+                tensor[name] = spec.empty(batched=batched)
+            return tensor
+
+    def to_tensor(self, *, value, batched):
+        if not isinstance(value, ArrayDict):
+            raise TensorforceError.type(
+                name='TensorsSpec.to_tensor', argument='value', dtype=type(value)
             )
-        return self.fmap(function=(lambda x, y: x.unify(other=y)), zip_values=other)
+
+        # TODO: improve exception message to include invalid keys
+        if set(value) != set(self):
+            raise TensorforceError.value(
+                name='TensorsSpec.to_tensor', argument='value', value=value
+            )
+
+        tensor = TensorDict()
+        for name, spec in super(NestedDict, self).items():
+            tensor[name] = spec.to_tensor(value=value[name], batched=batched)
+        return tensor
+
+    def from_tensor(self, *, tensor, batched):
+        if not isinstance(tensor, TensorDict):
+            raise TensorforceError.type(
+                name='TensorsSpec.from_tensor', argument='tensor', dtype=type(tensor)
+            )
+
+        # TODO: improve exception message to include invalid keys
+        if set(tensor) != set(self):
+            raise TensorforceError.value(
+                name='TensorsSpec.from_tensor', argument='tensor', value=tensor
+            )
+
+        value = ArrayDict()
+        for name, spec in super(NestedDict, self).items():
+            value[name] = spec.from_tensor(tensor=tensor[name], batched=batched)
+        return value
 
     def tf_assert(self, *, x, batch_size=None, include_type_shape=False, message=None):
         if not isinstance(x, TensorDict):
@@ -51,41 +84,12 @@ class TensorsSpec(NestedDict):
 
         return assertions
 
-    def to_tensor(self, *, value, batched):
-        if not isinstance(value, ArrayDict):
-            raise TensorforceError.type(
-                name='TensorsSpec.to_tensor', argument='value', dtype=type(value)
+    def unify(self, *, other):
+        if set(self) != set(other):
+            raise TensorforceError.mismatch(
+                name='TensorsSpec.unify', argument='keys', value1=sorted(self), value2=sorted(other)
             )
-
-        # TODO: improve exception message to include invalid keys
-        if set(value) != set(super().__iter__()):
-            raise TensorforceError.value(
-                name='TensorsSpec.to_tensor', argument='value', value=value
-            )
-
-        tensor = TensorDict()
-        for name, spec in super().items():
-            tensor[name] = spec.to_tensor(value=value[name], batched=batched)
-
-        return tensor
-
-    def from_tensor(self, *, tensor, batched):
-        if not isinstance(tensor, TensorDict):
-            raise TensorforceError.type(
-                name='TensorsSpec.from_tensor', argument='tensor', dtype=type(tensor)
-            )
-
-        # TODO: improve exception message to include invalid keys
-        if set(tensor) != set(super().__iter__()):
-            raise TensorforceError.value(
-                name='TensorsSpec.from_tensor', argument='tensor', value=tensor
-            )
-
-        value = ArrayDict()
-        for name, spec in super().items():
-            value[name] = spec.from_tensor(tensor=tensor[name], batched=batched)
-
-        return value
+        return self.fmap(function=(lambda x, y: x.unify(other=y)), zip_values=other)
 
     def __setitem__(self, key, value):
         if not isinstance(value, TensorSpec) and not isinstance(value, TensorsSpec):

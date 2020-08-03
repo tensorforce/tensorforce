@@ -16,7 +16,6 @@
 import os
 from random import random
 from tempfile import TemporaryDirectory
-from threading import Thread
 import unittest
 
 from tensorforce import Environment, Runner
@@ -24,41 +23,6 @@ from test.unittest_base import UnittestBase
 
 
 class TestFeatures(UnittestBase, unittest.TestCase):
-
-    # @pytest.mark.skip(reason='problems with processes/sockets in travis')
-    def test_parallelization(self):
-        self.start_tests(name='parallelization')
-
-        agent = self.agent_spec(parallel_interactions=2)
-        environment = self.environment_spec()
-
-        runner = Runner(agent=agent, environment=environment, num_parallel=2)
-        runner.run(num_episodes=5, use_tqdm=False)
-        runner.close()
-        self.finished_test()
-
-        runner = Runner(
-            agent=agent, environment=environment, num_parallel=2, remote='multiprocessing'
-        )
-        runner.run(num_episodes=5, use_tqdm=False)
-        runner.close()
-        self.finished_test()
-
-        def server(port):
-            Environment.create(environment=environment, remote='socket-server', port=port)
-
-        server1 = Thread(target=server, kwargs=dict(port=65432))
-        server2 = Thread(target=server, kwargs=dict(port=65433))
-        server1.start()
-        server2.start()
-        runner = Runner(
-            agent=agent, num_parallel=2, remote='socket-client', host='127.0.0.1', port=65432
-        )
-        runner.run(num_episodes=5, use_tqdm=False)
-        runner.close()
-        server1.join()
-        server2.join()
-        self.finished_test()
 
     def test_act_experience_update(self):
         self.start_tests(name='act-experience-update')

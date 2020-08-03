@@ -43,7 +43,7 @@ def make_key(*, x):
             raise exc
 
 
-def tf_function(*, num_args, optional=0):
+def tf_function(*, num_args, optional=0, is_loop_body=False, flatten_outputs=False):
 
     def decorator(function):
 
@@ -69,46 +69,51 @@ def tf_function(*, num_args, optional=0):
                 return function(self, *args, **kwargs)
 
             # Graph signature
-            graph_signature = self.input_signature(function=name)
-            assert num_args - optional <= graph_signature.num_args() <= num_args
+            input_signature = self.input_signature(function=name)
+            output_signature = self.output_signature(function=name)
+            assert num_args - optional <= input_signature.num_args() <= num_args
 
             # Graph arguments
             if len(kwargs) > 0:
-                graph_args = graph_signature.kwargs_to_args(kwargs=kwargs)
+                graph_args = input_signature.kwargs_to_args(kwargs=kwargs)
             else:
                 graph_args = args
 
             # Graph parameters
-            graph_params = tuple(
-                make_key(x=arg) for key, arg in kwargs.items() if key not in graph_signature
-            )
+            params_kwargs = {
+                key: arg for key, arg in kwargs.items() if key not in input_signature
+            }
+            graph_params = tuple(make_key(x=arg) for arg in params_kwargs.values())
 
+            # Check whether output_signature is parametrized
+            if not isinstance(output_signature, SignatureDict):
+                output_signature = output_signature(**params_kwargs)
+
+            # Function graph
             if str(graph_params) not in function_graphs:
-                # # Check that length of graph specs are consistent
-                # assert len(function_graphs) == 0 or \
-                #     len(next(iter(function_graphs))) == len(graph_params)
 
-                # Params kwargs
-                params_kwargs = {
-                    key: arg for key, arg in kwargs.items() if key not in graph_signature
-                }
-
-                # Function graph
                 def function_graph(*args):
                     with self:
                         # TODO: tf.name_scope instead?
-                        kwargs = graph_signature.args_to_kwargs(args=args).to_kwargs()
-                        results = function(self, **kwargs, **params_kwargs)
-                    return results
+                        kwargs = input_signature.args_to_kwargs(args=args).to_kwargs()
+                        args = function(self, **kwargs, **params_kwargs)
+                        args = output_signature.kwargs_to_args(kwargs=args, flatten=flatten_outputs)
+                    return args
 
                 function_graphs[str(graph_params)] = tf.function(
-                    func=function_graph, input_signature=graph_signature.to_list(), autograph=False
+                    func=function_graph, input_signature=input_signature.to_list(), autograph=False
                     # experimental_implements=None, experimental_autograph_options=None,
                     # experimental_relax_shapes=False, experimental_compile=None
                 )
 
             # Apply function graph
-            return function_graphs[str(graph_params)](*graph_args)
+            output_args = function_graphs[str(graph_params)](*graph_args)
+            if not is_loop_body:
+                return output_signature.args_to_kwargs(
+                    args=output_args, outer_tuple=True, flattened=flatten_outputs
+                )
+            else:
+                return output_args
 
         return decorated
 
@@ -130,7 +135,7 @@ class Module(tf.Module):
     _TF_MODULE_IGNORED_PROPERTIES = \
         tf.Module._TF_MODULE_IGNORED_PROPERTIES | {'_MODULE_STACK', 'parent'}
 
-    _MODULE_STACK = list()
+    # _MODULE_STACK  # Initialized as part of model.__init__()
 
     def __init__(self, *, device=None, l2_regularization=None, name=None):
         super().__init__(name=name)
@@ -266,6 +271,15 @@ class Module(tf.Module):
     def input_signature(self, *, function):
         if function == 'regularize':
             return SignatureDict()
+
+        else:
+            raise NotImplementedError
+
+    def output_signature(self, *, function):
+        if function == 'regularize':
+            return SignatureDict(
+                singleton=TensorSpec(type='float', shape=()).signature(batched=False)
+            )
 
         else:
             raise NotImplementedError

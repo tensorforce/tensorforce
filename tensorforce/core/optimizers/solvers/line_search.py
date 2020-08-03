@@ -75,6 +75,29 @@ class LineSearch(Iterative):
         else:
             return super().input_signature(function=function)
 
+    def output_signature(self, *, function):
+        if function == 'end' or function == 'solve':
+            return SignatureDict(singleton=self.values_spec.signature(batched=False))
+
+        elif function == 'next_step':
+            return SignatureDict(
+                singleton=TensorSpec(type='bool', shape=()).signature(batched=False)
+            )
+
+        elif function == 'start' or function == 'step':
+            return SignatureDict(
+                arguments=self.arguments_spec.signature(batched=True),
+                x=self.values_spec.signature(batched=False),
+                deltas=self.values_spec.signature(batched=False),
+                improvement=TensorSpec(type='float', shape=()).signature(batched=False),
+                last_improvement=TensorSpec(type='float', shape=()).signature(batched=False),
+                base_value=TensorSpec(type='float', shape=()).signature(batched=False),
+                estimated=TensorSpec(type='float', shape=()).signature(batched=False)
+            )
+
+        else:
+            return super().output_signature(function=function)
+
     @tf_function(num_args=5)
     def solve(self, *, arguments, x_init, base_value, zero_value, estimated, fn_x):
         """
@@ -123,7 +146,7 @@ class LineSearch(Iterative):
 
         return arguments, zeros_x, x_init, improvement, last_improvement, base_value, estimated
 
-    @tf_function(num_args=7)
+    @tf_function(num_args=7, is_loop_body=True)
     def step(self, *, arguments, x, deltas, improvement, last_improvement, base_value, estimated):
         """
         Iteration loop body of the line search algorithm.
@@ -164,10 +187,6 @@ class LineSearch(Iterative):
         with tf.control_dependencies(control_inputs=(target_value,)):
             next_deltas = next_deltas.fmap(function=tf_util.identity)
 
-        arguments = self.arguments_spec.signature(batched=True).kwargs_to_args(kwargs=arguments)
-        values_signature = self.values_spec.signature(batched=False)
-        next_x = values_signature.kwargs_to_args(kwargs=next_x)
-        next_deltas = values_signature.kwargs_to_args(kwargs=next_deltas)
         return arguments, next_x, next_deltas, next_improvement, improvement, base_value, \
             next_estimated
 

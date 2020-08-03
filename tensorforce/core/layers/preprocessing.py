@@ -39,6 +39,15 @@ class PreprocessingLayer(Layer):
         else:
             return super().input_signature(function=function)
 
+    def output_signature(self, *, function):
+        if function == 'reset':
+            return SignatureDict(
+                singleton=TensorSpec(type='bool', shape=()).signature(batched=False)
+            )
+
+        else:
+            return super().output_signature(function=function)
+
     @tf_function(num_args=0)
     def reset(self):
         raise NotImplementedError

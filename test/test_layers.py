@@ -156,7 +156,7 @@ class TestLayers(UnittestBase, unittest.TestCase):
                 dict(type='linear_normalization')
             ], reward=[dict(type='clipping', upper=1.0)]
         )
-        network = [dict(type='dense', name='test', size=8)]
+        network = [dict(type='dense', size=8)]
         self.unittest(states=states, preprocessing=preprocessing, policy=network)
 
         states = dict(type='float', shape=(4, 4, 3), min_value=1.0, max_value=2.0)

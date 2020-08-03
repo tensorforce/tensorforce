@@ -34,9 +34,9 @@ class DeterministicPolicyGradient(Objective):
 
     @tf_function(num_args=7)
     def loss(self, *, states, horizons, internals, auxiliaries, actions, reward, policy, reference):
-        policy_actions = policy.act(
+        policy_actions, _ = policy.act(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-            independent=True, return_internals=False
+            independent=True
         )
 
         summed_actions = list()
@@ -67,9 +67,9 @@ class DeterministicPolicyGradient(Objective):
                 assert len(baseline.internals_spec) == 0
                 baseline_internals = TensorDict()
 
-            actions = policy.act(
+            actions, _ = policy.act(
                 states=states, horizons=horizons, internals=policy_internals,
-                auxiliaries=auxiliaries, independent=True, return_internals=False
+                auxiliaries=auxiliaries, independent=True
             )
             assert len(actions) == 1
             action = actions.value()
@@ -80,8 +80,9 @@ class DeterministicPolicyGradient(Objective):
                 tape.watch(tensor=action)
                 actions_value = baseline.actions_value(
                     states=states, horizons=horizons, internals=baseline_internals,
-                    auxiliaries=auxiliaries, actions=actions, reduced=True, return_per_action=False
+                    auxiliaries=auxiliaries, actions=actions
                 )
+                actions_value = tf.math.reduce_mean(input_tensor=actions_value, axis=1)
                 if len(shape) == 1:
                     return -tape.gradient(target=actions_value, sources=action)[0]
                 elif len(shape) == 2 and shape[1] == 1:

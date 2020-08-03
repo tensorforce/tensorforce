@@ -285,14 +285,9 @@ class Queue(Memory):
 
     @tf_function(num_args=1)
     def retrieve(self, *, indices, values):
-        values = list(values)
+        assert isinstance(values, tuple)
         function = (lambda x: tf.gather(params=x, indices=indices))
-        for n, name in enumerate(values):
-            if isinstance(self.buffers[name], VariableDict):
-                values[n] = self.buffers[name].fmap(function=function, cls=TensorDict)
-            else:
-                values[n] = function(x=self.buffers[name])
-        return values
+        return self.buffers[values].fmap(function=function, cls=TensorDict)
 
     @tf_function(num_args=2)
     def predecessors(self, *, indices, horizon, sequence_values, initial_values):
@@ -342,15 +337,12 @@ class Queue(Memory):
 
         with tf.control_dependencies(control_inputs=assertions):
             function = (lambda buffer: tf.gather(params=buffer, indices=predecessor_indices))
-            values = self.buffers[sequence_values].fmap(function=function, cls=TensorDict)
-            sequence_values = tuple(values[name] for name in sequence_values)
+            sequence_values = self.buffers[sequence_values].fmap(function=function, cls=TensorDict)
 
             starts = tf.math.cumsum(x=lengths, exclusive=True)
             initial_indices = tf.gather(params=predecessor_indices, indices=starts)
             function = (lambda buffer: tf.gather(params=buffer, indices=initial_indices))
-            values = self.buffers[initial_values].fmap(function=function, cls=TensorDict)
-            initial_values = tuple(values[name] for name in initial_values)
-
+            initial_values = self.buffers[initial_values].fmap(function=function, cls=TensorDict)
 
         if len(sequence_values) == 0:
             if len(initial_values) == 0:
@@ -413,15 +405,13 @@ class Queue(Memory):
 
         with tf.control_dependencies(control_inputs=assertions):
             function = (lambda buffer: tf.gather(params=buffer, indices=successor_indices))
-            values = self.buffers[sequence_values].fmap(function=function, cls=TensorDict)
-            sequence_values = tuple(values[name] for name in sequence_values)
+            sequence_values = self.buffers[sequence_values].fmap(function=function, cls=TensorDict)
 
             starts = tf.math.cumsum(x=lengths, exclusive=True)
             ends = tf.math.cumsum(x=lengths) - one
             final_indices = tf.gather(params=successor_indices, indices=ends)
             function = (lambda buffer: tf.gather(params=buffer, indices=final_indices))
-            values = self.buffers[final_values].fmap(function=function, cls=TensorDict)
-            final_values = tuple(values[name] for name in final_values)
+            final_values = self.buffers[final_values].fmap(function=function, cls=TensorDict)
 
         if len(sequence_values) == 0:
             if len(final_values) == 0:

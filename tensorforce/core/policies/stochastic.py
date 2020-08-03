@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
+import tensorflow as tf
+
 from tensorforce.core import ModuleDict, parameter_modules, SignatureDict, TensorDict, TensorSpec, \
     TensorsSpec, tf_function, tf_util
 from tensorforce.core.policies import Policy
@@ -147,12 +149,57 @@ class Stochastic(Policy):
         else:
             return super().input_signature(function=function)
 
+    def output_signature(self, *, function):
+        if function == 'entropy':
+            return SignatureDict(singleton=TensorSpec(
+                type='float', shape=(sum(spec.size for spec in self.actions_spec.values()),)
+            ).signature(batched=True))
+
+        elif function == 'entropies':
+            return SignatureDict(singleton=self.actions_spec.fmap(function=(
+                lambda spec: TensorSpec(type='float', shape=spec.shape).signature(batched=True)
+            ), cls=SignatureDict))
+
+        elif function == 'kl_divergence':
+            return SignatureDict(singleton=TensorSpec(
+                type='float', shape=(sum(spec.size for spec in self.actions_spec.values()),)
+            ).signature(batched=True))
+
+        elif function == 'kl_divergences':
+            return SignatureDict(singleton=self.actions_spec.fmap(function=(
+                lambda spec: TensorSpec(type='float', shape=spec.shape).signature(batched=True)
+            ), cls=SignatureDict))
+
+        elif function == 'kldiv_reference':
+            return SignatureDict(singleton=self.distributions.fmap(
+                function=(lambda x: x.parameters_spec), cls=TensorsSpec
+            ).signature(batched=True))
+
+        elif function == 'log_probability':
+            return SignatureDict(singleton=TensorSpec(
+                type='float', shape=(sum(spec.size for spec in self.actions_spec.values()),)
+            ).signature(batched=True))
+
+        elif function == 'log_probabilities':
+            return SignatureDict(singleton=self.actions_spec.fmap(function=(
+                lambda spec: TensorSpec(type='float', shape=spec.shape).signature(batched=True)
+            ), cls=SignatureDict))
+
+        elif function == 'sample_actions':
+            return SignatureDict(
+                actions=self.actions_spec.signature(batched=True),
+                internals=self.internals_spec.signature(batched=True)
+            )
+
+        else:
+            return super().output_signature(function=function)
+
     @tf_function(num_args=4)
-    def act(self, *, states, horizons, internals, auxiliaries, independent, return_internals):
+    def act(self, *, states, horizons, internals, auxiliaries, independent):
         if independent:
             return super().act(
                 states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-                independent=independent, return_internals=return_internals
+                independent=independent
             )
             # zero = tf_util.constant(value=0.0, dtype='float')
             # temperatures = self.actions_spec.fmap(function=(lambda _: zero), cls=TensorDict)
@@ -168,49 +215,49 @@ class Stochastic(Policy):
 
         return self.sample_actions(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-            temperatures=temperatures, independent=independent, return_internals=return_internals
+            temperatures=temperatures, independent=independent
         )
 
     @tf_function(num_args=5)
-    def log_probability(
-        self, *, states, horizons, internals, auxiliaries, actions, reduced, return_per_action
-    ):
+    def log_probability(self, *, states, horizons, internals, auxiliaries, actions):
         log_probabilities = self.log_probabilities(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
             actions=actions
         )
 
-        return self.join_value_per_action(
-            values=log_probabilities, reduced=reduced, return_per_action=return_per_action
-        )
+        def function(value, spec):
+            return tf.reshape(tensor=value, shape=(-1, spec.size))
+
+        log_probabilities = log_probabilities.fmap(function=function, zip_values=self.actions_spec)
+        return tf.concat(values=tuple(log_probabilities.values()), axis=1)
 
     @tf_function(num_args=4)
-    def entropy(self, *, states, horizons, internals, auxiliaries, reduced, return_per_action):
+    def entropy(self, *, states, horizons, internals, auxiliaries):
         entropies = self.entropies(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries
         )
 
-        return self.join_value_per_action(
-            values=entropies, reduced=reduced, return_per_action=return_per_action
-        )
+        def function(value, spec):
+            return tf.reshape(tensor=value, shape=(-1, spec.size))
+
+        entropies = entropies.fmap(function=function, zip_values=self.actions_spec)
+        return tf.concat(values=tuple(entropies.values()), axis=1)
 
     @tf_function(num_args=5)
-    def kl_divergence(
-        self, *, states, horizons, internals, auxiliaries, reference, reduced, return_per_action
-    ):
+    def kl_divergence(self, *, states, horizons, internals, auxiliaries, reference):
         kl_divergences = self.kl_divergences(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
             reference=reference
         )
 
-        return self.join_value_per_action(
-            values=kl_divergences, reduced=reduced, return_per_action=return_per_action
-        )
+        def function(value, spec):
+            return tf.reshape(tensor=value, shape=(-1, spec.size))
+
+        kl_divergences = kl_divergences.fmap(function=function, zip_values=self.actions_spec)
+        return tf.concat(values=tuple(kl_divergences.values()), axis=1)
 
     @tf_function(num_args=5)
-    def sample_actions(
-        self, *, states, horizons, internals, auxiliaries, temperatures, return_internals
-    ):
+    def sample_actions(self, *, states, horizons, internals, auxiliaries, temperatures):
         raise NotImplementedError
 
     @tf_function(num_args=5)

@@ -18,11 +18,11 @@ from collections import Counter
 import tensorflow as tf
 
 from tensorforce import TensorforceError
-from tensorforce.core import Module, SignatureDict, TensorSpec, TensorsSpec, tf_function, tf_util
+from tensorforce.core import ArrayDict, Module, SignatureDict, TensorDict, TensorSpec, \
+    TensorsSpec, tf_function, tf_util
 from tensorforce.core.layers import Layer, layer_modules, MultiInputLayer, Register, \
     StatefulLayer, TemporalLayer
 from tensorforce.core.parameters import Parameter
-from tensorforce.core.utils import ArrayDict
 
 
 class Network(Module):
@@ -70,12 +70,27 @@ class Network(Module):
         else:
             return super().input_signature(function=function)
 
+    def output_signature(self, *, function):
+        if function == 'apply':
+            return SignatureDict(
+                x=self.output_spec().signature(batched=True),
+                internals=self.internals_spec.signature(batched=True)
+            )
+
+        elif function == 'past_horizon':
+            return SignatureDict(
+                singleton=TensorSpec(type='int', shape=()).signature(batched=False)
+            )
+
+        else:
+            return super().output_signature(function=function)
+
     @tf_function(num_args=0)
     def past_horizon(self, *, on_policy):
         return tf_util.constant(value=0, dtype='int')
 
     @tf_function(num_args=3)
-    def apply(self, *, x, horizons, internals, independent, return_internals):
+    def apply(self, *, x, horizons, internals, independent):
         raise NotImplementedError
 
 
@@ -89,7 +104,10 @@ class LayerbasedNetwork(Network):
             name=name, inputs_spec=inputs_spec, device=device, l2_regularization=l2_regularization
         )
 
-        self.registered_tensors_spec = self.inputs_spec.copy()
+        if self.inputs_spec.is_singleton():
+            self.registered_tensors_spec = TensorsSpec(state=self.inputs_spec.singleton())
+        else:
+            self.registered_tensors_spec = self.inputs_spec.copy()
 
         self._output_spec = self.inputs_spec.value()
 
@@ -257,8 +275,11 @@ class LayeredNetwork(LayerbasedNetwork):
             yield self.submodule(name=name, module=spec)
 
     @tf_function(num_args=3)
-    def apply(self, *, x, horizons, internals, independent, return_internals):
-        registered_tensors = x.copy()
+    def apply(self, *, x, horizons, internals, independent):
+        if x.is_singleton():
+            registered_tensors = TensorDict(state=x.singleton())
+        else:
+            registered_tensors = x.copy()
         x = x.value()
 
         for layer in self.layers:
@@ -284,7 +305,4 @@ class LayeredNetwork(LayerbasedNetwork):
             else:
                 x = layer.apply(x=x)
 
-        if return_internals:
-            return x, internals
-        else:
-            return x
+        return x, internals

@@ -18,8 +18,7 @@ import functools
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core import parameter_modules, TensorDict, TensorSpec, TensorsSpec, tf_function, \
-    tf_util
+from tensorforce.core import parameter_modules, TensorDict, TensorsSpec, tf_function, tf_util
 from tensorforce.core.optimizers import Optimizer
 from tensorforce.core.optimizers.solvers import solver_modules
 
@@ -61,12 +60,8 @@ class NaturalGradient(Optimizer):
             variables=variables, register_summaries=register_summaries
         )
 
-        values_spec = TensorsSpec((
-            (var.name, TensorSpec(type=tf_util.dtype(x=var), shape=tf_util.shape(x=var)))
-            for var in variables
-        ))
         self.conjugate_gradient.complete_initialize(
-            arguments_spec=self.arguments_spec, values_spec=values_spec
+            arguments_spec=self.arguments_spec, values_spec=self.variables_spec
         )
 
     @tf_function(num_args=1)
@@ -113,8 +108,8 @@ class NaturalGradient(Optimizer):
             # [delta' * F] = grad(delta' * grad(kldiv))
             delta_kldiv_grads2 = tape1.gradient(target=delta_kldiv_grads, sources=variables)
             return TensorDict((
-                (var.name, tf.zeros_like(input=var) if grad is None else grad)
-                for var, grad in zip(variables, delta_kldiv_grads2)
+                (var.name[:-2].replace('/', '_'), tf.zeros_like(input=var) if x is None else x)
+                for var, x in zip(variables, delta_kldiv_grads2)
             ))
 
         # loss
@@ -133,11 +128,15 @@ class NaturalGradient(Optimizer):
         # Solve the following system for delta' via the conjugate gradient solver.
         # [delta' * F] * delta' = -grad(loss)
         # --> delta'  (= lambda * delta)
+        # Replace "/" with "_" to ensure TensorDict is flat
+        x_init = TensorDict(
+            ((var.name[:-2].replace('/', '_'), tf.zeros_like(input=var)) for var in variables)
+        )
+        b = TensorDict(
+            ((var.name[:-2].replace('/', '_'), -x) for var, x in zip(variables, loss_gradients))
+        )
         deltas = self.conjugate_gradient.solve(
-            arguments=arguments,
-            x_init=TensorDict(((var.name, tf.zeros_like(input=var)) for var in variables)),
-            b=TensorDict(((var.name, -x) for var, x in zip(variables, loss_gradients))),
-            fn_x=fisher_matrix_product
+            arguments=arguments, x_init=x_init, b=b, fn_x=fisher_matrix_product
         )
 
         # delta' * F
@@ -166,10 +165,15 @@ class NaturalGradient(Optimizer):
         # Natural gradient step if constant > 0
         def apply_step():
             # lambda = sqrt(c' / c)
-            lagrange_multiplier = tf.math.sqrt(x=(constant / learning_rate))
+            epsilon = tf_util.constant(value=util.epsilon, dtype='float')
+            lagrange_multiplier = tf.math.sqrt(
+                x=(constant / tf.math.maximum(x=learning_rate, y=epsilon))
+            )
 
             # delta = delta' / lambda  (zero prevented via tf.cond pred below)
-            estimated_deltas = deltas.fmap(function=(lambda delta: delta / lagrange_multiplier))
+            estimated_deltas = deltas.fmap(
+                function=(lambda delta: delta / tf.math.maximum(x=lagrange_multiplier, y=epsilon))
+            )
 
             # Apply natural gradient improvement.
             assignments = list()
@@ -177,17 +181,17 @@ class NaturalGradient(Optimizer):
                 assignments.append(variable.assign_add(delta=delta, read_value=False))
 
             with tf.control_dependencies(control_inputs=assignments):
-                if return_estimated_improvement:
-                    # improvement = grad(loss) * delta  (= loss_new - loss_old)
-                    estimated_improvement = tf.math.add_n(inputs=[
-                        tf.math.reduce_sum(input_tensor=(loss_grad * delta))
-                        for loss_grad, delta in zip(loss_gradients, estimated_deltas.values())
-                    ])
+                # if return_estimated_improvement:
+                #     # improvement = grad(loss) * delta  (= loss_new - loss_old)
+                #     estimated_improvement = tf.math.add_n(inputs=[
+                #         tf.math.reduce_sum(input_tensor=(loss_grad * delta))
+                #         for loss_grad, delta in zip(loss_gradients, estimated_deltas.values())
+                #     ])
 
-                    return list(estimated_deltas.values()), estimated_improvement
-                else:
-                    # Trivial operation to enforce control dependency
-                    return [tf_util.identity(input=delta) for delta in estimated_deltas.values()]
+                #     return list(estimated_deltas.values()), estimated_improvement
+                # else:
+                # Trivial operation to enforce control dependency
+                return [tf_util.identity(input=delta) for delta in estimated_deltas.values()]
 
         # Natural gradient step only works if constant > 0  (epsilon to avoid zero division)
         skip_step = constant < (tf_util.constant(value=util.epsilon, dtype='float') * learning_rate)

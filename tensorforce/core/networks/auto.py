@@ -63,15 +63,19 @@ class AutoNetwork(LayeredNetwork):
             layers.append(state_layers)
 
             # Retrieve input state
-            state_layers.append(dict(
-                type='retrieve', name=(input_name + '_retrieve'), tensors=(input_name,)
-            ))
+            if input_name is None:
+                prefix = ''
+            else:
+                prefix = input_name + '_'
+                state_layers.append(dict(
+                    type='retrieve', name=(prefix + 'retrieve'), tensors=(input_name,)
+                ))
 
             # Embed bool and int states
             requires_embedding = (spec.type == 'bool' or spec.type == 'int')
             if requires_embedding:
                 state_layers.append(dict(
-                    type='embedding', name=(input_name + '_embedding'), size=size
+                    type='embedding', name=(prefix + 'embedding'), size=size
                 ))
 
             # Shape-specific layer type
@@ -82,7 +86,7 @@ class AutoNetwork(LayeredNetwork):
             elif spec.rank == 3 - requires_embedding:
                 layer = 'conv2d'
             elif spec.rank == 0:
-                state_layers.append(dict(type='flatten', name=(input_name + '_flatten')))
+                state_layers.append(dict(type='flatten', name=(prefix + 'flatten')))
                 layer = 'dense'
             else:
                 raise TensorforceError.value(
@@ -92,33 +96,34 @@ class AutoNetwork(LayeredNetwork):
             # Repeat layer according to depth (one less if embedded)
             for n in range(depth - requires_embedding):
                 state_layers.append(dict(
-                    type=layer, name='{}_{}{}'.format(input_name, layer, n), size=size
+                    type=layer, name='{}{}{}'.format(prefix, layer, n), size=size
                 ))
 
             # Max pool if rank greater than one
             if spec.rank > 1 - requires_embedding:
                 state_layers.append(dict(
-                    type='pooling', name=(input_name + '_pooling'), reduction='max'
+                    type='pooling', name=(prefix + 'pooling'), reduction='max'
                 ))
 
             # Register state-specific embedding
-            state_layers.append(dict(
-                type='register', name=(input_name + '_register'), tensor=(input_name + '-embedding')
-            ))
+            if input_name is not None:
+                state_layers.append(dict(
+                    type='register', name=(prefix + 'register'), tensor=(input_name + '-embedding')
+                ))
 
         # Final combined layers
         final_layers = list()
         layers.append(final_layers)
 
-        # Retrieve state-specific embeddings
-        final_layers.append(dict(
-            type='retrieve', name='retrieve',
-            tensors=tuple(input_name + '-embedding' for input_name in inputs_spec),
-            aggregation='concat'
-        ))
-
-        # Repeat layer according to depth
         if len(inputs_spec) > 1:
+            # Retrieve state-specific embeddings
+            final_layers.append(dict(
+                type='retrieve', name='retrieve',
+                tensors=tuple(input_name + '-embedding' for input_name in inputs_spec),
+                aggregation='concat'
+            ))
+
+            # Repeat layer according to depth
             for n in range(final_depth):
                 final_layers.append(dict(type='dense', name=('dense' + str(n)), size=final_size))
 

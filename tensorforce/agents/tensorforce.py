@@ -203,8 +203,10 @@ class TensorforceAgent(Agent):
             <li><b>eager_mode</b> (<i>bool</i>) &ndash; Whether to run functions eagerly instead of
             running as a traced graph function, can be helpful for debugging
             (<span style="color:#00C000"><b>default</b></span>: false).</li>
-            <li><b>tf_log_level</b> (<i>0 <= int <= 3</i>) &ndash; TensorFlow log level
-            (<span style="color:#00C000"><b>default</b></span>: 3, no logging).</li>
+            <li><b>tf_log_level</b> (<i>int >= 0</i>) &ndash; TensorFlow log level, additional C++
+            logging messages can be enabled by setting os.environ["TF_CPP_MIN_LOG_LEVEL"] = "1"/"2"
+            before importing Tensorforce/TensorFlow
+            (<span style="color:#00C000"><b>default</b></span>: 40, only error and critical).</li>
             </ul>
         saver (specification): TensorFlow checkpoint manager configuration for periodic implicit
             saving, as alternative to explicit saving via agent.save(), with the following
@@ -452,18 +454,18 @@ class TensorforceAgent(Agent):
                 )
 
             # Actions
-            if self.single_action and isinstance(actions, np.ndarray):
-                actions = ArrayDict(action=actions)
+            if isinstance(actions, np.ndarray):
+                actions = ArrayDict(singleton=actions)
             elif not isinstance(actions, (tuple, list)):
                 raise TensorforceError.type(
                     name='Agent.experience', argument='actions', dtype=type(actions),
                     hint='is not tuple/list'
                 )
-            elif self.single_action and not isinstance(actions[0], dict):
-                actions = ArrayDict(action=actions)
+            elif not isinstance(actions[0], dict):
+                actions = ArrayDict(singleton=np.asarray(actions))
             else:
                 actions = [ArrayDict(action) for action in actions]
-                actions = internals[0].fmap(
+                actions = actions[0].fmap(
                     function=(lambda *xs: np.stack(xs, axis=0)), zip_values=actions[1:]
                 )
 
@@ -482,14 +484,15 @@ class TensorforceAgent(Agent):
                 internals = ArrayDict(internals)
 
             # Actions
-            if self.single_action and not isinstance(actions, dict):
-                actions = dict(action=actions)
+            if not isinstance(actions, np.ndarray):
+                actions = ArrayDict(singleton=actions)
             elif not isinstance(actions, dict):
                 raise TensorforceError.type(
                     name='Agent.experience', argument='actions', dtype=type(actions),
                     hint='is not dict'
                 )
-            actions = ArrayDict(actions)
+            else:
+                actions = ArrayDict(actions)
 
         # Expand inputs if not batched
         if not batched:
@@ -529,6 +532,8 @@ class TensorforceAgent(Agent):
             auxiliary = ArrayDict()
             if self.config.enable_int_action_masking and spec.type == 'int' and \
                     spec.num_values is not None:
+                if name is None:
+                    name = 'action'
                 # Mask, either part of states or default all true
                 auxiliary['mask'] = states.pop(name + '_mask', np.ones(
                     shape=(num_instances,) + spec.shape + (spec.num_values,), dtype=spec.np_type()
@@ -536,6 +541,8 @@ class TensorforceAgent(Agent):
             return auxiliary
 
         auxiliaries = self.actions_spec.fmap(function=function, cls=ArrayDict, with_names=True)
+        if self.states_spec.is_singleton() and not states.is_singleton():
+            states[None] = states.pop('state')
 
         # Convert terminal to int if necessary
         if terminal.dtype is util.np_dtype(dtype='bool'):

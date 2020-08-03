@@ -45,18 +45,18 @@ class MultiStep(UpdateModifier):
     def step(self, *, arguments, variables, **kwargs):
         deltas = [tf.zeros_like(input=variable) for variable in variables]
 
-        def body(deltas):
+        def body(*deltas):
             with tf.control_dependencies(control_inputs=deltas):
                 step_deltas = self.optimizer.step(
                     arguments=arguments, variables=variables, **kwargs
                 )
                 deltas = [delta1 + delta2 for delta1, delta2 in zip(deltas, step_deltas)]
-            return (deltas,)
+            return deltas
 
         num_steps = self.num_steps.value()
         deltas = tf.while_loop(
-            cond=tf_util.always_true, body=body, loop_vars=(deltas,),
+            cond=tf_util.always_true, body=body, loop_vars=deltas,
             maximum_iterations=tf_util.int32(x=num_steps)
-        )[0]
+        )
 
         return deltas

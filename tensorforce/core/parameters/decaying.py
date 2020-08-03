@@ -214,7 +214,7 @@ class Decaying(Parameter):
             min_value, max_value = 1.0 - max_value, 1.0 - min_value
 
         if self.inverse:
-            assert 0.0 < min_value <= max_value
+            assert util.epsilon <= min_value <= max_value
             min_value, max_value = 1.0 / max_value, 1.0 / min_value
 
         if self.scale == 1.0:
@@ -386,10 +386,20 @@ class Decaying(Parameter):
 
         if self.increasing:
             one = tf_util.constant(value=1.0, dtype='float')
-            parameter = one - parameter
+            assertions = list()
+            if self.config.create_tf_assertions:
+                zero = tf_util.constant(value=0.0, dtype='float')
+                assertions.append(tf.debugging.assert_greater_equal(x=parameter, y=zero))
+                assertions.append(tf.debugging.assert_less_equal(x=parameter, y=one))
+            with tf.control_dependencies(control_inputs=assertions):
+                parameter = one - parameter
 
         if self.inverse:
-            one = tf_util.constant(value=1.0, dtype='float')
+            zero = tf_util.constant(value=0.0, dtype='float')
+            parameter = tf.where(
+                condition=(parameter > zero),
+                x=tf.maximum(x=parameter, y=epsilon), y=tf.minimum(x=parameter, y=-epsilon)
+            )
             parameter = tf.math.reciprocal(x=parameter)
 
         if self.scale != 1.0:

@@ -89,6 +89,27 @@ class ConjugateGradient(Iterative):
         else:
             return super().input_signature(function=function)
 
+    def output_signature(self, *, function):
+        if function == 'end' or function == 'solve':
+            return SignatureDict(singleton=self.values_spec.signature(batched=False))
+
+        elif function == 'next_step':
+            return SignatureDict(
+                singleton=TensorSpec(type='bool', shape=()).signature(batched=False)
+            )
+
+        elif function == 'start' or function == 'step':
+            return SignatureDict(
+                arguments=self.arguments_spec.signature(batched=True),
+                x=self.values_spec.signature(batched=False),
+                conjugate=self.values_spec.signature(batched=False),
+                residual=self.values_spec.signature(batched=False),
+                squared_residual=TensorSpec(type='float', shape=()).signature(batched=False)
+            )
+
+        else:
+            return super().output_signature(function=function)
+
     @tf_function(num_args=3)
     def solve(self, *, arguments, x_init, b, fn_x):
         """
@@ -139,7 +160,7 @@ class ConjugateGradient(Iterative):
 
         return arguments, x_init, conjugate, residual, squared_residual
 
-    @tf_function(num_args=5)
+    @tf_function(num_args=5, is_loop_body=True)
     def step(self, *, arguments, x, conjugate, residual, squared_residual):
         """
         Iteration loop body of the conjugate gradient algorithm.
@@ -207,11 +228,6 @@ class ConjugateGradient(Iterative):
             function=(lambda res, conj: res + beta * conj), zip_values=conjugate
         )
 
-        arguments = self.arguments_spec.signature(batched=True).kwargs_to_args(kwargs=arguments)
-        values_signature = self.values_spec.signature(batched=False)
-        next_x = values_signature.kwargs_to_args(kwargs=next_x)
-        next_conjugate = values_signature.kwargs_to_args(kwargs=next_conjugate)
-        next_residual = values_signature.kwargs_to_args(kwargs=next_residual)
         return arguments, next_x, next_conjugate, next_residual, next_squared_residual
 
     @tf_function(num_args=5)

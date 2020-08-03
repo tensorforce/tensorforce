@@ -30,12 +30,9 @@ class TestNetwork(LayerbasedNetwork):
         self.layer2 = self.submodule(name='dense1', module=dict(type='dense', size=8))
 
     @tf_function(num_args=3)
-    def apply(self, x, horizons, internals, independent, return_internals):
+    def apply(self, x, horizons, internals, independent):
         x = self.layer2.apply(x=self.layer1.apply(x=next(iter(x.values()))))
-        if return_internals:
-            return x, dict()
-        else:
-            return x
+        return x, dict()
 
 
 class TestSpecifications(UnittestBase, unittest.TestCase):

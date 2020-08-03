@@ -44,7 +44,7 @@ class Evolutionary(Optimizer):
 
         self.num_samples = self.submodule(
             name='num_samples', module=num_samples, modules=parameter_modules, dtype='int',
-            min_value=0
+            min_value=1
         )
 
     @tf_function(num_args=1)

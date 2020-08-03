@@ -105,6 +105,13 @@ class Parameter(Module):
         else:
             return super().input_signature(function=function)
 
+    def output_signature(self, *, function):
+        if function == 'value':
+            return SignatureDict(singleton=self.spec.signature(batched=False))
+
+        else:
+            return super().output_signature(function=function)
+
     def parameter_value(self, *, step):
         raise NotImplementedError
 

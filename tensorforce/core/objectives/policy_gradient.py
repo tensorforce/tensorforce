@@ -16,7 +16,6 @@
 import numpy as np
 import tensorflow as tf
 
-from tensorforce import util
 from tensorforce.core import parameter_modules, TensorSpec, tf_function, tf_util
 from tensorforce.core.objectives import Objective
 
@@ -32,8 +31,8 @@ class PolicyGradient(Objective):
             (<span style="color:#00C000"><b>default</b></span>: false).
         clipping_value (parameter, float > 0.0): Clipping threshold for the maximized value
             (<span style="color:#00C000"><b>default</b></span>: no clipping).
-        early_reduce (bool): Whether to compute objective for reduced likelihoods instead of per
-            likelihood (<span style="color:#00C000"><b>default</b></span>: true).
+        early_reduce (bool): Whether to compute objective for aggregated likelihoods instead of per
+            likelihood (<span style="color:#00C000"><b>default</b></span>: false).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
         states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
@@ -74,17 +73,26 @@ class PolicyGradient(Objective):
 
     @tf_function(num_args=6)
     def reference(self, *, states, horizons, internals, auxiliaries, actions, reward, policy):
-        return policy.log_probability(
+        log_probability = policy.log_probability(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-            actions=actions, reduced=self.early_reduce, return_per_action=False
+            actions=actions
         )
+
+        if self.early_reduce:
+            log_probability = tf.math.reduce_mean(input_tensor=log_probability, axis=1)
+
+        return log_probability
 
     @tf_function(num_args=7)
     def loss(self, *, states, horizons, internals, auxiliaries, actions, reward, reference, policy):
         log_probability = policy.log_probability(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-            actions=actions, reduced=self.early_reduce, return_per_action=False
+            actions=actions
         )
+
+        if self.early_reduce:
+            log_probability = tf.math.reduce_mean(input_tensor=log_probability, axis=1)
+
         reference = tf.stop_gradient(input=reference)
 
         one = tf_util.constant(value=1.0, dtype='float')

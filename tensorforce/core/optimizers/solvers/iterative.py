@@ -57,14 +57,14 @@ class Iterative(Solver):
             A solution $x$ to the problem as given by the solver.
         """
         self.fn_x = fn_x
-        signature = self.input_signature(function='step')
 
         # Initialization step
         values = self.start(arguments=arguments, x_init=x_init, **kwargs)
 
         # Iteration loop with termination condition
         max_iterations = self.max_iterations.value()
-        values = signature.kwargs_to_args(kwargs=values, is_outer_args=True)
+        signature = self.input_signature(function='step')
+        values = signature.kwargs_to_args(kwargs=values)
         values = tf.while_loop(
             cond=self.next_step, body=self.step, loop_vars=tuple(values),
             maximum_iterations=tf_util.int32(x=max_iterations)

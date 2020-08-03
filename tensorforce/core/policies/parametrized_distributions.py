@@ -113,7 +113,9 @@ class ParametrizedDistributions(Stochastic, ActionValue):
                     module = None
                 else:
                     module = dict()
-                    if name in distributions:
+                    if name is None and isinstance(distributions, str):
+                        module = distributions
+                    elif name in distributions:
                         if isinstance(distributions[name], str):
                             module = distributions[name]
                         else:
@@ -123,16 +125,24 @@ class ParametrizedDistributions(Stochastic, ActionValue):
                             module = distributions[spec.type]
                         else:
                             module.update(distributions[spec.type])
+                    elif name is None and 'type' in distributions:
+                        module.update(distributions)
 
-                self.distributions[name] = self.submodule(
-                    name=(name + '_distribution'), module=module, modules=distribution_modules,
-                    default_module=default_module, action_spec=spec, input_spec=output_spec
-                )
+                if name is None:
+                    self.distributions[name] = self.submodule(
+                        name='action_distribution', module=module, modules=distribution_modules,
+                        default_module=default_module, action_spec=spec, input_spec=output_spec
+                    )
+                else:
+                    self.distributions[name] = self.submodule(
+                        name=(name + '_distribution'), module=module, modules=distribution_modules,
+                        default_module=default_module, action_spec=spec, input_spec=output_spec
+                    )
 
         # State value
         if self.state_value_mode == 'independent' or self.state_value_mode == 'no-distributions':
             self.value = self.submodule(
-                name='states_value', module='linear', modules=layer_modules, size=0,
+                name='states_value', module='linear', modules=layer_modules, size=1,
                 input_spec=output_spec
             )
 
@@ -151,14 +161,11 @@ class ParametrizedDistributions(Stochastic, ActionValue):
         return self.network.past_horizon(on_policy=on_policy)
 
     @tf_function(num_args=4)
-    def act(self, *, states, horizons, internals, auxiliaries, independent, return_internals):
+    def act(self, *, states, horizons, internals, auxiliaries, independent):
         if independent:  # TODO: or temp constant 0.0
-            embedding = self.network.apply(
-                x=states, horizons=horizons, internals=internals, independent=independent,
-                return_internals=return_internals
+            embedding, internals = self.network.apply(
+                x=states, horizons=horizons, internals=internals, independent=independent
             )
-            if return_internals:
-                embedding, internals = embedding
 
             def function(name, distribution):
                 conditions = auxiliaries.get(name, default=TensorDict())
@@ -167,28 +174,21 @@ class ParametrizedDistributions(Stochastic, ActionValue):
 
             actions = self.distributions.fmap(function=function, cls=TensorDict, with_names=True)
 
-            if return_internals:
-                return actions, internals
-            else:
-                return actions
+            return actions, internals
 
         else:
             return Stochastic.act(
                 self=self, states=states, horizons=horizons, internals=internals,
-                auxiliaries=auxiliaries, independent=independent, return_internals=return_internals
+                auxiliaries=auxiliaries, independent=independent
             )
 
     @tf_function(num_args=5)
     def sample_actions(
-        self, *, states, horizons, internals, auxiliaries, temperatures, independent,
-        return_internals
+        self, *, states, horizons, internals, auxiliaries, temperatures, independent
     ):
-        embedding = self.network.apply(
-            x=states, horizons=horizons, internals=internals, independent=independent,
-            return_internals=return_internals
+        embedding, internals = self.network.apply(
+            x=states, horizons=horizons, internals=internals, independent=independent
         )
-        if return_internals:
-            embedding, internals = embedding
 
         # TODO: conditional, global or per action, whether to call sample() or mode()
         # Get rid of deterministic parameter
@@ -202,16 +202,12 @@ class ParametrizedDistributions(Stochastic, ActionValue):
             function=function, cls=TensorDict, with_names=True, zip_values=temperatures
         )
 
-        if return_internals:
-            return actions, internals
-        else:
-            return actions
+        return actions, internals
 
     @tf_function(num_args=5)
     def log_probabilities(self, *, states, horizons, internals, auxiliaries, actions):
-        embedding = self.network.apply(
-            x=states, horizons=horizons, internals=internals, independent=True,
-            return_internals=False
+        embedding, _ = self.network.apply(
+            x=states, horizons=horizons, internals=internals, independent=True
         )
 
         def function(name, distribution, action):
@@ -225,9 +221,8 @@ class ParametrizedDistributions(Stochastic, ActionValue):
 
     @tf_function(num_args=4)
     def entropies(self, *, states, horizons, internals, auxiliaries):
-        embedding = self.network.apply(
-            x=states, horizons=horizons, internals=internals, independent=True,
-            return_internals=False
+        embedding, _ = self.network.apply(
+            x=states, horizons=horizons, internals=internals, independent=True
         )
 
         def function(name, distribution):
@@ -253,9 +248,8 @@ class ParametrizedDistributions(Stochastic, ActionValue):
 
     @tf_function(num_args=4)
     def kldiv_reference(self, *, states, horizons, internals, auxiliaries):
-        embedding = self.network.apply(
-            x=states, horizons=horizons, internals=internals, independent=True,
-            return_internals=False
+        embedding, _ = self.network.apply(
+            x=states, horizons=horizons, internals=internals, independent=True
         )
 
         def function(name, distribution):
@@ -265,22 +259,17 @@ class ParametrizedDistributions(Stochastic, ActionValue):
         return self.distributions.fmap(function=function, cls=TensorDict, with_names=True)
 
     @tf_function(num_args=4)
-    def states_value(self, *, states, horizons, internals, auxiliaries, reduced, return_per_action):
+    def states_value(self, *, states, horizons, internals, auxiliaries):
         if self.state_value_mode == 'independent' or self.state_value_mode == 'no-distributions':
-            if not reduced or return_per_action:
-                raise TensorforceError.invalid(name='policy.states_value', argument='reduced')
-
-            embedding = self.network.apply(
-                x=states, horizons=horizons, internals=internals, independent=True,
-                return_internals=False
+            embedding, _ = self.network.apply(
+                x=states, horizons=horizons, internals=internals, independent=True
             )
 
             return self.value.apply(x=embedding)
 
         else:
             return super().states_value(
-                states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-                reduced=reduced, return_per_action=return_per_action
+                states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries
             )
 
     @tf_function(num_args=4)
@@ -291,9 +280,8 @@ class ParametrizedDistributions(Stochastic, ActionValue):
             )
 
         else:
-            embedding = self.network.apply(
-                x=states, horizons=horizons, internals=internals, independent=True,
-                return_internals=False
+            embedding, _ = self.network.apply(
+                x=states, horizons=horizons, internals=internals, independent=True
             )
 
             def function(name, distribution):
@@ -305,9 +293,8 @@ class ParametrizedDistributions(Stochastic, ActionValue):
 
     @tf_function(num_args=5)
     def actions_values(self, *, states, horizons, internals, auxiliaries, actions):
-        embedding = self.network.apply(
-            x=states, horizons=horizons, internals=internals, independent=True,
-            return_internals=False
+        embedding, _ = self.network.apply(
+            x=states, horizons=horizons, internals=internals, independent=True
         )
 
         def function(name, distribution, action):
@@ -327,9 +314,8 @@ class ParametrizedDistributions(Stochastic, ActionValue):
                 value='max-action-values', condition='action types not bool/int'
             )
 
-        embedding = self.network.apply(
-            x=states, horizons=horizons, internals=internals, independent=True,
-            return_internals=False
+        embedding, _ = self.network.apply(
+            x=states, horizons=horizons, internals=internals, independent=True
         )
 
         def function(name, distribution):

@@ -56,6 +56,10 @@ class Rnn(TemporalLayer, TransformationBase):
         self, *, cell, size, horizon, bias=True, activation='tanh', dropout=0.0,
         vars_trainable=True, l2_regularization=None, name=None, input_spec=None, **kwargs
     ):
+        if bias:
+            # Hack for TransformationBase to avoid name clash with Keras variable name
+            bias = '_bias'
+
         super().__init__(
             temporal_processing='iterative', horizon=horizon, size=size, bias=bias,
             activation=activation, dropout=dropout, vars_trainable=vars_trainable,

@@ -25,6 +25,7 @@ import tensorflow as tf
 from tensorforce import TensorforceError, util
 from tensorforce.core import ArrayDict, Module, SignatureDict, TensorDict, TensorSpec, \
     TensorsSpec, tf_function, tf_util, VariableDict
+from tensorforce.core.layers import Layer
 
 
 class Model(Module):
@@ -33,6 +34,10 @@ class Model(Module):
         self, *, states, actions, l2_regularization, parallel_interactions, config, saver,
         summarizer
     ):
+        # Initialize global registries
+        setattr(Module, '_MODULE_STACK', list())
+        setattr(Layer, '_REGISTERED_LAYERS', OrderedDict())
+
         # Tensorforce config
         self._config = config
 
@@ -65,42 +70,54 @@ class Model(Module):
         # State space specification
         self.states_spec = states
         for name, spec in self.states_spec.items():
+            name = ('' if name is None else ' ' + name)
             if spec.type != 'float':
                 continue
             elif spec.min_value is None:
-                logging.warning("No min_value bound specified for state {}.".format(name))
+                logging.warning("No min_value bound specified for state{}.".format(name))
             elif np.isinf(spec.min_value).any():
-                logging.warning("Infinite min_value bound for state {}.".format(name))
+                logging.warning("Infinite min_value bound for state{}.".format(name))
             elif spec.max_value is None:
-                logging.warning("No max_value bound specified for state {}.".format(name))
+                logging.warning("No max_value bound specified for state{}.".format(name))
             elif np.isinf(spec.max_value).any():
-                logging.warning("Infinite max_value bound for state {}.".format(name))
+                logging.warning("Infinite max_value bound for state{}.".format(name))
 
         # Check for name collisions
-        for name in self.states_spec:
-            if name in self.value_names:
+        if self.states_spec.is_singleton():
+            if 'state' in self.value_names:
                 raise TensorforceError.exists(name='value name', value=name)
-            self.value_names.add(name)
+            self.value_names.add('state')
+        else:
+            for name in self.states_spec:
+                if name in self.value_names:
+                    raise TensorforceError.exists(name='value name', value=name)
+                self.value_names.add(name)
 
         # Action space specification
         self.actions_spec = actions
         for name, spec in self.actions_spec.items():
+            name = ('' if name is None else ' ' + name)
             if spec.type != 'float':
                 continue
             elif spec.min_value is None:
-                logging.warning("No min_value specified for action {}.".format(name))
+                logging.warning("No min_value specified for action{}.".format(name))
             elif np.isinf(spec.min_value).any():
-                raise TensorforceError("Infinite min_value bound for action {}.".format(name))
+                raise TensorforceError("Infinite min_value bound for action{}.".format(name))
             elif spec.max_value is None:
-                logging.warning("No max_value specified for action {}.".format(name))
+                logging.warning("No max_value specified for action{}.".format(name))
             elif np.isinf(spec.max_value).any():
-                raise TensorforceError("Infinite max_value bound for action {}.".format(name))
+                raise TensorforceError("Infinite max_value bound for action{}.".format(name))
 
         # Check for name collisions
-        for name in self.actions_spec:
-            if name in self.value_names:
+        if self.actions_spec.is_singleton():
+            if 'action' in self.value_names:
                 raise TensorforceError.exists(name='value name', value=name)
-            self.value_names.add(name)
+            self.value_names.add('action')
+        else:
+            for name in self.actions_spec:
+                if name in self.value_names:
+                    raise TensorforceError.exists(name='value name', value=name)
+                self.value_names.add(name)
 
         # Internal state space specification
         self.internals_spec = TensorsSpec()
@@ -178,6 +195,8 @@ class Model(Module):
             self.save()
         if self.summarizer is not None:
             self.summarizer.close()
+        delattr(Module, '_MODULE_STACK')
+        delattr(Layer, '_REGISTERED_LAYERS')
 
     def __enter__(self):
         assert self.is_initialized is not None
@@ -388,6 +407,50 @@ class Model(Module):
         else:
             return super().input_signature(function=function)
 
+    def output_signature(self, *, function):
+        if function == 'act':
+            return SignatureDict(
+                actions=self.actions_spec.signature(batched=True),
+                timesteps=TensorSpec(type='int', shape=()).signature(batched=False)
+            )
+
+        if function == 'core_act':
+            return SignatureDict(
+                actions=self.actions_spec.signature(batched=True),
+                internals=self.internals_spec.signature(batched=True)
+            )
+
+        elif function == 'core_observe':
+            return SignatureDict(
+                singleton=TensorSpec(type='bool', shape=()).signature(batched=False)
+            )
+
+        elif function == 'independent_act':
+            if len(self.internals_spec) > 0:
+                return SignatureDict(
+                    actions=self.actions_spec.signature(batched=True),
+                    internals=self.internals_spec.signature(batched=True)
+                )
+            else:
+                return SignatureDict(singleton=self.actions_spec.signature(batched=True))
+
+        elif function == 'observe':
+            return SignatureDict(
+                updated=TensorSpec(type='bool', shape=()).signature(batched=False),
+                episodes=TensorSpec(type='int', shape=()).signature(batched=False),
+                updates=TensorSpec(type='int', shape=()).signature(batched=False)
+            )
+
+        elif function == 'reset':
+            return SignatureDict(
+                timesteps=TensorSpec(type='int', shape=()).signature(batched=False),
+                episodes=TensorSpec(type='int', shape=()).signature(batched=False),
+                updates=TensorSpec(type='int', shape=()).signature(batched=False)
+            )
+
+        else:
+            return super().output_signature(function=function)
+
     @tf_function(num_args=0)
     def reset(self):
         timestep = tf_util.identity(input=self.timesteps)
@@ -395,7 +458,7 @@ class Model(Module):
         update = tf_util.identity(input=self.updates)
         return timestep, episode, update
 
-    @tf_function(num_args=3, optional=2)
+    @tf_function(num_args=3, optional=2, flatten_outputs=True)
     def independent_act(self, *, states, internals=None, auxiliaries=None):
         if internals is None:
             assert len(self.internals_spec) == 0
@@ -441,11 +504,10 @@ class Model(Module):
             )
             # Skip action assertions
 
-            # SavedModel requires flattened output
             if len(self.internals_spec) > 0:
-                return OrderedDict(TensorDict(actions=actions, internals=internals))
+                return actions, internals
             else:
-                return OrderedDict(actions)
+                return actions
 
     @tf_function(num_args=3)
     def act(self, *, states, auxiliaries, parallel):

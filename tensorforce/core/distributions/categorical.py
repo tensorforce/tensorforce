@@ -16,8 +16,8 @@
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core import layer_modules, TensorDict, TensorSpec, TensorsSpec, tf_function, \
-    tf_util
+from tensorforce.core import layer_modules, SignatureDict, TensorDict, TensorSpec, TensorsSpec, \
+    tf_function, tf_util
 from tensorforce.core.distributions import Distribution
 
 
@@ -97,6 +97,22 @@ class Categorical(Distribution):
                 name='action_values', module='linear', modules=layer_modules,
                 size=(size * num_values), initialization_scale=0.01, input_spec=input_spec
             )
+
+    def input_signature(self, *, function):
+        if function == 'all_action_values':
+            return SignatureDict(parameters=self.parameters_spec.signature(batched=True))
+
+        else:
+            return super().input_signature(function=function)
+
+    def output_signature(self, *, function):
+        if function == 'all_action_values':
+            return SignatureDict(singleton=TensorSpec(
+                type='float', shape=(self.action_spec.shape + (self.action_spec.num_values,))
+            ).signature(batched=True))
+
+        else:
+            return super().output_signature(function=function)
 
     def initialize(self):
         super().initialize()
@@ -189,7 +205,7 @@ class Categorical(Distribution):
 
         # Set logits to minimal value
         min_float = tf.fill(dims=tf.shape(input=logits), value=tf_util.get_dtype(type='float').min)
-        logits = logits / temperature
+        logits = logits / tf.math.maximum(x=temperature, y=epsilon)
         logits = tf.where(condition=(probabilities < epsilon), x=min_float, y=logits)
 
         # Non-deterministic: sample action using Gumbel distribution
@@ -197,6 +213,7 @@ class Categorical(Distribution):
             shape=tf.shape(input=logits), minval=epsilon, maxval=(one - epsilon),
             dtype=tf_util.get_dtype(type='float')
         )
+        # Second log numerically stable since log(1-eps) ~ -eps
         gumbel_distribution = -tf.math.log(x=-tf.math.log(x=uniform_distribution))
         sampled = tf.argmax(input=(logits + gumbel_distribution), axis=-1)
         sampled = tf_util.cast(x=sampled, dtype='int')

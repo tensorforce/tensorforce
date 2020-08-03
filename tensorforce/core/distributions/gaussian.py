@@ -152,7 +152,7 @@ class Gaussian(Distribution):
         )
 
         # Standard deviation
-        stddev = tf.exp(x=log_stddev)
+        stddev = tf.math.exp(x=log_stddev)
 
         return TensorDict(mean=mean, stddev=stddev, log_stddev=log_stddev)
 

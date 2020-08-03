@@ -33,6 +33,7 @@ This file records all major updates and new features, starting from version 0.5.
 - Changed `tune.py` arguments
 - Renamed `update_modifier_wrapper` to `optimizer_wrapper`
 - Default preprocessing `linear_normalization`
+- `Agent.create()` accepts act-function as `agent` argument for recording
 
 
 

@@ -18,7 +18,7 @@ import tensorflow as tf
 from tensorforce import TensorforceError
 
 
-DTYPE_MAPPING = dict(bool=tf.bool, int=tf.int64, float=tf.float32)
+DTYPE_MAPPING = dict(bool=tf.dtypes.bool, int=tf.dtypes.int64, float=tf.dtypes.float32)
 
 
 def is_tensor(*, x):
@@ -34,11 +34,13 @@ def get_dtype(*, type):
     return DTYPE_MAPPING[type]
 
 
-def dtype(*, x=None, dtype=None):
+def dtype(*, x=None, dtype=None, fallback_tf_dtype=False):
     for dtype, tf_dtype in DTYPE_MAPPING.items():
         if x.dtype == tf_dtype:
             return dtype
     else:
+        if fallback_tf_dtype:
+            return x.dtype
         raise TensorforceError.value(name='tf_util.dtype', argument='x.dtype', value=x.dtype)
 
 

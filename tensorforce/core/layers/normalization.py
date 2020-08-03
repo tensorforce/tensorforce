@@ -159,6 +159,7 @@ class ExponentialNormalization(StatefulLayer):
 
             decay = self.decay.value()
             batch_size = tf_util.cast(x=tf.shape(input=x)[0], dtype='float')
+            # Pow numerically stable since 0.0 <= decay <= 1.0
             decay = tf.math.pow(x=decay, y=batch_size)
             condition = tf.math.logical_or(
                 x=self.after_first_call, y=tf.math.equal(x=batch_size, y=0)

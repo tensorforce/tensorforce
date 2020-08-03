@@ -19,12 +19,13 @@ Besides `terminal=False` or `=0` for non-terminal and `terminal=True` or `=1` fo
 ```python
 agent = Agent.create(
     states=dict(type='float', shape=(10,)),
-    actions=dict(type='int', shape=(), num_actions=3), ...
+    actions=dict(type='int', shape=(), num_actions=3),
+    ...
 )
 ...
 states = dict(
-    state=np.random.random_sample(size=(10,)),  # regular state
-    action_mask=[True, False, True]  # mask as '[ACTION-NAME]_mask'
+    state=np.random.random_sample(size=(10,)),  # state (default name: "state")
+    action_mask=[True, False, True]  # mask as'[ACTION-NAME]_mask' (default name: "action")
 )
 action = agent.act(states=states)
 assert action != 1
@@ -34,12 +35,14 @@ assert action != 1
 
 ### Parallel environment execution
 
+See also [parallelization example](https://github.com/tensorforce/tensorforce/blob/master/examples/parallelization.py).
+
 Execute multiple environments running locally in one call / batched:
 
 ```python
 Runner(
     agent='benchmarks/configs/ppo1.json', environment='CartPole-v1',
-    num_parallel=5
+    num_parallel=4
 )
 runner.run(num_episodes=100, batch_agent_calls=True)
 ```
@@ -49,7 +52,7 @@ Execute environments running in different processes whenever ready / unbatched:
 ```python
 Runner(
     agent='benchmarks/configs/ppo1.json', environment='CartPole-v1',
-    num_parallel=5, remote='multiprocessing'
+    num_parallel=4, remote='multiprocessing'
 )
 runner.run(num_episodes=100)
 ```

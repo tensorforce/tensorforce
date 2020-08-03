@@ -73,6 +73,81 @@ class Memory(Module):
         else:
             return super().input_signature(function=function)
 
+    def output_signature(self, *, function):
+        if function == 'enqueue':
+            return SignatureDict(
+                singleton=TensorSpec(type='bool', shape=()).signature(batched=False)
+            )
+
+        elif function == 'predecessors':
+            def get_output_signature(sequence_values, initial_values):
+                if len(sequence_values) == 0:
+                    if len(initial_values) == 0:
+                        return SignatureDict(
+                            singleton=TensorSpec(type='int', shape=()).signature(batched=True)
+                        )
+                    else:
+                        return SignatureDict(
+                            lengths=TensorSpec(type='int', shape=()).signature(batched=True),
+                            initial_values=self.values_spec[initial_values].signature(batched=True)
+                        )
+                elif len(initial_values) == 0:
+                    return SignatureDict(
+                        starts_lengths=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                        sequence_values=self.values_spec[sequence_values].signature(batched=True)
+                    )
+                else:
+                    return SignatureDict(
+                        starts_lengths=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                        sequence_values=self.values_spec[sequence_values].signature(batched=True),
+                        initial_values=self.values_spec[initial_values].signature(batched=True)
+                    )
+            return get_output_signature
+
+        elif function == 'reset':
+            return SignatureDict(
+                singleton=TensorSpec(type='bool', shape=()).signature(batched=False)
+            )
+
+        elif function == 'retrieve':
+            def get_output_signature(values):
+                return SignatureDict(singleton=self.values_spec[values].signature(batched=True))
+            return get_output_signature
+
+        elif function == 'retrieve_episodes':
+            return SignatureDict(singleton=TensorSpec(type='int', shape=()).signature(batched=True))
+
+        elif function == 'retrieve_timesteps':
+            return SignatureDict(singleton=TensorSpec(type='int', shape=()).signature(batched=True))
+
+        elif function == 'successors':
+            def get_output_signature(sequence_values, final_values):
+                if len(sequence_values) == 0:
+                    if len(final_values) == 0:
+                        return SignatureDict(
+                            singleton=TensorSpec(type='int', shape=()).signature(batched=True)
+                        )
+                    else:
+                        return SignatureDict(
+                            lengths=TensorSpec(type='int', shape=()).signature(batched=True),
+                            final_values=self.values_spec[final_values].signature(batched=True)
+                        )
+                elif len(final_values) == 0:
+                    return SignatureDict(
+                        starts_lengths=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                        sequence_values=self.values_spec[sequence_values].signature(batched=True)
+                    )
+                else:
+                    return SignatureDict(
+                        starts_lengths=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                        sequence_values=self.values_spec[sequence_values].signature(batched=True),
+                        final_values=self.values_spec[final_values].signature(batched=True)
+                    )
+            return get_output_signature
+
+        else:
+            return super().output_signature(function=function)
+
     @tf_function(num_args=6)
     def enqueue(self, *, states, internals, auxiliaries, actions, terminal, reward):
         raise NotImplementedError

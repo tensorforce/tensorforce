@@ -15,7 +15,7 @@
 
 import tensorflow as tf
 
-from tensorforce.core import Module, SignatureDict, tf_function, tf_util
+from tensorforce.core import Module, SignatureDict, TensorSpec, TensorsSpec, tf_function, tf_util
 
 
 class Optimizer(Module):
@@ -47,6 +47,11 @@ class Optimizer(Module):
             if isinstance(module, Optimizer):
                 module.initialize_given_variables(variables=variables, register_summaries=False)
 
+        # Replace "/" with "_" to ensure TensorDict is flat
+        self.variables_spec = TensorsSpec(((var.name[:-2].replace('/', '_'), TensorSpec(
+            type=tf_util.dtype(x=var, fallback_tf_dtype=True), shape=tf_util.shape(x=var)
+        )) for var in variables))
+
         if register_summaries:
             assert self.is_initialized
             self.is_initialized = False
@@ -67,6 +72,20 @@ class Optimizer(Module):
 
         else:
             return super().input_signature(function=function)
+
+    def output_signature(self, *, function):
+        if function == 'step':
+            return self.variables_spec.fmap(
+                function=(lambda spec: spec.signature(batched=True)), cls=SignatureDict
+            )
+
+        elif function == 'update':
+            return SignatureDict(
+                singleton=TensorSpec(type='bool', shape=()).signature(batched=False)
+            )
+
+        else:
+            return super().output_signature(function=function)
 
     @tf_function(num_args=1)
     def step(self, *, arguments, variables, **kwargs):

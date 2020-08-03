@@ -71,6 +71,18 @@ class Preprocessor(LayeredNetwork):
         else:
             return super().input_signature(function=function)
 
+    def output_signature(self, *, function):
+        if function == 'apply':
+            return SignatureDict(singleton=self.output_spec().signature(batched=True))
+
+        elif function == 'reset':
+            return SignatureDict(
+                singleton=TensorSpec(type='bool', shape=()).signature(batched=False)
+            )
+
+        else:
+            return super().output_signature(function=function)
+
     @tf_function(num_args=0)
     def reset(self):
         operations = list()

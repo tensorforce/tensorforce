@@ -75,36 +75,25 @@ class Policy(Module):
         else:
             return super().input_signature(function=function)
 
+    def output_signature(self, *, function):
+        if function == 'act':
+            return SignatureDict(
+                actions=self.actions_spec.signature(batched=True),
+                internals=self.internals_spec.signature(batched=True)
+            )
+
+        elif function == 'past_horizon':
+            return SignatureDict(
+                singleton=TensorSpec(type='int', shape=()).signature(batched=False)
+            )
+
+        else:
+            return super().output_signature(function=function)
+
     @tf_function(num_args=0)
     def past_horizon(self, *, on_policy):
         raise NotImplementedError
 
     @tf_function(num_args=4)
-    def act(self, *, states, horizons, internals, auxiliaries, independent, return_internals):
+    def act(self, *, states, horizons, internals, auxiliaries, independent):
         raise NotImplementedError
-
-    @tf_function(num_args=1)
-    def join_value_per_action(self, *, values, reduced, return_per_action):
-        assert not return_per_action or reduced
-
-        def function(value, spec):
-            return tf.reshape(tensor=value, shape=(-1, spec.size))
-
-        values = values.fmap(function=function, zip_values=self.actions_spec)
-
-        value = tf.concat(values=tuple(values.values()), axis=1)
-
-        if reduced:
-            value = tf.math.reduce_mean(input_tensor=value, axis=1)
-
-            if return_per_action:
-                values = values.fmap(
-                    function=(lambda x: tf.math.reduce_mean(input_tensor=x, axis=1))
-                )
-                return value, values
-
-            else:
-                return value
-
-        else:
-            return value

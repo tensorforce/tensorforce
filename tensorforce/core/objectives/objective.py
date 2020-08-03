@@ -74,6 +74,18 @@ class Objective(Module):
         else:
             return super().input_signature(function=function)
 
+    def output_signature(self, *, function):
+        if function == 'loss':
+            return SignatureDict(
+                singleton=TensorSpec(type='float', shape=()).signature(batched=True)
+            )
+
+        elif function == 'reference':
+            return SignatureDict(singleton=self.reference_spec().signature(batched=True))
+
+        else:
+            return super().output_signature(function=function)
+
     @tf_function(num_args=6)
     def reference(self, *, states, horizons, internals, auxiliaries, actions, reward, policy):
         return tf.zeros_like(input=reward)

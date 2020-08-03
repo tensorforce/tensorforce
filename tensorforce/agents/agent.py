@@ -18,9 +18,9 @@ import importlib
 import json
 import os
 import random
-import sys
 
 import numpy as np
+import tensorflow as tf
 
 from tensorforce import util, TensorforceError
 from tensorforce.agents import Recorder
@@ -229,14 +229,12 @@ class Agent(Recorder):
             config = dict()
         self.config = TensorforceConfig(**config)
 
-        os.environ['TF_CPP_MIN_LOG_LEVEL'] = str(self.config.tf_log_level)
+        # TensorFlow logging
+        tf.get_logger().setLevel(self.config.tf_log_level)
 
-        # Import tensorflow after setting log level
-        import tensorflow as tf
-
-        # Eager mode
+        # TensorFlow eager mode
         if self.config.eager_mode:
-            tf.config.experimental_run_functions_eagerly(run_eagerly=True)
+            tf.config.run_functions_eagerly(run_eagerly=True)
 
         # Random seed
         if self.config.seed is not None:
@@ -387,11 +385,14 @@ class Agent(Recorder):
         )
 
     def fn_act(self, states, internals, parallel, independent, is_internals_none, num_parallel):
+
         # Separate auxiliaries
         def function(name, spec):
             auxiliary = ArrayDict()
             if self.config.enable_int_action_masking and spec.type == 'int' and \
                     spec.num_values is not None:
+                if name is None:
+                    name = 'action'
                 # Mask, either part of states or default all true
                 auxiliary['mask'] = states.pop(name + '_mask', np.ones(
                     shape=(num_parallel,) + spec.shape + (spec.num_values,), dtype=spec.np_type()
@@ -399,6 +400,8 @@ class Agent(Recorder):
             return auxiliary
 
         auxiliaries = self.actions_spec.fmap(function=function, cls=ArrayDict, with_names=True)
+        if self.states_spec.is_singleton() and not states.is_singleton():
+            states[None] = states.pop('state')
 
         # Inputs to tensors
         states = self.states_spec.to_tensor(value=states, batched=True)
@@ -416,15 +419,12 @@ class Agent(Recorder):
 
         elif len(self.internals_spec) > 0:
             if len(self.auxiliaries_spec) > 0:
-                actions_internals = self.model.independent_act(
+                actions, internals = self.model.independent_act(
                     states=states, internals=internals, auxiliaries=auxiliaries
                 )
             else:
                 assert len(auxiliaries) == 0
-                actions_internals = self.model.independent_act(states=states, internals=internals)
-            actions_internals = TensorDict(actions_internals)
-            actions = actions_internals['actions']
-            internals = actions_internals['internals']
+                actions, internals = self.model.independent_act(states=states, internals=internals)
 
         else:
             if len(self.auxiliaries_spec) > 0:
@@ -432,10 +432,11 @@ class Agent(Recorder):
             else:
                 assert len(auxiliaries) == 0
                 actions = self.model.independent_act(states=states)
-            actions = TensorDict(actions)
 
         # Outputs from tensors
         actions = self.actions_spec.from_tensor(tensor=actions, batched=True)
+        if independent and len(self.internals_spec) > 0:
+            internals = self.internals_spec.from_tensor(tensor=internals, batched=True)
 
         if self.model.saver is not None:
             self.model.save()

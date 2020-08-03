@@ -15,6 +15,7 @@
 
 import os
 from tempfile import TemporaryDirectory
+from threading import Thread
 import unittest
 
 from tensorforce import Agent, Environment, Runner
@@ -140,6 +141,62 @@ class TestExamples(UnittestBase, unittest.TestCase):
             ))
 
         self.finished_test()
+
+    def test_parallelization(self):
+        self.start_tests(name='parallelization')
+
+        # ====================
+
+        agent = 'benchmarks/configs/ppo.json'
+        environment = 'benchmarks/configs/cartpole.json'
+
+        # Parallelization mode 1
+        # Train agent on experience collected in parallel from 4 local CartPole environments
+        # Typical use case:
+        #     time for batched agent.act() ~ time for agent.act() > time for environment.execute()
+        runner = Runner(agent=agent, environment=environment, num_parallel=4)
+        # Batch act/observe calls to agent (otherwise essentially equivalent to single environment)
+        runner.run(num_episodes=10, batch_agent_calls=True)
+        runner.close()
+
+        # Parallelization mode 2
+        # Train agent on experience collected in parallel from 4 CartPole environments running in
+        # separate processes
+        # Typical use case:
+        #     (a) time for batched agent.act() ~ time for agent.act()
+        #                     > time for environment.execute() + remote communication
+        #         --> batch_agent_calls = True
+        #     (b) time for environment.execute() > time for agent.act() + process communication
+        #         --> batch_agent_calls = False
+        runner = Runner(agent=agent, environment=environment, num_parallel=4, remote='multiprocessing')
+        runner.run(num_episodes=10)
+        runner.close()
+
+        # Parallelization mode 3
+        # Train agent on experience collected in parallel from 2 CartPole environments running on
+        # another machine
+        # Typical use case: same as mode 2, but generally remote communication socket > process
+
+        # Simulate remote environment, usually run on another machine via:
+        #     python run.py --environment gym --level CartPole-v1 --remote socket-server --port 65432
+        def server(port):
+            Environment.create(environment=environment, remote='socket-server', port=port)
+
+        server1 = Thread(target=server, kwargs=dict(port=65432))
+        server2 = Thread(target=server, kwargs=dict(port=65433))
+        server1.start()
+        server2.start()
+
+        runner = Runner(
+            agent=agent, num_parallel=2, remote='socket-client', host='127.0.0.1', port=65432
+        )
+        runner.run(num_episodes=10, batch_agent_calls=True)
+        runner.close()
+
+        server1.join()
+        server2.join()
+
+        # ====================
 
     def test_temperature_controller(self):
         self.start_tests(name='temperature-controller')

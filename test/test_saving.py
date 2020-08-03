@@ -76,11 +76,9 @@ class TestSaving(UnittestBase, unittest.TestCase):
         self.start_tests(name='explicit')
 
         with TemporaryDirectory() as directory:
-            policy = dict(network=dict(type='auto', size=8, depth=1, rnn=False))
             update = dict(unit='episodes', batch_size=1)
-            # TODO: no
             agent, environment = self.prepare(
-                policy=policy, memory=50, update=update,
+                memory=50, update=update,
                 config=dict(eager_mode=False, create_debug_assertions=True)
             )
             states = environment.reset()
@@ -160,8 +158,8 @@ class TestSaving(UnittestBase, unittest.TestCase):
             # load: filename (hdf5 format implicit)
             update['batch_size'] = 2
             agent = Agent.load(
-                directory=directory, filename='agent2', environment=environment, policy=policy,
-                update=update, parallel_interactions=2
+                directory=directory, filename='agent2', environment=environment, update=update,
+                parallel_interactions=2
             )
             x = agent.model.policy.network.layers[1].weights.numpy()
             self.assertTrue((x == weights1).all())
@@ -173,8 +171,8 @@ class TestSaving(UnittestBase, unittest.TestCase):
             # TODO: parallel_interactions=2 should be possible, but problematic if all variables are
             # saved in checkpoint format
             agent = Agent.load(
-                directory=directory, format='checkpoint', environment=environment, policy=policy,
-                update=update, parallel_interactions=1
+                directory=directory, format='checkpoint', environment=environment, update=update,
+                parallel_interactions=1
             )
             x = agent.model.policy.network.layers[1].weights.numpy()
             self.assertTrue((x == weights0).all())
@@ -186,7 +184,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
             # load: numpy format, full filename including timesteps suffix
             agent = Agent.load(
                 directory=directory, filename='agent-1', format='numpy', environment=environment,
-                policy=policy, update=update, parallel_interactions=2
+                update=update, parallel_interactions=2
             )
             x = agent.model.policy.network.layers[1].weights.numpy()
             self.assertTrue((x == weights0).all())
@@ -208,6 +206,54 @@ class TestSaving(UnittestBase, unittest.TestCase):
             agent.save(directory=directory, format='saved-model', append='updates')
             agent.close()
 
+            # load: saved-model format
+            import tensorflow as tf
+            agent = tf.saved_model.load(export_dir=os.path.join(directory, 'agent-1'))
+            act = next(iter(agent._independent_act_graphs.values()))
+
+            # one episode
+            states = environment.reset()
+            internals = [[[np.zeros(shape=(1, 2, 8))]]]
+            action_names = sorted(['bool_action', 'int_action', 'float_action', 'beta_action'])
+            terminal = False
+            while not terminal:
+                # Turn dicts into lists and batch inputs
+                auxiliaries = [[np.expand_dims(states.pop('int_action_mask'), axis=0)]]
+                states = [np.expand_dims(state, axis=0) for state in states.values()]
+                actions = act(states, internals, auxiliaries)
+                assert len(actions) == 5
+                internals = [[[actions[4]]]]
+                # Split result dict and unbatch values
+                actions = {
+                    name: action.numpy().item() if action.shape == (1,) else action.numpy()[0]
+                    for name, action in zip(action_names, actions[:4])
+                }
+                states, terminal, _ = environment.execute(actions=actions)
+
+            environment.close()
+
+            # saved-model format with singleton state/action, no internals, no masking
+            policy = dict(network=dict(type='auto', size=8, depth=1, rnn=False))
+            update = dict(unit='episodes', batch_size=1)
+            agent, environment = self.prepare(
+                states=dict(type='float', shape=(), min_value=1.0, max_value=2.0),
+                actions=dict(type='float', shape=(), min_value=1.0, max_value=2.0),
+                policy=policy, update=update,
+                config=dict(eager_mode=False, create_debug_assertions=True)
+            )
+
+            # one episode
+            states = environment.reset()
+            terminal = False
+            while not terminal:
+                actions = agent.act(states=states)
+                states, terminal, reward = environment.execute(actions=actions)
+                agent.observe(terminal=terminal, reward=reward)
+            self.assertEqual(agent.updates, 1)
+
+            # save: saved-model format, append updates
+            agent.save(directory=directory, format='saved-model', append='updates')
+            agent.close()
 
             # load: saved-model format
             import tensorflow as tf
@@ -219,17 +265,12 @@ class TestSaving(UnittestBase, unittest.TestCase):
             terminal = False
             while not terminal:
                 # Turn dicts into lists and batch inputs
-                auxiliaries = [[np.expand_dims(states.pop('int_action_mask'), axis=0)]]
-                states = [np.expand_dims(state, axis=0) for state in states.values()]
-                actions = act(states, auxiliaries)
+                states = np.expand_dims(states, axis=0)
+                actions = act(states)
                 # Split result dict and unbatch values
-                actions = {
-                    name: value.numpy().item() if value.shape == (1,) else value.numpy()[0]
-                    for name, value in actions.items()
-                }
+                actions = actions.numpy()[0].item()
                 states, terminal, _ = environment.execute(actions=actions)
 
-            # agent.close()
             environment.close()
 
             files = set(os.listdir(path=directory))
@@ -373,12 +414,13 @@ class TestSaving(UnittestBase, unittest.TestCase):
             terminal = False
             episode_reward = 0.0
             while not terminal:
-                states = [np.expand_dims(states, axis=0)]
-                auxiliaries = [[np.ones(shape=(1, 2), dtype=bool)]]
+                states = np.expand_dims(states, axis=0)
+                auxiliaries = [np.ones(shape=(1, 2), dtype=bool)]
                 actions = act(states, auxiliaries)
-                actions = actions['action'].numpy().item()
+                actions = actions.numpy().item()
                 states, terminal, reward = environment.execute(actions=actions)
                 episode_reward += reward
             self.assertEqual(episode_reward, 500.0)
 
         environment.close()
+        self.finished_test()

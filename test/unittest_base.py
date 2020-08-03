@@ -13,6 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
+from collections import OrderedDict
 from copy import deepcopy
 from datetime import datetime
 import sys
@@ -27,12 +28,12 @@ class UnittestBase(object):
     """
 
     # Environment
-    states = dict(
+    states = OrderedDict(
         bool_state=dict(type='bool', shape=(1,)),
         int_state=dict(type='int', shape=(1, 2), num_values=4),
         float_state=dict(type='float', shape=(), min_value=1.0, max_value=2.0)
     )
-    actions = dict(
+    actions = OrderedDict(
         bool_action=dict(type='bool', shape=(1,)),
         int_action=dict(type='int', shape=(2,), num_values=4),
         float_action=dict(type='float', shape=(1, 2), min_value=1.0, max_value=2.0),
@@ -45,13 +46,10 @@ class UnittestBase(object):
     agent = dict(
         policy=dict(
             network=dict(type='auto', size=8, depth=1, rnn=2),
-            distributions=dict(
-                float_action=dict(type='gaussian', global_stddev=True),
-                beta_action='beta'
-            )
+            distributions=dict(float=dict(type='gaussian', global_stddev=True), beta_action='beta')
         ), update=4, objective='policy_gradient', reward_estimation=dict(horizon=3),
         # Config default changes need to be adapted everywhere (search "config=dict")
-        config=dict(eager_mode=True, create_debug_assertions=True)
+        config=dict(eager_mode=True, create_debug_assertions=True, tf_log_level=20)
     )
 
     def start_tests(self, name=None):

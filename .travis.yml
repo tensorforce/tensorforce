@@ -1,6 +1,5 @@
 language: python
 python:
-  - "3.5"
   - "3.6"
   - "3.7"
   - "3.8"
@@ -11,7 +10,6 @@ branches:
 
 install:
   - pip install .[tfa,tune,ale,gym,retro]
-  - pip install pygame git+https://github.com/ntasfi/PyGame-Learning-Environment.git
 
 script:
   - pytest

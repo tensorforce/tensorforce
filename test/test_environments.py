@@ -107,6 +107,7 @@ class TestEnvironments(UnittestBase, unittest.TestCase):
             environment=dict(environment='retro', level='Airstriker-Genesis'), num_episodes=2
         )
 
+    @pytest.mark.skip(reason='not installed as part of travis')
     def test_ple(self):
         self.start_tests(name='pygame-learning-environment')
         self.unittest(environment=dict(environment='ple', level='Catcher'), num_episodes=2)

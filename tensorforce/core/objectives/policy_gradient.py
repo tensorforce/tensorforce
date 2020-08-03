@@ -16,6 +16,7 @@
 import numpy as np
 import tensorflow as tf
 
+from tensorforce import util
 from tensorforce.core import parameter_modules, TensorSpec, tf_function, tf_util
 from tensorforce.core.objectives import Objective
 

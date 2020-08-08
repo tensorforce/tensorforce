@@ -57,7 +57,7 @@ class DeterministicPolicyGradient(Objective):
         def fn_initial_gradients(
             *, states, horizons, internals, auxiliaries, actions, reward, reference
         ):
-            if 'policy' in internals:
+            if self.parent.separate_baseline_policy:
                 policy_internals = internals['policy']
                 baseline_internals = internals['baseline']
             else:

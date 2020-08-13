@@ -33,7 +33,7 @@ def main():
         # Reward estimation
         likelihood_ratio_clipping=0.2, discount=0.99, predict_terminal_values=False,
         # Baseline network and optimizer
-        baseline_network=dict(type='auto', size=32, depth=1),
+        baseline=dict(type='auto', size=32, depth=1),
         baseline_optimizer=dict(optimizer='adam', learning_rate=1e-3, multi_step=10),
         # Preprocessing
         preprocessing='linear_normalization',

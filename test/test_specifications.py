@@ -45,7 +45,8 @@ class TestSpecifications(UnittestBase, unittest.TestCase):
         )
 
         states = environment.reset()
-        actions = agent.act(states=states, independent=True)
+        internals = agent.initial_internals()
+        actions, internals = agent.act(states=states, internals=internals, independent=True)
         states, terminal, reward = environment.execute(actions=actions)
 
         agent.close()

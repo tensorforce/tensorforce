@@ -173,7 +173,7 @@ class DoubleDQN(TensorforceAgent):
             config=config, saver=saver, summarizer=summarizer, recorder=recorder
         )
 
-        policy = dict(network=network, temperature=0.0)
+        policy = dict(type='parametrized_action_value', network=network)
 
         memory = dict(type='replay', capacity=memory)
 
@@ -192,7 +192,7 @@ class DoubleDQN(TensorforceAgent):
             predict_terminal_values=predict_terminal_values
         )
 
-        baseline_policy = policy
+        baseline = policy
         baseline_optimizer = dict(
             type='synchronization', sync_frequency=target_sync_frequency,
             update_weight=target_update_weight
@@ -208,7 +208,7 @@ class DoubleDQN(TensorforceAgent):
             l2_regularization=l2_regularization, saver=saver, summarizer=summarizer,
             # TensorforceModel
             policy=policy, memory=memory, update=update, optimizer=optimizer, objective=objective,
-            reward_estimation=reward_estimation, baseline_policy=baseline_policy,
+            reward_estimation=reward_estimation, baseline=baseline,
             baseline_optimizer=baseline_optimizer, baseline_objective=baseline_objective,
             entropy_regularization=entropy_regularization, **kwargs
         )

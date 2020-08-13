@@ -16,10 +16,10 @@
 import tensorflow as tf
 
 from tensorforce.core import SignatureDict, TensorSpec, tf_function
-from tensorforce.core.policies import Policy
+from tensorforce.core.policies import Policy, StateValue
 
 
-class ActionValue(Policy):
+class ActionValue(Policy, StateValue):
     """
     Base class for action-value-based policies.
 
@@ -34,8 +34,17 @@ class ActionValue(Policy):
         actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
+    def __init__(
+        self, *, device=None, l2_regularization=None, name=None, states_spec=None,
+        auxiliaries_spec=None, actions_spec=None
+    ):
+        Policy.__init__(
+            self=self, device=device, l2_regularization=l2_regularization, name=name,
+            states_spec=states_spec, auxiliaries_spec=auxiliaries_spec, actions_spec=actions_spec
+        )
+
     def input_signature(self, *, function):
-        if function == 'actions_value':
+        if function == 'action_value':
             return SignatureDict(
                 states=self.states_spec.signature(batched=True),
                 horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
@@ -44,7 +53,7 @@ class ActionValue(Policy):
                 actions=self.actions_spec.signature(batched=True)
             )
 
-        elif function == 'actions_values':
+        elif function == 'action_values':
             return SignatureDict(
                 states=self.states_spec.signature(batched=True),
                 horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
@@ -53,23 +62,7 @@ class ActionValue(Policy):
                 actions=self.actions_spec.signature(batched=True)
             )
 
-        elif function == 'all_actions_values':
-            return SignatureDict(
-                states=self.states_spec.signature(batched=True),
-                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
-                internals=self.internals_spec.signature(batched=True),
-                auxiliaries=self.auxiliaries_spec.signature(batched=True)
-            )
-
-        elif function == 'states_value':
-            return SignatureDict(
-                states=self.states_spec.signature(batched=True),
-                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
-                internals=self.internals_spec.signature(batched=True),
-                auxiliaries=self.auxiliaries_spec.signature(batched=True)
-            )
-
-        elif function == 'states_values':
+        elif function == 'state_values':
             return SignatureDict(
                 states=self.states_spec.signature(batched=True),
                 horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
@@ -78,41 +71,40 @@ class ActionValue(Policy):
             )
 
         else:
-            return super().input_signature(function=function)
+            try:
+                return Policy.input_signature(self=self, function=function)
+            except NotImplementedError:
+                return StateValue.input_signature(self=self, function=function)
 
     def output_signature(self, *, function):
-        if function == 'actions_value':
-            return SignatureDict(singleton=TensorSpec(
-                type='float', shape=(sum(spec.size for spec in self.actions_spec.values()),)
-            ).signature(batched=True))
+        if function == 'action_value':
+            return SignatureDict(
+                singleton=TensorSpec(type='float', shape=()).signature(batched=True)
+            )
 
-        if function == 'actions_values':
-            return SignatureDict(singleton=self.actions_spec.fmap(function=(
-                lambda spec: TensorSpec(type='float', shape=spec.shape).signature(batched=True)
-            ), cls=SignatureDict))
+        if function == 'action_values':
+            return SignatureDict(
+                singleton=self.actions_spec.fmap(function=(
+                    lambda spec: TensorSpec(type='float', shape=spec.shape).signature(batched=True)
+                ), cls=SignatureDict)
+            )
 
-        elif function == 'all_actions_values':
-            return SignatureDict(singleton=self.distributions.fmap(
-                function=(lambda x: x.output_signature(function='all_action_values').singleton()),
-                cls=SignatureDict
-            ))
-
-        elif function == 'states_value':
-            return SignatureDict(singleton=TensorSpec(
-                type='float', shape=(sum(spec.size for spec in self.actions_spec.values()),)
-            ).signature(batched=True))
-
-        elif function == 'states_values':
-            return SignatureDict(singleton=self.actions_spec.fmap(function=(
-                lambda spec: TensorSpec(type='float', shape=spec.shape).signature(batched=True)
-            ), cls=SignatureDict))
+        elif function == 'state_values':
+            return SignatureDict(
+                singleton=self.actions_spec.fmap(function=(
+                    lambda spec: TensorSpec(type='float', shape=spec.shape).signature(batched=True)
+                ), cls=SignatureDict)
+            )
 
         else:
-            return super().output_signature(function=function)
+            try:
+                return Policy.output_signature(self=self, function=function)
+            except NotImplementedError:
+                return StateValue.output_signature(self=self, function=function)
 
     @tf_function(num_args=5)
-    def actions_value(self, *, states, horizons, internals, auxiliaries, actions):
-        actions_values = self.actions_values(
+    def action_value(self, *, states, horizons, internals, auxiliaries, actions):
+        action_values = self.action_values(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
             actions=actions
         )
@@ -120,35 +112,29 @@ class ActionValue(Policy):
         def function(value, spec):
             return tf.reshape(tensor=value, shape=(-1, spec.size))
 
-        actions_values = actions_values.fmap(function=function, zip_values=self.actions_spec)
-        return tf.concat(values=tuple(actions_values.values()), axis=1)
+        action_values = action_values.fmap(function=function, zip_values=self.actions_spec)
+        action_values = tf.concat(values=tuple(action_values.values()), axis=1)
 
-    @tf_function(num_args=5)
-    def actions_values(self, *, states, horizons, internals, auxiliaries, actions):
-        raise NotImplementedError
+        return tf.math.reduce_mean(input_tensor=action_values, axis=1)
 
     @tf_function(num_args=4)
-    def all_actions_values(self, *, states, horizons, internals, auxiliaries):
-        raise NotImplementedError
-
-    @tf_function(num_args=4)
-    def states_value(self, *, states, horizons, internals, auxiliaries):
-        states_values = self.states_values(
+    def state_value(self, *, states, horizons, internals, auxiliaries):
+        state_values = self.state_values(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries
         )
 
         def function(value, spec):
             return tf.reshape(tensor=value, shape=(-1, spec.size))
 
-        states_values = states_values.fmap(function=function, zip_values=self.actions_spec)
-        return tf.concat(values=tuple(states_values.values()), axis=1)
+        state_values = state_values.fmap(function=function, zip_values=self.actions_spec)
+        state_values = tf.concat(values=tuple(state_values.values()), axis=1)
+
+        return tf.math.reduce_mean(input_tensor=state_values, axis=1)
+
+    @tf_function(num_args=5)
+    def action_values(self, *, states, horizons, internals, auxiliaries, actions):
+        raise NotImplementedError
 
     @tf_function(num_args=4)
-    def states_values(self, *, states, horizons, internals, auxiliaries):
-        actions_values = self.all_actions_values(
-            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries
-        )
-
-        return actions_values.fmap(
-            function=(lambda action_values: tf.math.reduce_max(input_tensor=action_values, axis=-1))
-        )
+    def state_values(self, *, states, horizons, internals, auxiliaries):
+        raise NotImplementedError

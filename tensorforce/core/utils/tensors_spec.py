@@ -37,7 +37,7 @@ class TensorsSpec(NestedDict):
                 tensor[name] = spec.empty(batched=batched)
             return tensor
 
-    def to_tensor(self, *, value, batched):
+    def to_tensor(self, *, value, batched, recover_empty=False):
         if not isinstance(value, ArrayDict):
             raise TensorforceError.type(
                 name='TensorsSpec.to_tensor', argument='value', dtype=type(value)
@@ -51,7 +51,15 @@ class TensorsSpec(NestedDict):
 
         tensor = TensorDict()
         for name, spec in super(NestedDict, self).items():
-            tensor[name] = spec.to_tensor(value=value[name], batched=batched)
+            if recover_empty and name not in value:
+                assert not isinstance(spec, self.value_type) and len(spec) == 0
+                tensor[name] = spec.to_tensor(
+                    value=ArrayDict(), batched=batched, recover_empty=recover_empty
+                )
+            else:
+                tensor[name] = spec.to_tensor(
+                    value=value[name], batched=batched, recover_empty=recover_empty
+                )
         return tensor
 
     def from_tensor(self, *, tensor, batched):

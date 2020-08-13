@@ -20,6 +20,16 @@ from test.unittest_base import UnittestBase
 
 class TestRewardEstimation(UnittestBase, unittest.TestCase):
 
+    agent = dict(
+        policy=dict(
+            network=dict(type='auto', size=8, depth=1, rnn=2), distributions=dict(
+                gaussian_action2=dict(type='gaussian', global_stddev=True), beta_action='beta'
+            )
+        ),
+        update=4, objective='policy_gradient', reward_estimation=dict(horizon=3),
+        config=dict(eager_mode=True, create_debug_assertions=True, tf_log_level=20)
+    )
+
     def test_no_horizon_estimate(self):
         self.start_tests(name='no horizon estimate')
 
@@ -48,13 +58,19 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
             config=dict(buffer_observe=3, eager_mode=True, create_debug_assertions=True)
         )
 
+        actions = dict(
+            bool_action=dict(type='bool', shape=(1,)),
+            int_action=dict(type='int', shape=(2,), num_values=4),
+            gaussian_action1=dict(type='float', shape=(1, 2), min_value=1.0, max_value=2.0),
+            gaussian_action2=dict(type='float', shape=(), min_value=-2.0, max_value=1.0)
+        )
         update = dict(unit='episodes', batch_size=1)
         reward_estimation = dict(horizon=3, predict_horizon_values='early')
-        # Implicit baseline_policy = policy
+        # Implicit baseline = policy
         baseline_optimizer = 'adam'
-        baseline_objective = 'value'
+        baseline_objective = 'state_value'
         self.unittest(
-            update=update, reward_estimation=reward_estimation,
+            actions=actions, update=update, reward_estimation=reward_estimation,
             baseline_optimizer=baseline_optimizer, baseline_objective=baseline_objective,
             config=dict(buffer_observe='episode', eager_mode=True, create_debug_assertions=True)  # or 1?
         )
@@ -62,66 +78,96 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         reward_estimation = dict(
             horizon='episode', predict_horizon_values='early', predict_terminal_values=True
         )
-        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=1))
+        baseline = dict(network=dict(type='auto', size=7, depth=1, rnn=1))
         # Implicit baseline_optimizer = 1.0
-        baseline_objective = 'value'
+        baseline_objective = 'state_value'
         self.unittest(
-            reward_estimation=reward_estimation, baseline_policy=baseline_policy,
+            reward_estimation=reward_estimation, baseline=baseline,
             baseline_objective=baseline_objective
         )
 
+        actions = dict(
+            bool_action=dict(type='bool', shape=(1,)),
+            int_action=dict(type='int', shape=(2,), num_values=4)
+        )
         reward_estimation = dict(
             horizon=3, predict_horizon_values='early', predict_action_values=True,
             predict_terminal_values=True
         )
         # TODO: action value doesn't exist for Beta
-        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=1))
+        baseline = dict(network=dict(type='auto', size=7, depth=1, rnn=1))
         baseline_optimizer = 'adam'
-        baseline_objective = dict(type='value', value='action')
+        baseline_objective = 'action_value'
         self.unittest(
-            reward_estimation=reward_estimation, baseline_policy=baseline_policy,
+            actions=actions, reward_estimation=reward_estimation, baseline=baseline,
             baseline_optimizer=baseline_optimizer, baseline_objective=baseline_objective
         )
 
     def test_late_horizon_estimate(self):
         self.start_tests(name='late horizon estimate')
 
-        reward_estimation = dict(horizon=3, predict_horizon_values='late')
-        # Implicit baseline_policy = policy
-        # Implicit baseline_optimizer = 1.0
-        baseline_objective = 'value'
-        self.unittest(reward_estimation=reward_estimation, baseline_objective=baseline_objective)
-
-        reward_estimation = dict(horizon=3, predict_horizon_values='late', predict_action_values=True)
-        # TODO: action value doesn't exist for Beta
-        # TODO: baseline horizon has to be equal to policy horizon
-        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=2))
-        baseline_optimizer = 2.0
-        baseline_objective = dict(type='value', value='action')
-        self.unittest(
-            reward_estimation=reward_estimation, baseline_policy=baseline_policy,
-            baseline_optimizer=baseline_optimizer, baseline_objective=baseline_objective
+        actions = dict(
+            bool_action=dict(type='bool', shape=(1,)),
+            int_action=dict(type='int', shape=(2,), num_values=4),
+            gaussian_action1=dict(type='float', shape=(1, 2), min_value=1.0, max_value=2.0),
+            gaussian_action2=dict(type='float', shape=(), min_value=-2.0, max_value=1.0)
         )
-
-        reward_estimation = dict(horizon=3, predict_horizon_values='late', predict_terminal_values=True)
-        # Implicit baseline_policy = policy
-        baseline_optimizer = 'adam'
-        baseline_objective = 'value'
+        reward_estimation = dict(horizon=3, predict_horizon_values='late')
+        # Implicit baseline = policy
+        # Implicit baseline_optimizer = 1.0
+        baseline_objective = 'state_value'
         self.unittest(
-            reward_estimation=reward_estimation, baseline_optimizer=baseline_optimizer,
+            actions=actions, reward_estimation=reward_estimation,
             baseline_objective=baseline_objective
         )
 
         reward_estimation = dict(
-            horizon=3, predict_horizon_values='late', predict_action_values=True, predict_terminal_values=True
+            horizon=3, predict_horizon_values='late', predict_action_values=True
         )
         # TODO: action value doesn't exist for Beta
         # TODO: baseline horizon has to be equal to policy horizon
-        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=2))
-        baseline_optimizer = 'adam'
-        baseline_objective = dict(type='value', value='action')
+        actions = dict(
+            bool_action=dict(type='bool', shape=(1,)),
+            int_action=dict(type='int', shape=(2,), num_values=4)
+        )
+        baseline = dict(network=dict(type='auto', size=7, depth=1, rnn=2))
+        baseline_optimizer = 2.0
+        baseline_objective = 'action_value'
         self.unittest(
-            reward_estimation=reward_estimation, baseline_policy=baseline_policy,
+            actions=actions, reward_estimation=reward_estimation, baseline=baseline,
+            baseline_optimizer=baseline_optimizer, baseline_objective=baseline_objective
+        )
+
+        actions = dict(
+            bool_action=dict(type='bool', shape=(1,)),
+            int_action=dict(type='int', shape=(2,), num_values=4),
+            gaussian_action1=dict(type='float', shape=(1, 2), min_value=1.0, max_value=2.0),
+            gaussian_action2=dict(type='float', shape=(), min_value=-2.0, max_value=1.0)
+        )
+        reward_estimation = dict(
+            horizon=3, predict_horizon_values='late', predict_terminal_values=True
+        )
+        # Implicit baseline = policy
+        baseline_optimizer = 'adam'
+        baseline_objective = 'state_value'
+        self.unittest(
+            actions=actions, reward_estimation=reward_estimation,
+            baseline_optimizer=baseline_optimizer, baseline_objective=baseline_objective
+        )
+
+        reward_estimation = dict(
+            horizon=3, predict_horizon_values='late', predict_action_values=True,
+            predict_terminal_values=True
+        )
+        # TODO: action value doesn't exist for Beta
+        # TODO: baseline horizon has to be equal to policy horizon
+        baseline = dict(
+            type='parametrized_distributions', network=dict(type='auto', size=7, depth=1, rnn=2)
+        )
+        baseline_optimizer = 'adam'
+        baseline_objective = 'action_value'
+        self.unittest(
+            reward_estimation=reward_estimation, baseline=baseline,
             baseline_optimizer=baseline_optimizer, baseline_objective=baseline_objective
         )
 
@@ -129,9 +175,9 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         self.start_tests(name='advantage estimate')
 
         reward_estimation = dict(horizon=3, predict_horizon_values=False, estimate_advantage=True)
-        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=1))
+        baseline = dict(network=dict(type='auto', size=7, depth=1, rnn=1))
         # Implicit advantage computation as part of loss
-        self.unittest(reward_estimation=reward_estimation, baseline_policy=baseline_policy)
+        self.unittest(reward_estimation=reward_estimation, baseline=baseline)
 
         # TODO: action value doesn't exist for Beta
         policy = dict(network=dict(type='auto', size=8, depth=1, rnn=2))
@@ -139,20 +185,21 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
             horizon='episode', predict_horizon_values='early', predict_action_values=True,
             estimate_advantage=True
         )
-        # Implicit baseline_policy = policy
-        baseline_objective = 'value'
+        # Implicit baseline = policy
+        baseline_objective = 'state_value'
         self.unittest(
             policy=policy, reward_estimation=reward_estimation,
             baseline_objective=baseline_objective
         )
 
         reward_estimation = dict(
-            horizon=3, predict_horizon_values='late', predict_terminal_values=True, estimate_advantage=True
+            horizon=3, predict_horizon_values='late', predict_terminal_values=True,
+            estimate_advantage=True
         )
-        baseline_policy = dict(network=dict(type='auto', size=7, depth=1, rnn=1))
+        baseline = dict(network=dict(type='auto', size=7, depth=1, rnn=1))
         baseline_optimizer = 'adam'
-        baseline_objective = 'value'
+        baseline_objective = 'state_value'
         self.unittest(
-            reward_estimation=reward_estimation, baseline_policy=baseline_policy,
+            reward_estimation=reward_estimation, baseline=baseline,
             baseline_optimizer=baseline_optimizer, baseline_objective=baseline_objective
         )

@@ -59,10 +59,25 @@ class Plus(Objective):
             auxiliaries_spec=auxiliaries_spec, actions_spec=actions_spec, reward_spec=reward_spec
         )
 
+    def __setattr__(self, name, value):
+        super().__setattr__(name, value)
+
+        if hasattr(self, 'objective1') and name in (
+            'states_spec', 'internals_spec', 'auxiliaries_spec', 'actions_spec', 'reward_spec'
+        ):
+            self.objective1.__setattr__(name, value)
+            self.objective2.__setattr__(name, value)
+
+    def required_policy_fns(self):
+        return self.objective1.required_policy_fns() + self.objective2.required_policy_fns()
+
+    def required_baseline_fns(self):
+        return self.objective1.required_baseline_fns() + self.objective2.required_baseline_fns()
+
     def reference_spec(self):
         reference_spec1 = self.objective1.reference_spec()
         reference_spec2 = self.objective2.reference_spec()
-        assert reference_spec1.type + reference_spec2.type
+        assert reference_spec1.type == reference_spec2.type
         shape = (reference_spec1.size + reference_spec2.size,)
         return TensorSpec(type=reference_spec1.type, shape=shape)
 
@@ -76,16 +91,16 @@ class Plus(Objective):
         )
         return arguments
 
-    @tf_function(num_args=6)
-    def reference(self, *, states, horizons, internals, auxiliaries, actions, reward, policy):
+    @tf_function(num_args=5)
+    def reference(self, *, states, horizons, internals, auxiliaries, actions, policy):
         reference1 = self.objective1.reference(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-            actions=actions, reward=reward, policy=policy
+            actions=actions, policy=policy
         )
 
         reference2 = self.objective2.reference(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-            actions=actions, reward=reward, policy=policy
+            actions=actions, policy=policy
         )
 
         shape = (-1, self.objective1.reference_spec().size)

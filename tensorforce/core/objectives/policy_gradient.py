@@ -32,8 +32,8 @@ class PolicyGradient(Objective):
             (<span style="color:#00C000"><b>default</b></span>: false).
         clipping_value (parameter, float > 0.0): Clipping threshold for the maximized value
             (<span style="color:#00C000"><b>default</b></span>: no clipping).
-        early_reduce (bool): Whether to compute objective for aggregated likelihoods instead of per
-            likelihood (<span style="color:#00C000"><b>default</b></span>: false).
+        early_reduce (bool): Whether to compute objective for aggregated likelihood instead of
+            likelihood per action (<span style="color:#00C000"><b>default</b></span>: true).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
         states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
@@ -43,7 +43,7 @@ class PolicyGradient(Objective):
     """
 
     def __init__(
-        self, *, importance_sampling=False, clipping_value=None, early_reduce=False, name=None,
+        self, *, importance_sampling=False, clipping_value=None, early_reduce=True, name=None,
         states_spec=None, internals_spec=None, auxiliaries_spec=None, actions_spec=None,
         reward_spec=None
     ):
@@ -62,37 +62,41 @@ class PolicyGradient(Objective):
 
         self.early_reduce = early_reduce
 
+    def required_policy_fns(self):
+        return ('stochastic',)
+
     def reference_spec(self):
         if self.early_reduce:
             return TensorSpec(type='float', shape=())
 
         else:
-            num_actions = 0
-            for spec in self.parent.actions_spec.values():
-                num_actions += spec.size
-            return TensorSpec(type='float', shape=(num_actions,))
+            return TensorSpec(
+                type='float', shape=(sum(spec.size for spec in self.actions_spec.values()),)
+            )
 
-    @tf_function(num_args=6)
-    def reference(self, *, states, horizons, internals, auxiliaries, actions, reward, policy):
-        log_probability = policy.log_probability(
-            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-            actions=actions
-        )
-
+    @tf_function(num_args=5)
+    def reference(self, *, states, horizons, internals, auxiliaries, actions, policy):
         if self.early_reduce:
-            log_probability = tf.math.reduce_mean(input_tensor=log_probability, axis=1)
+            log_probability = policy.log_probability(
+                states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+                actions=actions
+            )
+
+        else:
+            log_probability = policy.log_probabilities(
+                states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+                actions=actions
+            )
+            log_probability = tf.concat(values=tuple(log_probability.values()), axis=1)
 
         return log_probability
 
     @tf_function(num_args=7)
     def loss(self, *, states, horizons, internals, auxiliaries, actions, reward, reference, policy):
-        log_probability = policy.log_probability(
+        log_probability = self.reference(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-            actions=actions
+            actions=actions, policy=policy
         )
-
-        if self.early_reduce:
-            log_probability = tf.math.reduce_mean(input_tensor=log_probability, axis=1)
 
         reference = tf.stop_gradient(input=reference)
 
@@ -133,6 +137,6 @@ class PolicyGradient(Objective):
         loss = -scaled
 
         if not self.early_reduce:
-            loss = tf.math.reduce_mean(input_tensor=loss, axis=1)
+            loss = tf.math.reduce_sum(input_tensor=loss, axis=1)
 
         return loss

@@ -140,7 +140,8 @@ class Gaussian(Distribution):
 
         # Log standard deviation
         if self.global_stddev:
-            log_stddev = self.log_stddev
+            multiples = (tf.shape(input=x)[0],) + tuple(1 for _ in range(self.action_spec.rank))
+            log_stddev = tf.tile(input=self.log_stddev, multiples=multiples)
         else:
             log_stddev = self.log_stddev.apply(x=x)
             if len(self.input_spec.shape) == 1:
@@ -298,15 +299,6 @@ class Gaussian(Distribution):
 
         return log_stddev_ratio + half * (sq_stddev1 + sq_mean_distance) / sq_stddev2 - half
 
-    @tf_function(num_args=1)
-    def states_value(self, *, parameters):
-        log_stddev = parameters['log_stddev']
-
-        half_lg_two_pi = tf_util.constant(value=(0.5 * np.log(2.0 * np.pi)), dtype='float')
-        # TODO: why no e here, but for entropy?
-
-        return -log_stddev - half_lg_two_pi
-
     @tf_function(num_args=2)
     def action_value(self, *, parameters, action):
         mean, stddev, log_stddev = parameters.get(('mean', 'stddev', 'log_stddev'))
@@ -341,3 +333,12 @@ class Gaussian(Distribution):
             action_value -= two * (log_two - action - tf.math.softplus(features=(-two * action)))
 
         return action_value
+
+    @tf_function(num_args=1)
+    def state_value(self, *, parameters):
+        log_stddev = parameters['log_stddev']
+
+        half_lg_two_pi = tf_util.constant(value=(0.5 * np.log(2.0 * np.pi)), dtype='float')
+        # TODO: why no e here, but for entropy?
+
+        return -log_stddev - half_lg_two_pi

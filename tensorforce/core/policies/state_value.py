@@ -15,12 +15,13 @@
 
 import tensorflow as tf
 
-from tensorforce.core import Module, SignatureDict, TensorDict, TensorSpec, TensorsSpec, tf_function
+from tensorforce.core import Module, SignatureDict, TensorSpec, tf_function
+from tensorforce.core.policies import Policy
 
 
-class Policy(Module):
+class StateValue(Module):
     """
-    Base class for decision policies.
+    Base class for state-value functions, here categorized as "degenerate" policy.
 
     Args:
         device (string): Device name
@@ -43,18 +44,11 @@ class Policy(Module):
         self.auxiliaries_spec = auxiliaries_spec
         self.actions_spec = actions_spec
 
-    @property
-    def internals_spec(self):
-        return TensorsSpec()
-
-    def internals_init(self):
-        return TensorDict()
-
-    def max_past_horizon(self, *, on_policy):
-        raise NotImplementedError
-
     def input_signature(self, *, function):
-        if function == 'act':
+        if function == 'past_horizon':
+            return SignatureDict()
+
+        elif function == 'state_value':
             return SignatureDict(
                 states=self.states_spec.signature(batched=True),
                 horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
@@ -62,31 +56,23 @@ class Policy(Module):
                 auxiliaries=self.auxiliaries_spec.signature(batched=True)
             )
 
-        elif function == 'past_horizon':
-            return SignatureDict()
-
         else:
             return super().input_signature(function=function)
 
     def output_signature(self, *, function):
-        if function == 'act':
-            return SignatureDict(
-                actions=self.actions_spec.signature(batched=True),
-                internals=self.internals_spec.signature(batched=True)
-            )
-
-        elif function == 'past_horizon':
+        if function == 'past_horizon':
             return SignatureDict(
                 singleton=TensorSpec(type='int', shape=()).signature(batched=False)
+            )
+
+        elif function == 'state_value':
+            return SignatureDict(
+                singleton=TensorSpec(type='float', shape=()).signature(batched=True)
             )
 
         else:
             return super().output_signature(function=function)
 
-    @tf_function(num_args=0)
-    def past_horizon(self, *, on_policy):
-        raise NotImplementedError
-
     @tf_function(num_args=4)
-    def act(self, *, states, horizons, internals, auxiliaries, independent):
+    def state_value(self, *, states, horizons, internals, auxiliaries):
         raise NotImplementedError

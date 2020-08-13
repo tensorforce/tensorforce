@@ -38,7 +38,7 @@ class Bernoulli(Distribution):
             true_logit=TensorSpec(type='float', shape=action_spec.shape),
             false_logit=TensorSpec(type='float', shape=action_spec.shape),
             probability=TensorSpec(type='float', shape=action_spec.shape),
-            states_value=TensorSpec(type='float', shape=action_spec.shape)
+            state_value=TensorSpec(type='float', shape=action_spec.shape)
         )
         conditions_spec = TensorsSpec()
 
@@ -112,7 +112,7 @@ class Bernoulli(Distribution):
             logit = tf.reshape(tensor=logit, shape=shape)
 
         # States value
-        states_value = logit
+        state_value = logit
 
         # Sigmoid for corresponding probability
         probability = tf.sigmoid(x=logit)
@@ -128,7 +128,7 @@ class Bernoulli(Distribution):
 
         return TensorDict(
             true_logit=true_logit, false_logit=false_logit, probability=probability,
-            states_value=states_value
+            state_value=state_value
         )
 
     @tf_function(num_args=1)
@@ -213,29 +213,18 @@ class Bernoulli(Distribution):
 
         return probability1 * true_log_prob_ratio + (one - probability1) * false_log_prob_ratio
 
-    @tf_function(num_args=1)
-    def states_value(self, *, parameters):
-        states_value = parameters['states_value']
-
-        return states_value
-
     @tf_function(num_args=2)
     def action_value(self, *, parameters, action):
-        true_logit, false_logit, states_value = parameters.get(
-            ('true_logit', 'false_logit', 'states_value')
+        true_logit, false_logit, state_value = parameters.get(
+            ('true_logit', 'false_logit', 'state_value')
         )
 
         logits = tf.where(condition=action, x=true_logit, y=false_logit)
 
-        return states_value + logits
+        return state_value + logits
 
     @tf_function(num_args=1)
-    def all_action_values(self, *, parameters):
-        true_logit, false_logit, states_value = parameters.get(
-            ('true_logit', 'false_logit', 'states_value')
-        )
+    def state_value(self, *, parameters):
+        state_value = parameters['state_value']
 
-        logits = tf.stack(values=(false_logit, true_logit), axis=-1)
-        states_value = tf.expand_dims(input=states_value, axis=-1)
-
-        return states_value + logits
+        return state_value

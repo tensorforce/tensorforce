@@ -70,7 +70,7 @@ class TestEnvironments(UnittestBase, unittest.TestCase):
 
         # Toy text
         # above: self.unittest(environment='Blackjack-v0', num_episodes=2)
-        self.unittest(environment='KellyCoinflip-v0', num_episodes=2)
+        # self.unittest(environment='KellyCoinflip-v0', num_episodes=2)
         self.unittest(environment='KellyCoinflipGeneralized-v0', num_episodes=2)
         self.unittest(environment='FrozenLake-v0', num_episodes=2)
         self.unittest(environment='FrozenLake8x8-v0', num_episodes=2)

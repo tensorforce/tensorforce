@@ -15,7 +15,7 @@
 
 import tensorflow as tf
 
-from tensorforce.core import TensorDict, tf_function, tf_util
+from tensorforce.core import TensorDict, TensorSpec, tf_function, tf_util
 from tensorforce.core.objectives import Objective
 
 
@@ -32,24 +32,41 @@ class DeterministicPolicyGradient(Objective):
         reward_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    @tf_function(num_args=7)
-    def loss(self, *, states, horizons, internals, auxiliaries, actions, reward, policy, reference):
-        policy_actions, _ = policy.act(
-            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-            independent=True
+    def __init__(
+        self, *, name=None, states_spec=None, internals_spec=None, auxiliaries_spec=None,
+        actions_spec=None, reward_spec=None
+    ):
+        super().__init__(
+            name=name, states_spec=states_spec, internals_spec=internals_spec,
+            auxiliaries_spec=auxiliaries_spec, actions_spec=actions_spec, reward_spec=reward_spec
         )
 
-        summed_actions = list()
-        for name, spec, action in policy.actions_spec.zip_items(policy_actions):
-            for n in range(spec.rank):
-                action = tf.math.reduce_sum(input_tensor=action, axis=(spec.rank - n))
-            summed_actions.append(action)
-        summed_actions = tf.math.add_n(inputs=summed_actions)
-        # mean? (will be mean later)
-        # tf.concat(values=, axis=1)
-        # tf.math.reduce_mean(input_tensor=, axis=1)
+        # TODO: is singleton and single value required?
+        if not self.actions_spec.is_singleton():
+            raise TensorforceError.value(
+                name='DeterministicPolicyGradient', argument='actions', value=actions,
+                hint='is not a singleton action specification'
+            )
+        action_spec = self.actions_spec.singleton()
+        if action_spec.type != 'float':
+            raise TensorforceError.value(
+                name='DeterministicPolicyGradient', argument='actions', value=actions,
+                hint='is not a float action'
+            )
+        elif (action_spec.shape != () and action_spec.shape != (1,)):
+            raise TensorforceError.value(
+                name='DeterministicPolicyGradient', argument='actions', value=actions,
+                hint='consists of more than a single action value'
+            )
 
-        return summed_actions
+    def required_policy_fns(self):
+        return ('policy',)
+
+    def required_baseline_fns(self):
+        return ('action_value',)
+
+    def reference_spec(self):
+        return TensorSpec(type='float', shape=())
 
     def optimizer_arguments(self, *, policy, baseline, **kwargs):
         arguments = super().optimizer_arguments()
@@ -57,39 +74,66 @@ class DeterministicPolicyGradient(Objective):
         def fn_initial_gradients(
             *, states, horizons, internals, auxiliaries, actions, reward, reference
         ):
-            if self.parent.separate_baseline_policy:
-                policy_internals = internals['policy']
-                baseline_internals = internals['baseline']
-            else:
-                policy_internals = internals
+            policy_internals = internals['policy']
+            baseline_internals = internals['baseline']
+            if not self.parent.separate_baseline:
                 # TODO: Baseline currently cannot have internal states, since generally only policy
                 # internals are passed to policy optimizer
                 assert len(baseline.internals_spec) == 0
-                baseline_internals = TensorDict()
 
             actions, _ = policy.act(
                 states=states, horizons=horizons, internals=policy_internals,
                 auxiliaries=auxiliaries, independent=True
             )
-            assert len(actions) == 1
-            action = actions.value()
-            shape = tf_util.shape(x=action)
-            assert len(shape) <= 2
 
             with tf.GradientTape(persistent=False, watch_accessed_variables=False) as tape:
+                action = actions.singleton()
                 tape.watch(tensor=action)
-                actions_value = baseline.actions_value(
+
+                action_value = baseline.action_value(
                     states=states, horizons=horizons, internals=baseline_internals,
                     auxiliaries=auxiliaries, actions=actions
                 )
-                actions_value = tf.math.reduce_mean(input_tensor=actions_value, axis=1)
-                if len(shape) == 1:
-                    return -tape.gradient(target=actions_value, sources=action)[0]
-                elif len(shape) == 2 and shape[1] == 1:
-                    return -tape.gradient(target=actions_value, sources=action)[0][0]
-                else:
-                    assert False
+
+                # TODO: is singleton and single value required?
+                action_spec = self.actions_spec.singleton()
+                if len(action_spec.shape) == 0:
+                    return -tape.gradient(target=action_value, sources=action)[0]
+                elif len(action_spec.singleton().shape) == 1:
+                    return -tape.gradient(target=action_value, sources=action)[0][0]
 
         arguments['fn_initial_gradients'] = fn_initial_gradients
 
         return arguments
+
+
+    @tf_function(num_args=5)
+    def reference(self, *, states, horizons, internals, auxiliaries, actions, policy):
+        policy_action, _ = policy.act(
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+            independent=True
+        )
+
+        policy_action = policy_action.singleton()
+        if len(self.actions_spec.singleton().shape) == 1:
+            policy_action = tf.squeeze(input=policy_action, axis=1)
+
+        return policy_action
+
+    @tf_function(num_args=7)
+    def loss(self, *, states, horizons, internals, auxiliaries, actions, reward, policy, reference):
+        policy_action = self.reference(
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+            actions=actions, policy=policy
+        )
+
+        # reference = tf.stop_gradient(input=reference)
+
+        # summed_actions = list()
+        # for name, spec, action in self.actions_spec.zip_items(policy_action):
+        #     for n in range(spec.rank):
+        #         action = tf.math.reduce_sum(input_tensor=action, axis=(spec.rank - n))
+        #     summed_actions.append(action)
+        # summed_actions = tf.math.add_n(inputs=summed_actions)
+
+        return policy_action

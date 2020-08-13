@@ -62,12 +62,15 @@ class RandomModel(Model):
                 choices = tf.tile(input=choices, multiples=multiples)
                 choices = tf.boolean_mask(tensor=choices, mask=mask)
                 mask = tf_util.cast(x=mask, dtype='int')
-                num_unmasked = tf.math.reduce_sum(input_tensor=mask, axis=(spec.rank + 1))
-                masked_offset = tf.math.cumsum(x=num_unmasked, axis=spec.rank, exclusive=True)
+                num_valid = tf.math.reduce_sum(input_tensor=mask, axis=(spec.rank + 1))
+                num_valid = tf.reshape(tensor=num_valid, shape=(-1,))
+                masked_offset = tf.math.cumsum(x=num_valid, axis=0, exclusive=True)
                 uniform = tf.random.uniform(shape=shape, dtype=tf_util.get_dtype(type='float'))
-                num_unmasked = tf_util.cast(x=num_unmasked, dtype='float')
-                random_offset = tf_util.cast(x=(uniform * num_unmasked), dtype='int')
-                actions[name] = tf.gather(params=choices, indices=(masked_offset + random_offset))
+                uniform = tf.reshape(tensor=uniform, shape=(-1,))
+                num_valid = tf_util.cast(x=num_valid, dtype='float')
+                random_offset = tf.dtypes.cast(x=(uniform * num_valid), dtype=tf.dtypes.int64)
+                action = tf.gather(params=choices, indices=(masked_offset + random_offset))
+                actions[name] = tf.reshape(tensor=action, shape=shape)
 
             elif spec.type != 'bool' and spec.min_value is not None:
                 if spec.max_value is not None:

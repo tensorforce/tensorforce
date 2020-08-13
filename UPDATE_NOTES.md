@@ -13,7 +13,7 @@ This file records all major updates and new features, starting from version 0.5.
 - Agent saver functionality changed (Checkpoint/SavedModel instead of Saver/Protobuf): `save`/`load` functions and `saver` argument changed
 - Agent summarizer functionality changed: `summarizer` argument changed, some summary labels and other options removed
 - Default behavior when specifying `saver` is not to load agent, unless agent is created via `Agent.load`
-- Renamed PPO/TRPO/DPG argument: `critic_network/optimizer` to `baseline_network/optimizer`
+- Renamed PPO/TRPO/DPG argument: `critic_network`/`_optimizer` to `baseline`/`baseline_optimizer`
 - Renamed PPO argument: `optimization_steps` to `multi_step`
 - Renamed RNN layers: `internal_{rnn/lstm/gru}` to `rnn/lstm/gru`, `rnn/lstm/gru` --> `input_{rnn/lstm/gru}`
 - Renamed reward estimation arguments: `estimate_horizon` to `predict_horizon_values`, `estimate_actions` to `predict_action_values`, `estimate_terminal` to `predict_terminal_values`
@@ -34,6 +34,10 @@ This file records all major updates and new features, starting from version 0.5.
 - Renamed `update_modifier_wrapper` to `optimizer_wrapper`
 - Default preprocessing `linear_normalization`
 - `Agent.create()` accepts act-function as `agent` argument for recording
+- Singleton states and actions are now consistently handled as singletons
+- Renamed agent arguments `baseline_policy`/`baseline_network`/`critic_network` to `baseline`/`critic`
+- Added objectives `state_value` and `action_value`
+- Major change to policy handling and defaults, in particular `parametrized_distributions`, new default policies `parametrized_state/action_value`
 
 
 

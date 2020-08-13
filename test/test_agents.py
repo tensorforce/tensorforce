@@ -26,14 +26,14 @@ class TestAgents(UnittestBase, unittest.TestCase):
         self.start_tests(name='A2C')
         self.unittest(
             agent='a2c', batch_size=4, network=dict(type='auto', size=8, depth=1, rnn=2),
-            critic_network=dict(type='auto', size=7, depth=1, rnn=1)
+            critic=dict(type='auto', size=7, depth=1, rnn=1)
         )
 
     def test_ac(self):
         self.start_tests(name='AC')
         self.unittest(
             agent='ac', batch_size=4, network=dict(type='auto', size=8, depth=1, rnn=2),
-            critic_network=dict(type='auto', size=7, depth=1, rnn=1)
+            critic=dict(type='auto', size=7, depth=1, rnn=1)
         )
 
     def test_constant(self):
@@ -47,8 +47,7 @@ class TestAgents(UnittestBase, unittest.TestCase):
             agent='dpg', memory=100, batch_size=4,
             network=dict(type='auto', size=8, depth=1, rnn=2),
             # TODO: baseline horizon cannot be greater than reward horizon
-            horizon=2,
-            critic_network=dict(type='auto', size=7, depth=1, rnn=2)
+            horizon=2, critic=dict(type='auto', size=7, depth=1, rnn=2)
         )
 
     def test_double_dqn(self):
@@ -83,7 +82,11 @@ class TestAgents(UnittestBase, unittest.TestCase):
 
     def test_ppo(self):
         self.start_tests(name='PPO')
-        self.unittest(agent='ppo', batch_size=2, network=dict(type='auto', size=8, depth=1, rnn=2))
+        self.unittest(
+            agent='ppo', batch_size=2, network=dict(type='auto', size=8, depth=1, rnn=2),
+            baseline=dict(type='auto', size=7, depth=1, rnn=1),
+            baseline_optimizer='adam'
+        )
 
     def test_random(self):
         self.start_tests(name='Random')
@@ -91,23 +94,44 @@ class TestAgents(UnittestBase, unittest.TestCase):
 
     def test_tensorforce(self):
         self.start_tests(name='Tensorforce')
-        # Explicit, single-state/action
+
+        # Explicit, singleton state/action
         self.unittest(
             states=dict(type='float', shape=(), min_value=1.0, max_value=2.0),
             actions=dict(type='int', shape=(), num_values=4),
             agent='tensorforce', policy=dict(network=dict(type='auto', size=8, depth=1, rnn=2)),
-            update=4, objective='policy_gradient', reward_estimation=dict(horizon=3)
+            update=4, objective='policy_gradient', reward_estimation=dict(horizon=3),
+            baseline=dict(network=dict(type='auto', size=8, depth=1, rnn=1)),
+            baseline_objective='state_value',
+            # Config default changes need to be adapted everywhere (search "config=dict")
+            config=dict(eager_mode=True, create_debug_assertions=True, tf_log_level=20)
         )
+
         # Implicit
         self.unittest(
-            policy=dict(network=dict(type='auto', size=8, depth=1, rnn=2)), update=4,
-            objective='policy_gradient', reward_estimation=dict(horizon=3)
+            policy=dict(
+                network=dict(type='auto', size=8, depth=1, rnn=2), distributions=dict(
+                    gaussian_action2=dict(type='gaussian', global_stddev=True), beta_action='beta'
+                )
+            ),
+            update=4, objective='policy_gradient', reward_estimation=dict(horizon=3),
+            baseline=dict(network=dict(type='auto', size=8, depth=1, rnn=1)),
+            baseline_objective='state_value',
+            config=dict(eager_mode=True, create_debug_assertions=True, tf_log_level=20)
         )
 
     def test_trpo(self):
         self.start_tests(name='TRPO')
-        self.unittest(agent='trpo', batch_size=2, network=dict(type='auto', size=8, depth=1, rnn=2))
+        self.unittest(
+            agent='trpo', batch_size=2, network=dict(type='auto', size=8, depth=1, rnn=2),
+            baseline=dict(type='auto', size=7, depth=1, rnn=1),
+            baseline_optimizer='adam'
+        )
 
     def test_vpg(self):
         self.start_tests(name='VPG')
-        self.unittest(agent='vpg', batch_size=2, network=dict(type='auto', size=8, depth=1, rnn=2))
+        self.unittest(
+            agent='vpg', batch_size=2, network=dict(type='auto', size=8, depth=1, rnn=2),
+            baseline=dict(type='auto', size=7, depth=1, rnn=1),
+            baseline_optimizer='adam'
+        )

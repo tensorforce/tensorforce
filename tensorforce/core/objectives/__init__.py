@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
+from functools import partial
+
 from tensorforce.core.objectives.objective import Objective
 
 from tensorforce.core.objectives.deterministic_policy_gradient import DeterministicPolicyGradient
@@ -22,8 +24,9 @@ from tensorforce.core.objectives.value import Value
 
 
 objective_modules = dict(
+    action_value=partial(Value, value='action'),
     deterministic_policy_gradient=DeterministicPolicyGradient, plus=Plus,
-    policy_gradient=PolicyGradient, value=Value
+    policy_gradient=PolicyGradient, state_value=partial(Value, value='state'), value=Value
 )
 
 

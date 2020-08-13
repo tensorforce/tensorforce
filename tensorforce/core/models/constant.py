@@ -81,9 +81,11 @@ class ConstantModel(Model):
                 choices = tf.tile(input=choices, multiples=multiples)
                 choices = tf.boolean_mask(tensor=choices, mask=mask)
                 mask = tf_util.cast(x=mask, dtype='int')
-                num_unmasked = tf.math.reduce_sum(input_tensor=mask, axis=(spec.rank + 1))
-                masked_offset = tf.math.cumsum(x=num_unmasked, axis=spec.rank, exclusive=True)
-                actions[name] = tf.gather(params=choices, indices=masked_offset)
+                num_valid = tf.math.reduce_sum(input_tensor=mask, axis=(spec.rank + 1))
+                num_valid = tf.reshape(tensor=num_valid, shape=(-1,))
+                masked_offset = tf.math.cumsum(x=num_valid, axis=0, exclusive=True)
+                action = tf.gather(params=choices, indices=masked_offset)
+                actions[name] = tf.reshape(tensor=action, shape=shape)
 
             elif spec.type != 'bool' and spec.min_value is not None:
                 if spec.max_value is not None:

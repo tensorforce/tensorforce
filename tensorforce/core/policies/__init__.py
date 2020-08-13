@@ -14,16 +14,26 @@
 # ==============================================================================
 
 from tensorforce.core.policies.policy import Policy
+from tensorforce.core.policies.state_value import StateValue
 
 from tensorforce.core.policies.action_value import ActionValue
 from tensorforce.core.policies.stochastic import Stochastic
 
+from tensorforce.core.policies.parametrized_action_value import ParametrizedActionValue
 from tensorforce.core.policies.parametrized_distributions import ParametrizedDistributions
+from tensorforce.core.policies.parametrized_state_action_value import ParametrizedStateActionValue
+from tensorforce.core.policies.parametrized_state_value import ParametrizedStateValue
 
 
 policy_modules = dict(
-    default=ParametrizedDistributions, parametrized_distributions=ParametrizedDistributions
+    default=ParametrizedDistributions, parametrized_action_value=ParametrizedActionValue,
+    parametrized_distributions=ParametrizedDistributions,
+    parametrized_state_action_value=ParametrizedStateActionValue,
+    parametrized_state_value=ParametrizedStateValue
 )
 
 
-__all__ = ['ActionValue', 'ParametrizedDistributions', 'Policy', 'Stochastic', 'ValueEstimator']
+__all__ = [
+    'ActionValue', 'ParametrizedActionValue', 'ParametrizedDistributions',
+    'ParametrizedStateActionValue', 'ParametrizedStateValue', 'Policy', 'StateValue', 'Stochastic'
+]

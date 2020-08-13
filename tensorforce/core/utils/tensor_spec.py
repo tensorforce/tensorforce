@@ -136,7 +136,7 @@ class TensorSpec(object):
         else:
             return tf_util.zeros(shape=self.shape, dtype=self.type)
 
-    def to_tensor(self, *, value, batched):
+    def to_tensor(self, *, value, batched, recover_empty=False):
         # Check whether underspecified
         if self.is_underspecified():
             raise TensorforceError.unexpected()

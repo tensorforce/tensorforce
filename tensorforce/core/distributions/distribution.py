@@ -77,32 +77,34 @@ class Distribution(Module):
                 temperature=TensorSpec(type='float', shape=()).signature(batched=False)
             )
 
-        elif function == 'states_value':
+        elif function == 'state_value':
             return SignatureDict(parameters=self.parameters_spec.signature(batched=True))
 
         else:
             return super().input_signature(function=function)
 
     def output_signature(self, *, function):
+        shape = self.action_spec.shape
+
         if function == 'action_value':
-            return SignatureDict(singleton=TensorSpec(
-                type='float', shape=self.action_spec.shape
-            ).signature(batched=True))
+            return SignatureDict(
+                singleton=TensorSpec(type='float', shape=shape).signature(batched=True)
+            )
 
         elif function == 'entropy':
-            return SignatureDict(singleton=TensorSpec(
-                type='float', shape=self.action_spec.shape
-            ).signature(batched=True))
+            return SignatureDict(
+                singleton=TensorSpec(type='float', shape=shape).signature(batched=True)
+            )
 
         elif function == 'kl_divergence':
-            return SignatureDict(singleton=TensorSpec(
-                type='float', shape=self.action_spec.shape
-            ).signature(batched=True))
+            return SignatureDict(
+                singleton=TensorSpec(type='float', shape=shape).signature(batched=True)
+            )
 
         elif function == 'log_probability':
-            return SignatureDict(singleton=TensorSpec(
-                type='float', shape=self.action_spec.shape
-            ).signature(batched=True))
+            return SignatureDict(
+                singleton=TensorSpec(type='float', shape=shape).signature(batched=True)
+            )
 
         elif function == 'mode':
             return SignatureDict(singleton=self.action_spec.signature(batched=True))
@@ -113,10 +115,10 @@ class Distribution(Module):
         elif function == 'sample':
             return SignatureDict(singleton=self.action_spec.signature(batched=True))
 
-        elif function == 'states_value':
-            return SignatureDict(singleton=TensorSpec(
-                type='float', shape=self.action_spec.shape
-            ).signature(batched=True))
+        elif function == 'state_value':
+            return SignatureDict(
+                singleton=TensorSpec(type='float', shape=shape).signature(batched=True)
+            )
 
         else:
             return super().output_signature(function=function)
@@ -145,14 +147,10 @@ class Distribution(Module):
     def kl_divergence(self, *, parameters1, parameters2):
         raise NotImplementedError
 
-    @tf_function(num_args=1)
-    def states_value(self, *, parameters):
-        raise NotImplementedError
-
     @tf_function(num_args=2)
     def action_value(self, *, parameters, action):
         raise NotImplementedError
 
     @tf_function(num_args=1)
-    def all_action_values(self, *, parameters):
+    def state_value(self, *, parameters):
         raise NotImplementedError

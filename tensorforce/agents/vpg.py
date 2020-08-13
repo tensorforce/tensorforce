@@ -87,7 +87,7 @@ class VanillaPolicyGradient(TensorforceAgent):
         predict_terminal_values (bool): Whether to predict the value of terminal states
             (<span style="color:#00C000"><b>default</b></span>: false).
 
-        baseline_network (specification): Baseline network configuration, see the
+        baseline (specification): Baseline network configuration, see the
             [networks documentation](../modules/networks.html), main policy will be used as baseline
             if none
             (<span style="color:#00C000"><b>default</b></span>: none).
@@ -135,7 +135,7 @@ class VanillaPolicyGradient(TensorforceAgent):
         # Reward estimation
         discount=0.99, predict_terminal_values=False,
         # Baseline
-        baseline_network=None, baseline_optimizer=None,
+        baseline=None, baseline_optimizer=None,
         # Preprocessing
         preprocessing='linear_normalization',
         # Exploration
@@ -147,11 +147,15 @@ class VanillaPolicyGradient(TensorforceAgent):
         # Config, saver, summarizer, recorder
         config=None, saver=None, summarizer=None, recorder=None,
         # Deprecated
-        estimate_terminal=None, **kwargs
+        estimate_terminal=None, baseline_network=None, **kwargs
     ):
         if estimate_terminal is not None:
             raise TensorforceError.deprecated(
                 name='VPG', argument='estimate_terminal', replacement='predict_terminal_values'
+            )
+        if baseline_network is not None:
+            raise TensorforceError.deprecated(
+                name='VPG', argument='baseline_network', replacement='baseline'
             )
 
         self.spec = OrderedDict(
@@ -162,7 +166,7 @@ class VanillaPolicyGradient(TensorforceAgent):
             memory=memory,
             update_frequency=update_frequency, learning_rate=learning_rate,
             discount=discount, predict_terminal_values=predict_terminal_values,
-            baseline_network=baseline_network, baseline_optimizer=baseline_optimizer,
+            baseline=baseline, baseline_optimizer=baseline_optimizer,
             preprocessing=preprocessing,
             exploration=exploration, variable_noise=variable_noise,
             l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
@@ -170,7 +174,10 @@ class VanillaPolicyGradient(TensorforceAgent):
             config=config, saver=saver, summarizer=summarizer, recorder=recorder
         )
 
-        policy = dict(network=network, temperature=1.0, use_beta_distribution=use_beta_distribution)
+        policy = dict(
+            type='parametrized_distributions', network=network, temperature=1.0,
+            use_beta_distribution=use_beta_distribution
+        )
 
         if memory == 'minimum':
             memory = dict(type='recent')
@@ -185,13 +192,12 @@ class VanillaPolicyGradient(TensorforceAgent):
         optimizer = dict(type='adam', learning_rate=learning_rate)
         objective = 'policy_gradient'
 
-        if baseline_network is None:
+        if baseline is None:
             assert not predict_terminal_values
             reward_estimation = dict(
                 horizon='episode', discount=discount, predict_horizon_values=False,
                 estimate_advantage=False
             )
-            baseline_policy = None
             assert baseline_optimizer is None
             baseline_objective = None
 
@@ -201,7 +207,7 @@ class VanillaPolicyGradient(TensorforceAgent):
                 estimate_advantage=True, predict_action_values=False,
                 predict_terminal_values=predict_terminal_values
             )
-            baseline_policy = dict(network=baseline_network)
+            baseline = dict(network=baseline)
             assert baseline_optimizer is not None
             baseline_objective = dict(type='value', value='state')
 
@@ -214,7 +220,7 @@ class VanillaPolicyGradient(TensorforceAgent):
             l2_regularization=l2_regularization, saver=saver, summarizer=summarizer,
             # TensorforceModel
             policy=policy, memory=memory, update=update, optimizer=optimizer, objective=objective,
-            reward_estimation=reward_estimation, baseline_policy=baseline_policy,
+            reward_estimation=reward_estimation, baseline=baseline,
             baseline_optimizer=baseline_optimizer, baseline_objective=baseline_objective,
             entropy_regularization=entropy_regularization, **kwargs
         )

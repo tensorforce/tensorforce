@@ -89,7 +89,7 @@ class ActorCritic(TensorforceAgent):
         predict_terminal_values (bool): Whether to predict the value of terminal states
             (<span style="color:#00C000"><b>default</b></span>: false).
 
-        critic_network (specification): Critic network configuration, see the
+        critic (specification): Critic network configuration, see the
             [networks documentation](../modules/networks.html)
             (<span style="color:#00C000"><b>default</b></span>: "auto").
         critic_optimizer (float > 0.0 | specification): Critic optimizer configuration, see the
@@ -137,7 +137,7 @@ class ActorCritic(TensorforceAgent):
         # Reward estimation
         horizon=1, discount=0.99, predict_terminal_values=False,
         # Critic
-        critic_network='auto', critic_optimizer=1.0,
+        critic='auto', critic_optimizer=1.0,
         # Preprocessing
         preprocessing='linear_normalization',
         # Exploration
@@ -149,11 +149,15 @@ class ActorCritic(TensorforceAgent):
         # Config, saver, summarizer, recorder
         config=None, saver=None, summarizer=None, recorder=None,
         # Deprecated
-        estimate_terminal=None, **kwargs
+        estimate_terminal=None, critic_network=None, **kwargs
     ):
         if estimate_terminal is not None:
             raise TensorforceError.deprecated(
                 name='AC', argument='estimate_terminal', replacement='predict_terminal_values'
+            )
+        if critic_network is not None:
+            raise TensorforceError.deprecated(
+                name='AC', argument='critic_network', replacement='critic'
             )
 
         self.spec = OrderedDict(
@@ -164,7 +168,7 @@ class ActorCritic(TensorforceAgent):
             memory=memory,
             update_frequency=update_frequency, learning_rate=learning_rate,
             horizon=horizon, discount=discount, predict_terminal_values=predict_terminal_values,
-            critic_network=critic_network, critic_optimizer=critic_optimizer,
+            critic=critic, critic_optimizer=critic_optimizer,
             preprocessing=preprocessing,
             exploration=exploration, variable_noise=variable_noise,
             l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
@@ -172,7 +176,10 @@ class ActorCritic(TensorforceAgent):
             config=config, saver=saver, summarizer=summarizer, recorder=recorder
         )
 
-        policy = dict(network=network, temperature=1.0, use_beta_distribution=use_beta_distribution)
+        policy = dict(
+            type='parametrized_distributions', network=network, temperature=1.0,
+            use_beta_distribution=use_beta_distribution
+        )
 
         if memory == 'minimum':
             memory = dict(type='recent')
@@ -193,7 +200,7 @@ class ActorCritic(TensorforceAgent):
             predict_terminal_values=predict_terminal_values
         )
 
-        baseline_policy = dict(network=critic_network)
+        baseline = dict(type='parametrized_state_value', network=critic)
         baseline_objective = dict(type='value', value='state')
 
         super().__init__(
@@ -205,7 +212,7 @@ class ActorCritic(TensorforceAgent):
             l2_regularization=l2_regularization, saver=saver, summarizer=summarizer,
             # TensorforceModel
             policy=policy, memory=memory, update=update, optimizer=optimizer, objective=objective,
-            reward_estimation=reward_estimation, baseline_policy=baseline_policy,
+            reward_estimation=reward_estimation, baseline=baseline,
             baseline_optimizer=critic_optimizer, baseline_objective=baseline_objective,
             entropy_regularization=entropy_regularization, **kwargs
         )

@@ -92,7 +92,7 @@ class DeterministicPolicyGradient(TensorforceAgent):
         predict_terminal_values (bool): Whether to predict the value of terminal states
             (<span style="color:#00C000"><b>default</b></span>: false).
 
-        critic_network (specification): Critic network configuration, see the
+        critic (specification): Critic network configuration, see the
             [networks documentation](../modules/networks.html)
             (<span style="color:#00C000"><b>default</b></span>: none).
         critic_optimizer (float > 0.0 | specification): Critic optimizer configuration, see the
@@ -138,7 +138,7 @@ class DeterministicPolicyGradient(TensorforceAgent):
         # Reward estimation
         horizon=1, discount=0.99, predict_terminal_values=False,
         # Critic
-        critic_network='auto', critic_optimizer=1.0,
+        critic='auto', critic_optimizer=1.0,
         # Preprocessing
         preprocessing='linear_normalization',
         # Exploration
@@ -150,11 +150,16 @@ class DeterministicPolicyGradient(TensorforceAgent):
         # Config, saver, summarizer, recorder
         config=None, saver=None, summarizer=None, recorder=None,
         # Deprecated
-        estimate_terminal=None, **kwargs
+        estimate_terminal=None, critic_network=None, **kwargs
     ):
+        raise TensorforceError(message='Temporarily broken.')
         if estimate_terminal is not None:
             raise TensorforceError.deprecated(
                 name='DPG', argument='estimate_terminal', replacement='predict_terminal_values'
+            )
+        if critic_network is not None:
+            raise TensorforceError.deprecated(
+                name='DPG', argument='critic_network', replacement='critic'
             )
 
         self.spec = OrderedDict(
@@ -165,7 +170,7 @@ class DeterministicPolicyGradient(TensorforceAgent):
             update_frequency=update_frequency, start_updating=start_updating,
             learning_rate=learning_rate,
             horizon=horizon, discount=discount, predict_terminal_values=predict_terminal_values,
-            critic_network=critic_network, critic_optimizer=critic_optimizer,
+            critic=critic, critic_optimizer=critic_optimizer,
             preprocessing=preprocessing,
             exploration=exploration, variable_noise=variable_noise,
             l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
@@ -173,7 +178,10 @@ class DeterministicPolicyGradient(TensorforceAgent):
             config=config, saver=saver, summarizer=summarizer, recorder=recorder
         )
 
-        policy = dict(network=network, temperature=0.0, use_beta_distribution=use_beta_distribution)
+        policy = dict(
+            type='parametrized_distributions', network=network, temperature=0.0,
+            use_beta_distribution=use_beta_distribution
+        )
 
         memory = dict(type='replay', capacity=memory)
 
@@ -192,7 +200,7 @@ class DeterministicPolicyGradient(TensorforceAgent):
             predict_terminal_values=predict_terminal_values
         )
 
-        baseline_policy = dict(network=critic_network, distributions=dict(float='gaussian'))
+        baseline = dict(type='parametrized_distributions', network=critic)
         baseline_optimizer = critic_optimizer
         baseline_objective = dict(type='value', value='action')
 
@@ -205,15 +213,7 @@ class DeterministicPolicyGradient(TensorforceAgent):
             l2_regularization=l2_regularization, saver=saver, summarizer=summarizer,
             # TensorforceModel
             policy=policy, memory=memory, update=update, optimizer=optimizer, objective=objective,
-            reward_estimation=reward_estimation, baseline_policy=baseline_policy,
+            reward_estimation=reward_estimation, baseline=baseline,
             baseline_optimizer=baseline_optimizer, baseline_objective=baseline_objective,
             entropy_regularization=entropy_regularization, **kwargs
         )
-
-        action_spec = next(iter(self.actions_spec.values()))
-        if len(self.actions_spec) > 1 or action_spec.type != 'float' or \
-                (action_spec.shape != () and action_spec.shape != (1,)):
-            raise TensorforceError.value(
-                name='DeterministicPolicyGradient', argument='actions', value=actions,
-                hint='contains more than a single float action'
-            )

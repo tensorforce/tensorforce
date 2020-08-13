@@ -35,29 +35,30 @@ class Stochastic(Policy):
         states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         auxiliaries_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        kldiv_reference_spec (specification):
+            <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
         self, *, temperature=0.0, device=None, l2_regularization=None, name=None, states_spec=None,
-        auxiliaries_spec=None, internals_spec=None, actions_spec=None
+        auxiliaries_spec=None, internals_spec=None, actions_spec=None, kldiv_reference_spec=None
     ):
         super().__init__(
             device=device, l2_regularization=l2_regularization, name=name, states_spec=states_spec,
             auxiliaries_spec=auxiliaries_spec, actions_spec=actions_spec
         )
 
+        self.kldiv_reference_spec = kldiv_reference_spec
+
         # Sampling temperature
         if isinstance(temperature, dict) and all(name in self.actions_spec for name in temperature):
             # Different temperature per action
 
             def function(name, spec):
-                if name in temperature:
-                    return self.submodule(
-                        name=(name + '_temperature'), module=temperature[name],
-                        modules=parameter_modules, is_trainable=False, dtype='float', min_value=0.0
-                    )
-                else:
-                    return None
+                return self.submodule(
+                    name=(name + '_temperature'), module=temperature.get(name, 0.0),
+                    modules=parameter_modules, is_trainable=False, dtype='float', min_value=0.0
+                )
 
             self.temperature = self.actions_spec.fmap(
                 function=function, cls=ModuleDict, with_names=True
@@ -135,15 +136,19 @@ class Stochastic(Policy):
                 actions=self.actions_spec.signature(batched=True)
             )
 
-        elif function == 'sample_actions':
+        elif function == 'sample':
+            if isinstance(self.temperature, dict):
+                temperature_spec = self.actions_spec.fmap(
+                    function=(lambda _: TensorSpec(type='float', shape=()))
+                )
+            else:
+                temperature_spec = TensorSpec(type='float', shape=())
             return SignatureDict(
                 states=self.states_spec.signature(batched=True),
                 horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
                 internals=self.internals_spec.signature(batched=True),
                 auxiliaries=self.auxiliaries_spec.signature(batched=True),
-                temperatures=self.actions_spec.fmap(
-                    function=(lambda _: TensorSpec(type='float', shape=()))
-                ).signature(batched=False)
+                temperature=temperature_spec.signature(batched=False)
             )
 
         else:
@@ -151,41 +156,47 @@ class Stochastic(Policy):
 
     def output_signature(self, *, function):
         if function == 'entropy':
-            return SignatureDict(singleton=TensorSpec(
-                type='float', shape=(sum(spec.size for spec in self.actions_spec.values()),)
-            ).signature(batched=True))
+            return SignatureDict(
+                singleton=TensorSpec(type='float', shape=()).signature(batched=True)
+            )
 
         elif function == 'entropies':
-            return SignatureDict(singleton=self.actions_spec.fmap(function=(
-                lambda spec: TensorSpec(type='float', shape=spec.shape).signature(batched=True)
-            ), cls=SignatureDict))
+            return SignatureDict(
+                singleton=self.actions_spec.fmap(function=(
+                    lambda spec: TensorSpec(type='float', shape=spec.shape).signature(batched=True)
+                ), cls=SignatureDict)
+            )
 
         elif function == 'kl_divergence':
-            return SignatureDict(singleton=TensorSpec(
-                type='float', shape=(sum(spec.size for spec in self.actions_spec.values()),)
-            ).signature(batched=True))
+            return SignatureDict(
+                singleton=TensorSpec(type='float', shape=()).signature(batched=True)
+            )
 
         elif function == 'kl_divergences':
-            return SignatureDict(singleton=self.actions_spec.fmap(function=(
-                lambda spec: TensorSpec(type='float', shape=spec.shape).signature(batched=True)
-            ), cls=SignatureDict))
+            return SignatureDict(
+                singleton=self.actions_spec.fmap(function=(
+                    lambda spec: TensorSpec(type='float', shape=spec.shape).signature(batched=True)
+                ), cls=SignatureDict)
+            )
 
         elif function == 'kldiv_reference':
-            return SignatureDict(singleton=self.distributions.fmap(
-                function=(lambda x: x.parameters_spec), cls=TensorsSpec
-            ).signature(batched=True))
+            return SignatureDict(
+                singleton=self.kldiv_reference_spec.signature(batched=True)
+            )
 
         elif function == 'log_probability':
-            return SignatureDict(singleton=TensorSpec(
-                type='float', shape=(sum(spec.size for spec in self.actions_spec.values()),)
-            ).signature(batched=True))
+            return SignatureDict(
+                singleton=TensorSpec(type='float', shape=()).signature(batched=True)
+            )
 
         elif function == 'log_probabilities':
-            return SignatureDict(singleton=self.actions_spec.fmap(function=(
-                lambda spec: TensorSpec(type='float', shape=spec.shape).signature(batched=True)
-            ), cls=SignatureDict))
+            return SignatureDict(
+                singleton=self.actions_spec.fmap(function=(
+                    lambda spec: TensorSpec(type='float', shape=spec.shape).signature(batched=True)
+                ), cls=SignatureDict)
+            )
 
-        elif function == 'sample_actions':
+        elif function == 'sample':
             return SignatureDict(
                 actions=self.actions_spec.signature(batched=True),
                 internals=self.internals_spec.signature(batched=True)
@@ -197,26 +208,18 @@ class Stochastic(Policy):
     @tf_function(num_args=4)
     def act(self, *, states, horizons, internals, auxiliaries, independent):
         if independent:
-            return super().act(
-                states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-                independent=independent
-            )
-            # zero = tf_util.constant(value=0.0, dtype='float')
-            # temperatures = self.actions_spec.fmap(function=(lambda _: zero), cls=TensorDict)
+            raise NotImplementedError
 
-        if isinstance(self.temperature, dict):
-            zero = tf_util.constant(value=0.0, dtype='float')
-            temperatures = self.temperature.fmap(
-                function=(lambda temp: zero if temp is None else temp.value()), cls=TensorDict
-            )
         else:
-            temperature = self.temperature.value()
-            temperatures = self.actions_spec.fmap(function=(lambda _: temperature), cls=TensorDict)
+            if isinstance(self.temperature, dict):
+                temperature = self.temperature.fmap(function=(lambda x: x.value()), cls=TensorDict)
+            else:
+                temperature = self.temperature.value()
 
-        return self.sample_actions(
-            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-            temperatures=temperatures, independent=independent
-        )
+            return self.sample(
+                states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+                temperature=temperature, independent=independent
+            )
 
     @tf_function(num_args=5)
     def log_probability(self, *, states, horizons, internals, auxiliaries, actions):
@@ -229,7 +232,9 @@ class Stochastic(Policy):
             return tf.reshape(tensor=value, shape=(-1, spec.size))
 
         log_probabilities = log_probabilities.fmap(function=function, zip_values=self.actions_spec)
-        return tf.concat(values=tuple(log_probabilities.values()), axis=1)
+        log_probabilities = tf.concat(values=tuple(log_probabilities.values()), axis=1)
+
+        return tf.math.reduce_sum(input_tensor=log_probabilities, axis=1)
 
     @tf_function(num_args=4)
     def entropy(self, *, states, horizons, internals, auxiliaries):
@@ -241,7 +246,9 @@ class Stochastic(Policy):
             return tf.reshape(tensor=value, shape=(-1, spec.size))
 
         entropies = entropies.fmap(function=function, zip_values=self.actions_spec)
-        return tf.concat(values=tuple(entropies.values()), axis=1)
+        entropies = tf.concat(values=tuple(entropies.values()), axis=1)
+
+        return tf.math.reduce_mean(input_tensor=entropies, axis=1)
 
     @tf_function(num_args=5)
     def kl_divergence(self, *, states, horizons, internals, auxiliaries, reference):
@@ -254,14 +261,12 @@ class Stochastic(Policy):
             return tf.reshape(tensor=value, shape=(-1, spec.size))
 
         kl_divergences = kl_divergences.fmap(function=function, zip_values=self.actions_spec)
-        return tf.concat(values=tuple(kl_divergences.values()), axis=1)
+        kl_divergences = tf.concat(values=tuple(kl_divergences.values()), axis=1)
+
+        return tf.math.reduce_mean(input_tensor=kl_divergences, axis=1)
 
     @tf_function(num_args=5)
-    def sample_actions(self, *, states, horizons, internals, auxiliaries, temperatures):
-        raise NotImplementedError
-
-    @tf_function(num_args=5)
-    def log_probabilities(self, *, states, horizons, internals, auxiliaries, actions):
+    def sample(self, *, states, horizons, internals, auxiliaries, temperature, independent):
         raise NotImplementedError
 
     @tf_function(num_args=4)
@@ -274,4 +279,8 @@ class Stochastic(Policy):
 
     @tf_function(num_args=4)
     def kldiv_reference(self, *, states, horizons, internals, auxiliaries):
+        raise NotImplementedError
+
+    @tf_function(num_args=5)
+    def log_probabilities(self, *, states, horizons, internals, auxiliaries, actions):
         raise NotImplementedError

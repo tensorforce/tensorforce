@@ -55,7 +55,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
             for module in agent.model.this_submodules:
                 module.restore(directory=directory)
             x = agent.model.policy.network.layers[1].weights.numpy()
-            self.assertTrue((x == weights0).all())
+            self.assertTrue(np.allclose(x, weights0))
             actions = agent.act(states=states)
             states, terminal, reward = environment.execute(actions=actions)
             agent.observe(terminal=terminal, reward=reward)
@@ -96,14 +96,13 @@ class TestSaving(UnittestBase, unittest.TestCase):
             # load: only directory
             agent = Agent.load(directory=directory, environment=environment)
             x = agent.model.policy.network.layers[1].weights.numpy()
-            self.assertTrue((x == weights0).all())
+            self.assertTrue(np.allclose(x, weights0))
             self.assertEqual(agent.timesteps, 0)
             self.finished_test()
 
             # one timestep
             actions = agent.act(states=states)
             states, terminal, reward = environment.execute(actions=actions)
-            agent.observe(terminal=terminal, reward=reward)
 
             # save: numpy format, append timesteps
             agent.save(directory=directory, format='numpy', append='timesteps')
@@ -113,7 +112,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
             # load: numpy format and directory
             agent = Agent.load(directory=directory, format='numpy', environment=environment)
             x = agent.model.policy.network.layers[1].weights.numpy()
-            self.assertTrue((x == weights0).all())
+            self.assertTrue(np.allclose(x, weights0))
             self.assertEqual(agent.timesteps, 1)
             self.finished_test()
 
@@ -130,7 +129,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
             # load: numpy format and directory
             agent = Agent.load(directory=directory, format='numpy', environment=environment)
             x = agent.model.policy.network.layers[1].weights.numpy()
-            self.assertTrue((x == weights0).all())
+            self.assertTrue(np.allclose(x, weights0))
             self.assertEqual(agent.timesteps, 2)
             self.finished_test()
 
@@ -142,7 +141,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
             # save: hdf5 format, filename, append episodes
             weights1 = agent.model.policy.network.layers[1].weights.numpy()
-            self.assertTrue((weights1 != weights0).any())
+            self.assertTrue(not np.allclose(weights1, weights0))
             self.assertEqual(agent.episodes, 1)
             agent.save(directory=directory, filename='agent2', format='hdf5', append='episodes')
             agent.close()
@@ -162,7 +161,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
                 parallel_interactions=2
             )
             x = agent.model.policy.network.layers[1].weights.numpy()
-            self.assertTrue((x == weights1).all())
+            self.assertTrue(np.allclose(x, weights1))
             self.assertEqual(agent.episodes, 1)
             agent.close()
             self.finished_test()
@@ -175,7 +174,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
                 parallel_interactions=1
             )
             x = agent.model.policy.network.layers[1].weights.numpy()
-            self.assertTrue((x == weights0).all())
+            self.assertTrue(np.allclose(x, weights0))
             self.assertEqual(agent.timesteps, 0)
             self.assertEqual(agent.episodes, 0)
             agent.close()
@@ -187,7 +186,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
                 update=update, parallel_interactions=2
             )
             x = agent.model.policy.network.layers[1].weights.numpy()
-            self.assertTrue((x == weights0).all())
+            self.assertTrue(np.allclose(x, weights0))
             self.assertEqual(agent.timesteps, 1)
             self.assertEqual(agent.episodes, 0)
             self.finished_test()
@@ -213,20 +212,22 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
             # one episode
             states = environment.reset()
-            internals = [[[np.zeros(shape=(1, 2, 8))]]]
-            action_names = sorted(['bool_action', 'int_action', 'float_action', 'beta_action'])
+            internals = [[[np.zeros(shape=(1, 2, 8))]], [[np.zeros(shape=(1, 2, 7))]]]
+            action_names = sorted(
+                ['bool_action', 'int_action', 'gaussian_action1', 'gaussian_action2', 'beta_action']
+            )
             terminal = False
             while not terminal:
                 # Turn dicts into lists and batch inputs
                 auxiliaries = [[np.expand_dims(states.pop('int_action_mask'), axis=0)]]
                 states = [np.expand_dims(state, axis=0) for state in states.values()]
                 actions = act(states, internals, auxiliaries)
-                assert len(actions) == 5
-                internals = [[[actions[4]]]]
+                assert len(actions) == 7
+                internals = [[[actions[5]]], [[actions[6]]]]
                 # Split result dict and unbatch values
                 actions = {
                     name: action.numpy().item() if action.shape == (1,) else action.numpy()[0]
-                    for name, action in zip(action_names, actions[:4])
+                    for name, action in zip(action_names, actions[:5])
                 }
                 states, terminal, _ = environment.execute(actions=actions)
 
@@ -235,10 +236,11 @@ class TestSaving(UnittestBase, unittest.TestCase):
             # saved-model format with singleton state/action, no internals, no masking
             policy = dict(network=dict(type='auto', size=8, depth=1, rnn=False))
             update = dict(unit='episodes', batch_size=1)
+            baseline = dict(network=dict(type='auto', size=7, depth=1, rnn=False))
             agent, environment = self.prepare(
                 states=dict(type='float', shape=(), min_value=1.0, max_value=2.0),
                 actions=dict(type='float', shape=(), min_value=1.0, max_value=2.0),
-                policy=policy, update=update,
+                policy=policy, update=update, baseline=baseline,
                 config=dict(eager_mode=False, create_debug_assertions=True)
             )
 
@@ -308,7 +310,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
             # load: from given directory
             agent = Agent.load(directory=directory, environment=environment)
             x = agent.model.policy.network.layers[1].weights.numpy()
-            self.assertTrue((x == weights0).all())
+            self.assertTrue(np.allclose(x, weights0))
             self.assertEqual(agent.timesteps, 0)
             while not terminal:
                 actions = agent.act(states=states)
@@ -316,7 +318,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
                 updated = agent.observe(terminal=terminal, reward=reward)
             self.assertTrue(updated)
             weights1 = agent.model.policy.network.layers[1].weights.numpy()
-            self.assertTrue((weights1 != weights0).any())
+            self.assertTrue(not np.allclose(weights1, weights0))
             timesteps = agent.timesteps
             agent.close()
             self.finished_test()
@@ -324,7 +326,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
             # load: from given directory
             agent = Agent.load(directory=directory, environment=environment)
             x = agent.model.policy.network.layers[1].weights.numpy()
-            self.assertTrue((x == weights1).all())
+            self.assertTrue(np.allclose(x, weights1))
             self.assertEqual(agent.timesteps, timesteps)
             agent.close()
             environment.close()
@@ -336,8 +338,8 @@ class TestSaving(UnittestBase, unittest.TestCase):
                 config=dict(eager_mode=False, create_debug_assertions=True)
             )
             x = agent.model.policy.network.layers[1].weights.numpy()
-            self.assertTrue((x != weights0).any())
-            self.assertTrue((x != weights1).any())
+            self.assertTrue(not np.allclose(x, weights0))
+            self.assertTrue(not np.allclose(x, weights1))
             self.assertEqual(agent.timesteps, 0)
             states = environment.reset()
             terminal = False
@@ -353,7 +355,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
             # load: from given directory
             agent = Agent.load(directory=directory, environment=environment)
             x = agent.model.policy.network.layers[1].weights.numpy()
-            self.assertTrue((x == weights2).all())
+            self.assertTrue(np.allclose(x, weights2))
             agent.close()
             environment.close()
             self.finished_test()

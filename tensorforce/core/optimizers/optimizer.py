@@ -106,12 +106,14 @@ class Optimizer(Module):
 
         assertions = list(deltas)
         # if self.config.create_debug_assertions:
-        #     if self.__class__.__name__ != 'Synchronization':
+        #     from tensorforce.core.optimizers import Synchronization
+        #     if not isinstance(self, Synchronization) or \
+        #             not self.sync_frequency.is_constant(value=1):
         #         for delta, variable in zip(deltas, variables):
         #             if variable.shape.num_elements() <= 4:
         #                 continue
-        #             if '/policy/' in variable.name and '_distribution/' in variable.name:
-        #                 continue
+        #             # if '_distribution/mean/linear/' in variable.name:
+        #             #     continue
         #             assertions.append(tf.debugging.assert_equal(
         #                 x=tf.math.reduce_any(
         #                     input_tensor=tf.math.not_equal(x=delta, y=tf.zeros_like(input=delta))

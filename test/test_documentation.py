@@ -278,7 +278,12 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
         )
         self.unittest(
             states=dict(type='float', shape=(2,), min_value=-1.0, max_value=2.0),
+            policy=dict(network='auto')
+        )
+        self.unittest(
+            states=dict(type='float', shape=(2,), min_value=-1.0, max_value=2.0),
             policy=dict(
+                type='parametrized_distributions',
                 network=[
                     dict(type='dense', size=8, activation='tanh'),
                     dict(type='dense', size=8, activation='tanh')

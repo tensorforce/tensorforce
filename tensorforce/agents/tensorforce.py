@@ -68,10 +68,10 @@ class TensorforceAgent(Agent):
             (<span style="color:#00C000"><b>default</b></span>: not given, better implicitly
             specified via `environment` argument for `Agent.create()`).
 
-        policy (specification): Policy configuration, see the
+        policy (specification): Policy configuration, see [networks](../modules/networks.html) and
             [policies documentation](../modules/policies.html)
-            (<span style="color:#00C000"><b>default</b></span>: "default", action distributions
-            parametrized by an automatically configured network).
+            (<span style="color:#00C000"><b>default</b></span>: "default", action distributions or
+            value functions parametrized by an automatically configured network).
         memory (int | specification): Memory configuration, see the
             [memories documentation](../modules/memories.html)
             (<span style="color:#00C000"><b>default</b></span>: replay memory with either given or
@@ -130,8 +130,9 @@ class TensorforceAgent(Agent):
             (<span style="color:#00C000"><b>default</b></span>: false).</li>
             </ul>
 
-        baseline_policy (specification): Baseline policy configuration, main policy will be used as
-            baseline if none
+        baseline (specification): Baseline configuration, policy will be used as baseline if none,
+            see [networks](../modules/networks.html) and potentially
+            [policies documentation](../modules/policies.html)
             (<span style="color:#00C000"><b>default</b></span>: none).
         baseline_optimizer (specification | <a href="../modules/parameters.html">parameter</a>, float > 0.0):
             Baseline optimizer configuration, see the
@@ -276,7 +277,7 @@ class TensorforceAgent(Agent):
         # Agent
         policy='default', memory='minimum', optimizer='adam',
         # Baseline
-        baseline_policy=None, baseline_optimizer=None, baseline_objective=None,
+        baseline=None, baseline_optimizer=None, baseline_objective=None,
         # Regularization
         l2_regularization=0.0, entropy_regularization=0.0,
         # Preprocessing
@@ -288,7 +289,7 @@ class TensorforceAgent(Agent):
         # Config, saver, summarizer, recorder
         config=None, saver=None, summarizer=None, recorder=None,
         # Deprecated
-        name=None, buffer_observe=None, device=None, seed=None
+        baseline_policy=None, name=None, buffer_observe=None, device=None, seed=None
     ):
         if 'estimate_actions' in reward_estimation:
             raise TensorforceError.deprecated(
@@ -299,6 +300,10 @@ class TensorforceAgent(Agent):
             raise TensorforceError.deprecated(
                 name='Agent', argument='reward_estimation[estimate_terminal]',
                 replacement='reward_estimation[estimate_terminals]'
+            )
+        if baseline_policy is not None:
+            raise TensorforceError.deprecated(
+                name='Agent', argument='baseline_policy', replacement='baseline'
             )
         if name is not None:
             raise TensorforceError.deprecated(
@@ -326,7 +331,7 @@ class TensorforceAgent(Agent):
                 policy=policy, memory=memory, update=update, optimizer=optimizer,
                 objective=objective, reward_estimation=reward_estimation,
                 # Baseline
-                baseline_policy=baseline_policy, baseline_optimizer=baseline_optimizer,
+                baseline=baseline, baseline_optimizer=baseline_optimizer,
                 baseline_objective=baseline_objective,
                 # Regularization
                 l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
@@ -404,7 +409,7 @@ class TensorforceAgent(Agent):
             max_episode_timesteps=self.max_episode_timesteps,
             policy=policy, memory=memory, update=update, optimizer=optimizer, objective=objective,
             reward_estimation=reward_estimation,
-            baseline_policy=baseline_policy, baseline_optimizer=baseline_optimizer,
+            baseline=baseline, baseline_optimizer=baseline_optimizer,
             baseline_objective=baseline_objective,
             l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
             preprocessing=preprocessing, exploration=exploration, variable_noise=variable_noise,
@@ -567,7 +572,9 @@ class TensorforceAgent(Agent):
 
             # Inputs to tensors
             states_batch = self.states_spec.to_tensor(value=states_batch, batched=True)
-            internals_batch = self.internals_spec.to_tensor(value=internals_batch, batched=True)
+            internals_batch = self.internals_spec.to_tensor(
+                value=internals_batch, batched=True, recover_empty=True
+            )
             auxiliaries_batch = self.auxiliaries_spec.to_tensor(
                 value=auxiliaries_batch, batched=True
             )

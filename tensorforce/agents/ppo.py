@@ -96,7 +96,7 @@ class ProximalPolicyOptimization(TensorforceAgent):
         predict_terminal_values (bool): Whether to predict the value of terminal states
             (<span style="color:#00C000"><b>default</b></span>: false).
 
-        baseline_network (specification): Baseline network configuration, see the
+        baseline (specification): Baseline network configuration, see the
             [networks documentation](../modules/networks.html),
             main policy will be used as baseline if none
             (<span style="color:#00C000"><b>default</b></span>: none).
@@ -144,7 +144,7 @@ class ProximalPolicyOptimization(TensorforceAgent):
         # Reward estimation
         likelihood_ratio_clipping=0.25, discount=0.99, predict_terminal_values=False,
         # Baseline
-        baseline_network=None, baseline_optimizer=None,
+        baseline=None, baseline_optimizer=None,
         # Preprocessing
         preprocessing='linear_normalization',
         # Exploration
@@ -156,8 +156,8 @@ class ProximalPolicyOptimization(TensorforceAgent):
         # Config, saver, summarizer, recorder
         config=None, saver=None, summarizer=None, recorder=None,
         # Deprecated
-        optimization_steps=None, estimate_terminal=None, critic_network=None, critic_optimizer=None,
-        **kwargs
+        optimization_steps=None, estimate_terminal=None, critic_network=None, baseline_network=None,
+        critic_optimizer=None, **kwargs
     ):
         if optimization_steps is not None:
             raise TensorforceError.deprecated(
@@ -169,7 +169,11 @@ class ProximalPolicyOptimization(TensorforceAgent):
             )
         if critic_network is not None:
             raise TensorforceError.deprecated(
-                name='PPO', argument='critic_network', replacement='baseline_network'
+                name='PPO', argument='critic_network', replacement='baseline'
+            )
+        if baseline_network is not None:
+            raise TensorforceError.deprecated(
+                name='PPO', argument='baseline_network', replacement='baseline'
             )
         if critic_optimizer is not None:
             raise TensorforceError.deprecated(
@@ -186,7 +190,7 @@ class ProximalPolicyOptimization(TensorforceAgent):
             subsampling_fraction=subsampling_fraction, optimization_steps=optimization_steps,
             likelihood_ratio_clipping=likelihood_ratio_clipping, discount=discount,
             predict_terminal_values=predict_terminal_values,
-            baseline_network=baseline_network, baseline_optimizer=baseline_optimizer,
+            baseline=baseline, baseline_optimizer=baseline_optimizer,
             preprocessing=preprocessing,
             exploration=exploration, variable_noise=variable_noise,
             l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
@@ -194,7 +198,10 @@ class ProximalPolicyOptimization(TensorforceAgent):
             config=config, saver=saver, summarizer=summarizer, recorder=recorder
         )
 
-        policy = dict(network=network, temperature=1.0, use_beta_distribution=use_beta_distribution)
+        policy = dict(
+            type='parametrized_distributions', network=network, temperature=1.0,
+            use_beta_distribution=use_beta_distribution
+        )
 
         if memory == 'minimum':
             memory = dict(type='recent')
@@ -215,13 +222,12 @@ class ProximalPolicyOptimization(TensorforceAgent):
             clipping_value=likelihood_ratio_clipping
         )
 
-        if baseline_network is None:
+        if baseline is None:
             assert not predict_terminal_values
             reward_estimation = dict(
                 horizon='episode', discount=discount, predict_horizon_values=False,
                 estimate_advantage=False
             )
-            baseline_policy = None
             assert baseline_optimizer is None
             baseline_objective = None
 
@@ -231,7 +237,7 @@ class ProximalPolicyOptimization(TensorforceAgent):
                 estimate_advantage=True, predict_action_values=False,
                 predict_terminal_values=predict_terminal_values
             )
-            baseline_policy = dict(network=baseline_network)
+            baseline = dict(network=baseline)
             assert baseline_optimizer is not None
             baseline_objective = dict(type='value', value='state')
 
@@ -244,7 +250,7 @@ class ProximalPolicyOptimization(TensorforceAgent):
             l2_regularization=l2_regularization, saver=saver, summarizer=summarizer,
             # TensorforceModel
             policy=policy, memory=memory, update=update, optimizer=optimizer, objective=objective,
-            reward_estimation=reward_estimation, baseline_policy=baseline_policy,
+            reward_estimation=reward_estimation, baseline=baseline,
             baseline_optimizer=baseline_optimizer, baseline_objective=baseline_objective,
             entropy_regularization=entropy_regularization, **kwargs
         )

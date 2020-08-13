@@ -44,10 +44,13 @@ class Objective(Module):
         self.reward_spec = reward_spec
 
     def reference_spec(self):
-        return TensorSpec(type='float', shape=())
+        raise NotImplementedError
 
-    def optimizer_arguments(self, **kwargs):
-        return dict()
+    def required_policy_fns(self):
+        return ()
+
+    def required_baseline_fns(self):
+        return ()
 
     def input_signature(self, *, function):
         if function == 'loss':
@@ -67,8 +70,7 @@ class Objective(Module):
                 horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
                 internals=self.internals_spec.signature(batched=True),
                 auxiliaries=self.auxiliaries_spec.signature(batched=True),
-                actions=self.actions_spec.signature(batched=True),
-                reward=self.reward_spec.signature(batched=True)
+                actions=self.actions_spec.signature(batched=True)
             )
 
         else:
@@ -86,9 +88,12 @@ class Objective(Module):
         else:
             return super().output_signature(function=function)
 
-    @tf_function(num_args=6)
-    def reference(self, *, states, horizons, internals, auxiliaries, actions, reward, policy):
-        return tf.zeros_like(input=reward)
+    def optimizer_arguments(self, **kwargs):
+        return dict()
+
+    @tf_function(num_args=5)
+    def reference(self, *, states, horizons, internals, auxiliaries, actions, policy):
+        raise NotImplementedError
 
     @tf_function(num_args=7)
     def loss(self, *, states, horizons, internals, auxiliaries, actions, reward, reference, policy):

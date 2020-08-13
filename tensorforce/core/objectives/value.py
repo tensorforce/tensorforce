@@ -15,22 +15,23 @@
 
 import tensorflow as tf
 
-from tensorforce.core import parameter_modules, tf_function, tf_util
+from tensorforce.core import parameter_modules, TensorSpec, tf_function, tf_util
 from tensorforce.core.objectives import Objective
 
 
 class Value(Objective):
     """
     Value approximation objective, which minimizes the L2-distance between the state-(action-)value
-    estimate and the target reward value (specification key: `value`).
+    estimate and the target reward value
+    (specification key: `value`, `state_value`, `action_value`).
 
     Args:
         value ("state" | "action"): Whether to approximate the state- or state-action-value
-            (<span style="color:#00C000"><b>default</b></span>: "state").
+            (<span style="color:#C00000"><b>required</b></span>).
         huber_loss (parameter, float >= 0.0): Huber loss threshold
             (<span style="color:#00C000"><b>default</b></span>: no huber loss).
-        early_reduce (bool): Whether to compute objective for aggregated values instead of per
-            action (<span style="color:#00C000"><b>default</b></span>: false).
+        early_reduce (bool): Whether to compute objective for aggregated value instead of value per
+            action (<span style="color:#00C000"><b>default</b></span>: true).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
         states_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         internals_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
@@ -40,7 +41,7 @@ class Value(Objective):
     """
 
     def __init__(
-        self, *, value='state', huber_loss=0.0, early_reduce=False, name=None, states_spec=None,
+        self, *, value, huber_loss=0.0, early_reduce=True, name=None, states_spec=None,
         internals_spec=None, auxiliaries_spec=None, actions_spec=None, reward_spec=None
     ):
         super().__init__(
@@ -59,21 +60,59 @@ class Value(Objective):
 
         self.early_reduce = early_reduce
 
-    @tf_function(num_args=7)
-    def loss(self, *, states, horizons, internals, auxiliaries, actions, reward, policy, reference):
+    def required_policy_fns(self):
         if self.value == 'state':
-            value = policy.states_value(
-                states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries
-            )
+            return ('state_value',)
         elif self.value == 'action':
-            value = policy.actions_value(
-                states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-                actions=actions
+            return ('action_value',)
+
+    def reference_spec(self):
+        if self.early_reduce:
+            return TensorSpec(type='float', shape=())
+
+        else:
+            return TensorSpec(
+                type='float', shape=(sum(spec.size for spec in self.actions_spec.values()),)
             )
 
-        if self.early_reduce:
-            value = tf.math.reduce_mean(input_tensor=value, axis=1)
-        else:
+    @tf_function(num_args=5)
+    def reference(self, *, states, horizons, internals, auxiliaries, actions, policy):
+        if self.value == 'state':
+            if self.early_reduce:
+                value = policy.state_value(
+                    states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries
+                )
+            else:
+                value = policy.state_values(
+                    states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries
+                )
+                value = tf.concat(values=tuple(value.values()), axis=1)
+
+        elif self.value == 'action':
+            if self.early_reduce:
+                value = policy.action_value(
+                    states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+                    actions=actions
+                )
+            else:
+                value = policy.action_values(
+                    states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+                    actions=actions
+                )
+                value = tf.concat(values=tuple(value.values()), axis=1)
+
+        return value
+
+    @tf_function(num_args=7)
+    def loss(self, *, states, horizons, internals, auxiliaries, actions, reward, policy, reference):
+        value = self.reference(
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+            actions=actions, policy=policy
+        )
+
+        # reference = tf.stop_gradient(input=reference)
+
+        if not self.early_reduce:
             reward = tf.expand_dims(input=reward, axis=1)
 
         difference = value - reward
@@ -96,6 +135,6 @@ class Value(Objective):
         loss = tf.cond(pred=skip_huber_loss, true_fn=no_huber_loss, false_fn=apply_huber_loss)
 
         if not self.early_reduce:
-            loss = tf.math.reduce_mean(input_tensor=loss, axis=1)
+            loss = tf.math.reduce_sum(input_tensor=loss, axis=1)
 
         return loss

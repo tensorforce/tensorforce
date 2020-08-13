@@ -486,7 +486,7 @@ class TemporalLayer(Layer):
         else:
             return self.horizon.value()
 
-    @tf_function(num_args=3)
+    @tf_function(num_args=3, overwrites_signature=True)
     def apply(self, *, x, horizons, internals):
         zero = tf_util.constant(value=0, dtype='int')
         one = tf_util.constant(value=1, dtype='int')

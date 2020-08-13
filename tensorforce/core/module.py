@@ -43,7 +43,9 @@ def make_key(*, x):
             raise exc
 
 
-def tf_function(*, num_args, optional=0, is_loop_body=False, flatten_outputs=False):
+def tf_function(
+    *, num_args, optional=0, overwrites_signature=False, is_loop_body=False, flatten_outputs=False
+):
 
     def decorator(function):
 
@@ -63,14 +65,22 @@ def tf_function(*, num_args, optional=0, is_loop_body=False, flatten_outputs=Fal
             function_graphs = getattr(self, '_{name}_graphs'.format(name=name))
             qualname = getattr(self, '_{name}_qualname'.format(name=name))
 
-            # Apply raw function if qualname mismatch, which indicates super() call
-            # (Call early to avoid check for number of arguments in case it has changed)
-            if function.__qualname__ != qualname:
-                return function(self, *args, **kwargs)
+            # Handle overwriting signature
+            if overwrites_signature:
+                setattr(self, '_{name}_overwritten'.format(name=name), overwrites_signature)
+            overwritten = getattr(self, '_{name}_overwritten'.format(name=name), False)
 
             # Graph signature
             input_signature = self.input_signature(function=name)
             output_signature = self.output_signature(function=name)
+
+            # Apply raw function if qualname mismatch, which indicates super() call
+            if function.__qualname__ != qualname:
+                if not overwritten:
+                    assert num_args - optional <= input_signature.num_args() <= num_args
+                return function(self, *args, **kwargs)
+
+            # Check number of arguments
             assert num_args - optional <= input_signature.num_args() <= num_args
 
             # Graph arguments

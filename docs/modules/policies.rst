@@ -1,7 +1,7 @@
 Policies
 ========
 
-Default policy: ``ParametrizedDistributions`` with default argument ``network`` (with default argument ``layers``), so a ``list`` is a short-form specification of a sequential layer-stack network architecture:
+Default policy: depends on agent configuration, but always with default argument ``network`` (with default argument ``layers``), so a ``list`` is a short-form specification of a sequential layer-stack network architecture:
 
 .. code-block:: python
 
@@ -14,15 +14,26 @@ Default policy: ``ParametrizedDistributions`` with default argument ``network`` 
         ...
     )
 
+Or simply:
+
+.. code-block:: python
+
+    Agent.create(
+        ...
+        policy=dict(network='auto'),
+        ...
+    )
+
 See the `networks documentation <networks.html>`_ for more information about how to specify a network.
 
-Example of a full policy specification with customized distribution and decaying temperature:
+Example of a full parametrized-distributions policy specification with customized distribution and decaying temperature:
 
 .. code-block:: python
 
     Agent.create(
         ...
         policy=dict(
+            type='parametrized_distributions',
             network=[
                 dict(type='dense', size=64, activation='tanh'),
                 dict(type='dense', size=64, activation='tanh')
@@ -40,4 +51,10 @@ Example of a full policy specification with customized distribution and decaying
     )
 
 
+.. autoclass:: tensorforce.core.policies.ParametrizedActionValue
+
 .. autoclass:: tensorforce.core.policies.ParametrizedDistributions
+
+.. autoclass:: tensorforce.core.policies.ParametrizedStateActionValue
+
+.. autoclass:: tensorforce.core.policies.ParametrizedStateValue

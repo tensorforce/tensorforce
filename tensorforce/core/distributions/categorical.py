@@ -26,14 +26,12 @@ class Categorical(Distribution):
     Categorical distribution, for discrete integer actions (specification key: `categorical`).
 
     Args:
-        advantage_based (bool): Whether to compute action values as state value plus advantage
-            (<span style="color:#00C000"><b>default</b></span>: false).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
         action_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         input_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(self, *, advantage_based=False, name=None, action_spec=None, input_spec=None):
+    def __init__(self, *, name=None, action_spec=None, input_spec=None):
         assert action_spec.type == 'int' and action_spec.num_values is not None
 
         parameters_spec = TensorsSpec(
@@ -41,7 +39,7 @@ class Categorical(Distribution):
             probabilities=TensorSpec(
                 type='float', shape=(action_spec.shape + (action_spec.num_values,))
             ),
-            states_value=TensorSpec(type='float', shape=action_spec.shape),
+            state_value=TensorSpec(type='float', shape=action_spec.shape),
             action_values=TensorSpec(
                 type='float', shape=(action_spec.shape + (action_spec.num_values,))
             )
@@ -59,7 +57,6 @@ class Categorical(Distribution):
             )
 
         num_values = self.action_spec.num_values
-        self.state_value = None
         if len(self.input_spec.shape) == 1:
             # Single embedding
             self.action_values = self.submodule(
@@ -67,18 +64,9 @@ class Categorical(Distribution):
                 size=(self.action_spec.size * num_values), initialization_scale=0.01,
                 input_spec=input_spec
             )
-            if advantage_based:
-                self.state_value = self.submodule(
-                    name='states_value', module='linear', modules=layer_modules,
-                    size=self.action_spec.size, input_spec=input_spec
-                )
 
         else:
             # Embedding per action
-            if advantage_based:
-                raise TensorforceError.invalid(
-                    name=name, argument='advantage_based', condition='embedding shape'
-                )
             if len(self.input_spec.shape) < 1 or len(self.input_spec.shape) > 3:
                 raise TensorforceError.value(
                     name=name, argument='input_spec.shape', value=self.input_spec.shape,
@@ -132,17 +120,14 @@ class Categorical(Distribution):
         action_values = self.action_values.apply(x=x)
         action_values = tf.reshape(tensor=action_values, shape=shape)
 
-        # States value
-        if self.state_value is None:
-            # Implicit states value (TODO: experimental)
-            states_value = tf.reduce_logsumexp(input_tensor=action_values, axis=-1)
+        # Implicit states value (TODO: experimental)
+        state_value = tf.reduce_logsumexp(input_tensor=action_values, axis=-1)
 
-        else:
-            # Explicit states value and advantage-based action values
-            states_value = self.state_value.apply(x=x)
-            states_value = tf.reshape(tensor=states_value, shape=shape[:-1])
-            action_values = tf.expand_dims(input=states_value, axis=-1) + action_values
-            action_values -= tf.math.reduce_mean(input_tensor=action_values, axis=-1, keepdims=True)
+        # # Explicit states value and advantage-based action values
+        # state_value = self.state_value.apply(x=x)
+        # state_value = tf.reshape(tensor=state_value, shape=shape[:-1])
+        # action_values = tf.expand_dims(input=state_value, axis=-1) + action_values
+        # action_values -= tf.math.reduce_mean(input_tensor=action_values, axis=-1, keepdims=True)
 
         # Masking (TODO: before or after above?)
         if self.config.enable_int_action_masking:
@@ -158,7 +143,7 @@ class Categorical(Distribution):
         logits = tf.math.log(x=tf.maximum(x=probabilities, y=epsilon))
 
         return TensorDict(
-            logits=logits, probabilities=probabilities, states_value=states_value,
+            logits=logits, probabilities=probabilities, state_value=state_value,
             action_values=action_values
         )
 
@@ -225,7 +210,7 @@ class Categorical(Distribution):
     def log_probability(self, *, parameters, action):
         logits = parameters['logits']
 
-        rank = tf_util.rank(x=action)
+        rank = self.action_spec.rank + 1
         action = tf.expand_dims(input=action, axis=rank)
         logit = tf.gather(params=logits, indices=action, batch_dims=rank)
         return tf.squeeze(input=logit, axis=rank)
@@ -245,21 +230,16 @@ class Categorical(Distribution):
 
         return tf.reduce_sum(input_tensor=(probabilities1 * log_prob_ratio), axis=-1)
 
-    @tf_function(num_args=1)
-    def states_value(self, *, parameters):
-        return parameters['states_value']
-
     @tf_function(num_args=2)
     def action_value(self, *, parameters, action):
         action_values = parameters['action_values']
 
-        rank = tf_util.rank(x=action)
+        rank = self.action_spec.rank + 1
         action = tf.expand_dims(input=action, axis=rank)
         action_value = tf.gather(params=action_values, indices=action, batch_dims=rank)
         return tf.squeeze(input=action_value, axis=rank)
-        # TODO: states_value + tf.squeeze(input=logits, axis=-1)
+        # TODO: state_value + tf.squeeze(input=logits, axis=-1)
 
     @tf_function(num_args=1)
-    def all_action_values(self, *, parameters):
-        return parameters['action_values']
-        # TODO: states_value + tf.squeeze(input=logits, axis=-1)
+    def state_value(self, *, parameters):
+        return parameters['state_value']

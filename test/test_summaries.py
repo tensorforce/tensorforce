@@ -27,9 +27,6 @@ class TestSummaries(UnittestBase, unittest.TestCase):
         self.start_tests()
 
         horizon = dict(type='linear', unit='updates', num_steps=2, initial_value=2, final_value=4)
-        baseline_policy = dict(network=dict(type='auto', size=8, depth=1, rnn=2))
-        baseline_objective = 'value'
-        baseline_optimizer = 'adam'
         preprocessing = dict(reward=dict(type='clipping', upper=0.25))
         exploration = dict(
             type='exponential', unit='episodes', num_steps=3, initial_value=2.0, decay_rate=0.5
@@ -37,8 +34,7 @@ class TestSummaries(UnittestBase, unittest.TestCase):
 
         with TemporaryDirectory() as directory:
             agent, environment = self.prepare(
-                reward_estimation=dict(horizon=horizon), baseline_policy=baseline_policy,
-                baseline_objective=baseline_objective, baseline_optimizer=baseline_optimizer,
+                reward_estimation=dict(horizon=horizon),
                 preprocessing=preprocessing, exploration=exploration,
                 config=dict(create_tf_assertions=False, eager_mode=False),
                 summarizer=dict(directory=directory, labels='all')

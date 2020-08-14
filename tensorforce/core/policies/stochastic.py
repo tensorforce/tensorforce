@@ -207,19 +207,15 @@ class Stochastic(Policy):
 
     @tf_function(num_args=4)
     def act(self, *, states, horizons, internals, auxiliaries, independent):
-        if independent:
-            raise NotImplementedError
-
+        if isinstance(self.temperature, dict):
+            temperature = self.temperature.fmap(function=(lambda x: x.value()), cls=TensorDict)
         else:
-            if isinstance(self.temperature, dict):
-                temperature = self.temperature.fmap(function=(lambda x: x.value()), cls=TensorDict)
-            else:
-                temperature = self.temperature.value()
+            temperature = self.temperature.value()
 
-            return self.sample(
-                states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-                temperature=temperature, independent=independent
-            )
+        return self.sample(
+            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+            temperature=temperature, independent=independent
+        )
 
     @tf_function(num_args=5)
     def log_probability(self, *, states, horizons, internals, auxiliaries, actions):

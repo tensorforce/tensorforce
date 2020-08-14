@@ -153,25 +153,25 @@ class ParametrizedDistributions(Stochastic, ActionValue):
 
     @tf_function(num_args=4)
     def act(self, *, states, horizons, internals, auxiliaries, independent):
-        if independent:
-            embedding, internals = self.network.apply(
-                x=states, horizons=horizons, internals=internals, independent=independent
-            )
+        # if independent:
+        #     embedding, internals = self.network.apply(
+        #         x=states, horizons=horizons, internals=internals, independent=independent
+        #     )
 
-            def function(name, distribution):
-                conditions = auxiliaries.get(name, default=TensorDict())
-                parameters = distribution.parametrize(x=embedding, conditions=conditions)
-                return distribution.mode(parameters=parameters)
+        #     def function(name, distribution):
+        #         conditions = auxiliaries.get(name, default=TensorDict())
+        #         parameters = distribution.parametrize(x=embedding, conditions=conditions)
+        #         return distribution.mode(parameters=parameters)
 
-            actions = self.distributions.fmap(function=function, cls=TensorDict, with_names=True)
+        #     actions = self.distributions.fmap(function=function, cls=TensorDict, with_names=True)
 
-            return actions, internals
+        #     return actions, internals
 
-        else:
-            return Stochastic.act(
-                self=self, states=states, horizons=horizons, internals=internals,
-                auxiliaries=auxiliaries, independent=independent
-            )
+        # else:
+        return Stochastic.act(
+            self=self, states=states, horizons=horizons, internals=internals,
+            auxiliaries=auxiliaries, independent=independent
+        )
 
     @tf_function(num_args=5)
     def sample(self, *, states, horizons, internals, auxiliaries, temperature, independent):

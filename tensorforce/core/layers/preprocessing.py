@@ -146,7 +146,7 @@ class Deltafier(PreprocessingLayer):
         super().initialize()
 
         self.has_previous = self.variable(
-            name='has-previous', spec=TensorSpec(type='bool'), initializer='zeros',
+            name='has-previous', spec=TensorSpec(type='bool', shape=()), initializer='zeros',
             is_trainable=False, is_saved=False
         )
 
@@ -157,7 +157,10 @@ class Deltafier(PreprocessingLayer):
 
     @tf_function(num_args=0)
     def reset(self):
-        return self.has_previous.assign(value=tf_util.constant(value=False, dtype='bool'))
+        false = tf_util.constant(value=False, dtype='bool')
+        assignment = self.has_previous.assign(value=false, read_value=False)
+        with tf.control_dependencies(control_inputs=(assignment,)):
+            return tf_util.identity(input=false)
 
     @tf_function(num_args=1)
     def apply(self, *, x):
@@ -302,7 +305,7 @@ class Sequence(PreprocessingLayer):
         super().initialize()
 
         self.has_previous = self.variable(
-            name='has-previous', spec=TensorSpec(type='bool'), initializer='zeros',
+            name='has-previous', spec=TensorSpec(type='bool', shape=()), initializer='zeros',
             is_trainable=False, is_saved=False
         )
 
@@ -319,7 +322,10 @@ class Sequence(PreprocessingLayer):
 
     @tf_function(num_args=0)
     def reset(self):
-        return self.has_previous.assign(value=tf_util.constant(value=False, dtype='bool'))
+        false = tf_util.constant(value=False, dtype='bool')
+        assignment = self.has_previous.assign(value=false, read_value=False)
+        with tf.control_dependencies(control_inputs=(assignment,)):
+            return tf_util.identity(input=false)
 
     @tf_function(num_args=1)
     def apply(self, *, x):

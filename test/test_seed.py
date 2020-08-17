@@ -36,7 +36,7 @@ class TestSeed(UnittestBase, unittest.TestCase):
 
         agent, environment = self.prepare(
             states=states, actions=actions, exploration=0.5,
-            config=dict(seed=0, eager_mode=True, create_debug_assertions=True)
+            config=dict(seed=0, eager_mode=True, create_debug_assertions=True, tf_log_level=20)
         )
 
         print_environment = False

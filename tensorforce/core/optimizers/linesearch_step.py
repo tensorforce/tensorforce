@@ -67,34 +67,32 @@ class LinesearchStep(UpdateModifier):
 
         with tf.control_dependencies(control_inputs=(loss_before,)):
             deltas = self.optimizer.step(
-                arguments=arguments, variables=variables, fn_loss=fn_loss, **kwargs,
-                return_estimated_improvement=True
+                arguments=arguments, variables=variables, fn_loss=fn_loss, **kwargs
             )
+            if isinstance(deltas, tuple) and len(deltas) == 2 and isinstance(deltas[0], TensorDict):
+                # Negative value since line search maximizes
+                improvement_estimate = -deltas[1]
+                deltas = deltas[0]
+            else:
+                # Replace "/" with "_" to ensure TensorDict is flat
+                deltas = TensorDict((
+                    (var.name[:-2].replace('/', '_'), delta)
+                    for var, delta in zip(variables, deltas)
+                ))
+                improvement_estimate = None
 
         with tf.control_dependencies(control_inputs=deltas):
             # Negative value since line search maximizes.
             loss_after = -fn_loss(**arguments.to_kwargs())
 
-            # if isinstance(deltas, tuple):
-            #     # If 'return_estimated_improvement' argument exists.
-            #     if len(deltas) != 2:
-            #         raise TensorforceError(message="Unexpected output of internal optimizer.")
-            #     deltas, estimated_improvement = deltas
-            #     # Negative value since line search maximizes.
-            #     estimated_improvement = -estimated_improvement
-            # else:
-            # Some big value
-            estimated_improvement = tf.math.maximum(
-                x=tf.math.abs(x=(loss_after - loss_before)),
-                y=tf.math.maximum(x=loss_after, y=tf_util.constant(value=1.0, dtype='float'))
-            ) * tf_util.constant(value=1000.0, dtype='float')
+            if improvement_estimate is None:
+                # Some big value
+                improvement_estimate = tf.math.maximum(
+                    x=tf.math.abs(x=(loss_after - loss_before)),
+                    y=tf.math.maximum(x=loss_after, y=tf_util.constant(value=1.0, dtype='float'))
+                ) * tf_util.constant(value=1000.0, dtype='float')
 
-            # TODO: debug assertion
-            dependencies = [loss_after]
-            if self.config.create_debug_assertions:
-                dependencies.append(tf.debugging.assert_none_equal(x=loss_before, y=loss_after))
-
-        with tf.control_dependencies(control_inputs=dependencies):
+        with tf.control_dependencies(control_inputs=(loss_after, improvement_estimate)):
 
             # TODO: should be moved to initialize_given_variables, but fn_loss...
             def evaluate_step(arguments, deltas):
@@ -105,13 +103,9 @@ class LinesearchStep(UpdateModifier):
                     # Negative value since line search maximizes.
                     return -fn_loss(**arguments.to_kwargs())
 
-            # Replace "/" with "_" to ensure TensorDict is flat
-            deltas = TensorDict(
-                ((var.name[:-2].replace('/', '_'), delta) for var, delta in zip(variables, deltas))
-            )
             deltas = self.line_search.solve(
                 arguments=arguments, x_init=deltas, base_value=loss_before, zero_value=loss_after,
-                estimated=estimated_improvement, fn_x=evaluate_step
+                estimate=improvement_estimate, fn_x=evaluate_step
             )
 
             return list(deltas.values())

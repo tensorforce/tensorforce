@@ -25,7 +25,7 @@ from test.unittest_base import UnittestBase
 
 class TestExamples(UnittestBase, unittest.TestCase):
 
-    agent = dict(config=dict(eager_mode=True, create_debug_assertions=True))
+    agent = dict(config=dict(eager_mode=True, create_debug_assertions=True, tf_log_level=20))
 
     def test_quickstart(self):
         self.start_tests(name='quickstart')

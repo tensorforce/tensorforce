@@ -67,6 +67,10 @@ class Model(Module):
         self.parallel_spec = TensorSpec(type='int', shape=(), num_values=parallel_interactions)
         self.value_names.add('parallel')
 
+        # Deterministic specification
+        self.deterministic_spec = TensorSpec(type='bool', shape=())
+        self.value_names.add('deterministic')
+
         # State space specification
         self.states_spec = states
         for name, spec in self.states_spec.items():
@@ -189,6 +193,10 @@ class Model(Module):
     @property
     def config(self):
         return self._config
+
+    @property
+    def full_name(self):
+        return self.name
 
     def close(self):
         if self.saver is not None:
@@ -339,7 +347,8 @@ class Model(Module):
         self.act(
             states=self.states_spec.empty(batched=True),
             auxiliaries=self.auxiliaries_spec.empty(batched=True),
-            parallel=self.parallel_spec.empty(batched=True)
+            parallel=self.parallel_spec.empty(batched=True),
+            deterministic=self.deterministic_spec.empty(batched=False)
         )
         if self.summary_labels == 'all' or 'graph' in self.summary_labels:
             tf.summary.trace_export(name='act', step=self.timesteps, profiler_outdir=None)
@@ -349,6 +358,7 @@ class Model(Module):
             kwargs['internals'] = self.internals_spec.empty(batched=True)
         if len(self.auxiliaries_spec) > 0:
             kwargs['auxiliaries'] = self.auxiliaries_spec.empty(batched=True)
+        kwargs['deterministic'] = self.deterministic_spec.empty(batched=False)
         self.independent_act(**kwargs)
         if self.summary_labels == 'all' or 'graph' in self.summary_labels:
             tf.summary.trace_export(
@@ -368,7 +378,8 @@ class Model(Module):
             return SignatureDict(
                 states=self.states_spec.signature(batched=True),
                 auxiliaries=self.auxiliaries_spec.signature(batched=True),
-                parallel=self.parallel_spec.signature(batched=True)
+                parallel=self.parallel_spec.signature(batched=True),
+                deterministic=self.deterministic_spec.signature(batched=False)
             )
 
         elif function == 'core_act':
@@ -376,7 +387,8 @@ class Model(Module):
                 states=self.states_spec.signature(batched=True),
                 internals=self.internals_spec.signature(batched=True),
                 auxiliaries=self.auxiliaries_spec.signature(batched=True),
-                parallel=self.parallel_spec.signature(batched=True)
+                parallel=self.parallel_spec.signature(batched=True),
+                deterministic=self.deterministic_spec.signature(batched=False)
             )
 
         elif function == 'core_observe':
@@ -392,6 +404,7 @@ class Model(Module):
                 signature['internals'] = self.internals_spec.signature(batched=True)
             if len(self.auxiliaries_spec) > 0:
                 signature['auxiliaries'] = self.auxiliaries_spec.signature(batched=True)
+            signature['deterministic'] = self.deterministic_spec.signature(batched=False)
             return signature
 
         elif function == 'observe':
@@ -458,14 +471,15 @@ class Model(Module):
         update = tf_util.identity(input=self.updates)
         return timestep, episode, update
 
-    @tf_function(num_args=3, optional=2, flatten_outputs=True)
-    def independent_act(self, *, states, internals=None, auxiliaries=None):
+    @tf_function(num_args=4, optional=2, flatten_outputs=True)
+    def independent_act(self, *, states, internals=None, auxiliaries=None, deterministic=None):
         if internals is None:
             assert len(self.internals_spec) == 0
             internals = TensorDict()
         if auxiliaries is None:
             assert len(self.auxiliaries_spec) == 0
             auxiliaries = TensorDict()
+        assert deterministic is not None
         true = tf_util.constant(value=True, dtype='bool')
         batch_size = tf_util.cast(x=tf.shape(input=states.value())[0], dtype='int')
 
@@ -484,6 +498,10 @@ class Model(Module):
                 x=auxiliaries, batch_size=batch_size,
                 message='Agent.independent_act: invalid {issue} for {name} input.'
             ))
+            assertions.extend(self.deterministic_spec.tf_assert(
+                x=deterministic,
+                message='Agent.independent_act: invalid {issue} for deterministic input.'
+            ))
             # Mask assertions
             if self.config.enable_int_action_masking:
                 for name, spec in self.actions_spec.items():
@@ -497,10 +515,10 @@ class Model(Module):
 
         with tf.control_dependencies(control_inputs=assertions):
             # Core act
-            parallel = tf_util.zeros(shape=(1,), dtype='int')
+            parallel = tf_util.zeros(shape=(batch_size,), dtype='int')
             actions, internals = self.core_act(
                 states=states, internals=internals, auxiliaries=auxiliaries, parallel=parallel,
-                independent=True
+                deterministic=deterministic, independent=True
             )
             # Skip action assertions
 
@@ -509,8 +527,8 @@ class Model(Module):
             else:
                 return actions
 
-    @tf_function(num_args=3)
-    def act(self, *, states, auxiliaries, parallel):
+    @tf_function(num_args=4)
+    def act(self, *, states, auxiliaries, parallel, deterministic):
         true = tf_util.constant(value=True, dtype='bool')
         batch_size = tf_util.cast(x=tf.shape(input=parallel)[0], dtype='int')
 
@@ -528,6 +546,9 @@ class Model(Module):
             assertions.extend(self.parallel_spec.tf_assert(
                 x=parallel, batch_size=batch_size,
                 message='Agent.act: invalid {issue} for parallel input.'
+            ))
+            assertions.extend(self.deterministic_spec.tf_assert(
+                x=deterministic, message='Agent.act: invalid {issue} for deterministic input.'
             ))
             # Mask assertions
             if self.config.enable_int_action_masking:
@@ -549,7 +570,7 @@ class Model(Module):
             # Core act
             actions, internals = self.core_act(
                 states=states, internals=internals, auxiliaries=auxiliaries, parallel=parallel,
-                independent=False
+                deterministic=deterministic, independent=False
             )
 
         # Action assertions
@@ -673,8 +694,8 @@ class Model(Module):
             updates = tf_util.identity(input=self.updates)
             return updated, episodes, updates
 
-    @tf_function(num_args=4)
-    def core_act(self, *, states, internals, auxiliaries, parallel, independent):
+    @tf_function(num_args=5)
+    def core_act(self, *, states, internals, auxiliaries, parallel, deterministic, independent):
         raise NotImplementedError
 
     @tf_function(num_args=3)

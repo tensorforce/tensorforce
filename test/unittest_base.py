@@ -44,17 +44,17 @@ class UnittestBase(object):
 
     # Agent
     agent = dict(
-        policy=dict(
-            network=dict(type='auto', size=8, depth=1, rnn=2), distributions=dict(
-                gaussian_action2=dict(type='gaussian', global_stddev=True), beta_action='beta'
-            )
-        ),
-        update=4, objective='policy_gradient', reward_estimation=dict(horizon=3),
+        # Also used in: text_reward_estimation
+        policy=dict(network=dict(type='auto', size=8, depth=1, rnn=2), distributions=dict(
+            gaussian_action2=dict(type='gaussian', global_stddev=True), beta_action='beta'
+        )), update=4, objective='policy_gradient', reward_estimation=dict(horizon=3),
         baseline=dict(network=dict(type='auto', size=7, depth=1, rnn=1)),
         baseline_optimizer='adam', baseline_objective='state_value',
         l2_regularization=0.1, entropy_regularization=0.1,
         exploration=0.1, variable_noise=0.1,
-        # Config default changes need to be adapted everywhere (search "config=dict")
+        # Config default changes need to be adapted everywhere (search "config=dict"):
+        #   test_agents, test_environments, test_examples, test_layers, test_reward_estimation,
+        #   test_saving, test_seed, test_summaries
         config=dict(eager_mode=True, create_debug_assertions=True, tf_log_level=20)
     )
 

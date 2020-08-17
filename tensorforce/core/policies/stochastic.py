@@ -205,17 +205,35 @@ class Stochastic(Policy):
         else:
             return super().output_signature(function=function)
 
-    @tf_function(num_args=4)
-    def act(self, *, states, horizons, internals, auxiliaries, independent):
-        if isinstance(self.temperature, dict):
-            temperature = self.temperature.fmap(function=(lambda x: x.value()), cls=TensorDict)
-        else:
-            temperature = self.temperature.value()
+    @tf_function(num_args=5)
+    def act(self, *, states, horizons, internals, auxiliaries, deterministic, independent):
 
-        return self.sample(
-            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-            temperature=temperature, independent=independent
-        )
+        def fn_deterministic():
+            embedding, next_internals = self.network.apply(
+                x=states, horizons=horizons, internals=internals, independent=independent
+            )
+
+            def function(name, distribution):
+                conditions = auxiliaries.get(name, default=TensorDict())
+                parameters = distribution.parametrize(x=embedding, conditions=conditions)
+                return distribution.mode(parameters=parameters)
+
+            actions = self.distributions.fmap(function=function, cls=TensorDict, with_names=True)
+
+            return actions, next_internals
+
+        def fn_sample():
+            if isinstance(self.temperature, dict):
+                temperature = self.temperature.fmap(function=(lambda x: x.value()), cls=TensorDict)
+            else:
+                temperature = self.temperature.value()
+
+            return self.sample(
+                states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+                temperature=temperature, independent=independent
+            )
+
+        return tf.cond(pred=deterministic, true_fn=fn_deterministic, false_fn=fn_sample)
 
     @tf_function(num_args=5)
     def log_probability(self, *, states, horizons, internals, auxiliaries, actions):

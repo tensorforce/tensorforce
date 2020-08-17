@@ -128,11 +128,13 @@ class SignatureDict(NestedDict):
             if isinstance(spec, self.value_type):
                 if isinstance(kwargs, (tf.IndexedSlices, tf.Tensor, tf.Variable)):
                     # Special case: API input arguments are raw values, not singleton dicts
+                    assert spec.is_compatible_with(spec_or_tensor=kwargs), (spec, kwargs)
                     return kwargs
                 else:
                     assert isinstance(kwargs, TensorDict) and kwargs.is_singleton()
                     arg = kwargs.singleton()
-                    assert isinstance(arg, (tf.IndexedSlices, tf.Tensor, tf.Variable)), (self, kwargs)
+                    assert isinstance(arg, (tf.IndexedSlices, tf.Tensor, tf.Variable))
+                    assert spec.is_compatible_with(spec_or_tensor=arg), (spec, arg)
                     return arg
             else:
                 return spec.kwargs_to_args(kwargs=kwargs, is_outer=False, flatten=flatten)
@@ -150,7 +152,20 @@ class SignatureDict(NestedDict):
                 elif name in kwargs:
                     arg = kwargs[name]
                 if isinstance(spec, self.value_type):
-                    assert isinstance(arg, (tf.IndexedSlices, tf.Tensor, tf.Variable))
+                    assert isinstance(arg, (tf.IndexedSlices, tf.Tensor, tf.Variable)), (name, spec, arg)
+                    if isinstance(arg, tf.IndexedSlices):
+                        # spec = tf.IndexedSlicesSpec(
+                        #     shape=spec.shape, dtype=spec.dtype, indices_dtype=arg.indices.dtype
+                        # )
+                        # assert spec.is_compatible_with(spec_or_value=arg), (name, spec, arg)
+                        assert tf.TensorSpec(
+                            shape=((None,) + spec.shape[1:]), dtype=spec.dtype
+                        ).is_compatible_with(spec_or_tensor=arg.values)
+                        assert tf.TensorSpec(
+                            shape=(None,), dtype=arg.indices.dtype
+                        ).is_compatible_with(spec_or_tensor=arg.indices)
+                    else:
+                        assert spec.is_compatible_with(spec_or_tensor=arg), (name, spec, arg)
                     args.append(arg)
                 elif len(spec) == 0:
                     continue
@@ -172,6 +187,7 @@ class SignatureDict(NestedDict):
                 if flattened and isinstance(args, list):
                     args = args.pop(0)
                 assert isinstance(args, (tf.IndexedSlices, tf.Tensor, tf.Variable)), (self, args)
+                assert spec.is_compatible_with(spec_or_tensor=args), (spec, args)
                 kwargs = args
             else:
                 kwargs = spec.args_to_kwargs(args=args, is_outer=False, flattened=flattened)
@@ -193,6 +209,19 @@ class SignatureDict(NestedDict):
                     if flattened and isinstance(args, list):
                         arg = args.pop(0)
                     assert isinstance(arg, (tf.IndexedSlices, tf.Tensor, tf.Variable))
+                    if isinstance(arg, tf.IndexedSlices):
+                        # spec = tf.IndexedSlicesSpec(
+                        #     shape=spec.shape, dtype=spec.dtype, indices_dtype=arg.indices.dtype
+                        # )
+                        # assert spec.is_compatible_with(spec_or_value=arg), (name, spec, arg)
+                        assert tf.TensorSpec(
+                            shape=((None,) + spec.shape[1:]), dtype=spec.dtype
+                        ).is_compatible_with(spec_or_tensor=arg.values)
+                        assert tf.TensorSpec(
+                            shape=(None,), dtype=arg.indices.dtype
+                        ).is_compatible_with(spec_or_tensor=arg.indices)
+                    else:
+                        assert spec.is_compatible_with(spec_or_tensor=arg), (name, spec, arg)
                     kwargs[name] = arg
                     index += 1
                 elif len(spec) == 0:

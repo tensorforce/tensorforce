@@ -76,22 +76,6 @@ class Bernoulli(Distribution):
                 initialization_scale=0.01, input_spec=self.input_spec
             )
 
-    def input_signature(self, *, function):
-        if function == 'all_action_values':
-            return SignatureDict(parameters=self.parameters_spec.signature(batched=True))
-
-        else:
-            return super().input_signature(function=function)
-
-    def output_signature(self, *, function):
-        if function == 'all_action_values':
-            return SignatureDict(singleton=TensorSpec(
-                type='float', shape=(self.action_spec.shape + (2,))
-            ).signature(batched=True))
-
-        else:
-            return super().output_signature(function=function)
-
     def initialize(self):
         super().initialize()
 
@@ -164,24 +148,26 @@ class Bernoulli(Distribution):
             self.summary(label='entropy', name=name, data=fn_summary, step='timesteps')
         )
 
-        half = tf_util.constant(value=0.5, dtype='float')
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')
 
-        # Deterministic: true if >= 0.5
-        definite = tf.greater_equal(x=probability, y=half)
+        def fn_mode():
+            # Deterministic: true if >= 0.5
+            half = tf_util.constant(value=0.5, dtype='float')
+            return tf.greater_equal(x=probability, y=half)
 
-        # Non-deterministic: sample true if >= uniform distribution
-        # Exp numerically stable since logits <= 0.0
-        e_true_logit = tf.math.exp(x=(true_logit / tf.math.maximum(x=temperature, y=epsilon)))
-        e_false_logit = tf.math.exp(x=(false_logit / tf.math.maximum(x=temperature, y=epsilon)))
-        probability = e_true_logit / tf.math.maximum(x=(e_true_logit + e_false_logit), y=epsilon)
-        uniform = tf.random.uniform(
-            shape=tf.shape(input=probability), dtype=tf_util.get_dtype(type='float')
-        )
-        sampled = tf.greater_equal(x=probability, y=uniform)
+        def fn_sample():
+            # Non-deterministic: sample true if >= uniform distribution
+            # Exp numerically stable since logits <= 0.0
+            e_true_logit = tf.math.exp(x=(true_logit / tf.math.maximum(x=temperature, y=epsilon)))
+            e_false_logit = tf.math.exp(x=(false_logit / tf.math.maximum(x=temperature, y=epsilon)))
+            probability = e_true_logit / tf.math.maximum(x=(e_true_logit + e_false_logit), y=epsilon)
+            uniform = tf.random.uniform(
+                shape=tf.shape(input=probability), dtype=tf_util.get_dtype(type='float')
+            )
+            return tf.greater_equal(x=probability, y=uniform)
 
         with tf.control_dependencies(control_inputs=dependencies):
-            return tf.where(condition=(temperature < epsilon), x=definite, y=sampled)
+            return tf.cond(pred=(temperature < epsilon), true_fn=fn_mode, false_fn=fn_sample)
 
     @tf_function(num_args=2)
     def log_probability(self, *, parameters, action):

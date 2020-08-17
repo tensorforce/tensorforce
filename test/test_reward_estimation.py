@@ -21,12 +21,11 @@ from test.unittest_base import UnittestBase
 class TestRewardEstimation(UnittestBase, unittest.TestCase):
 
     agent = dict(
-        policy=dict(
-            network=dict(type='auto', size=8, depth=1, rnn=2), distributions=dict(
-                gaussian_action2=dict(type='gaussian', global_stddev=True), beta_action='beta'
-            )
-        ),
-        update=4, objective='policy_gradient', reward_estimation=dict(horizon=3),
+        policy=dict(network=dict(type='auto', size=8, depth=1, rnn=2), distributions=dict(
+            gaussian_action2=dict(type='gaussian', global_stddev=True), beta_action='beta'
+        )), update=4, objective='policy_gradient', reward_estimation=dict(horizon=3),
+        l2_regularization=0.1, entropy_regularization=0.1,
+        exploration=0.1, variable_noise=0.1,
         config=dict(eager_mode=True, create_debug_assertions=True, tf_log_level=20)
     )
 
@@ -49,15 +48,22 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         self.start_tests(name='early horizon estimate')
 
         # TODO: action value doesn't exist for Beta
-        policy = dict(network=dict(type='auto', size=8, depth=1, rnn=2))
+        actions = dict(
+            bool_action=dict(type='bool', shape=(1,)),
+            int_action=dict(type='int', shape=(2,), num_values=4),
+            gaussian_action1=dict(type='float', shape=(1, 2), min_value=1.0, max_value=2.0),
+            gaussian_action2=dict(type='float', shape=(), min_value=-2.0, max_value=1.0)
+        )
+        # policy = dict(network=dict(type='auto', size=8, depth=1, rnn=2))
         reward_estimation = dict(
             horizon='episode', predict_horizon_values='early', predict_action_values=True
         )
-        self.unittest(
-            policy=policy, reward_estimation=reward_estimation,
-            config=dict(buffer_observe=3, eager_mode=True, create_debug_assertions=True)
-        )
+        # Implicit baseline = policy
+        self.unittest(actions=actions, reward_estimation=reward_estimation, config=dict(
+            buffer_observe=3, eager_mode=True, create_debug_assertions=True, tf_log_level=20
+        ))
 
+        # TODO: action value doesn't exist for Beta
         actions = dict(
             bool_action=dict(type='bool', shape=(1,)),
             int_action=dict(type='int', shape=(2,), num_values=4),
@@ -72,7 +78,10 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         self.unittest(
             actions=actions, update=update, reward_estimation=reward_estimation,
             baseline_optimizer=baseline_optimizer, baseline_objective=baseline_objective,
-            config=dict(buffer_observe='episode', eager_mode=True, create_debug_assertions=True)  # or 1?
+            config=dict(
+                buffer_observe='episode', eager_mode=True, create_debug_assertions=True,
+                tf_log_level=20
+            )  # or 1?
         )
 
         reward_estimation = dict(
@@ -86,6 +95,7 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
             baseline_objective=baseline_objective
         )
 
+        # Action-value baseline compatible with discrete actions
         actions = dict(
             bool_action=dict(type='bool', shape=(1,)),
             int_action=dict(type='int', shape=(2,), num_values=4)
@@ -94,7 +104,6 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
             horizon=3, predict_horizon_values='early', predict_action_values=True,
             predict_terminal_values=True
         )
-        # TODO: action value doesn't exist for Beta
         baseline = dict(network=dict(type='auto', size=7, depth=1, rnn=1))
         baseline_optimizer = 'adam'
         baseline_objective = 'action_value'
@@ -106,6 +115,7 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
     def test_late_horizon_estimate(self):
         self.start_tests(name='late horizon estimate')
 
+        # TODO: action value doesn't exist for Beta
         actions = dict(
             bool_action=dict(type='bool', shape=(1,)),
             int_action=dict(type='int', shape=(2,), num_values=4),
@@ -121,15 +131,15 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
             baseline_objective=baseline_objective
         )
 
-        reward_estimation = dict(
-            horizon=3, predict_horizon_values='late', predict_action_values=True
-        )
-        # TODO: action value doesn't exist for Beta
-        # TODO: baseline horizon has to be equal to policy horizon
+        # Action-value baseline compatible with discrete actions
         actions = dict(
             bool_action=dict(type='bool', shape=(1,)),
             int_action=dict(type='int', shape=(2,), num_values=4)
         )
+        reward_estimation = dict(
+            horizon=3, predict_horizon_values='late', predict_action_values=True
+        )
+        # TODO: baseline horizon has to be equal to policy horizon
         baseline = dict(network=dict(type='auto', size=7, depth=1, rnn=2))
         baseline_optimizer = 2.0
         baseline_objective = 'action_value'
@@ -138,6 +148,7 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
             baseline_optimizer=baseline_optimizer, baseline_objective=baseline_objective
         )
 
+        # TODO: state value doesn't exist for Beta
         actions = dict(
             bool_action=dict(type='bool', shape=(1,)),
             int_action=dict(type='int', shape=(2,), num_values=4),
@@ -159,8 +170,8 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
             horizon=3, predict_horizon_values='late', predict_action_values=True,
             predict_terminal_values=True
         )
-        # TODO: action value doesn't exist for Beta
         # TODO: baseline horizon has to be equal to policy horizon
+        # (Not specifying customized distributions since action value doesn't exist for Beta)
         baseline = dict(
             type='parametrized_distributions', network=dict(type='auto', size=7, depth=1, rnn=2)
         )
@@ -180,15 +191,21 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         self.unittest(reward_estimation=reward_estimation, baseline=baseline)
 
         # TODO: action value doesn't exist for Beta
-        policy = dict(network=dict(type='auto', size=8, depth=1, rnn=2))
+        actions = dict(
+            bool_action=dict(type='bool', shape=(1,)),
+            int_action=dict(type='int', shape=(2,), num_values=4),
+            gaussian_action1=dict(type='float', shape=(1, 2), min_value=1.0, max_value=2.0),
+            gaussian_action2=dict(type='float', shape=(), min_value=-2.0, max_value=1.0)
+        )
         reward_estimation = dict(
             horizon='episode', predict_horizon_values='early', predict_action_values=True,
             estimate_advantage=True
         )
         # Implicit baseline = policy
+        # Implicit baseline_optimizer = 1.0
         baseline_objective = 'state_value'
         self.unittest(
-            policy=policy, reward_estimation=reward_estimation,
+            actions=actions, reward_estimation=reward_estimation,
             baseline_objective=baseline_objective
         )
 

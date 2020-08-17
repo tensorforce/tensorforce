@@ -30,29 +30,27 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
         with TemporaryDirectory() as directory:
             agent, environment = self.prepare(
-                config=dict(eager_mode=False, create_debug_assertions=True)
+                config=dict(eager_mode=False, create_debug_assertions=True, tf_log_level=20)
             )
             states = environment.reset()
             actions = agent.act(states=states)
             states, terminal, reward = environment.execute(actions=actions)
             agent.observe(terminal=terminal, reward=reward)
             weights0 = agent.model.policy.network.layers[1].weights.numpy()
-            # TODO: implement proper Agent name-module iteration
-            for module in agent.model.this_submodules:
-                # (Model excluded, other submodules recursively included)
+            for module in agent.model.tensorforce_submodules:
                 path = module.save(directory=directory)
-                assert path == os.path.join(directory, module.name)
+                assert path == os.path.join(directory, module.full_name.replace('/', '.'))
             agent.close()
             environment.close()
 
             agent, environment = self.prepare(
-                config=dict(eager_mode=False, create_debug_assertions=True)
+                config=dict(eager_mode=False, create_debug_assertions=True, tf_log_level=20)
             )
             states = environment.reset()
             actions = agent.act(states=states)
             states, terminal, reward = environment.execute(actions=actions)
             agent.observe(terminal=terminal, reward=reward)
-            for module in agent.model.this_submodules:
+            for module in agent.model.tensorforce_submodules:
                 module.restore(directory=directory)
             x = agent.model.policy.network.layers[1].weights.numpy()
             self.assertTrue(np.allclose(x, weights0))
@@ -62,9 +60,9 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
             files = set(os.listdir(path=directory))
             self.assertTrue(len(files), 2 * len(agent.model.this_submodules))
-            for module in agent.model.this_submodules:
-                self.assertTrue(module.name + '.index' in files)
-                self.assertTrue(module.name + '.data-00000-of-00001' in files)
+            for module in agent.model.tensorforce_submodules:
+                self.assertTrue(module.full_name.replace('/', '.') + '.index' in files)
+                self.assertTrue(module.full_name.replace('/', '.') + '.data-00000-of-00001' in files)
 
         agent.close()
         environment.close()
@@ -79,7 +77,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
             update = dict(unit='episodes', batch_size=1)
             agent, environment = self.prepare(
                 memory=50, update=update,
-                config=dict(eager_mode=False, create_debug_assertions=True)
+                config=dict(eager_mode=False, create_debug_assertions=True, tf_log_level=20)
             )
             states = environment.reset()
 
@@ -221,7 +219,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
                 # Turn dicts into lists and batch inputs
                 auxiliaries = [[np.expand_dims(states.pop('int_action_mask'), axis=0)]]
                 states = [np.expand_dims(state, axis=0) for state in states.values()]
-                actions = act(states, internals, auxiliaries)
+                actions = act(states, internals, auxiliaries, False)
                 assert len(actions) == 7
                 internals = [[[actions[5]]], [[actions[6]]]]
                 # Split result dict and unbatch values
@@ -241,7 +239,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
                 states=dict(type='float', shape=(), min_value=1.0, max_value=2.0),
                 actions=dict(type='float', shape=(), min_value=1.0, max_value=2.0),
                 policy=policy, update=update, baseline=baseline,
-                config=dict(eager_mode=False, create_debug_assertions=True)
+                config=dict(eager_mode=False, create_debug_assertions=True, tf_log_level=20)
             )
 
             # one episode
@@ -268,7 +266,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
             while not terminal:
                 # Turn dicts into lists and batch inputs
                 states = np.expand_dims(states, axis=0)
-                actions = act(states)
+                actions = act(states, True)
                 # Split result dict and unbatch values
                 actions = actions.numpy()[0].item()
                 states, terminal, _ = environment.execute(actions=actions)
@@ -297,7 +295,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
             saver = dict(directory=directory, frequency=1)
             agent, environment = self.prepare(
                 update=update, saver=saver,
-                config=dict(eager_mode=False, create_debug_assertions=True)
+                config=dict(eager_mode=False, create_debug_assertions=True, tf_log_level=20)
             )
             weights0 = agent.model.policy.network.layers[1].weights.numpy()
             states = environment.reset()
@@ -335,7 +333,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
             # create, not load
             agent, environment = self.prepare(
                 update=update, saver=saver,
-                config=dict(eager_mode=False, create_debug_assertions=True)
+                config=dict(eager_mode=False, create_debug_assertions=True, tf_log_level=20)
             )
             x = agent.model.policy.network.layers[1].weights.numpy()
             self.assertTrue(not np.allclose(x, weights0))
@@ -418,7 +416,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
             while not terminal:
                 states = np.expand_dims(states, axis=0)
                 auxiliaries = [np.ones(shape=(1, 2), dtype=bool)]
-                actions = act(states, auxiliaries)
+                actions = act(states, auxiliaries, True)
                 actions = actions.numpy().item()
                 states, terminal, reward = environment.execute(actions=actions)
                 episode_reward += reward

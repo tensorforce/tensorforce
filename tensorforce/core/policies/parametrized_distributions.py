@@ -151,70 +151,32 @@ class ParametrizedDistributions(Stochastic, ActionValue):
     def past_horizon(self, *, on_policy):
         return self.network.past_horizon(on_policy=on_policy)
 
-    @tf_function(num_args=4)
-    def act(self, *, states, horizons, internals, auxiliaries, independent):
-        # if independent:
-        #     embedding, internals = self.network.apply(
-        #         x=states, horizons=horizons, internals=internals, independent=independent
-        #     )
-
-        #     def function(name, distribution):
-        #         conditions = auxiliaries.get(name, default=TensorDict())
-        #         parameters = distribution.parametrize(x=embedding, conditions=conditions)
-        #         return distribution.mode(parameters=parameters)
-
-        #     actions = self.distributions.fmap(function=function, cls=TensorDict, with_names=True)
-
-        #     return actions, internals
-
-        # else:
+    @tf_function(num_args=5)
+    def act(self, *, states, horizons, internals, auxiliaries, deterministic, independent):
         return Stochastic.act(
             self=self, states=states, horizons=horizons, internals=internals,
-            auxiliaries=auxiliaries, independent=independent
+            auxiliaries=auxiliaries, deterministic=deterministic, independent=independent
         )
 
     @tf_function(num_args=5)
     def sample(self, *, states, horizons, internals, auxiliaries, temperature, independent):
-        zero = tf_util.constant(value=0.0, dtype='float')
-
         embedding, internals = self.network.apply(
             x=states, horizons=horizons, internals=internals, independent=independent
         )
 
-        def sample_fn(name, distribution, temp):
+        def function(name, distribution, temp):
             conditions = auxiliaries.get(name, default=TensorDict())
             parameters = distribution.parametrize(x=embedding, conditions=conditions)
             return distribution.sample(parameters=parameters, temperature=temp)
 
-        def mode_fn(name, distribution):
-            conditions = auxiliaries.get(name, default=TensorDict())
-            parameters = distribution.parametrize(x=embedding, conditions=conditions)
-            return distribution.mode(parameters=parameters)
-
         if isinstance(self.temperature, dict):
-
-            def function(name, distribution, temp):
-                is_deterministic = tf.math.equal(x=temp, y=zero)
-                true_fn = partial(mode_fn, name=name, distribution=distribution)
-                false_fn = partial(sample_fn, name=name, distribution=distribution, temp=temp)
-                return tf.cond(pred=is_deterministic, true_fn=true_fn, false_fn=false_fn)
-
             actions = self.distributions.fmap(
                 function=function, cls=TensorDict, with_names=True, zip_values=(temperature,)
             )
-
         else:
-
-            def true_fn():
-                return self.distributions.fmap(function=mode_fn, cls=TensorDict, with_names=True)
-
-            def false_fn():
-                return self.distributions.fmap(
-                    function=partial(sample_fn, temp=temperature), cls=TensorDict, with_names=True
-                )
-
-            is_deterministic = tf.math.equal(x=temperature, y=zero)
-            actions = tf.cond(pred=is_deterministic, true_fn=true_fn, false_fn=false_fn)
+            actions = self.distributions.fmap(
+                function=partial(function, temp=temperature), cls=TensorDict, with_names=True
+            )
 
         return actions, internals
 

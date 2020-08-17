@@ -270,6 +270,7 @@ class Agent(Recorder):
         self.terminal_spec = self.model.terminal_spec
         self.reward_spec = self.model.reward_spec
         self.parallel_spec = self.model.parallel_spec
+        self.deterministic_spec = self.model.deterministic_spec
 
         # Parallel observe buffers
         self.terminal_buffer = [list() for _ in range(self.parallel_interactions)]
@@ -344,9 +345,9 @@ class Agent(Recorder):
         return self.model.internals_init.fmap(function=(lambda x: x), cls=OrderedDict)
 
     def act(
-        self, states, internals=None, parallel=0, independent=False,
+        self, states, internals=None, parallel=0, deterministic=False, independent=False,
         # Deprecated
-        deterministic=None, evaluation=None
+        evaluation=None
     ):
         """
         Returns action(s) for the given state(s), needs to be followed by `observe()` unless
@@ -362,8 +363,11 @@ class Agent(Recorder):
                 has internal states).
             parallel (int | iter[int]): Parallel execution index
                 (<span style="color:#00C000"><b>default</b></span>: 0).
+            deterministic (bool): Whether action should be chosen deterministically, that is, no
+                sampling and no exploration
+                (<span style="color:#00C000"><b>default</b></span>: false).
             independent (bool): Whether act is not part of the main agent-environment interaction,
-                and this call is thus not followed by observe
+                and this call is thus not followed by observe()
                 (<span style="color:#00C000"><b>default</b></span>: false).
 
         Returns:
@@ -371,20 +375,20 @@ class Agent(Recorder):
             argument given: Dictionary containing action(s), dictionary containing next internal
             agent state(s) if independent mode.
         """
-        if deterministic is not None:
-            raise TensorforceError.deprecated(
-                name='Agent.act', argument='deterministic', replacement='independent'
-            )
         if evaluation is not None:
             raise TensorforceError.deprecated(
                 name='Agent.act', argument='evaluation', replacement='independent'
             )
 
         return super().act(
-            states=states, internals=internals, parallel=parallel, independent=independent
+            states=states, internals=internals, parallel=parallel, deterministic=deterministic,
+            independent=independent
         )
 
-    def fn_act(self, states, internals, parallel, independent, is_internals_none, num_parallel):
+    def fn_act(
+        self, states, internals, parallel, deterministic, independent, is_internals_none,
+        num_parallel
+    ):
 
         # Separate auxiliaries
         def function(name, spec):
@@ -408,30 +412,37 @@ class Agent(Recorder):
         if independent and not is_internals_none:
             internals = self.internals_spec.to_tensor(value=internals, batched=True)
         auxiliaries = self.auxiliaries_spec.to_tensor(value=auxiliaries, batched=True)
-        parallel_tensor = self.parallel_spec.to_tensor(value=parallel, batched=True)
+        deterministic = self.deterministic_spec.to_tensor(value=deterministic, batched=False)
 
         # Model.act()
         if not independent:
+            parallel = self.parallel_spec.to_tensor(value=parallel, batched=True)
             actions, timesteps = self.model.act(
-                states=states, auxiliaries=auxiliaries, parallel=parallel_tensor
+                states=states, auxiliaries=auxiliaries, parallel=parallel,
+                deterministic=deterministic
             )
             self.timesteps = timesteps.numpy().item()
 
         elif len(self.internals_spec) > 0:
             if len(self.auxiliaries_spec) > 0:
                 actions, internals = self.model.independent_act(
-                    states=states, internals=internals, auxiliaries=auxiliaries
+                    states=states, internals=internals, auxiliaries=auxiliaries,
+                    deterministic=deterministic
                 )
             else:
                 assert len(auxiliaries) == 0
-                actions, internals = self.model.independent_act(states=states, internals=internals)
+                actions, internals = self.model.independent_act(
+                    states=states, internals=internals, deterministic=deterministic
+                )
 
         else:
             if len(self.auxiliaries_spec) > 0:
-                actions = self.model.independent_act(states=states, auxiliaries=auxiliaries)
+                actions = self.model.independent_act(
+                    states=states, auxiliaries=auxiliaries, deterministic=deterministic
+                )
             else:
                 assert len(auxiliaries) == 0
-                actions = self.model.independent_act(states=states)
+                actions = self.model.independent_act(states=states, deterministic=deterministic)
 
         # Outputs from tensors
         actions = self.actions_spec.from_tensor(tensor=actions, batched=True)

@@ -211,12 +211,18 @@ class Gaussian(Distribution):
             self.summary(label='entropy', name=name, data=fn_summary, step='timesteps')
         )
 
-        normal_distribution = tf.random.normal(
-            shape=tf.shape(input=mean), dtype=tf_util.get_dtype(type='float')
-        )
+        def fn_mode():
+            return mean
+
+        def fn_sample():
+            normal_distribution = tf.random.normal(
+                shape=tf.shape(input=mean), dtype=tf_util.get_dtype(type='float')
+            )
+            return mean + stddev * temperature * normal_distribution
 
         with tf.control_dependencies(control_inputs=dependencies):
-            action = mean + stddev * temperature * normal_distribution
+            epsilon = tf_util.constant(value=util.epsilon, dtype='float')
+            action = tf.cond(pred=(temperature < epsilon), true_fn=fn_mode, false_fn=fn_sample)
 
             # Bounded transformation
             if self.bounded_transform is not None:
@@ -328,9 +334,10 @@ class Gaussian(Distribution):
 
         action_value = -half * sq_mean_distance / sq_stddev - two * log_stddev - log_two_pi
 
-        if self.bounded_transform == 'tanh':
-            log_two = tf_util.constant(value=np.log(2.0), dtype='float')
-            action_value -= two * (log_two - action - tf.math.softplus(features=(-two * action)))
+        # Probably not needed?
+        # if self.bounded_transform == 'tanh':
+        #     log_two = tf_util.constant(value=np.log(2.0), dtype='float')
+        #     action_value -= two * (log_two - action - tf.math.softplus(features=(-two * action)))
 
         return action_value
 

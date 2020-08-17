@@ -20,8 +20,6 @@ class TensorforceConfig(object):
 
     def __init__(
         self, *,
-        always_apply_exploration=False,
-        always_apply_variable_noise=False,
         buffer_observe=False,
         create_debug_assertions=False,
         create_tf_assertions=True,
@@ -32,12 +30,6 @@ class TensorforceConfig(object):
         seed=None,
         tf_log_level=40
     ):
-        assert isinstance(always_apply_exploration, bool)
-        super().__setattr__('always_apply_exploration', always_apply_exploration)
-
-        assert isinstance(always_apply_variable_noise, bool)
-        super().__setattr__('always_apply_variable_noise', always_apply_variable_noise)
-
         assert buffer_observe is False or buffer_observe == 'episode' or \
             isinstance(buffer_observe, int) and buffer_observe >= 1
         if buffer_observe is False:

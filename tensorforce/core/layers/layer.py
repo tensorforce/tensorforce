@@ -430,7 +430,7 @@ class TemporalLayer(Layer):
                 x=self.input_spec.signature(batched=True),
                 indices=TensorSpec(type='int', shape=()).signature(batched=True),
                 remaining=TensorSpec(type='int', shape=()).signature(batched=True),
-                current_x=self.input_spec.signature(batched=True),
+                current_x=self.output_spec().signature(batched=True),
                 current_internals=self.internals_spec.signature(batched=True)
             )
 
@@ -467,7 +467,7 @@ class TemporalLayer(Layer):
                 x=self.input_spec.signature(batched=True),
                 indices=TensorSpec(type='int', shape=()).signature(batched=True),
                 remaining=TensorSpec(type='int', shape=()).signature(batched=True),
-                current_x=self.input_spec.signature(batched=True),
+                current_x=self.output_spec().signature(batched=True),
                 current_internals=self.internals_spec.signature(batched=True)
             )
 

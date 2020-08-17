@@ -312,10 +312,11 @@ class TensorforceModel(Model):
         required_fns = {'policy'}
         required_fns.update(self.objective.required_policy_fns())
         if not self.separate_baseline:
-            if self.predict_action_values:
-                required_fns.add('action_value')
-            else:
-                required_fns.add('state_value')
+            if self.predict_horizon_values is not False or self.estimate_advantage:
+                if self.predict_action_values:
+                    required_fns.add('action_value')
+                else:
+                    required_fns.add('state_value')
             required_fns.update(self.objective.required_baseline_fns())
             if self.baseline_objective is not None:
                 required_fns.update(self.baseline_objective.required_policy_fns())
@@ -349,10 +350,11 @@ class TensorforceModel(Model):
 
         # Baseline
         if self.separate_baseline:
-            if self.predict_action_values:
-                required_fns = {'action_value'}
-            else:
-                required_fns = {'state_value'}
+            if self.predict_horizon_values is not False or self.estimate_advantage:
+                if self.predict_action_values:
+                    required_fns = {'action_value'}
+                else:
+                    required_fns = {'state_value'}
             required_fns.update(self.objective.required_baseline_fns())
             if self.baseline_objective is not None:
                 required_fns.update(self.baseline_objective.required_policy_fns())
@@ -364,7 +366,8 @@ class TensorforceModel(Model):
             elif required_fns <= {'policy', 'stochastic'}:
                 default_module = 'parametrized_distributions'
             else:
-                logging.warning("No policy type specified for non-standard agent configuration.")
+                logging.warning("Policy type should be explicitly specified for non-standard agent "
+                                "configuration.")
                 default_module = None
 
             self.baseline = self.submodule(
@@ -837,8 +840,8 @@ class TensorforceModel(Model):
             update = tf_util.identity(input=self.updates)
             return timestep, episode, update
 
-    @tf_function(num_args=4)
-    def core_act(self, *, states, internals, auxiliaries, parallel, independent):
+    @tf_function(num_args=5)
+    def core_act(self, *, states, internals, auxiliaries, parallel, deterministic, independent):
         zero = tf_util.constant(value=0, dtype='int')
         zero_float = tf_util.constant(value=0.0, dtype='float')
 
@@ -854,8 +857,7 @@ class TensorforceModel(Model):
         # Variable noise
         if len(self.trainable_variables) > 0 and (
             (not independent and not self.variable_noise.is_constant(value=0.0)) or
-            (independent and self.config.always_apply_variable_noise and
-                self.variable_noise.final_value() != 0.0)
+            (independent and self.variable_noise.final_value() != 0.0)
         ):
             if independent:
                 variable_noise = tf_util.constant(
@@ -882,8 +884,9 @@ class TensorforceModel(Model):
                 return variable_noise_tensors
 
             variable_noise_tensors = tf.cond(
-                pred=tf.math.equal(x=variable_noise, y=zero_float),
-                true_fn=no_variable_noise, false_fn=apply_variable_noise
+                pred=tf.math.logical_or(
+                    x=deterministic, y=tf.math.equal(x=variable_noise, y=zero_float)
+                ), true_fn=no_variable_noise, false_fn=apply_variable_noise
             )
 
         else:
@@ -908,12 +911,12 @@ class TensorforceModel(Model):
             if len(self.internals_spec['policy']) > 0:
                 actions, next_internals['policy'] = self.policy.act(
                     states=states, horizons=horizons, internals=internals['policy'],
-                    auxiliaries=auxiliaries, independent=independent
+                    auxiliaries=auxiliaries, deterministic=deterministic, independent=independent
                 )
             else:
                 actions, _ = self.policy.act(
                     states=states, horizons=horizons, internals=TensorDict(),
-                    auxiliaries=auxiliaries, independent=independent
+                    auxiliaries=auxiliaries, deterministic=deterministic, independent=independent
                 )
             if isinstance(actions, tf.Tensor):
                 dependencies.append(actions)
@@ -949,7 +952,7 @@ class TensorforceModel(Model):
         # Exploration
         if (not independent and (
             isinstance(self.exploration, dict) or not self.exploration.is_constant(value=0.0)
-        )) or (independent and self.config.always_apply_exploration and (
+        )) or (independent and (
             isinstance(self.exploration, dict) or self.exploration.final_value() != 0.0
         )):
 
@@ -960,8 +963,7 @@ class TensorforceModel(Model):
                     exploration = self.exploration.value()
                 elif independent and self.exploration.final_value() != 0.0:
                     exploration = tf_util.constant(
-                        value=self.exploration[name].final_value(),
-                        dtype=self.exploration[name].spec.type
+                        value=self.exploration.final_value(), dtype=self.exploration.spec.type
                     )
                 else:
                     assert False
@@ -1057,8 +1059,9 @@ class TensorforceModel(Model):
                 # if isinstance(self.exploration, dict):
                 # Per-action exploration
                 actions[name] = tf.cond(
-                    pred=tf.math.equal(x=exploration, y=zero_float),
-                    true_fn=(lambda: action), false_fn=apply_exploration
+                    pred=tf.math.logical_or(
+                        x=deterministic, y=tf.math.equal(x=exploration, y=zero_float)
+                    ), true_fn=(lambda: action), false_fn=apply_exploration
                 )
 
                 # else:
@@ -1516,10 +1519,12 @@ class TensorforceModel(Model):
                     policy_horizon_start = terminal_index - policy_horizon
                 else:
                     policy_horizon_start = past_horizon_start
+                deterministic = tf_util.constant(value=True, dtype='bool')
                 _actions, _ = self.policy.act(
                     states=states[policy_horizon_start:], horizons=horizons[:maybe_one],
                     internals=internals['policy'][policy_horizon_start: policy_horizon_start + maybe_one],
-                    auxiliaries=auxiliaries[terminal_index:], independent=True
+                    auxiliaries=auxiliaries[terminal_index:], deterministic=deterministic,
+                    independent=True
                 )
                 terminal_values = self.baseline.action_value(
                     states=states[past_horizon_start:], horizons=horizons[:maybe_one],
@@ -1603,12 +1608,13 @@ class TensorforceModel(Model):
                         policy_horizon_start = past_horizon_start
                         policy_horizon_end = past_horizon_end
                         policy_horizons = horizons
+                    deterministic = tf_util.constant(value=True, dtype='bool')
                     _actions, _ = self.policy.act(
                         states=states[policy_horizon_start: reward_horizon_end],
                         horizons=policy_horizons,
                         internals=internals['policy'][policy_horizon_start: policy_horizon_end],
                         auxiliaries=auxiliaries[reward_horizon_start: reward_horizon_end],
-                        independent=True
+                        deterministic=deterministic, independent=True
                     )
                     horizon_values = self.baseline.action_value(
                         states=states[past_horizon_start: reward_horizon_end],
@@ -1907,9 +1913,10 @@ class TensorforceModel(Model):
                     final_horizons = _starts + _horizons[:, 1]
 
             if self.predict_action_values:
+                deterministic = tf_util.constant(value=True, dtype='bool')
                 _actions, _ = self.policy.act(
                     states=_states, horizons=_horizons, internals=_policy_internals,
-                    auxiliaries=_auxiliaries, independent=True
+                    auxiliaries=_auxiliaries, deterministic=deterministic, independent=True
                 )
                 horizon_values = self.baseline.action_value(
                     states=_states, horizons=_horizons, internals=_baseline_internals,
@@ -1963,17 +1970,26 @@ class TensorforceModel(Model):
                     reference=reference
                 )
 
+            variables = tuple(self.baseline.trainable_variables)
+
             if self.baseline_objective is None:
                 kwargs = dict()
             else:
                 kwargs = self.baseline_objective.optimizer_arguments(policy=self.baseline)
             assert 'source_variables' not in kwargs
-            kwargs['source_variables'] = tuple(self.policy.trainable_variables)
+            ordered_names = [variable.name for variable in variables]
+            try:
+                kwargs['source_variables'] = tuple(sorted(
+                    self.policy.trainable_variables,
+                    key=(lambda x: ordered_names.index(x.name.replace('/policy/', '/baseline/')))
+                ))
+            except ValueError:
+                pass
 
             # Optimization
             optimized = self.baseline_optimizer.update(
-                arguments=baseline_arguments, variables=tuple(self.baseline.trainable_variables),
-                fn_loss=self.baseline_loss, fn_kl_divergence=fn_kl_divergence, **kwargs
+                arguments=baseline_arguments, variables=variables, fn_loss=self.baseline_loss,
+                fn_kl_divergence=fn_kl_divergence, **kwargs
             )
             dependencies = (optimized,)
         else:
@@ -1983,9 +1999,10 @@ class TensorforceModel(Model):
             if self.estimate_advantage and not self.advantage_in_loss:
                 if self.predict_action_values:
                     # TODO: policy act
+                    # deterministic = tf_util.constant(value=True, dtype='bool')
                     # _actions, _ = self.policy.act(
                     #     states=states, horizons=horizons, internals=internals['policy']?,
-                    #     auxiliaries=auxiliaries, independent=True
+                    #     auxiliaries=auxiliaries, deterministic=deterministic, independent=True
                     # )
                     baseline_prediction = self.baseline.action_value(
                         states=baseline_states, horizons=baseline_horizons,
@@ -2039,9 +2056,10 @@ class TensorforceModel(Model):
                 with tf.control_dependencies(control_inputs=assertions):
                     if self.predict_action_values:
                         # TODO: policy act
+                        # deterministic = tf_util.constant(value=True, dtype='bool')
                         # _actions, _ = self.policy.act(
                         #     states=states, horizons=horizons, internals=internals['policy'],
-                        #     auxiliaries=auxiliaries, independent=True
+                        #     auxiliaries=auxiliaries, deterministic=deterministic, independent=True
                         # )
                         baseline_prediction = self.baseline.action_value(
                             states=states, horizons=horizons, internals=internals['baseline'],
@@ -2095,7 +2113,14 @@ class TensorforceModel(Model):
 
         if self.separate_baseline:
             assert 'source_variables' not in kwargs
-            kwargs['source_variables'] = tuple(self.baseline.trainable_variables)
+            ordered_names = [variable.name for variable in variables]
+            try:
+                kwargs['source_variables'] = tuple(sorted(
+                    self.baseline.trainable_variables,
+                    key=(lambda x: ordered_names.index(x.name.replace('/baseline/', '/policy/')))
+                ))
+            except ValueError:
+                pass
         # if self.global_model is not None:
         #     assert 'global_variables' not in kwargs
         #     kwargs['global_variables'] = tuple(self.global_model.trainable_variables)

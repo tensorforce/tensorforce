@@ -68,24 +68,19 @@ class TestObjectives(UnittestBase, unittest.TestCase):
             bool_action=dict(type='bool', shape=(1,)),
             int_action=dict(type='int', shape=(2,), num_values=4)
         )
-        policy = dict(network=dict(type='auto', size=8, depth=1, rnn=2))
 
+        # State value does not affect advantage variables of main policy
         objective = 'state_value'
-        self.unittest(
-            actions=actions, policy=policy, objective=objective, entropy_regularization=0.0
-        )
+        self.unittest(actions=actions, baseline_objective=objective, entropy_regularization=0.0)
 
+        policy = dict(network=dict(type='auto', size=8, depth=1, rnn=2))
         objective = dict(type='value', value='action')
         self.unittest(
             actions=actions, policy=policy, objective=objective, entropy_regularization=0.0
         )
 
         objective = dict(type='value', value='state', huber_loss=1.0)
-        self.unittest(
-            actions=actions, policy=policy, objective=objective, entropy_regularization=0.0
-        )
+        self.unittest(actions=actions, baseline_objective=objective, entropy_regularization=0.0)
 
         objective = dict(type='action_value', early_reduce=True)
-        self.unittest(
-            actions=actions, policy=policy, objective=objective, entropy_regularization=0.0
-        )
+        self.unittest(actions=actions, baseline_objective=objective, entropy_regularization=0.0)

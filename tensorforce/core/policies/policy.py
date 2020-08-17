@@ -59,7 +59,8 @@ class Policy(Module):
                 states=self.states_spec.signature(batched=True),
                 horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
                 internals=self.internals_spec.signature(batched=True),
-                auxiliaries=self.auxiliaries_spec.signature(batched=True)
+                auxiliaries=self.auxiliaries_spec.signature(batched=True),
+                deterministic=TensorSpec(type='bool', shape=()).signature(batched=False)
             )
 
         elif function == 'past_horizon':
@@ -87,6 +88,6 @@ class Policy(Module):
     def past_horizon(self, *, on_policy):
         raise NotImplementedError
 
-    @tf_function(num_args=4)
-    def act(self, *, states, horizons, internals, auxiliaries, independent):
+    @tf_function(num_args=5)
+    def act(self, *, states, horizons, internals, auxiliaries, deterministic, independent):
         raise NotImplementedError

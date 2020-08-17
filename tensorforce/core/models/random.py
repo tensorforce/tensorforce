@@ -31,8 +31,8 @@ class RandomModel(Model):
             config=config
         )
 
-    @tf_function(num_args=4)
-    def core_act(self, *, states, internals, auxiliaries, parallel, independent):
+    @tf_function(num_args=5)
+    def core_act(self, *, states, internals, auxiliaries, parallel, deterministic, independent):
         assert len(internals) == 0
 
         actions = TensorDict()

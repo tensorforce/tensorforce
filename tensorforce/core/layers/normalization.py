@@ -95,7 +95,7 @@ class ExponentialNormalization(StatefulLayer):
         decay (parameter, 0.0 <= float <= 1.0): Decay rate
             (<span style="color:#00C000"><b>default</b></span>: 0.999).
         axes (iter[int >= 0]): Normalization axes, excluding batch axis
-            (<span style="color:#00C000"><b>default</b></span>: all but last axis).
+            (<span style="color:#00C000"><b>default</b></span>: all but last input axes).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): Layer name
@@ -111,7 +111,10 @@ class ExponentialNormalization(StatefulLayer):
             max_value=1.0
         )
 
-        self.axes = axes if axes is None else tuple(axes)
+        if axes is None:
+            self.axes = tuple(range(len(self.input_spec.shape) - 1))
+        else:
+            self.axes = tuple(axes)
 
     def default_input_spec(self):
         return TensorSpec(type='float', shape=None)
@@ -119,16 +122,9 @@ class ExponentialNormalization(StatefulLayer):
     def initialize(self):
         super().initialize()
 
-        shape = self.input_spec.shape
-        if self.axes is None:
-            if len(shape) > 0:
-                self.axes = tuple(range(len(shape) - 1))
-                shape = tuple(1 for _ in shape[:-1]) + (shape[-1],)
-            else:
-                self.axes = ()
-        else:
-            shape = tuple(1 if axis in self.axes else dims for axis, dims in enumerate(shape))
-        shape = (1,) + shape
+        shape = (1,) + tuple(
+            1 if axis in self.axes else dims for axis, dims in enumerate(self.input_spec.shape)
+        )
 
         self.moving_mean = self.variable(
             name='mean', spec=TensorSpec(type='float', shape=shape), initializer='zeros',
@@ -200,7 +196,7 @@ class InstanceNormalization(Layer):
 
     Args:
         axes (iter[int >= 0]): Normalization axes, excluding batch axis
-            (<span style="color:#00C000"><b>default</b></span>: all).
+            (<span style="color:#00C000"><b>default</b></span>: all input axes).
         name (string): Layer name
             (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
@@ -209,7 +205,10 @@ class InstanceNormalization(Layer):
     def __init__(self, *, axes=None, name=None, input_spec=None):
         super().__init__(name=name, input_spec=input_spec)
 
-        self.axes = axes if axes is None else tuple(axes)
+        if axes is None:
+            self.axes = tuple(range(len(self.input_spec.shape)))
+        else:
+            self.axes = tuple(axes)
 
     def default_input_spec(self):
         return TensorSpec(type='float', shape=None)
@@ -218,14 +217,9 @@ class InstanceNormalization(Layer):
     def apply(self, *, x):
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')
 
-        if self.axes is None:
-            mean, variance = tf.nn.moments(
-                x=x, axes=tuple(range(1, self.input_spec.rank)), keepdims=True
-            )
-        else:
-            mean, variance = tf.nn.moments(
-                x=x, axes=tuple(1 + axis for axis in self.axes), keepdims=True
-            )
+        mean, variance = tf.nn.moments(
+            x=x, axes=tuple(1 + axis for axis in self.axes), keepdims=True
+        )
 
         reciprocal_stddev = tf.math.rsqrt(x=tf.maximum(x=variance, y=epsilon))
 

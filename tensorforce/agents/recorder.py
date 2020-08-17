@@ -195,7 +195,9 @@ class Recorder(object):
     def initial_internals(self):
         return OrderedDict()
 
-    def act(self, states, internals=None, parallel=0, independent=False, **kwargs):
+    def act(
+        self, states, internals=None, parallel=0, deterministic=False, independent=False, **kwargs
+    ):
         # Independent and internals
         is_internals_none = (internals is None)
         if independent:
@@ -301,8 +303,9 @@ class Recorder(object):
         # fn_act()
         if self._is_agent:
             actions, internals = self.fn_act(
-                states=states, internals=internals, parallel=parallel, independent=independent,
-                is_internals_none=is_internals_none, num_parallel=num_parallel
+                states=states, internals=internals, parallel=parallel, deterministic=deterministic,
+                independent=independent, is_internals_none=is_internals_none,
+                num_parallel=num_parallel
             )
         else:
             if batched:

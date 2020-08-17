@@ -36,7 +36,7 @@ class TestSummaries(UnittestBase, unittest.TestCase):
             agent, environment = self.prepare(
                 reward_estimation=dict(horizon=horizon),
                 preprocessing=preprocessing, exploration=exploration,
-                config=dict(create_tf_assertions=False, eager_mode=False),
+                config=dict(eager_mode=False, create_debug_assertions=True, tf_log_level=20),
                 summarizer=dict(directory=directory, labels='all')
             )
 

@@ -31,19 +31,19 @@ class OptimizerWrapper(UpdateModifier):
             (<span style="color:#00C000"><b>default</b></span>: no clipping).
         multi_step (parameter, int >= 1): Number of optimization steps
             (<span style="color:#00C000"><b>default</b></span>: single step).
-        linesearch_iterations (parameter, int >= 0): Maximum number of line search iterations, using
-            a backtracking factor of 0.75
-            (<span style="color:#00C000"><b>default</b></span>: no line search).
         subsampling_fraction (parameter, int > 0 | 0.0 < float <= 1.0): Absolute/relative fraction
             of batch timesteps to subsample
             (<span style="color:#00C000"><b>default</b></span>: no subsampling).
+        linesearch_iterations (parameter, int >= 0): Maximum number of line search iterations, using
+            a backtracking factor of 0.75
+            (<span style="color:#00C000"><b>default</b></span>: no line search).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
         arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
         self, optimizer, *, learning_rate=1e-3, clipping_threshold=None, multi_step=1,
-        linesearch_iterations=0, subsampling_fraction=1.0, name=None, arguments_spec=None,
+        subsampling_fraction=1.0, linesearch_iterations=0, name=None, arguments_spec=None,
         # Deprecated
         optimizing_iterations=None, **kwargs
     ):
@@ -62,14 +62,19 @@ class OptimizerWrapper(UpdateModifier):
 
         optimizer.update(kwargs)
 
+        if linesearch_iterations > 0:
+            if 'type' in optimizer and optimizer['type'] == 'natural_gradient':
+                if 'only_positive_updates' not in optimizer:
+                    optimizer['only_positive_updates'] = False
+                if 'return_improvement_estimate' not in optimizer:
+                    optimizer['return_improvement_estimate'] = True
+            optimizer = dict(
+                type='linesearch_step', optimizer=optimizer, max_iterations=linesearch_iterations
+            )
+
         if subsampling_fraction != 1.0:
             optimizer = dict(
                 type='subsampling_step', optimizer=optimizer, fraction=subsampling_fraction
-            )
-
-        if linesearch_iterations > 0:
-            optimizer = dict(
-                type='linesearch_step', optimizer=optimizer, max_iterations=linesearch_iterations
             )
 
         if multi_step > 1:

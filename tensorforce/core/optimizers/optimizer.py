@@ -76,7 +76,7 @@ class Optimizer(Module):
     def output_signature(self, *, function):
         if function == 'step':
             return self.variables_spec.fmap(
-                function=(lambda spec: spec.signature(batched=True)), cls=SignatureDict
+                function=(lambda spec: spec.signature(batched=False)), cls=SignatureDict
             )
 
         elif function == 'update':
@@ -105,20 +105,27 @@ class Optimizer(Module):
             )
 
         assertions = list(deltas)
-        # if self.config.create_debug_assertions:
-        #     from tensorforce.core.optimizers import Synchronization
-        #     if not isinstance(self, Synchronization) or \
-        #             not self.sync_frequency.is_constant(value=1):
-        #         for delta, variable in zip(deltas, variables):
-        #             if variable.shape.num_elements() <= 4:
-        #                 continue
-        #             # if '_distribution/mean/linear/' in variable.name:
-        #             #     continue
-        #             assertions.append(tf.debugging.assert_equal(
-        #                 x=tf.math.reduce_any(
-        #                     input_tensor=tf.math.not_equal(x=delta, y=tf.zeros_like(input=delta))
-        #                 ), y=tf_util.constant(value=True, dtype='bool'), message=variable.name
-        #             ))
+        if self.config.create_debug_assertions:
+            from tensorforce.core.optimizers import LinesearchStep, OptimizerWrapper, \
+                Synchronization
+            if (
+                not isinstance(self, OptimizerWrapper) or
+                not isinstance(self.optimizer, LinesearchStep)
+            ) and (
+                not isinstance(self, Synchronization) or
+                not self.sync_frequency.is_constant(value=1)
+            ):
+                for delta, variable in zip(deltas, variables):
+                    if variable.shape.num_elements() <= 4:
+                        continue
+                    if '_distribution/mean/linear/weights' in variable.name:
+                        # Gaussian.state_value does not use mean
+                        continue
+                    assertions.append(tf.debugging.assert_equal(
+                        x=tf.math.reduce_any(
+                            input_tensor=tf.math.not_equal(x=delta, y=tf.zeros_like(input=delta))
+                        ), y=tf_util.constant(value=True, dtype='bool'), message=variable.name
+                    ))
 
         name = self.name[:self.name.index('_')] + '-update/norm'
         dependencies.extend(

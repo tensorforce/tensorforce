@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
+import tensorflow as tf
+
 from tensorforce import TensorforceError
 from tensorforce.core import SignatureDict, TensorDict, TensorSpec, TensorsSpec, tf_function, \
     tf_util
@@ -92,7 +94,7 @@ class Preprocessor(LayeredNetwork):
                 operations.append(layer.reset())
 
         if len(operations) > 0:
-            return tf_util.identity(input=operations[0])
+            return tf.math.reduce_any(input_tensor=tf.stack(values=operations, axis=0), axis=0)
         else:
             return tf_util.constant(value=False, dtype='bool')
 

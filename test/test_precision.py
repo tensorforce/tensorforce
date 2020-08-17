@@ -30,16 +30,12 @@ class TestPrecision(UnittestBase, unittest.TestCase):
 
         try:
             util.np_dtype_mapping = dict(bool=np.bool_, int=np.int32, float=np.float16)
-            tf_util.DTYPE_MAPPING = dict(
-                bool=tf.dtypes.bool, int=tf.dtypes.int32, float=tf.dtypes.float16
-            )
+            tf_util.DTYPE_MAPPING = dict(bool=tf.bool, int=tf.int32, float=tf.float16)
 
             self.unittest()
 
             util.np_dtype_mapping = dict(bool=np.bool_, int=np.int64, float=np.float64)
-            tf_util.DTYPE_MAPPING = dict(
-                bool=tf.dtypes.bool, int=tf.dtypes.int64, float=tf.dtypes.float64
-            )
+            tf_util.DTYPE_MAPPING = dict(bool=tf.bool, int=tf.int64, float=tf.float64)
 
             self.unittest()
 
@@ -49,6 +45,4 @@ class TestPrecision(UnittestBase, unittest.TestCase):
 
         finally:
             util.np_dtype_mapping = dict(bool=np.bool_, int=np.int64, float=np.float32)
-            tf_util.DTYPE_MAPPING = dict(
-                bool=tf.dtypes.bool, int=tf.dtypes.int64, float=tf.dtypes.float32
-            )
+            tf_util.DTYPE_MAPPING = dict(bool=tf.bool, int=tf.int64, float=tf.float32)

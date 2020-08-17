@@ -86,22 +86,6 @@ class Categorical(Distribution):
                 size=(size * num_values), initialization_scale=0.01, input_spec=input_spec
             )
 
-    def input_signature(self, *, function):
-        if function == 'all_action_values':
-            return SignatureDict(parameters=self.parameters_spec.signature(batched=True))
-
-        else:
-            return super().input_signature(function=function)
-
-    def output_signature(self, *, function):
-        if function == 'all_action_values':
-            return SignatureDict(singleton=TensorSpec(
-                type='float', shape=(self.action_spec.shape + (self.action_spec.num_values,))
-            ).signature(batched=True))
-
-        else:
-            return super().output_signature(function=function)
-
     def initialize(self):
         super().initialize()
 
@@ -140,7 +124,9 @@ class Categorical(Distribution):
         probabilities = tf.nn.softmax(logits=action_values, axis=-1)
 
         # "Normalized" logits
-        logits = tf.math.log(x=tf.maximum(x=probabilities, y=epsilon))
+        # logits = tf.math.log(x=tf.maximum(x=probabilities, y=epsilon))
+        # logits = tf.nn.log_softmax(logits=action_values, axis=-1)
+        logits = action_values - tf.expand_dims(input=state_value, axis=-1)
 
         return TensorDict(
             logits=logits, probabilities=probabilities, state_value=state_value,
@@ -181,30 +167,32 @@ class Categorical(Distribution):
             self.summary(label='entropy', name=name, data=fn_summary, step='timesteps')
         )
 
-        one = tf_util.constant(value=1.0, dtype='float')
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')
 
-        # Deterministic: maximum likelihood action
-        definite = tf.argmax(input=action_values, axis=-1)
-        definite = tf_util.cast(x=definite, dtype='int')
+        def fn_mode():
+            # Deterministic: maximum likelihood action
+            action = tf.argmax(input=action_values, axis=-1)
+            return tf_util.cast(x=action, dtype='int')
 
-        # Set logits to minimal value
-        min_float = tf.fill(dims=tf.shape(input=logits), value=tf_util.get_dtype(type='float').min)
-        logits = logits / tf.math.maximum(x=temperature, y=epsilon)
-        logits = tf.where(condition=(probabilities < epsilon), x=min_float, y=logits)
+        def fn_sample():
+            # Set logits to minimal value
+            min_float = tf.fill(dims=tf.shape(input=logits), value=tf_util.get_dtype(type='float').min)
+            temp_logits = logits / tf.math.maximum(x=temperature, y=epsilon)
+            temp_logits = tf.where(condition=(probabilities < epsilon), x=min_float, y=temp_logits)
 
-        # Non-deterministic: sample action using Gumbel distribution
-        uniform_distribution = tf.random.uniform(
-            shape=tf.shape(input=logits), minval=epsilon, maxval=(one - epsilon),
-            dtype=tf_util.get_dtype(type='float')
-        )
-        # Second log numerically stable since log(1-eps) ~ -eps
-        gumbel_distribution = -tf.math.log(x=-tf.math.log(x=uniform_distribution))
-        sampled = tf.argmax(input=(logits + gumbel_distribution), axis=-1)
-        sampled = tf_util.cast(x=sampled, dtype='int')
+            # Non-deterministic: sample action using Gumbel distribution
+            one = tf_util.constant(value=1.0, dtype='float')
+            uniform_distribution = tf.random.uniform(
+                shape=tf.shape(input=temp_logits), minval=epsilon, maxval=(one - epsilon),
+                dtype=tf_util.get_dtype(type='float')
+            )
+            # Second log numerically stable since log(1-eps) ~ -eps
+            gumbel_distribution = -tf.math.log(x=-tf.math.log(x=uniform_distribution))
+            action = tf.argmax(input=(temp_logits + gumbel_distribution), axis=-1)
+            return tf_util.cast(x=action, dtype='int')
 
         with tf.control_dependencies(control_inputs=dependencies):
-            return tf.where(condition=(temperature < epsilon), x=definite, y=sampled)
+            return tf.cond(pred=(temperature < epsilon), true_fn=fn_mode, false_fn=fn_sample)
 
     @tf_function(num_args=2)
     def log_probability(self, *, parameters, action):

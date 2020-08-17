@@ -18,7 +18,8 @@ import functools
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core import parameter_modules, TensorDict, TensorsSpec, tf_function, tf_util
+from tensorforce.core import parameter_modules, SignatureDict, TensorDict, TensorSpec, \
+    TensorsSpec, tf_function, tf_util
 from tensorforce.core.optimizers import Optimizer
 from tensorforce.core.optimizers.solvers import solver_modules
 
@@ -34,16 +35,26 @@ class NaturalGradient(Optimizer):
         cg_max_iterations (int >= 0): Maximum number of conjugate gradient iterations.
             (<span style="color:#00C000"><b>default</b></span>: 10).
         cg_damping (0.0 <= float <= 1.0): Conjugate gradient damping factor.
-            (<span style="color:#00C000"><b>default</b></span>: 1e-3).
+            (<span style="color:#00C000"><b>default</b></span>: 0.1).
+        only_positive_updates (bool): Only perform updates with positive improvement estimate
+            (<span style="color:#00C000"><b>default</b></span>: true, false if using line-search
+            option in OptimizerWrapper).
+        return_improvement_estimate (bool): Return improvement estimate
+            (<span style="color:#00C000"><b>default</b></span>: false, true if using line-search
+            option in OptimizerWrapper).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
         arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
-        self, *, learning_rate=1e-2, cg_max_iterations=10, cg_damping=0.1, name=None,
+        self, *, learning_rate=1e-2, cg_max_iterations=10, cg_damping=0.1,
+        only_positive_updates=True, return_improvement_estimate=False, name=None,
         arguments_spec=None
     ):
         super().__init__(name=name, arguments_spec=arguments_spec)
+
+        self.only_positive_updates = only_positive_updates
+        self.return_improvement_estimate = return_improvement_estimate
 
         self.learning_rate = self.submodule(
             name='learning_rate', module=learning_rate, modules=parameter_modules, dtype='float',
@@ -64,6 +75,18 @@ class NaturalGradient(Optimizer):
             arguments_spec=self.arguments_spec, values_spec=self.variables_spec
         )
 
+    def output_signature(self, *, function):
+        if self.return_improvement_estimate and  function == 'step':
+            return SignatureDict(
+                deltas=self.variables_spec.fmap(
+                    function=(lambda spec: spec.signature(batched=False)), cls=SignatureDict
+                ),
+                improvement_estimate=TensorSpec(type='float', shape=()).signature(batched=False)
+            )
+
+        else:
+            return super().output_signature(function=function)
+
     @tf_function(num_args=1)
     def step(self, *, arguments, variables, fn_loss, **kwargs):
         # Optimize: argmin(w) loss(w + delta) such that kldiv(P(w) || P(w + delta)) = learning_rate
@@ -71,7 +94,6 @@ class NaturalGradient(Optimizer):
         # https://reinforce.io/blog/end-to-end-computation-graphs-for-reinforcement-learning/
 
         fn_kl_divergence = kwargs['fn_kl_divergence']
-        return_estimated_improvement = kwargs.get('return_estimated_improvement', False)
 
         # TODO: should be moved to initialize_given_variables, but fn_kl_divergence...
         # Calculates the product x * F of a given vector x with the fisher matrix F.
@@ -142,7 +164,7 @@ class NaturalGradient(Optimizer):
         # delta' * F
         delta_fisher_matrix_product = fisher_matrix_product(arguments=arguments, deltas=deltas)
 
-        # c' = 0.5 * delta' * F * delta'  (= lambda * c)
+        # c' = 0.5 * delta' * F * delta'  (= lambda^2 * c)
         # TODO: Why constant and hence KL-divergence sometimes negative?
         delta_F_delta = delta_fisher_matrix_product.fmap(
             function=(lambda delta_F, delta: delta_F * delta), zip_values=deltas
@@ -153,11 +175,12 @@ class NaturalGradient(Optimizer):
         ])
 
         learning_rate = self.learning_rate.value()
+        epsilon = tf_util.constant(value=util.epsilon, dtype='float')
 
         # Zero step if constant <= 0
         def no_step():
-            zero_deltas = [tf.zeros_like(input=delta) for delta in deltas.values()]
-            if return_estimated_improvement:
+            zero_deltas = deltas.fmap(function=tf.zeros_like)
+            if self.return_improvement_estimate:
                 return zero_deltas, tf_util.constant(value=0.0, dtype='float')
             else:
                 return zero_deltas
@@ -165,15 +188,19 @@ class NaturalGradient(Optimizer):
         # Natural gradient step if constant > 0
         def apply_step():
             # lambda = sqrt(c' / c)
-            epsilon = tf_util.constant(value=util.epsilon, dtype='float')
-            lagrange_multiplier = tf.math.sqrt(
-                x=(constant / tf.math.maximum(x=learning_rate, y=epsilon))
+            lagrange_multiplier = tf.where(
+                condition=(constant > 0.0),
+                x=tf.math.sqrt(x=(constant / tf.math.maximum(x=learning_rate, y=epsilon))),
+                y=-tf.math.sqrt(x=(-constant / tf.math.maximum(x=learning_rate, y=epsilon)))
             )
 
-            # delta = delta' / lambda  (zero prevented via tf.cond pred below)
-            estimated_deltas = deltas.fmap(
-                function=(lambda delta: delta / tf.math.maximum(x=lagrange_multiplier, y=epsilon))
+            # delta = delta' / lambda
+            lagrange_multiplier = tf.where(
+                condition=(lagrange_multiplier > 0.0),
+                x=tf.math.maximum(x=lagrange_multiplier, y=epsilon),
+                y=tf.math.minimum(x=lagrange_multiplier, y=-epsilon)
             )
+            estimated_deltas = deltas.fmap(function=(lambda delta: delta / lagrange_multiplier))
 
             # Apply natural gradient improvement.
             assignments = list()
@@ -181,18 +208,21 @@ class NaturalGradient(Optimizer):
                 assignments.append(variable.assign_add(delta=delta, read_value=False))
 
             with tf.control_dependencies(control_inputs=assignments):
-                # if return_estimated_improvement:
-                #     # improvement = grad(loss) * delta  (= loss_new - loss_old)
-                #     estimated_improvement = tf.math.add_n(inputs=[
-                #         tf.math.reduce_sum(input_tensor=(loss_grad * delta))
-                #         for loss_grad, delta in zip(loss_gradients, estimated_deltas.values())
-                #     ])
+                if self.return_improvement_estimate:
+                    # improvement = grad(loss) * delta  (= loss_new - loss_old)
+                    improvement_estimate = tf.math.add_n(inputs=[
+                        tf.math.reduce_sum(input_tensor=(loss_grad * delta))
+                        for loss_grad, delta in zip(loss_gradients, estimated_deltas.values())
+                    ])
+                    return estimated_deltas, improvement_estimate
+                else:
+                    # Trivial operation to enforce control dependency
+                    return estimated_deltas.fmap(function=tf_util.identity)
 
-                #     return list(estimated_deltas.values()), estimated_improvement
-                # else:
-                # Trivial operation to enforce control dependency
-                return [tf_util.identity(input=delta) for delta in estimated_deltas.values()]
+        if self.only_positive_updates:
+            # Natural gradient step only works if constant > 0 (epsilon to avoid zero division)
+            skip_step = constant < (epsilon * learning_rate)
+            return tf.cond(pred=skip_step, true_fn=no_step, false_fn=apply_step)
 
-        # Natural gradient step only works if constant > 0  (epsilon to avoid zero division)
-        skip_step = constant < (tf_util.constant(value=util.epsilon, dtype='float') * learning_rate)
-        return tf.cond(pred=skip_step, true_fn=no_step, false_fn=apply_step)
+        else:
+            return apply_step()

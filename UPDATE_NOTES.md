@@ -38,6 +38,7 @@ This file records all major updates and new features, starting from version 0.5.
 - Renamed agent arguments `baseline_policy`/`baseline_network`/`critic_network` to `baseline`/`critic`
 - Added objectives `state_value` and `action_value`
 - Major change to policy handling and defaults, in particular `parametrized_distributions`, new default policies `parametrized_state/action_value`
+- Added `Agent.act()` argument `deterministic` to distinguish between `independent` and `deterministic`
 
 
 

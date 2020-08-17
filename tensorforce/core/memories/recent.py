@@ -41,6 +41,7 @@ class Recent(Queue):
         # Check whether memory contains at least one valid timestep
         num_timesteps = tf.math.minimum(x=self.buffer_index, y=capacity)
         num_timesteps -= (past_horizon + future_horizon)
+        num_timesteps = tf.maximum(x=num_timesteps, y=self.episode_count)
 
         # Check whether memory contains at least one timestep
         assertions = list()

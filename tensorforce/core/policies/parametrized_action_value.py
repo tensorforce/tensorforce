@@ -98,32 +98,80 @@ class ParametrizedActionValue(ActionValue):
     def max_past_horizon(self, *, on_policy):
         return self.network.max_past_horizon(on_policy=on_policy)
 
+    def initialize(self):
+        super().initialize()
+
+        for name, spec in self.actions_spec.items():
+            if spec.type == 'bool':
+                if name is None:
+                    names = ['action-values/true', 'action-values/false']
+                else:
+                    names = ['action-values/' + name + 'true', 'action-values/' + name + 'false']
+            else:
+                if name is None:
+                    prefix = 'action-values/action'
+                else:
+                    prefix = 'action-values/' + name + 'action'
+                names = [prefix + str(n) for n in range(spec.num_values)]
+            self.register_summary(label='action-values', name=names)
+
     @tf_function(num_args=0)
     def past_horizon(self, *, on_policy):
         return self.network.past_horizon(on_policy=on_policy)
 
-    @tf_function(num_args=4)
-    def act(self, *, states, horizons, internals, auxiliaries, independent):
+    @tf_function(num_args=5)
+    def act(self, *, states, horizons, internals, auxiliaries, deterministic, independent):
         embedding, internals = self.network.apply(
             x=states, horizons=horizons, internals=internals, independent=independent
         )
 
         def function(name, spec, value_layer):
             action_value = value_layer.apply(x=embedding)
+
             if spec.type == 'bool':
                 shape = (-1,) + (spec.size,) + (2,)
                 action_value = tf.reshape(tensor=action_value, shape=shape)
-                action = (action_value[:, :, 0] > action_value[:, :, 1])
-                action = tf.reshape(tensor=action, shape=((-1,) + spec.shape))
+
+                def fn_summary():
+                    values = tf.math.reduce_mean(input_tensor=action_value, axis=(0, 1))
+                    return [values[0], values[1]]
+
+                if name is None:
+                    names = ['action-values/true', 'action-values/false']
+                else:
+                    names = ['action-values/' + name + '-true', 'action-values/' + name + '-false']
+                dependencies = self.summary(
+                    label='action-values', name=names, data=fn_summary, step='timesteps'
+                )
+
+                with tf.control_dependencies(control_inputs=dependencies):
+                    action = (action_value[:, :, 0] > action_value[:, :, 1])
+                    return tf.reshape(tensor=action, shape=((-1,) + spec.shape))
+
             elif spec.type == 'int':
                 shape = (-1,) + spec.shape + (spec.num_values,)
                 action_value = tf.reshape(tensor=action_value, shape=shape)
-                mask = auxiliaries[name]['mask']
-                min_float = tf_util.get_dtype(type='float').min
-                min_float = tf.fill(dims=tf.shape(input=action_value), value=min_float)
-                action_value = tf.where(condition=mask, x=action_value, y=min_float)
-                action = tf.math.argmax(input=action_value, axis=-1, output_type=spec.tf_type())
-            return action
+
+                def fn_summary():
+                    axis = range(self.action_spec.rank + 1)
+                    values = tf.math.reduce_mean(input_tensor=action_value, axis=axis)
+                    return [values[n] for n in range(spec.num_values)]
+
+                if name is None:
+                    prefix = 'action-values/action'
+                else:
+                    prefix = 'action-values/' + name + '-action'
+                names = [prefix + str(n) for n in range(spec.num_values)]
+                dependencies = self.summary(
+                    label='action-values', name=names, data=fn_summary, step='timesteps'
+                )
+
+                with tf.control_dependencies(control_inputs=dependencies):
+                    mask = auxiliaries[name]['mask']
+                    min_float = tf_util.get_dtype(type='float').min
+                    min_float = tf.fill(dims=tf.shape(input=action_value), value=min_float)
+                    action_value = tf.where(condition=mask, x=action_value, y=min_float)
+                    return tf.math.argmax(input=action_value, axis=-1, output_type=spec.tf_type())
 
         actions = self.actions_spec.fmap(
             function=function, cls=TensorDict, zip_values=(self.values,), with_names=True

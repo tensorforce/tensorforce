@@ -38,7 +38,9 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
     def test_natural_gradient(self):
         self.start_tests(name='natural-gradient')
 
-        self.unittest(optimizer=dict(type='natural_gradient', learning_rate=1e-3))
+        self.unittest(
+            optimizer=dict(type='natural_gradient', learning_rate=1e-3, only_positive_updates=False)
+        )
 
     def test_plus(self):
         self.start_tests(name='plus')
@@ -52,11 +54,20 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
     def test_synchronization(self):
         self.start_tests(name='synchronization')
 
+        actions = dict(
+            bool_action=dict(type='bool', shape=(1,)),
+            int_action=dict(type='int', shape=(2,), num_values=4),
+            gaussian_action1=dict(type='float', shape=(1, 2), min_value=1.0, max_value=2.0),
+            gaussian_action2=dict(type='float', shape=(), min_value=-2.0, max_value=1.0)
+        )
+        baseline = dict(network=dict(type='auto', size=8, depth=1, rnn=1), distributions=dict(
+            gaussian_action2=dict(type='gaussian', global_stddev=True)
+        ))
         self.unittest(
-            policy=dict(network=dict(type='auto', size=8, depth=1, rnn=2)),
-            optimizer='synchronization',
-            baseline=dict(network=dict(type='auto', size=8, depth=1, rnn=1)),
-            baseline_optimizer='adam', baseline_objective='policy_gradient'
+            # Requires same size, but can still vary RNN horizon
+            actions=actions, baseline=baseline, baseline_optimizer='synchronization',
+            # Using policy_gradient here, since action_value is covered by DQN
+            baseline_objective='policy_gradient'
         )
 
     def test_tf_optimizer(self):

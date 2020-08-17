@@ -58,6 +58,7 @@ class Synchronization(Optimizer):
 
     @tf_function(num_args=1)
     def step(self, *, arguments, variables, **kwargs):
+        assert 'source_variables' in kwargs
         source_variables = kwargs['source_variables']
 
         assert all(

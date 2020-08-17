@@ -171,7 +171,9 @@ class TestLayers(UnittestBase, unittest.TestCase):
         # TODO: buffer_observe incompatible with Deltafier/Sequence expecting single-step inputs
         agent, environment = self.prepare(
             states=states, policy=network, preprocessing=preprocessing,
-            config=dict(buffer_observe=1, eager_mode=True, create_debug_assertions=True)
+            config=dict(
+                buffer_observe=1, eager_mode=True, create_debug_assertions=True, tf_log_level=20
+            )
         )
 
         states = environment.reset()
@@ -203,6 +205,6 @@ class TestLayers(UnittestBase, unittest.TestCase):
         states = dict(type='float', shape=(3,), min_value=1.0, max_value=2.0)
         network = [
             dict(type='rnn', cell='gru', size=8, horizon=2),
-            dict(type='lstm', size=8, horizon=2)
+            dict(type='lstm', size=7, horizon=1)
         ]
         self.unittest(states=states, policy=network)

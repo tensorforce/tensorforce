@@ -60,7 +60,7 @@ class LineSearch(Iterative):
                 improvement=TensorSpec(type='float', shape=()).signature(batched=False),
                 last_improvement=TensorSpec(type='float', shape=()).signature(batched=False),
                 base_value=TensorSpec(type='float', shape=()).signature(batched=False),
-                estimated=TensorSpec(type='float', shape=()).signature(batched=False)
+                estimate=TensorSpec(type='float', shape=()).signature(batched=False)
             )
 
         elif function == 'solve' or function == 'start':
@@ -69,7 +69,7 @@ class LineSearch(Iterative):
                 x_init=self.values_spec.signature(batched=False),
                 base_value=TensorSpec(type='float', shape=()).signature(batched=False),
                 zero_value=TensorSpec(type='float', shape=()).signature(batched=False),
-                estimated=TensorSpec(type='float', shape=()).signature(batched=False)
+                estimate=TensorSpec(type='float', shape=()).signature(batched=False)
             )
 
         else:
@@ -92,14 +92,14 @@ class LineSearch(Iterative):
                 improvement=TensorSpec(type='float', shape=()).signature(batched=False),
                 last_improvement=TensorSpec(type='float', shape=()).signature(batched=False),
                 base_value=TensorSpec(type='float', shape=()).signature(batched=False),
-                estimated=TensorSpec(type='float', shape=()).signature(batched=False)
+                estimate=TensorSpec(type='float', shape=()).signature(batched=False)
             )
 
         else:
             return super().output_signature(function=function)
 
     @tf_function(num_args=5)
-    def solve(self, *, arguments, x_init, base_value, zero_value, estimated, fn_x):
+    def solve(self, *, arguments, x_init, base_value, zero_value, estimate, fn_x):
         """
         Iteratively optimize $f(x)$ for $x$ on the line between $x'$ and $x_0$.
 
@@ -107,7 +107,7 @@ class LineSearch(Iterative):
             x_init: Initial solution guess $x_0$.
             base_value: Value $f(x')$ at $x = x'$.
             zero_value: Value $f(x_0)$ at $x = x_0$.
-            estimated: Estimated improvement for $x = x_0$.
+            estimate: Estimated improvement for $x = x_0$.
             fn_x: A callable returning the value $f(x)$ at $x$, with potential side effect.
 
         Returns:
@@ -115,11 +115,11 @@ class LineSearch(Iterative):
         """
         return super().solve(
             arguments=arguments, x_init=x_init, base_value=base_value, zero_value=zero_value,
-            estimated=estimated, fn_x=fn_x
+            estimate=estimate, fn_x=fn_x
         )
 
     @tf_function(num_args=5)
-    def start(self, *, arguments, x_init, base_value, zero_value, estimated):
+    def start(self, *, arguments, x_init, base_value, zero_value, estimate):
         """
         Initialization step preparing the arguments for the first iteration of the loop body.
 
@@ -127,27 +127,26 @@ class LineSearch(Iterative):
             x_init: Initial solution guess $x_0$.
             base_value: Value $f(x')$ at $x = x'$.
             zero_value: Value $f(x_0)$ at $x = x_0$.
-            estimated: Estimated value at $x = x_0$.
+            estimate: Estimated value at $x = x_0$.
 
         Returns:
             Initial arguments for step.
         """
+        # dependencies = list()
+        # if self.config.create_tf_assertions:
+        #     zero_float = tf_util.constant(value=0.0, dtype='float')
+        #     dependencies.append(tf.debugging.assert_greater_equal(x=estimate, y=zero_float))
 
-        dependencies = list()
-        if self.config.create_tf_assertions:
-            zero_float = tf_util.constant(value=0.0, dtype='float')
-            dependencies.append(tf.debugging.assert_greater_equal(x=estimated, y=zero_float))
+        # with tf.control_dependencies(control_inputs=dependencies):
+        zeros_x = x_init.fmap(function=tf.zeros_like)
 
-        with tf.control_dependencies(control_inputs=dependencies):
-            zeros_x = x_init.fmap(function=tf.zeros_like)
+        improvement = zero_value - base_value
+        last_improvement = tf_util.constant(value=-1.0, dtype='float')
 
-            improvement = zero_value - base_value
-            last_improvement = tf_util.constant(value=-1.0, dtype='float')
-
-        return arguments, zeros_x, x_init, improvement, last_improvement, base_value, estimated
+        return arguments, zeros_x, x_init, improvement, last_improvement, base_value, estimate
 
     @tf_function(num_args=7, is_loop_body=True)
-    def step(self, *, arguments, x, deltas, improvement, last_improvement, base_value, estimated):
+    def step(self, *, arguments, x, deltas, improvement, last_improvement, base_value, estimate):
         """
         Iteration loop body of the line search algorithm.
 
@@ -157,7 +156,7 @@ class LineSearch(Iterative):
             improvement: Current improvement $(f(x_t) - f(x'))$.
             last_improvement: Last improvement $(f(x_{t-1}) - f(x'))$.
             base_value: Value $f(x')$ at $x = x'$.
-            estimated: Current estimated value at $x_t$.
+            estimate: Current estimated value at $x_t$.
 
         Returns:
             Updated arguments for next iteration.
@@ -165,7 +164,7 @@ class LineSearch(Iterative):
         next_x = x.fmap(function=(lambda t, delta: t + delta), zip_values=deltas)
 
         backtracking_factor = self.backtracking_factor.value()
-        next_estimated = estimated * backtracking_factor
+        next_estimate = estimate * backtracking_factor
 
         def first_iteration():
             one_float = tf_util.constant(value=1.0, dtype='float')
@@ -188,11 +187,11 @@ class LineSearch(Iterative):
             next_deltas = next_deltas.fmap(function=tf_util.identity)
 
         return arguments, next_x, next_deltas, next_improvement, improvement, base_value, \
-            next_estimated
+            next_estimate
 
     @tf_function(num_args=7)
     def next_step(
-        self, *, arguments, x, deltas, improvement, last_improvement, base_value, estimated
+        self, *, arguments, x, deltas, improvement, last_improvement, base_value, estimate
     ):
         """
         Termination condition: max number of iterations, or no improvement for last step, or
@@ -204,7 +203,7 @@ class LineSearch(Iterative):
             improvement: Current improvement $(f(x_t) - f(x'))$.
             last_improvement: Last improvement $(f(x_{t-1}) - f(x'))$.
             base_value: Value $f(x')$ at $x = x'$.
-            estimated: Current estimated value at $x_t$.
+            estimate: Current estimated value at $x_t$.
 
         Returns:
             True if another iteration should be performed.
@@ -215,14 +214,14 @@ class LineSearch(Iterative):
         next_step = (improvement >= last_improvement)
         # Continue while estimated improvement is positive
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')
-        next_step = tf.math.logical_and(x=next_step, y=(estimated > epsilon))
+        next_step = tf.math.logical_and(x=next_step, y=(estimate > epsilon))
         # Continue while improvement ratio is below accept ratio, so not yet sufficient
         accept_ratio = self.accept_ratio.value()
-        improvement_ratio = improvement / tf.math.maximum(x=estimated, y=epsilon)
+        improvement_ratio = improvement / tf.math.maximum(x=estimate, y=epsilon)
         return tf.math.logical_and(x=next_step, y=(improvement_ratio < accept_ratio))
 
     @tf_function(num_args=7)
-    def end(self, *, arguments, x, deltas, improvement, last_improvement, base_value, estimated):
+    def end(self, *, arguments, x, deltas, improvement, last_improvement, base_value, estimate):
         """
         Termination step preparing the return value.
 
@@ -232,7 +231,7 @@ class LineSearch(Iterative):
             improvement: Current improvement $(f(x_n) - f(x'))$.
             last_improvement: Last improvement $(f(x_{n-1}) - f(x'))$.
             base_value: Value $f(x')$ at $x = x'$.
-            estimated: Final estimated value at $x_n$.
+            estimate: Final estimated value at $x_n$.
 
         Returns:
             Final solution.

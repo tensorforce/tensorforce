@@ -21,7 +21,9 @@ from test.unittest_base import UnittestBase
 
 class TestEnvironments(UnittestBase, unittest.TestCase):
 
-    agent = dict(agent='random', config=dict(eager_mode=True, create_debug_assertions=True))
+    agent = dict(
+        agent='random', config=dict(eager_mode=True, create_debug_assertions=True, tf_log_level=20)
+    )
 
     def test_ale(self):
         self.start_tests(name='ale')
@@ -55,7 +57,7 @@ class TestEnvironments(UnittestBase, unittest.TestCase):
         self.unittest(environment=BlackjackEnv(), num_episodes=2)
 
         # Classic control
-        self.unittest(environment='CartPole-v1', num_episodes=2)
+        # above: self.unittest(environment='CartPole-v1', num_episodes=2)
         self.unittest(environment='MountainCar-v0', num_episodes=2)
         self.unittest(environment='MountainCarContinuous-v0', num_episodes=2)
         self.unittest(environment='Pendulum-v0', num_episodes=2)
@@ -66,11 +68,11 @@ class TestEnvironments(UnittestBase, unittest.TestCase):
         self.unittest(environment='LunarLanderContinuous-v2', num_episodes=2)
         self.unittest(environment='BipedalWalker-v3', num_episodes=2)
         self.unittest(environment='BipedalWalkerHardcore-v3', num_episodes=2)
-        # above: self.unittest(environment='CarRacing-v0', num_episodes=2)
+        # below: self.unittest(environment='CarRacing-v0', num_episodes=2)
 
         # Toy text
         # above: self.unittest(environment='Blackjack-v0', num_episodes=2)
-        # self.unittest(environment='KellyCoinflip-v0', num_episodes=2)
+        self.unittest(environment='KellyCoinflip-v0', num_episodes=2)
         self.unittest(environment='KellyCoinflipGeneralized-v0', num_episodes=2)
         self.unittest(environment='FrozenLake-v0', num_episodes=2)
         self.unittest(environment='FrozenLake8x8-v0', num_episodes=2)
@@ -78,7 +80,7 @@ class TestEnvironments(UnittestBase, unittest.TestCase):
         self.unittest(environment='NChain-v0', num_episodes=2)
         self.unittest(environment='Roulette-v0', num_episodes=2)
         self.unittest(environment='Taxi-v3', num_episodes=2)
-        self.unittest(environment='GuessingGame-v0', num_episodes=2)
+        # above: self.unittest(environment='GuessingGame-v0', num_episodes=2)
         self.unittest(environment='HotterColder-v0', num_episodes=2)
 
         # Algorithmic

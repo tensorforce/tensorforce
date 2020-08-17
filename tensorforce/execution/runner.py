@@ -611,7 +611,8 @@ class Runner(object):
         if self.evaluation_run and self.terminals[-1] <= 0:
             agent_start = time.time()
             self.actions[-1], self.evaluation_internals = self.agent.act(
-                states=self.states[-1], internals=self.evaluation_internals, independent=True
+                states=self.states[-1], internals=self.evaluation_internals, deterministic=True,
+                independent=True
             )
             self.episode_agent_second[-1] += time.time() - agent_start
 
@@ -622,7 +623,8 @@ class Runner(object):
         else:
             agent_start = time.time()
             actions, self.evaluation_internals = self.agent.act(
-                states=self.states[-1], internals=self.evaluation_internals, independent=True
+                states=self.states[-1], internals=self.evaluation_internals, deterministic=True,
+                independent=True
             )
             self.evaluation_agent_second += time.time() - agent_start
 

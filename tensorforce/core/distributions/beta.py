@@ -175,16 +175,17 @@ class Beta(Distribution):
 
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')
 
-        # Deterministic: mean as action
-        definite = beta / alpha_beta
+        def fn_mode():
+            # Deterministic: mean as action
+            return beta / alpha_beta
 
-        # Non-deterministic: sample action using gamma distribution
-        alpha_sample = tf.random.gamma(shape=(), alpha=alpha, dtype=tf_util.get_dtype(type='float'))
-        beta_sample = tf.random.gamma(shape=(), alpha=beta, dtype=tf_util.get_dtype(type='float'))
+        def fn_sample():
+            # Non-deterministic: sample action using gamma distribution
+            alpha_sample = tf.random.gamma(shape=(), alpha=alpha, dtype=tf_util.get_dtype(type='float'))
+            beta_sample = tf.random.gamma(shape=(), alpha=beta, dtype=tf_util.get_dtype(type='float'))
+            return beta_sample / tf.maximum(x=(alpha_sample + beta_sample), y=epsilon)
 
-        sampled = beta_sample / tf.maximum(x=(alpha_sample + beta_sample), y=epsilon)
-
-        action = tf.where(condition=(temperature < epsilon), x=definite, y=sampled)
+        action = tf.cond(pred=(temperature < epsilon), true_fn=fn_mode, false_fn=fn_sample)
 
         min_value = tf_util.constant(value=self.action_spec.min_value, dtype='float')
         max_value = tf_util.constant(value=self.action_spec.max_value, dtype='float')

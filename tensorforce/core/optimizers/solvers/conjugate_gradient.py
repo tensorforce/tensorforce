@@ -195,9 +195,8 @@ class ConjugateGradient(Iterative):
         A_conjugate = tf.cond(pred=skip_damping, true_fn=no_damping, false_fn=apply_damping)
 
         # cAc := c_t^T * Ac
-        conjugate_A_conjugate = conjugate.fmap(
-            function=(lambda conj, A_conj: conj * A_conj), zip_values=A_conjugate
-        )
+        multiply = tf.math.multiply
+        conjugate_A_conjugate = conjugate.fmap(function=multiply, zip_values=A_conjugate)
         conjugate_A_conjugate = tf.math.add_n(inputs=[
             tf.math.reduce_sum(input_tensor=conj_A_conj)
             for conj_A_conj in conjugate_A_conjugate.values()
@@ -205,7 +204,12 @@ class ConjugateGradient(Iterative):
 
         # \alpha := r_t^2 / cAc
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')
-        alpha = squared_residual / tf.math.maximum(x=conjugate_A_conjugate, y=epsilon)
+        conjugate_A_conjugate = tf.where(
+            condition=(conjugate_A_conjugate > 0.0),
+            x=tf.math.maximum(x=conjugate_A_conjugate, y=epsilon),
+            y=tf.math.minimum(x=conjugate_A_conjugate, y=-epsilon)
+        )
+        alpha = squared_residual / conjugate_A_conjugate
 
         # x_{t+1} := x_t + \alpha * c_t
         next_x = x.fmap(function=(lambda t, conj: t + alpha * conj), zip_values=conjugate)

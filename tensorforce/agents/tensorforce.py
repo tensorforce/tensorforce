@@ -189,12 +189,6 @@ class TensorforceAgent(Agent):
             reduce calls to TensorFlow for improved performance
             (<span style="color:#00C000"><b>default</b></span>: configuration-specific maximum
             number which can be buffered without affecting performance).</li>
-            <li><b>always_apply_exploration</b> (<i>bool</i>) &ndash; Whether to always apply
-            exploration, also for independent act() calls (final value in case of schedule)
-            (<span style="color:#00C000"><b>default</b></span>: false).</li>
-            <li><b>always_apply_variable_noise</b> (<i>bool</i>) &ndash; Whether to always apply
-            variable noise, also for independent act() calls (final value in case of schedule)
-            (<span style="color:#00C000"><b>default</b></span>: false).</li>
             <li><b>enable_int_action_masking</b> (<i>bool</i>) &ndash; Whether int action options
             can be masked via an optional "[ACTION-NAME]_mask" state input
             (<span style="color:#00C000"><b>default</b></span>: true).</li>
@@ -238,14 +232,13 @@ class TensorforceAgent(Agent):
             (<span style="color:#00C000"><b>default</b></span>: 5).</li>
             <li><b>labels</b> (<i>"all" | iter[string]</i>) &ndash; which summaries to record
             (<span style="color:#00C000"><b>default</b></span>: only "graph"):</li>
+            <li>"action-values": value of each action (timestep-based)</li>
             <li>"distribution": distribution parameters like probabilities or mean and stddev
-            (timestep-based, interpretation not obvious in case of value-based algorithms)</li>
-            <li>"entropy": entropy of (per-action) policy distribution(s) (timestep-based,
-            interpretation not obvious in case of value-based algorithms)</li>
+            (timestep-based)</li>
+            <li>"entropy": entropy of (per-action) policy distribution(s) (timestep-based)</li>
             <li>"graph": computation graph</li>
             <li>"kl-divergence": KL-divergence of previous and updated (per-action) policy
-            distribution(s) (update-based, interpretation not obvious in case of value-based
-            algorithms)</li>
+            distribution(s) (update-based)</li>
             <li>"loss": policy and baseline loss plus loss components (update-based)</li>
             <li>"parameters": parameter values (according to parameter unit)</li>
             <li>"reward": timestep and episode reward, plus intermediate reward/return estimates

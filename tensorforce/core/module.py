@@ -110,6 +110,9 @@ def tf_function(
                         args = output_signature.kwargs_to_args(kwargs=args, flatten=flatten_outputs)
                     return args
 
+                function_graph.__name__ = name
+                function_graph.__qualname__ = qualname
+
                 function_graphs[str(graph_params)] = tf.function(
                     func=function_graph, input_signature=input_signature.to_list(), autograph=False
                     # experimental_implements=None, experimental_autograph_options=None,
@@ -193,6 +196,15 @@ class Module(tf.Module):
         return self.parent.config
 
     @property
+    def full_name(self):
+        return '{}/{}'.format(self.parent.full_name, self.name)
+
+    @property
+    def tensorforce_submodules(self):
+        predicate = (lambda x: isinstance(x, Module))
+        return list(self._flatten(recursive=True, predicate=predicate))
+
+    @property
     def this_submodules(self):
         predicate = (lambda x: isinstance(x, tf.Module))
         return list(self._flatten(recursive=False, predicate=predicate))
@@ -256,14 +268,14 @@ class Module(tf.Module):
 
     def save(self, *, directory, filename=None):
         if filename is None:
-            filename = self.name
+            filename = self.full_name.replace('/', '.')
         if self.checkpoint is None:
             self.checkpoint = tf.train.Checkpoint(**{self.name: self})
         return self.checkpoint.write(file_prefix=os.path.join(directory, filename))
 
     def restore(self, *, directory, filename=None):
         if filename is None:
-            filename = self.name
+            filename = self.full_name.replace('/', '.')
         if self.checkpoint is None:
             self.checkpoint = tf.train.Checkpoint(**{self.name: self})
         try:

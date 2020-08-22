@@ -13,13 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 
-import tensorflow as tf
-
-from tensorforce.core import Module, SignatureDict, TensorSpec, tf_function
-from tensorforce.core.policies import Policy
+from tensorforce.core import SignatureDict, TensorSpec, tf_function
+from tensorforce.core.policies import BasePolicy
 
 
-class StateValue(Module):
+class StateValue(BasePolicy):
     """
     Base class for state-value functions, here categorized as "degenerate" policy.
 
@@ -34,21 +32,8 @@ class StateValue(Module):
         actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(
-        self, *, device=None, l2_regularization=None, name=None, states_spec=None,
-        auxiliaries_spec=None, actions_spec=None
-    ):
-        super().__init__(device=device, l2_regularization=l2_regularization, name=name)
-
-        self.states_spec = states_spec
-        self.auxiliaries_spec = auxiliaries_spec
-        self.actions_spec = actions_spec
-
     def input_signature(self, *, function):
-        if function == 'past_horizon':
-            return SignatureDict()
-
-        elif function == 'state_value':
+        if function == 'state_value':
             return SignatureDict(
                 states=self.states_spec.signature(batched=True),
                 horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
@@ -60,12 +45,7 @@ class StateValue(Module):
             return super().input_signature(function=function)
 
     def output_signature(self, *, function):
-        if function == 'past_horizon':
-            return SignatureDict(
-                singleton=TensorSpec(type='int', shape=()).signature(batched=False)
-            )
-
-        elif function == 'state_value':
+        if function == 'state_value':
             return SignatureDict(
                 singleton=TensorSpec(type='float', shape=()).signature(batched=True)
             )

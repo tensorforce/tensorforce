@@ -118,6 +118,9 @@ class NestedDict(OrderedDict):
                     args = (value,)
                 if zip_value is not None:
                     args += zip_value
+                    # args += tuple(
+                    #     x.singleton() if isinstance(x, NestedDict) else x for x in zip_value
+                    # )
                 setitem(name, function(*args))
             else:
                 setitem(name, value.fmap(
@@ -151,8 +154,9 @@ class NestedDict(OrderedDict):
                 assert isinstance(value, self.__class__)
                 for subname in value:
                     if subname is None:
-                        subname = self.__class__._SINGLETON
-                    yield '{}/{}'.format(name, subname)
+                        yield name
+                    else:
+                        yield '{}/{}'.format(name, subname)
 
     def items(self):
         for name, value in super().items():

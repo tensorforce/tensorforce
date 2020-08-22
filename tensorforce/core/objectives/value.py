@@ -67,16 +67,54 @@ class Value(Objective):
             return ('action_value',)
 
     def reference_spec(self):
-        if self.early_reduce:
-            return TensorSpec(type='float', shape=())
+        # if self.early_reduce:
+        return TensorSpec(type='float', shape=())
 
-        else:
-            return TensorSpec(
-                type='float', shape=(sum(spec.size for spec in self.actions_spec.values()),)
-            )
+        # else:
+        #     return TensorSpec(
+        #         type='float', shape=(sum(spec.size for spec in self.actions_spec.values()),)
+        #     )
 
     @tf_function(num_args=5)
     def reference(self, *, states, horizons, internals, auxiliaries, actions, policy):
+        # if self.value == 'state':
+        #     if self.early_reduce:
+        #         value = policy.state_value(
+        #             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries
+        #         )
+        #     else:
+        #         value = policy.state_values(
+        #             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries
+        #         )
+        #         value = tf.concat(values=tuple(value.values()), axis=1)
+
+        # elif self.value == 'action':
+        #     if self.early_reduce:
+        #         value = policy.action_value(
+        #             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+        #             actions=actions
+        #         )
+        #     else:
+        #         value = policy.action_values(
+        #             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+        #             actions=actions
+        #         )
+        #         value = tf.concat(values=tuple(value.values()), axis=1)
+
+        return tf_util.zeros(shape=(tf.shape(input=actions.value())[0],), dtype='float')
+
+    @tf_function(num_args=7)
+    def loss(
+        self, *, states, horizons, internals, auxiliaries, actions, reward, reference, policy,
+        baseline=None
+    ):
+        # value = self.reference(
+        #     states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+        #     actions=actions, policy=policy
+        # )
+
+        # reference = tf.stop_gradient(input=reference)
+
         if self.value == 'state':
             if self.early_reduce:
                 value = policy.state_value(
@@ -100,17 +138,6 @@ class Value(Objective):
                     actions=actions
                 )
                 value = tf.concat(values=tuple(value.values()), axis=1)
-
-        return value
-
-    @tf_function(num_args=7)
-    def loss(self, *, states, horizons, internals, auxiliaries, actions, reward, policy, reference):
-        value = self.reference(
-            states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-            actions=actions, policy=policy
-        )
-
-        # reference = tf.stop_gradient(input=reference)
 
         if not self.early_reduce:
             reward = tf.expand_dims(input=reward, axis=1)

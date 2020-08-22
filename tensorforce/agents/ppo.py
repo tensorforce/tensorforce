@@ -237,7 +237,7 @@ class ProximalPolicyOptimization(TensorforceAgent):
                 estimate_advantage=True, predict_action_values=False,
                 predict_terminal_values=predict_terminal_values
             )
-            baseline = dict(network=baseline)
+            baseline = dict(type='parametrized_state_value', network=baseline)
             assert baseline_optimizer is not None
             baseline_objective = dict(type='value', value='state')
 

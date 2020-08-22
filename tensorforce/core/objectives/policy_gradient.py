@@ -92,7 +92,10 @@ class PolicyGradient(Objective):
         return log_probability
 
     @tf_function(num_args=7)
-    def loss(self, *, states, horizons, internals, auxiliaries, actions, reward, reference, policy):
+    def loss(
+        self, *, states, horizons, internals, auxiliaries, actions, reward, reference, policy,
+        baseline=None
+    ):
         log_probability = self.reference(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
             actions=actions, policy=policy

@@ -13,19 +13,15 @@
 # limitations under the License.
 # ==============================================================================
 
-import tensorflow as tf
-
 from tensorforce import TensorforceError
-from tensorforce.core import distribution_modules, layer_modules, ModuleDict, network_modules, \
-    TensorDict, tf_function, tf_util
+from tensorforce.core import layer_modules, network_modules, TensorDict, TensorsSpec, tf_function
 from tensorforce.core.policies import ActionValue
 
 
 class ParametrizedActionValue(ActionValue):
     """
-    Policy which parametrizes independent value functions per action, conditioned on the output of a
-    central neural network processing the input state
-    (specification key: `parametrized_action_value`).
+    Policy which parametrizes an action-value function, conditioned on the output of a neural
+    network processing the input state (specification key: `parametrized_action_value`).
 
     Args:
         network ('auto' | specification): Policy network configuration, see
@@ -53,40 +49,29 @@ class ParametrizedActionValue(ActionValue):
             auxiliaries_spec=auxiliaries_spec, actions_spec=actions_spec
         )
 
-        if not all(spec.type in ('bool', 'int') for spec in self.actions_spec.values()):
-            raise TensorforceError.value(
-                name='ParametrizedActionValue', argument='actions_spec', value=actions_spec,
-                hint='types not bool/int'
-            )
-
         # Network
+        inputs_spec = TensorsSpec()
+        if self.states_spec.is_singleton():
+            inputs_spec['states'] = self.states_spec.singleton()
+        else:
+            inputs_spec['states'] = self.states_spec
+        if self.actions_spec.is_singleton():
+            inputs_spec['actions'] = self.actions_spec.singleton()
+        else:
+            inputs_spec['actions'] = self.actions_spec
         self.network = self.submodule(
-            name='network', module=network, modules=network_modules, inputs_spec=self.states_spec
+            name='network', module=network, modules=network_modules, inputs_spec=inputs_spec
         )
         output_spec = self.network.output_spec()
         if output_spec.type != 'float':
             raise TensorforceError.type(
-                name='ParametrizedDistributions', argument='network output', dtype=output_spec.type
+                name='ParametrizedActionValue', argument='network output', dtype=output_spec.type
             )
 
-        # Action values
-        def function(name, spec):
-            if name is None:
-                name = 'value'
-            else:
-                name = name + '_value'
-            if spec.type == 'bool':
-                return self.submodule(
-                    name=name, module='linear', modules=layer_modules, size=(spec.size * 2),
-                    input_spec=output_spec
-                )
-            elif spec.type == 'int':
-                return self.submodule(
-                    name=name, module='linear', modules=layer_modules,
-                    size=(spec.size * spec.num_values), input_spec=output_spec
-                )
-
-        self.values = self.actions_spec.fmap(function=function, cls=ModuleDict, with_names=True)
+        # Action value
+        self.value = self.submodule(
+            name='value', module='linear', modules=layer_modules, size=0, input_spec=output_spec
+        )
 
     @property
     def internals_spec(self):
@@ -98,137 +83,34 @@ class ParametrizedActionValue(ActionValue):
     def max_past_horizon(self, *, on_policy):
         return self.network.max_past_horizon(on_policy=on_policy)
 
-    def initialize(self):
-        super().initialize()
-
-        for name, spec in self.actions_spec.items():
-            if spec.type == 'bool':
-                if name is None:
-                    names = ['action-values/true', 'action-values/false']
-                else:
-                    names = ['action-values/' + name + 'true', 'action-values/' + name + 'false']
-            else:
-                if name is None:
-                    prefix = 'action-values/action'
-                else:
-                    prefix = 'action-values/' + name + 'action'
-                names = [prefix + str(n) for n in range(spec.num_values)]
-            self.register_summary(label='action-values', name=names)
-
     @tf_function(num_args=0)
     def past_horizon(self, *, on_policy):
         return self.network.past_horizon(on_policy=on_policy)
 
-    @tf_function(num_args=5)
-    def act(self, *, states, horizons, internals, auxiliaries, deterministic, independent):
-        embedding, internals = self.network.apply(
-            x=states, horizons=horizons, internals=internals, independent=independent
-        )
-
-        def function(name, spec, value_layer):
-            action_value = value_layer.apply(x=embedding)
-
-            if spec.type == 'bool':
-                shape = (-1,) + (spec.size,) + (2,)
-                action_value = tf.reshape(tensor=action_value, shape=shape)
-
-                def fn_summary():
-                    values = tf.math.reduce_mean(input_tensor=action_value, axis=(0, 1))
-                    return [values[0], values[1]]
-
-                if name is None:
-                    names = ['action-values/true', 'action-values/false']
-                else:
-                    names = ['action-values/' + name + '-true', 'action-values/' + name + '-false']
-                dependencies = self.summary(
-                    label='action-values', name=names, data=fn_summary, step='timesteps'
-                )
-
-                with tf.control_dependencies(control_inputs=dependencies):
-                    action = (action_value[:, :, 0] > action_value[:, :, 1])
-                    return tf.reshape(tensor=action, shape=((-1,) + spec.shape))
-
-            elif spec.type == 'int':
-                shape = (-1,) + spec.shape + (spec.num_values,)
-                action_value = tf.reshape(tensor=action_value, shape=shape)
-
-                def fn_summary():
-                    axis = range(self.action_spec.rank + 1)
-                    values = tf.math.reduce_mean(input_tensor=action_value, axis=axis)
-                    return [values[n] for n in range(spec.num_values)]
-
-                if name is None:
-                    prefix = 'action-values/action'
-                else:
-                    prefix = 'action-values/' + name + '-action'
-                names = [prefix + str(n) for n in range(spec.num_values)]
-                dependencies = self.summary(
-                    label='action-values', name=names, data=fn_summary, step='timesteps'
-                )
-
-                with tf.control_dependencies(control_inputs=dependencies):
-                    mask = auxiliaries[name]['mask']
-                    min_float = tf_util.get_dtype(type='float').min
-                    min_float = tf.fill(dims=tf.shape(input=action_value), value=min_float)
-                    action_value = tf.where(condition=mask, x=action_value, y=min_float)
-                    return tf.math.argmax(input=action_value, axis=-1, output_type=spec.tf_type())
-
-        actions = self.actions_spec.fmap(
-            function=function, cls=TensorDict, zip_values=(self.values,), with_names=True
-        )
-
-        return actions, internals
-
-    @tf_function(num_args=5)
-    def action_values(self, *, states, horizons, internals, auxiliaries, actions):
-        embedding, _ = self.network.apply(
-            x=states, horizons=horizons, internals=internals, independent=True
-        )
-
-        def function(spec, value_layer, action):
-            action_value = value_layer.apply(x=embedding)
-            if spec.type == 'bool':
-                shape = (-1,) + spec.shape + (2,)
-                action_value = tf.reshape(tensor=action_value, shape=shape)
-                action_value = tf.where(
-                    condition=action, x=action_value[..., 0], y=action_value[..., 1]
-                )
-            elif spec.type == 'int':
-                shape = (-1,) + spec.shape + (spec.num_values,)
-                action_value = tf.reshape(tensor=action_value, shape=shape)
-                rank = spec.rank + 1
-                action = tf.expand_dims(input=action, axis=rank)
-                action_value = tf.gather(params=action_value, indices=action, batch_dims=rank)
-                action_value = tf.squeeze(input=action_value, axis=rank)
-            return action_value
-
-        return self.actions_spec.fmap(
-            function=function, cls=TensorDict, zip_values=(self.values, actions)
-        )
-
     @tf_function(num_args=4)
-    def state_values(self, *, states, horizons, internals, auxiliaries):
+    def next_internals(self, *, states, horizons, internals, actions, independent):
+        states_actions = TensorDict(states=states, actions=actions)
+
+        _, internals = self.network.apply(
+            x=states_actions, horizons=horizons, internals=internals, independent=independent
+        )
+
+        return internals
+
+    @tf_function(num_args=5)
+    def action_value(self, *, states, horizons, internals, auxiliaries, actions):
+        inputs = TensorDict()
+        if self.states_spec.is_singleton():
+            inputs['states'] = states.singleton()
+        else:
+            inputs['states'] = states
+        if self.actions_spec.is_singleton():
+            inputs['actions'] = actions.singleton()
+        else:
+            inputs['actions'] = actions
+
         embedding, _ = self.network.apply(
-            x=states, horizons=horizons, internals=internals, independent=True
+            x=inputs, horizons=horizons, internals=internals, independent=True
         )
 
-        def function(name, spec, value_layer):
-            action_value = value_layer.apply(x=embedding)
-            if spec.type == 'bool':
-                shape = (-1,) + (spec.size,) + (2,)
-                action_value = tf.reshape(tensor=action_value, shape=shape)
-                state_value = tf.math.maximum(x=action_value[:, :, 0], y=action_value[:, :, 1])
-                state_value = tf.reshape(tensor=state_value, shape=((-1,) + spec.shape))
-            elif spec.type == 'int':
-                shape = (-1,) + spec.shape + (spec.num_values,)
-                action_value = tf.reshape(tensor=action_value, shape=shape)
-                mask = auxiliaries[name]['mask']
-                min_float = tf_util.get_dtype(type='float').min
-                min_float = tf.fill(dims=tf.shape(input=action_value), value=min_float)
-                action_value = tf.where(condition=mask, x=action_value, y=min_float)
-                state_value = tf.math.reduce_max(input_tensor=action_value, axis=-1)
-            return state_value
-
-        return self.actions_spec.fmap(
-            function=function, cls=TensorDict, zip_values=(self.values,), with_names=True
-        )
+        return self.value.apply(x=embedding)

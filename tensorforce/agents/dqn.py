@@ -171,7 +171,9 @@ class DeepQNetwork(TensorforceAgent):
             config=config, saver=saver, summarizer=summarizer, recorder=recorder
         )
 
-        policy = dict(type='parametrized_action_value', network=network)
+        policy = dict(
+            type='parametrized_value_policy', network=network, state_value_mode='implicit'
+        )
 
         memory = dict(type='replay', capacity=memory)
 

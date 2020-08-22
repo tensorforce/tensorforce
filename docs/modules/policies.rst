@@ -55,6 +55,6 @@ Example of a full parametrized-distributions policy specification with customize
 
 .. autoclass:: tensorforce.core.policies.ParametrizedDistributions
 
-.. autoclass:: tensorforce.core.policies.ParametrizedStateActionValue
-
 .. autoclass:: tensorforce.core.policies.ParametrizedStateValue
+
+.. autoclass:: tensorforce.core.policies.ParametrizedValuePolicy

@@ -152,7 +152,7 @@ class SignatureDict(NestedDict):
                 elif name in kwargs:
                     arg = kwargs[name]
                 if isinstance(spec, self.value_type):
-                    assert isinstance(arg, (tf.IndexedSlices, tf.Tensor, tf.Variable)), (name, spec, arg)
+                    assert isinstance(arg, (tf.IndexedSlices, tf.Tensor, tf.Variable))
                     if isinstance(arg, tf.IndexedSlices):
                         # spec = tf.IndexedSlicesSpec(
                         #     shape=spec.shape, dtype=spec.dtype, indices_dtype=arg.indices.dtype

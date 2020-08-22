@@ -30,7 +30,8 @@ from tensorforce.core import SignatureDict, TensorSpec, tf_util
 def make_key(*, x):
     try:
         hash(x)
-        x < x
+        if x is not None:
+            x < x
         return x
     except TypeError as exc:
         if isinstance(x, tuple) and len(x) > 0 and all(isinstance(y, tf.Variable) for y in x):

@@ -18,12 +18,12 @@ from functools import partial
 import tensorflow as tf
 
 from tensorforce import TensorforceError
-from tensorforce.core import distribution_modules, layer_modules, ModuleDict, network_modules, \
-    TensorDict, TensorsSpec, tf_function, tf_util
-from tensorforce.core.policies import Stochastic, ActionValue
+from tensorforce.core import distribution_modules, ModuleDict, network_modules, TensorDict, \
+    TensorsSpec, tf_function
+from tensorforce.core.policies import StochasticPolicy, ValuePolicy
 
 
-class ParametrizedDistributions(Stochastic, ActionValue):
+class ParametrizedDistributions(StochasticPolicy, ValuePolicy):
     """
     Policy which parametrizes independent distributions per action, conditioned on the output of a
     central neural network processing the input state, supporting both a stochastic and value-based
@@ -137,23 +137,31 @@ class ParametrizedDistributions(Stochastic, ActionValue):
 
     def input_signature(self, *, function):
         try:
-            return Stochastic.input_signature(self=self, function=function)
+            return StochasticPolicy.input_signature(self=self, function=function)
         except NotImplementedError:
-            return ActionValue.input_signature(self=self, function=function)
+            return ValuePolicy.input_signature(self=self, function=function)
 
     def output_signature(self, *, function):
         try:
-            return Stochastic.output_signature(self=self, function=function)
+            return StochasticPolicy.output_signature(self=self, function=function)
         except NotImplementedError:
-            return ActionValue.output_signature(self=self, function=function)
+            return ValuePolicy.output_signature(self=self, function=function)
 
     @tf_function(num_args=0)
     def past_horizon(self, *, on_policy):
         return self.network.past_horizon(on_policy=on_policy)
 
+    @tf_function(num_args=4)
+    def next_internals(self, *, states, horizons, internals, actions, independent):
+        _, internals = self.network.apply(
+            x=states, horizons=horizons, internals=internals, independent=independent
+        )
+
+        return internals
+
     @tf_function(num_args=5)
     def act(self, *, states, horizons, internals, auxiliaries, deterministic, independent):
-        return Stochastic.act(
+        return StochasticPolicy.act(
             self=self, states=states, horizons=horizons, internals=internals,
             auxiliaries=auxiliaries, deterministic=deterministic, independent=independent
         )

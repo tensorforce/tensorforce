@@ -151,7 +151,8 @@ class DuelingDQN(TensorforceAgent):
     ):
         if estimate_terminal is not None:
             raise TensorforceError.deprecated(
-                name='DuelingDQN', argument='estimate_terminal', replacement='predict_terminal_values'
+                name='DuelingDQN', argument='estimate_terminal',
+                replacement='predict_terminal_values'
             )
 
         self.spec = OrderedDict(
@@ -170,7 +171,7 @@ class DuelingDQN(TensorforceAgent):
             config=config, saver=saver, summarizer=summarizer, recorder=recorder
         )
 
-        policy = dict(type='parametrized_state_action_value', network=network)
+        policy = dict(type='parametrized_value_policy', network=network)
 
         memory = dict(type='replay', capacity=memory)
 

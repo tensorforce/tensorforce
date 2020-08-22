@@ -13,27 +13,31 @@
 # limitations under the License.
 # ==============================================================================
 
+from tensorforce.core.policies.base_policy import BasePolicy
+
+from tensorforce.core.policies.action_value import ActionValue
 from tensorforce.core.policies.policy import Policy
 from tensorforce.core.policies.state_value import StateValue
 
-from tensorforce.core.policies.action_value import ActionValue
-from tensorforce.core.policies.stochastic import Stochastic
+from tensorforce.core.policies.stochastic_policy import StochasticPolicy
+from tensorforce.core.policies.value_policy import ValuePolicy
 
 from tensorforce.core.policies.parametrized_action_value import ParametrizedActionValue
 from tensorforce.core.policies.parametrized_distributions import ParametrizedDistributions
-from tensorforce.core.policies.parametrized_state_action_value import ParametrizedStateActionValue
 from tensorforce.core.policies.parametrized_state_value import ParametrizedStateValue
+from tensorforce.core.policies.parametrized_value_policy import ParametrizedValuePolicy
 
 
 policy_modules = dict(
-    default=ParametrizedDistributions, parametrized_action_value=ParametrizedActionValue,
+    parametrized_action_value=ParametrizedActionValue,
     parametrized_distributions=ParametrizedDistributions,
-    parametrized_state_action_value=ParametrizedStateActionValue,
-    parametrized_state_value=ParametrizedStateValue
+    parametrized_state_value=ParametrizedStateValue,
+    parametrized_value_policy=ParametrizedValuePolicy
 )
 
 
 __all__ = [
-    'ActionValue', 'ParametrizedActionValue', 'ParametrizedDistributions',
-    'ParametrizedStateActionValue', 'ParametrizedStateValue', 'Policy', 'StateValue', 'Stochastic'
+    'ActionValue', 'BasePolicy', 'ParametrizedActionValue', 'ParametrizedDistributions',
+    'ParametrizedStateValue', 'ParametrizedValuePolicy', 'Policy', 'StateValue', 'StochasticPolicy',
+    'ValuePolicy'
 ]

@@ -152,7 +152,6 @@ class DeterministicPolicyGradient(TensorforceAgent):
         # Deprecated
         estimate_terminal=None, critic_network=None, **kwargs
     ):
-        raise TensorforceError(message='Temporarily broken.')
         if estimate_terminal is not None:
             raise TensorforceError.deprecated(
                 name='DPG', argument='estimate_terminal', replacement='predict_terminal_values'
@@ -200,7 +199,7 @@ class DeterministicPolicyGradient(TensorforceAgent):
             predict_terminal_values=predict_terminal_values
         )
 
-        baseline = dict(type='parametrized_distributions', network=critic)
+        baseline = dict(type='parametrized_action_value', network=critic)
         baseline_optimizer = critic_optimizer
         baseline_objective = dict(type='value', value='action')
 

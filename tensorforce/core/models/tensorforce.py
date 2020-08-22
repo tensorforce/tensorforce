@@ -23,7 +23,7 @@ from tensorforce.core import ModuleDict, memory_modules, optimizer_modules, para
 from tensorforce.core.models import Model
 from tensorforce.core.networks import Preprocessor
 from tensorforce.core.objectives import objective_modules
-from tensorforce.core.policies import policy_modules, Stochastic
+from tensorforce.core.policies import policy_modules, StochasticPolicy
 
 
 class TensorforceModel(Model):
@@ -323,15 +323,20 @@ class TensorforceModel(Model):
 
         if required_fns <= {'state_value'}:
             default_module = 'parametrized_state_value'
-        elif required_fns <= {'policy', 'action_value', 'state_value'}:
-            default_module = 'parametrized_state_action_value'
+        elif required_fns <= {'action_value'} and \
+                all(spec.type == 'float' for spec in self.actions_spec.values()):
+            default_module = 'parametrized_action_value'
+        elif required_fns <= {'policy', 'action_value', 'state_value'} and \
+                all(spec.type in ('bool', 'int') for spec in self.actions_spec.values()):
+            default_module = 'parametrized_value_policy'
         elif required_fns <= {'policy', 'stochastic'}:
             default_module = 'parametrized_distributions'
         else:
             logging.warning(
                 "Policy type should be explicitly specified for non-standard agent configuration."
             )
-            default_module = None
+            default_module = 'parametrized_distributions'
+
         self.policy = self.submodule(
             name='policy', module=policy, modules=policy_modules, default_module=default_module,
             states_spec=self.processed_states_spec, auxiliaries_spec=self.auxiliaries_spec,
@@ -342,7 +347,7 @@ class TensorforceModel(Model):
         self.objective.internals_spec = self.policy.internals_spec
 
         if not self.entropy_regularization.is_constant(value=0.0) and \
-                not isinstance(self.policy, Stochastic):
+                not isinstance(self.policy, StochasticPolicy):
             raise TensorforceError.invalid(
                 name='agent', argument='entropy_regularization',
                 condition='policy is not stochastic'
@@ -361,14 +366,18 @@ class TensorforceModel(Model):
 
             if required_fns <= {'state_value'}:
                 default_module = 'parametrized_state_value'
-            elif required_fns <= {'policy', 'action_value', 'state_value'}:
-                default_module = 'parametrized_state_action_value'
+            elif required_fns <= {'action_value'} and \
+                    all(spec.type == 'float' for spec in self.actions_spec.values()):
+                default_module = 'parametrized_action_value'
+            elif required_fns <= {'policy', 'action_value', 'state_value'} and \
+                    all(spec.type in ('bool', 'int') for spec in self.actions_spec.values()):
+                default_module = 'parametrized_value_policy'
             elif required_fns <= {'policy', 'stochastic'}:
                 default_module = 'parametrized_distributions'
             else:
                 logging.warning("Policy type should be explicitly specified for non-standard agent "
                                 "configuration.")
-                default_module = None
+                default_module = 'parametrized_distributions'
 
             self.baseline = self.submodule(
                 name='baseline', module=baseline, modules=policy_modules,
@@ -925,11 +934,9 @@ class TensorforceModel(Model):
 
             # Baseline internals (after variable noise)
             if self.separate_baseline and len(self.internals_spec['baseline']) > 0:
-                # TODO: Baseline policy network apply to retrieve next internals
-                # TODO: Should this be solved by calling act(), or better avoided?
-                _, next_internals['baseline'] = self.baseline.network.apply(
-                    x=states, horizons=horizons, internals=internals['baseline'],
-                    independent=independent
+                next_internals['baseline'] = self.baseline.next_internals(
+                    states=states, horizons=horizons, internals=internals['baseline'],
+                    actions=actions, independent=independent
                 )
             dependencies.extend(next_internals.flatten())
 
@@ -1972,13 +1979,9 @@ class TensorforceModel(Model):
 
             variables = tuple(self.baseline.trainable_variables)
 
-            if self.baseline_objective is None:
-                kwargs = dict()
-            else:
-                kwargs = self.baseline_objective.optimizer_arguments(policy=self.baseline)
-            assert 'source_variables' not in kwargs
-            ordered_names = [variable.name for variable in variables]
+            kwargs = dict()
             try:
+                ordered_names = [variable.name for variable in variables]
                 kwargs['source_variables'] = tuple(sorted(
                     self.policy.trainable_variables,
                     key=(lambda x: ordered_names.index(x.name.replace('/policy/', '/baseline/')))
@@ -2103,18 +2106,10 @@ class TensorforceModel(Model):
                 reference=reference
             )
 
-        kwargs = self.objective.optimizer_arguments(policy=self.policy, baseline=self.baseline)
-        if self.baseline_objective is not None and self.baseline_loss_weight is not None and \
-                not self.baseline_loss_weight.is_constant(value=0.0):
-            util.deep_disjoint_update(
-                target=kwargs,
-                source=self.baseline_objective.optimizer_arguments(policy=self.baseline)
-            )
-
+        kwargs = dict()
         if self.separate_baseline:
-            assert 'source_variables' not in kwargs
-            ordered_names = [variable.name for variable in variables]
             try:
+                ordered_names = [variable.name for variable in variables]
                 kwargs['source_variables'] = tuple(sorted(
                     self.baseline.trainable_variables,
                     key=(lambda x: ordered_names.index(x.name.replace('/baseline/', '/policy/')))
@@ -2212,7 +2207,8 @@ class TensorforceModel(Model):
         # Loss per instance
         loss = self.objective.loss(
             states=states, horizons=horizons, internals=policy_internals, auxiliaries=auxiliaries,
-            actions=actions, reward=reward, reference=policy_reference, policy=self.policy
+            actions=actions, reward=reward, reference=policy_reference, policy=self.policy,
+            baseline=(self.baseline if self.separate_baseline else None)
         )
 
         # Objective loss

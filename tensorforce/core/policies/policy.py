@@ -13,12 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 
-import tensorflow as tf
+from tensorforce.core import SignatureDict, TensorSpec, tf_function
+from tensorforce.core.policies import BasePolicy
 
-from tensorforce.core import Module, SignatureDict, TensorDict, TensorSpec, TensorsSpec, tf_function
 
-
-class Policy(Module):
+class Policy(BasePolicy):
     """
     Base class for decision policies.
 
@@ -33,26 +32,6 @@ class Policy(Module):
         actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(
-        self, *, device=None, l2_regularization=None, name=None, states_spec=None,
-        auxiliaries_spec=None, actions_spec=None
-    ):
-        super().__init__(device=device, l2_regularization=l2_regularization, name=name)
-
-        self.states_spec = states_spec
-        self.auxiliaries_spec = auxiliaries_spec
-        self.actions_spec = actions_spec
-
-    @property
-    def internals_spec(self):
-        return TensorsSpec()
-
-    def internals_init(self):
-        return TensorDict()
-
-    def max_past_horizon(self, *, on_policy):
-        raise NotImplementedError
-
     def input_signature(self, *, function):
         if function == 'act':
             return SignatureDict(
@@ -62,9 +41,6 @@ class Policy(Module):
                 auxiliaries=self.auxiliaries_spec.signature(batched=True),
                 deterministic=TensorSpec(type='bool', shape=()).signature(batched=False)
             )
-
-        elif function == 'past_horizon':
-            return SignatureDict()
 
         else:
             return super().input_signature(function=function)
@@ -76,17 +52,8 @@ class Policy(Module):
                 internals=self.internals_spec.signature(batched=True)
             )
 
-        elif function == 'past_horizon':
-            return SignatureDict(
-                singleton=TensorSpec(type='int', shape=()).signature(batched=False)
-            )
-
         else:
             return super().output_signature(function=function)
-
-    @tf_function(num_args=0)
-    def past_horizon(self, *, on_policy):
-        raise NotImplementedError
 
     @tf_function(num_args=5)
     def act(self, *, states, horizons, internals, auxiliaries, deterministic, independent):

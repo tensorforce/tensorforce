@@ -13,8 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-import tensorflow as tf
-
 from tensorforce.core import Module, SignatureDict, TensorSpec, tf_function
 
 
@@ -88,13 +86,13 @@ class Objective(Module):
         else:
             return super().output_signature(function=function)
 
-    def optimizer_arguments(self, **kwargs):
-        return dict()
-
     @tf_function(num_args=5)
     def reference(self, *, states, horizons, internals, auxiliaries, actions, policy):
         raise NotImplementedError
 
     @tf_function(num_args=7)
-    def loss(self, *, states, horizons, internals, auxiliaries, actions, reward, reference, policy):
+    def loss(
+        self, *, states, horizons, internals, auxiliaries, actions, reward, reference, policy,
+        baseline=None
+    ):
         raise NotImplementedError

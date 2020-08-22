@@ -70,8 +70,8 @@ class TensorforceAgent(Agent):
 
         policy (specification): Policy configuration, see [networks](../modules/networks.html) and
             [policies documentation](../modules/policies.html)
-            (<span style="color:#00C000"><b>default</b></span>: "default", action distributions or
-            value functions parametrized by an automatically configured network).
+            (<span style="color:#00C000"><b>default</b></span>: action distributions or value
+            functions parametrized by an automatically configured network).
         memory (int | specification): Memory configuration, see the
             [memories documentation](../modules/memories.html)
             (<span style="color:#00C000"><b>default</b></span>: replay memory with either given or
@@ -268,7 +268,7 @@ class TensorforceAgent(Agent):
         # Environment
         max_episode_timesteps=None,
         # Agent
-        policy='default', memory='minimum', optimizer='adam',
+        policy='auto', memory='minimum', optimizer='adam',
         # Baseline
         baseline=None, baseline_optimizer=None, baseline_objective=None,
         # Regularization

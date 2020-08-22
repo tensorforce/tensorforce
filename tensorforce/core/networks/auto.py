@@ -66,7 +66,7 @@ class AutoNetwork(LayeredNetwork):
             if input_name is None:
                 prefix = ''
             else:
-                prefix = input_name + '_'
+                prefix = input_name.replace('/', '_') + '_'
                 state_layers.append(dict(
                     type='retrieve', name=(prefix + 'retrieve'), tensors=(input_name,)
                 ))

@@ -13,16 +13,14 @@
 # limitations under the License.
 # ==============================================================================
 
-import tensorflow as tf
-
 from tensorforce import TensorforceError
-from tensorforce.core import distribution_modules, layer_modules, network_modules, tf_function
+from tensorforce.core import layer_modules, network_modules, tf_function
 from tensorforce.core.policies import StateValue
 
 
 class ParametrizedStateValue(StateValue):
     """
-    Policy which parametrizes a state value function, conditioned on the output of a neural network
+    Policy which parametrizes a state-value function, conditioned on the output of a neural network
     processing the input state (specification key: `parametrized_state_value`).
 
     Args:
@@ -58,7 +56,7 @@ class ParametrizedStateValue(StateValue):
         output_spec = self.network.output_spec()
         if output_spec.type != 'float':
             raise TensorforceError.type(
-                name='ParametrizedDistributions', argument='network output', dtype=output_spec.type
+                name='ParametrizedStateValue', argument='network output', dtype=output_spec.type
             )
 
         # State value
@@ -79,6 +77,14 @@ class ParametrizedStateValue(StateValue):
     @tf_function(num_args=0)
     def past_horizon(self, *, on_policy):
         return self.network.past_horizon(on_policy=on_policy)
+
+    @tf_function(num_args=4)
+    def next_internals(self, *, states, horizons, internals, actions, independent):
+        _, internals = self.network.apply(
+            x=states, horizons=horizons, internals=internals, independent=independent
+        )
+
+        return internals
 
     @tf_function(num_args=4)
     def state_value(self, *, states, horizons, internals, auxiliaries):

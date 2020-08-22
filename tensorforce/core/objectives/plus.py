@@ -111,7 +111,10 @@ class Plus(Objective):
         return tf.concat(values=(reference1, reference2), axis=1)
 
     @tf_function(num_args=7)
-    def loss(self, *, states, horizons, internals, auxiliaries, actions, reward, reference, policy):
+    def loss(
+        self, *, states, horizons, internals, auxiliaries, actions, reward, reference, policy,
+        baseline=None
+    ):
         reference_spec1 = self.objective1.reference_spec()
         reference_spec2 = self.objective2.reference_spec()
         assert tf_util.shape(x=reference)[1] == reference_spec1.size + reference_spec2.size
@@ -123,12 +126,12 @@ class Plus(Objective):
 
         loss1 = self.objective1.loss(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-            actions=actions, reward=reward, reference=reference1, policy=policy
+            actions=actions, reward=reward, reference=reference1, policy=policy, baseline=baseline
         )
 
         loss2 = self.objective2.loss(
             states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-            actions=actions, reward=reward, reference=reference2, policy=policy
+            actions=actions, reward=reward, reference=reference2, policy=policy, baseline=baseline
         )
 
         return loss1 + loss2

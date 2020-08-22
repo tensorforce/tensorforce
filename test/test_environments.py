@@ -22,7 +22,11 @@ from test.unittest_base import UnittestBase
 class TestEnvironments(UnittestBase, unittest.TestCase):
 
     agent = dict(
-        agent='random', config=dict(eager_mode=True, create_debug_assertions=True, tf_log_level=20)
+        # TODO: enable_int_action_masking=False while KellyCoinflipGeneralized-v0 memory problems
+        agent='random', config=dict(
+            enable_int_action_masking=False, eager_mode=True, create_debug_assertions=True,
+            tf_log_level=20
+        )
     )
 
     def test_ale(self):

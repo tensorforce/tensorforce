@@ -142,23 +142,19 @@ class TFOptimizer(Optimizer):
             self.tf_optimizer._create_slots(var_list=variables)
 
     @tf_function(num_args=1)
-    def step(self, *, arguments, variables, fn_loss, fn_initial_gradients=None, **kwargs):
+    def step(self, *, arguments, variables, fn_loss, **kwargs):
         # Trivial operation to enforce control dependency
         previous_values = list(tf_util.identity(input=variable) for variable in variables)
 
         # Remember variables before update
         with tf.control_dependencies(control_inputs=previous_values):
-            if fn_initial_gradients is None:
-                initial = None
-            else:
-                initial = fn_initial_gradients(**arguments.to_kwargs())
 
             with tf.GradientTape(persistent=False, watch_accessed_variables=False) as tape:
                 for variable in variables:
                     tape.watch(tensor=variable)
                 loss = fn_loss(**arguments.to_kwargs())
 
-            gradients = tape.gradient(target=loss, sources=variables, output_gradients=initial)
+            gradients = tape.gradient(target=loss, sources=variables)  # , output_gradients=initial
 
             assertions = list()
             gradients = list(gradients)

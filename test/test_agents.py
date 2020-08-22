@@ -42,12 +42,16 @@ class TestAgents(UnittestBase, unittest.TestCase):
 
     def test_dpg(self):
         self.start_tests(name='DPG')
+        actions = dict(
+            gaussian_action1=dict(type='float', shape=(1, 2), min_value=1.0, max_value=2.0),
+            gaussian_action2=dict(type='float', shape=(), min_value=-2.0, max_value=1.0)
+        )
         self.unittest(
-            actions=dict(type='float', shape=(), min_value=-1.0, max_value=1.0),
-            agent='dpg', memory=100, batch_size=4,
-            network=dict(type='auto', size=8, depth=1, rnn=2),
-            # TODO: baseline horizon cannot be greater than reward horizon
-            horizon=2, critic=dict(type='auto', size=7, depth=1, rnn=2)
+            actions=actions, agent='dpg', memory=100, batch_size=4,
+            # TODO: no-RNN restriction can be removed
+            network=dict(type='auto', size=8, depth=1, rnn=False),
+            # TODO: cannot use RNN since value function takes states and actions
+            horizon=2, critic=dict(type='auto', size=7, depth=1, rnn=False)
         )
 
     def test_double_dqn(self):

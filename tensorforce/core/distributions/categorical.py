@@ -92,12 +92,9 @@ class Categorical(Distribution):
         prefix = 'distributions/' + self.name + '-probability'
         names = [prefix + str(n) for n in range(self.action_spec.num_values)]
         self.register_summary(label='distribution', name=names)
-        name = 'entropies/' + self.name
-        self.register_summary(label='entropy', name=name)
 
     @tf_function(num_args=2)
     def parametrize(self, *, x, conditions):
-        epsilon = tf_util.constant(value=util.epsilon, dtype='float')
         shape = (-1,) + self.action_spec.shape + (self.action_spec.num_values,)
 
         # Action values
@@ -155,16 +152,6 @@ class Categorical(Distribution):
         names = [prefix + str(n) for n in range(self.action_spec.num_values)]
         dependencies = self.summary(
             label='distribution', name=names, data=fn_summary, step='timesteps'
-        )
-
-        # Entropy summary
-        def fn_summary():
-            entropy = -tf.reduce_sum(input_tensor=(probabilities * logits), axis=-1)
-            return tf.math.reduce_mean(input_tensor=entropy)
-
-        name = 'entropies/' + self.name
-        dependencies.extend(
-            self.summary(label='entropy', name=name, data=fn_summary, step='timesteps')
         )
 
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')

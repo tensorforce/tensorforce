@@ -119,14 +119,11 @@ class Gaussian(Distribution):
         if self.global_stddev:
             spec = TensorSpec(type='float', shape=((1,) + self.action_spec.shape))
             self.log_stddev = self.variable(
-                name='log_stddev', spec=spec, initializer='constant',
-                initialization_scale=np.log(0.5), is_trainable=True, is_saved=True
+                name='log_stddev', spec=spec, initializer='zeros', is_trainable=True, is_saved=True
             )
 
         prefix = 'distributions/' + self.name
         self.register_summary(label='distribution', name=(prefix + '-mean', prefix + '-stddev'))
-        name = 'entropies/' + self.name
-        self.register_summary(label='entropy', name=name)
 
     @tf_function(num_args=2)
     def parametrize(self, *, x, conditions):
@@ -146,6 +143,10 @@ class Gaussian(Distribution):
             log_stddev = self.log_stddev.apply(x=x)
             if len(self.input_spec.shape) == 1:
                 log_stddev = tf.reshape(tensor=log_stddev, shape=shape)
+
+        # Shift log stddev to reduce zero value (TODO: 0.1 random choice)
+        if self.action_spec.min_value is not None and self.action_spec.max_value is not None:
+            log_stddev += tf_util.constant(value=np.log(0.1), dtype='float')
 
         # Clip log_stddev for numerical stability (epsilon < 1.0, hence negative)
         log_stddev = tf.clip_by_value(
@@ -187,7 +188,7 @@ class Gaussian(Distribution):
     def sample(self, *, parameters, temperature):
         mean, stddev, log_stddev = parameters.get(('mean', 'stddev', 'log_stddev'))
 
-        # Distribution parameter and entropy summaries
+        # Distribution parameter summaries
         def fn_summary():
             return tf.math.reduce_mean(input_tensor=mean, axis=range(self.action_spec.rank + 1)), \
                 tf.math.reduce_mean(input_tensor=stddev, axis=range(self.action_spec.rank + 1))
@@ -196,19 +197,6 @@ class Gaussian(Distribution):
         dependencies = self.summary(
             label='distribution', name=(prefix + '-mean', prefix + '-stddev'), data=fn_summary,
             step='timesteps'
-        )
-
-        # Entropy summary
-        def fn_summary():
-            half_log_two_pi_e = tf_util.constant(
-                value=(0.5 * np.log(2.0 * np.pi * np.e)), dtype='float'
-            )
-            entropy = log_stddev + half_log_two_pi_e
-            return tf.math.reduce_mean(input_tensor=entropy)
-
-        name = 'entropies/' + self.name
-        dependencies.extend(
-            self.summary(label='entropy', name=name, data=fn_summary, step='timesteps')
         )
 
         def fn_mode():

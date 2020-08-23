@@ -50,8 +50,8 @@ class UnittestBase(object):
         )), update=4, objective='policy_gradient', reward_estimation=dict(horizon=3),
         baseline=dict(network=dict(type='auto', size=7, depth=1, rnn=1)),
         baseline_optimizer='adam', baseline_objective='state_value',
-        l2_regularization=0.1, entropy_regularization=0.1,
-        exploration=0.1, variable_noise=0.1,
+        l2_regularization=0.01, entropy_regularization=0.01,
+        exploration=0.01, variable_noise=0.01,
         # Config default changes need to be adapted everywhere (search "config=dict"):
         #   test_agents, test_environments, test_examples, test_layers, test_reward_estimation,
         #   test_saving, test_seed, test_summaries

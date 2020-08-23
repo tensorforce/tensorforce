@@ -215,14 +215,14 @@ class Module(tf.Module):
         predicate = (lambda x: isinstance(x, tf.Variable) and getattr(x, 'trainable', False))
         return list(self._flatten(recursive=False, predicate=predicate))
 
-    @property
-    def trainable_variables(self):
-        predicate = (lambda x: isinstance(x, tf.Variable) and getattr(x, 'trainable', False))
-        variables = list(self._flatten(recursive=False, predicate=predicate))
-        for module in self.this_submodules:
-            if not isinstance(module, Module) or module.is_trainable:
-                variables.extend(module.trainable_variables)
-        return variables
+    # @property
+    # def trainable_variables(self):
+    #     predicate = (lambda x: isinstance(x, tf.Variable) and getattr(x, 'trainable', False))
+    #     variables = list(self._flatten(recursive=False, predicate=predicate))
+    #     for module in self.this_submodules:
+    #         # if not isinstance(module, Module) or module.is_trainable:
+    #         variables.extend(module.trainable_variables)
+    #     return variables
 
     @property
     def saved_variables(self):

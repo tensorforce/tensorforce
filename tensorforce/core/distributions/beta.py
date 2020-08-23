@@ -91,8 +91,6 @@ class Beta(Distribution):
 
         prefix = 'distributions/' + self.name
         self.register_summary(label='distribution', name=(prefix + '-alpha', prefix + '-beta'))
-        name = 'entropies/' + self.name
-        self.register_summary(label='entropy', name=name)
 
     @tf_function(num_args=2)
     def parametrize(self, *, x, conditions):
@@ -152,25 +150,6 @@ class Beta(Distribution):
         dependencies = self.summary(
             label='distribution', name=(prefix + '-alpha', prefix + '-beta'), data=fn_summary,
             step='timesteps'
-        )
-
-        # Entropy summary
-        def fn_summary():
-            one = tf_util.constant(value=1.0, dtype='float')
-            digamma_alpha = tf_util.cast(
-                x=tf.math.digamma(x=tf_util.float32(x=alpha)), dtype='float'
-            )
-            digamma_beta = tf_util.cast(x=tf.math.digamma(x=tf_util.float32(x=beta)), dtype='float')
-            digamma_alpha_beta = tf_util.cast(
-                x=tf.math.digamma(x=tf_util.float32(x=alpha_beta)), dtype='float'
-            )
-            entropy = log_norm - (beta - one) * digamma_beta - (alpha - one) * digamma_alpha + \
-                (alpha_beta - one - one) * digamma_alpha_beta
-            return tf.math.reduce_mean(input_tensor=entropy)
-
-        name = 'entropies/' + self.name
-        dependencies.extend(
-            self.summary(label='entropy', name=name, data=fn_summary, step='timesteps')
         )
 
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')

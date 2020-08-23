@@ -117,7 +117,7 @@ class DeterministicPolicyGradient(TensorforceAgent):
             Exploration, defined as the probability for uniformly random output in case of `bool`
             and `int` actions, and the standard deviation of Gaussian noise added to every output in
             case of `float` actions, specified globally or per action-type or -name
-            (<span style="color:#00C000"><b>default</b></span>: no exploration).
+            (<span style="color:#00C000"><b>default</b></span>: 0.1 standard deviation).
         variable_noise (<a href="../modules/parameters.html">parameter</a>, float >= 0.0):
             Add Gaussian noise with given standard deviation to all trainable variables, as
             alternative exploration mechanism
@@ -142,7 +142,7 @@ class DeterministicPolicyGradient(TensorforceAgent):
         # Preprocessing
         preprocessing='linear_normalization',
         # Exploration
-        exploration=0.0, variable_noise=0.0,
+        exploration=0.1, variable_noise=0.0,
         # Regularization
         l2_regularization=0.0, entropy_regularization=0.0,
         # Parallel interactions

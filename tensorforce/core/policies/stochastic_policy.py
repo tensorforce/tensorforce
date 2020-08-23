@@ -16,7 +16,7 @@
 import tensorflow as tf
 
 from tensorforce.core import ModuleDict, parameter_modules, SignatureDict, TensorDict, TensorSpec, \
-    TensorsSpec, tf_function
+    TensorsSpec, tf_function, tf_util
 from tensorforce.core.policies import Policy
 
 
@@ -207,6 +207,11 @@ class StochasticPolicy(Policy):
 
     @tf_function(num_args=5)
     def act(self, *, states, horizons, internals, auxiliaries, deterministic, independent):
+        assertions = list()
+        if self.config.create_tf_assertions:
+            if not independent:
+                false = tf_util.constant(value=False, dtype='bool')
+                assertions.append(tf.debugging.assert_equal(x=deterministic, y=false))
 
         def fn_deterministic():
             embedding, next_internals = self.network.apply(
@@ -233,7 +238,11 @@ class StochasticPolicy(Policy):
                 temperature=temperature, independent=independent
             )
 
-        return tf.cond(pred=deterministic, true_fn=fn_deterministic, false_fn=fn_sample)
+        with tf.control_dependencies(control_inputs=assertions):
+            if independent:
+                return tf.cond(pred=deterministic, true_fn=fn_deterministic, false_fn=fn_sample)
+            else:
+                return fn_sample()
 
     @tf_function(num_args=5)
     def log_probability(self, *, states, horizons, internals, auxiliaries, actions):

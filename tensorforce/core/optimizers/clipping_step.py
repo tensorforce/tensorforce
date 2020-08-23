@@ -49,8 +49,7 @@ class ClippingStep(UpdateModifier):
     def initialize(self):
         super().initialize()
 
-        name = self.name[:self.name.index('_')] + '-update/unclipped-norm'
-        self.register_summary(label='update-norm', name=name)
+        self.register_summary(label='update-norm', name='unclipped-norm')
 
     @tf_function(num_args=1)
     def step(self, *, arguments, variables, **kwargs):
@@ -76,9 +75,8 @@ class ClippingStep(UpdateModifier):
                 def update_norm():
                     return tf.linalg.global_norm(t_list=deltas)
 
-            name = self.name[:self.name.index('_')] + '-update/unclipped-norm'
             dependencies = self.summary(
-                label='update-norm', name=name, data=update_norm, step='updates'
+                label='update-norm', name='unclipped-norm', data=update_norm, step='updates'
             )
 
             for variable, delta, clipped_delta in zip(variables, deltas, clipped_deltas):

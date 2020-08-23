@@ -149,7 +149,7 @@ class ParametrizedValuePolicy(ValuePolicy):
                 else:
                     prefix = 'action-values/' + name + '-action'
                 names = [prefix + str(n) for n in range(spec.num_values)]
-            self.register_summary(label='action-values', name=names)
+            self.register_summary(label='action-value', name=names)
 
     @tf_function(num_args=0)
     def past_horizon(self, *, on_policy):
@@ -232,7 +232,7 @@ class ParametrizedValuePolicy(ValuePolicy):
                 else:
                     names = ['action-values/' + name + '-true', 'action-values/' + name + '-false']
                 dependencies = self.summary(
-                    label='action-values', name=names, data=fn_summary, step='timesteps'
+                    label='action-value', name=names, data=fn_summary, step='timesteps'
                 )
 
                 with tf.control_dependencies(control_inputs=dependencies):
@@ -251,7 +251,7 @@ class ParametrizedValuePolicy(ValuePolicy):
                     prefix = 'action-values/' + name + '-action'
                 names = [prefix + str(n) for n in range(spec.num_values)]
                 dependencies = self.summary(
-                    label='action-values', name=names, data=fn_summary, step='timesteps'
+                    label='action-value', name=names, data=fn_summary, step='timesteps'
                 )
 
                 with tf.control_dependencies(control_inputs=dependencies):

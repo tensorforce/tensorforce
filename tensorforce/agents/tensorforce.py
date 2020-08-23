@@ -232,7 +232,7 @@ class TensorforceAgent(Agent):
             (<span style="color:#00C000"><b>default</b></span>: 5).</li>
             <li><b>labels</b> (<i>"all" | iter[string]</i>) &ndash; which summaries to record
             (<span style="color:#00C000"><b>default</b></span>: only "graph"):</li>
-            <li>"action-values": value of each action (timestep-based)</li>
+            <li>"action-value": value of each action (timestep-based)</li>
             <li>"distribution": distribution parameters like probabilities or mean and stddev
             (timestep-based)</li>
             <li>"entropy": entropy of (per-action) policy distribution(s) (timestep-based)</li>

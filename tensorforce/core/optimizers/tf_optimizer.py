@@ -127,13 +127,10 @@ class TFOptimizer(Optimizer):
             learning_rate=self.learning_rate.value, name='tf_optimizer', **self.optimizer_kwargs
         )
 
-        name = self.name[:self.name.index('_')] + '-update/unclipped-gradient-norm'
-        self.register_summary(label='update-norm', name=name)
+        self.register_summary(label='update-norm', name='unclipped-gradient-norm')
 
-    def initialize_given_variables(self, *, variables, register_summaries):
-        super().initialize_given_variables(
-            variables=variables, register_summaries=register_summaries
-        )
+    def initialize_given_variables(self, *, variables):
+        super().initialize_given_variables(variables=variables)
 
         try:
             self.tf_optimizer._create_all_weights(var_list=variables)
@@ -174,9 +171,9 @@ class TFOptimizer(Optimizer):
             gradients, grads_norm = tf.clip_by_global_norm(
                 t_list=[tf_util.cast(x=g, dtype='float') for g in gradients], clip_norm=clip_norm
             )
-            name = self.name[:self.name.index('_')] + '-update/unclipped-gradient-norm'
+
             dependencies = self.summary(
-                label='update-norm', name=name, data=grads_norm, step='updates'
+                label='update-norm', name='unclipped-gradient-norm', data=grads_norm, step='updates'
             )
 
             applied = self.tf_optimizer.apply_gradients(grads_and_vars=grads_and_vars)

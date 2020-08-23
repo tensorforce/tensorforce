@@ -196,7 +196,7 @@ class Recorder(object):
         return OrderedDict()
 
     def act(
-        self, states, internals=None, parallel=0, deterministic=False, independent=False, **kwargs
+        self, states, internals=None, parallel=0, independent=False, deterministic=False, **kwargs
     ):
         # Independent and internals
         is_internals_none = (internals is None)
@@ -214,6 +214,12 @@ class Recorder(object):
                 raise TensorforceError.invalid(
                     name='Agent.act', argument='internals', condition='independent is false'
                 )
+
+        # Independent and deterministic
+        if deterministic and not independent:
+            raise TensorforceError.invalid(
+                name='Agent.act', argument='deterministic', condition='independent is false'
+            )
 
         # Process states input and infer batching structure
         states, batched, num_parallel, is_iter_of_dicts, input_type = self._process_states_input(
@@ -303,8 +309,8 @@ class Recorder(object):
         # fn_act()
         if self._is_agent:
             actions, internals = self.fn_act(
-                states=states, internals=internals, parallel=parallel, deterministic=deterministic,
-                independent=independent, is_internals_none=is_internals_none,
+                states=states, internals=internals, parallel=parallel, independent=independent,
+                deterministic=deterministic, is_internals_none=is_internals_none,
                 num_parallel=num_parallel
             )
         else:

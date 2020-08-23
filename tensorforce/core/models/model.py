@@ -347,8 +347,7 @@ class Model(Module):
         self.act(
             states=self.states_spec.empty(batched=True),
             auxiliaries=self.auxiliaries_spec.empty(batched=True),
-            parallel=self.parallel_spec.empty(batched=True),
-            deterministic=self.deterministic_spec.empty(batched=False)
+            parallel=self.parallel_spec.empty(batched=True)
         )
         if self.summary_labels == 'all' or 'graph' in self.summary_labels:
             tf.summary.trace_export(name='act', step=self.timesteps, profiler_outdir=None)
@@ -378,8 +377,7 @@ class Model(Module):
             return SignatureDict(
                 states=self.states_spec.signature(batched=True),
                 auxiliaries=self.auxiliaries_spec.signature(batched=True),
-                parallel=self.parallel_spec.signature(batched=True),
-                deterministic=self.deterministic_spec.signature(batched=False)
+                parallel=self.parallel_spec.signature(batched=True)
             )
 
         elif function == 'core_act':
@@ -527,8 +525,8 @@ class Model(Module):
             else:
                 return actions
 
-    @tf_function(num_args=4)
-    def act(self, *, states, auxiliaries, parallel, deterministic):
+    @tf_function(num_args=3)
+    def act(self, *, states, auxiliaries, parallel):
         true = tf_util.constant(value=True, dtype='bool')
         batch_size = tf_util.cast(x=tf.shape(input=parallel)[0], dtype='int')
 
@@ -546,9 +544,6 @@ class Model(Module):
             assertions.extend(self.parallel_spec.tf_assert(
                 x=parallel, batch_size=batch_size,
                 message='Agent.act: invalid {issue} for parallel input.'
-            ))
-            assertions.extend(self.deterministic_spec.tf_assert(
-                x=deterministic, message='Agent.act: invalid {issue} for deterministic input.'
             ))
             # Mask assertions
             if self.config.enable_int_action_masking:
@@ -568,6 +563,7 @@ class Model(Module):
             )
 
             # Core act
+            deterministic = tf_util.constant(value=False, dtype='bool')
             actions, internals = self.core_act(
                 states=states, internals=internals, auxiliaries=auxiliaries, parallel=parallel,
                 deterministic=deterministic, independent=False
@@ -643,7 +639,9 @@ class Model(Module):
             if self.summary_labels == 'all' or 'reward' in self.summary_labels:
                 with self.summarizer.as_default():
                     x = tf.math.reduce_mean(input_tensor=reward)
-                    tf.summary.scalar(name='reward', data=x, step=self.timesteps)
+                    dependencies.append(
+                        tf.summary.scalar(name='reward', data=x, step=self.timesteps)
+                    )
 
             # Update episode reward
             sum_reward = tf.math.reduce_sum(input_tensor=reward)
@@ -672,15 +670,19 @@ class Model(Module):
                     operations.append(previous.scatter_update(sparse_delta=sparse_delta))
 
                 # Episode reward summaries (before episode reward reset / episodes increment)
+                dependencies = list()
                 if self.summary_labels == 'all' or 'reward' in self.summary_labels:
                     with self.summarizer.as_default():
                         x = tf.gather(params=self.episode_reward, indices=parallel)
-                        tf.summary.scalar(name='episode-reward', data=x, step=self.episodes)
+                        dependencies.append(
+                            tf.summary.scalar(name='episode-reward', data=x, step=self.episodes)
+                        )
 
                 # Reset episode reward
-                zero_float = tf_util.constant(value=0.0, dtype='float')
-                sparse_delta = tf.IndexedSlices(values=zero_float, indices=parallel)
-                operations.append(self.episode_reward.scatter_update(sparse_delta=sparse_delta))
+                with tf.control_dependencies(control_inputs=dependencies):
+                    zero_float = tf_util.constant(value=0.0, dtype='float')
+                    sparse_delta = tf.IndexedSlices(values=zero_float, indices=parallel)
+                    operations.append(self.episode_reward.scatter_update(sparse_delta=sparse_delta))
 
                 # Increment episodes counter
                 operations.append(self.episodes.assign_add(delta=one, read_value=False))

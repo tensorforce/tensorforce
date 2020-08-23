@@ -345,7 +345,7 @@ class Agent(Recorder):
         return self.model.internals_init.fmap(function=(lambda x: x), cls=OrderedDict)
 
     def act(
-        self, states, internals=None, parallel=0, deterministic=False, independent=False,
+        self, states, internals=None, parallel=0, independent=False, deterministic=False,
         # Deprecated
         evaluation=None
     ):
@@ -363,11 +363,11 @@ class Agent(Recorder):
                 has internal states).
             parallel (int | iter[int]): Parallel execution index
                 (<span style="color:#00C000"><b>default</b></span>: 0).
-            deterministic (bool): Whether action should be chosen deterministically, that is, no
-                sampling and no exploration
-                (<span style="color:#00C000"><b>default</b></span>: false).
             independent (bool): Whether act is not part of the main agent-environment interaction,
                 and this call is thus not followed by observe()
+                (<span style="color:#00C000"><b>default</b></span>: false).
+            deterministic (bool): Whether action should be chosen deterministically, so no
+                sampling and no exploration, only valid in independent mode
                 (<span style="color:#00C000"><b>default</b></span>: false).
 
         Returns:
@@ -381,12 +381,12 @@ class Agent(Recorder):
             )
 
         return super().act(
-            states=states, internals=internals, parallel=parallel, deterministic=deterministic,
-            independent=independent
+            states=states, internals=internals, parallel=parallel, independent=independent,
+            deterministic=deterministic
         )
 
     def fn_act(
-        self, states, internals, parallel, deterministic, independent, is_internals_none,
+        self, states, internals, parallel, independent, deterministic, is_internals_none,
         num_parallel
     ):
 
@@ -412,14 +412,14 @@ class Agent(Recorder):
         if independent and not is_internals_none:
             internals = self.internals_spec.to_tensor(value=internals, batched=True)
         auxiliaries = self.auxiliaries_spec.to_tensor(value=auxiliaries, batched=True)
-        deterministic = self.deterministic_spec.to_tensor(value=deterministic, batched=False)
+        if independent:
+            deterministic = self.deterministic_spec.to_tensor(value=deterministic, batched=False)
 
         # Model.act()
         if not independent:
             parallel = self.parallel_spec.to_tensor(value=parallel, batched=True)
             actions, timesteps = self.model.act(
-                states=states, auxiliaries=auxiliaries, parallel=parallel,
-                deterministic=deterministic
+                states=states, auxiliaries=auxiliaries, parallel=parallel
             )
             self.timesteps = timesteps.numpy().item()
 

@@ -51,10 +51,8 @@ class LinesearchStep(UpdateModifier):
             accept_ratio=accept_ratio
         )
 
-    def initialize_given_variables(self, *, variables, register_summaries):
-        super().initialize_given_variables(
-            variables=variables, register_summaries=register_summaries
-        )
+    def initialize_given_variables(self, *, variables):
+        super().initialize_given_variables(variables=variables)
 
         self.line_search.complete_initialize(
             arguments_spec=self.arguments_spec, values_spec=self.variables_spec

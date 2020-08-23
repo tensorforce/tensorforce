@@ -34,35 +34,17 @@ class Optimizer(Module):
 
         self.is_initialized_given_variables = False
 
-    def initialize(self):
-        super().initialize()
-
-        name = self.name[:self.name.index('_')] + '-update/norm'
-        self.register_summary(label='update-norm', name=name)
-
-    def initialize_given_variables(self, *, variables, register_summaries):
+    def initialize_given_variables(self, *, variables):
         assert not self.root.is_initialized and not self.is_initialized_given_variables
 
         for module in self.this_submodules:
             if isinstance(module, Optimizer):
-                module.initialize_given_variables(variables=variables, register_summaries=False)
+                module.initialize_given_variables(variables=variables)
 
         # Replace "/" with "_" to ensure TensorDict is flat
         self.variables_spec = TensorsSpec(((var.name[:-2].replace('/', '_'), TensorSpec(
             type=tf_util.dtype(x=var, fallback_tf_dtype=True), shape=tf_util.shape(x=var)
         )) for var in variables))
-
-        if register_summaries:
-            assert self.is_initialized
-            self.is_initialized = False
-            prefix = self.name[:self.name.index('_')] + '-updates/'
-            names = list()
-            for variable in variables:
-                assert variable.name.startswith(self.root.name + '/') and variable.name[-2:] == ':0'
-                names.append(prefix + variable.name[len(self.root.name) + 1: -2] + '-mean')
-                names.append(prefix + variable.name[len(self.root.name) + 1: -2] + '-variance')
-            self.register_summary(label='updates', name=names)
-            self.is_initialized = True
 
         self.is_initialized_given_variables = True
 
@@ -97,12 +79,6 @@ class Optimizer(Module):
         assert all(variable.dtype.is_floating for variable in variables)
 
         deltas = self.step(arguments=arguments, variables=variables, **kwargs)
-        dependencies = list(deltas)
-
-        def fn_summary():
-            return tf.linalg.global_norm(
-                t_list=[tf_util.cast(x=delta, dtype='float') for delta in deltas]
-            )
 
         assertions = list(deltas)
         if self.config.create_debug_assertions:
@@ -127,28 +103,31 @@ class Optimizer(Module):
                         ), y=tf_util.constant(value=True, dtype='bool'), message=variable.name
                     ))
 
-        name = self.name[:self.name.index('_')] + '-update/norm'
-        dependencies.extend(
-            self.summary(label='update-norm', name=name, data=fn_summary, step='updates')
-        )
-
         with tf.control_dependencies(control_inputs=assertions):
+            dependencies = list()
 
-            def fn_summary():
-                xs = list()
-                for variable in variables:
-                    xs.extend(tf.nn.moments(x=variable, axes=list(range(tf_util.rank(x=variable)))))
-                return xs
+            if self.root.summary_labels == 'all' or 'update-norm' in self.root.summary_labels:
+                with self.root.summarizer.as_default():
+                    x = tf.linalg.global_norm(
+                        t_list=[tf_util.cast(x=delta, dtype='float') for delta in deltas]
+                    )
+                    dependencies.append(
+                        tf.summary.scalar(name='update-norm', data=x, step=self.root.updates)
+                    )
 
-            prefix = self.name[:self.name.index('_')] + '-updates/'
-            names = list()
-            for variable in variables:
-                assert variable.name.startswith(self.root.name + '/') and variable.name[-2:] == ':0'
-                names.append(prefix + variable.name[len(self.root.name) + 1: -2] + '-mean')
-                names.append(prefix + variable.name[len(self.root.name) + 1: -2] + '-variance')
-            dependencies.extend(
-                self.summary(label='updates', name=names, data=fn_summary, step='updates')
-            )
+            if self.root.summary_labels == 'all' or 'updates' in self.root.summary_labels:
+                with self.root.summarizer.as_default():
+                    for var in variables:
+                        assert var.name.startswith(self.root.name + '/') and var.name[-2:] == ':0'
+                        mean_name = var.name[len(self.root.name) + 1: -2] + '-mean'
+                        var_name = var.name[len(self.root.name) + 1: -2] + '-variance'
+                        mean, variance = tf.nn.moments(x=var, axes=list(range(tf_util.rank(x=var))))
+                        dependencies.append(
+                            tf.summary.scalar(name=mean_name, data=mean, step=self.root.updates)
+                        )
+                        dependencies.append(
+                            tf.summary.scalar(name=var_name, data=variance, step=self.root.updates)
+                        )
 
         with tf.control_dependencies(control_inputs=dependencies):
             return tf_util.identity(input=tf_util.constant(value=True, dtype='bool'))

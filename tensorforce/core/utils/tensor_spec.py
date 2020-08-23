@@ -153,7 +153,7 @@ class TensorSpec(object):
         # Check for nan or inf
         if np.isnan(value).any() or np.isinf(value).any():
             raise TensorforceError.value(
-                name='TensorSpec.to_tensor', argument='value', value=value
+                name='TensorSpec.to_tensor', argument='value', value=value, hint='is nan/inf'
             )
 
         # Check num_values
@@ -168,12 +168,14 @@ class TensorSpec(object):
             if self.min_value is not None:
                 if (value < self.min_value).any():
                     raise TensorforceError.value(
-                        name='TensorSpec.to_tensor', argument='value', value=value
+                        name='TensorSpec.to_tensor', argument='value', value=value,
+                        hint='< min_value'
                     )
             if self.max_value is not None:
                 if (value > self.max_value).any():
                     raise TensorforceError.value(
-                        name='TensorSpec.to_tensor', argument='value', value=value
+                        name='TensorSpec.to_tensor', argument='value', value=value,
+                        hint='> max_value'
                     )
 
         # Convert Numpy array to TensorFlow tensor

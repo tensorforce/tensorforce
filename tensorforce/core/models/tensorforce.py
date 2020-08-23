@@ -17,7 +17,7 @@ import logging
 
 import tensorflow as tf
 
-from tensorforce import TensorforceError, util
+from tensorforce import TensorforceError
 from tensorforce.core import ModuleDict, memory_modules, optimizer_modules, parameter_modules, \
     SignatureDict, TensorDict, TensorSpec, TensorsSpec, tf_function, tf_util, VariableDict
 from tensorforce.core.models import Model
@@ -485,6 +485,20 @@ class TensorforceModel(Model):
             values_spec=values_spec, min_capacity=min_capacity
         )
 
+    def initialize(self):
+        super().initialize()
+
+        # Initial variables summaries
+        if self.summary_labels == 'all' or 'variables' in self.summary_labels:
+            with self.summarizer.as_default():
+                for variable in self.trainable_variables:
+                    name = variable.name
+                    assert name.startswith(self.name + '/') and name[-2:] == ':0'
+                    # Add prefix self.name since otherwise different scope from later summaries
+                    name = self.name + '/variables/' + name[len(self.name) + 1: -2]
+                    x = tf.math.reduce_mean(input_tensor=variable)
+                    tf.summary.scalar(name=name, data=x, step=self.updates)
+
     def core_initialize(self):
         super().core_initialize()
 
@@ -558,16 +572,12 @@ class TensorforceModel(Model):
 
         # Optimizer initialize given variables
         if self.advantage_in_loss:
-            self.optimizer.initialize_given_variables(
-                variables=self.trainable_variables, register_summaries=True
-            )
+            self.optimizer.initialize_given_variables(variables=self.trainable_variables)
         else:
-            self.optimizer.initialize_given_variables(
-                variables=self.policy.trainable_variables, register_summaries=True
-            )
+            self.optimizer.initialize_given_variables(variables=self.policy.trainable_variables)
         if self.baseline_optimizer is not None:
             self.baseline_optimizer.initialize_given_variables(
-                variables=self.baseline.trainable_variables, register_summaries=True
+                variables=self.baseline.trainable_variables
             )
 
         # Summaries
@@ -862,9 +872,12 @@ class TensorforceModel(Model):
                 y=self.baseline.past_horizon(on_policy=True)
             )
             assertions.append(tf.debugging.assert_equal(x=past_horizon, y=zero))
+            if not independent:
+                false = tf_util.constant(value=False, dtype='bool')
+                assertions.append(tf.debugging.assert_equal(x=deterministic, y=false))
 
         # Variable noise
-        if len(self.trainable_variables) > 0 and (
+        if len(self.policy.trainable_variables) > 0 and (
             (not independent and not self.variable_noise.is_constant(value=0.0)) or
             (independent and self.variable_noise.final_value() != 0.0)
         ):
@@ -876,11 +889,11 @@ class TensorforceModel(Model):
                 variable_noise = self.variable_noise.value()
 
             def no_variable_noise():
-                return [tf.zeros_like(input=variable) for variable in self.trainable_variables]
+                return [tf.zeros_like(input=var) for var in self.policy.trainable_variables]
 
             def apply_variable_noise():
                 variable_noise_tensors = list()
-                for variable in self.trainable_variables:
+                for variable in self.policy.trainable_variables:
                     noise = tf.random.normal(
                         shape=tf_util.shape(x=variable), mean=0.0, stddev=variable_noise,
                         dtype=self.variable_noise.spec.tf_type()
@@ -917,16 +930,10 @@ class TensorforceModel(Model):
             lengths = tf_util.ones(shape=(batch_size,), dtype='int')
             horizons = tf.stack(values=(starts, lengths), axis=1)
             next_internals = TensorDict()
-            if len(self.internals_spec['policy']) > 0:
-                actions, next_internals['policy'] = self.policy.act(
-                    states=states, horizons=horizons, internals=internals['policy'],
-                    auxiliaries=auxiliaries, deterministic=deterministic, independent=independent
-                )
-            else:
-                actions, _ = self.policy.act(
-                    states=states, horizons=horizons, internals=TensorDict(),
-                    auxiliaries=auxiliaries, deterministic=deterministic, independent=independent
-                )
+            actions, next_internals['policy'] = self.policy.act(
+                states=states, horizons=horizons, internals=internals['policy'],
+                auxiliaries=auxiliaries, deterministic=deterministic, independent=independent
+            )
             if isinstance(actions, tf.Tensor):
                 dependencies.append(actions)
             else:
@@ -938,6 +945,8 @@ class TensorforceModel(Model):
                     states=states, horizons=horizons, internals=internals['baseline'],
                     actions=actions, independent=independent
                 )
+            else:
+                next_internals['baseline'] = TensorDict()
             dependencies.extend(next_internals.flatten())
 
         # Reverse variable noise (after policy act)
@@ -947,8 +956,8 @@ class TensorforceModel(Model):
 
                 def apply_variable_noise():
                     assignments = list()
-                    for variable, noise in zip(self.trainable_variables, variable_noise_tensors):
-                        assignments.append(variable.assign_sub(delta=noise, read_value=False))
+                    for var, noise in zip(self.policy.trainable_variables, variable_noise_tensors):
+                        assignments.append(var.assign_sub(delta=noise, read_value=False))
                     return tf.group(*assignments)
 
                 dependencies.append(tf.cond(
@@ -1164,7 +1173,9 @@ class TensorforceModel(Model):
             if self.summary_labels == 'all' or 'reward' in self.summary_labels:
                 with self.summarizer.as_default():
                     x = tf.math.reduce_mean(input_tensor=reward, axis=0)
-                    tf.summary.scalar(name='preprocessed-reward', data=x, step=self.timesteps)
+                    dependencies.append(
+                        tf.summary.scalar(name='preprocessed-reward', data=x, step=self.timesteps)
+                    )
 
             # Update preprocessed episode reward
             sum_reward = tf.math.reduce_sum(input_tensor=reward)
@@ -1410,20 +1421,22 @@ class TensorforceModel(Model):
                     operations.append(self.buffer_index.scatter_update(sparse_delta=sparse_delta))
 
                 # Preprocessed episode reward summaries (before preprocessed episode reward reset)
-                if self.reward_preprocessing:
+                dependencies = list()
+                if self.reward_preprocessing is not None:
                     if self.summary_labels == 'all' or 'reward' in self.summary_labels:
                         with self.summarizer.as_default():
                             x = tf.gather(params=self.preprocessed_episode_reward, indices=parallel)
-                            tf.summary.scalar(
+                            dependencies.append(tf.summary.scalar(
                                 name='preprocessed-episode-reward', data=x, step=self.episodes
-                            )
+                            ))
 
                     # Reset preprocessed episode reward
-                    zero_float = tf_util.constant(value=0.0, dtype='float')
-                    sparse_delta = tf.IndexedSlices(values=zero_float, indices=parallel)
-                    operations.append(
-                        self.preprocessed_episode_reward.scatter_update(sparse_delta=sparse_delta)
-                    )
+                    with tf.control_dependencies(control_inputs=dependencies):
+                        zero_float = tf_util.constant(value=0.0, dtype='float')
+                        sparse_delta = tf.IndexedSlices(values=zero_float, indices=parallel)
+                        operations.append(self.preprocessed_episode_reward.scatter_update(
+                            sparse_delta=sparse_delta
+                        ))
 
                 # Reset preprocessors
                 for preprocessor in self.preprocessing.values():
@@ -2122,22 +2135,10 @@ class TensorforceModel(Model):
 
         dependencies = policy_arguments.flatten()
 
-        # Variables summaries
-        def fn_summary():
-            return [
-                tf.math.reduce_mean(input_tensor=variable) for variable in self.trainable_variables
-            ]
-
-        names = list()
-        for variable in self.trainable_variables:
-            assert variable.name.startswith(self.name + '/') and variable.name[-2:] == ':0'
-            names.append('variables/' + variable.name[len(self.name) + 1: -2] + '-mean')
-        dependencies.extend(self.summary(
-            label='variables', name=names, data=fn_summary, step='updates', unconditional=True
-        ))
-
         # Hack: KL divergence summary: reference before update
-        if self.summary_labels == 'all' or 'kl-divergence' in self.summary_labels:
+        if isinstance(self.policy, StochasticPolicy) and (
+            self.summary_labels == 'all' or 'kl-divergence' in self.summary_labels
+        ):
             kldiv_reference = self.policy.kldiv_reference(
                 states=policy_states, horizons=policy_horizons, internals=policy_internals,
                 auxiliaries=auxiliaries
@@ -2153,43 +2154,82 @@ class TensorforceModel(Model):
 
         # Update summaries
         with tf.control_dependencies(control_inputs=(optimized,)):
+            dependencies = list()
+
+            # Entropy summaries
+            if isinstance(self.policy, StochasticPolicy) and (
+                self.summary_labels == 'all' or 'entropy' in self.summary_labels
+            ):
+                with self.summarizer.as_default():
+                    if len(self.actions_spec) > 1:
+                        entropies = self.policy.entropies(
+                            states=policy_states, horizons=policy_horizons,
+                            internals=policy_internals, auxiliaries=auxiliaries
+                        )
+                        for name, spec in self.actions_spec.items():
+                            entropies[name] = tf.reshape(tensor=entropies[name], shape=(-1,))
+                            x = tf.math.reduce_mean(input_tensor=entropies[name], axis=0)
+                            dependencies.append(tf.summary.scalar(
+                                name=('entropies/' + name), data=x, step=self.updates
+                            ))
+                        entropy = tf.concat(values=tuple(entropies.values()), axis=0)
+                    else:
+                        entropy = self.policy.entropy(
+                            states=policy_states, horizons=policy_horizons,
+                            internals=policy_internals, auxiliaries=auxiliaries
+                        )
+                    x = tf.math.reduce_mean(input_tensor=entropy, axis=0)
+                    dependencies.append(
+                        tf.summary.scalar(name='entropy', data=x, step=self.updates)
+                    )
 
             # KL divergence summaries
-            if len(self.actions_spec) > 1:
-
-                def fn_summary():
-                    kl_divergences = self.policy.kl_divergences(
-                        states=policy_states, horizons=policy_horizons, internals=policy_internals,
-                        auxiliaries=auxiliaries, reference=kldiv_reference
+            if isinstance(self.policy, StochasticPolicy) and (
+                self.summary_labels == 'all' or 'kl-divergence' in self.summary_labels
+            ):
+                with self.summarizer.as_default():
+                    if len(self.actions_spec) > 1:
+                        kl_divs = self.policy.kl_divergences(
+                            states=policy_states, horizons=policy_horizons,
+                            internals=policy_internals, auxiliaries=auxiliaries,
+                            reference=kldiv_reference
+                        )
+                        for name, spec in self.actions_spec.items():
+                            kl_divs[name] = tf.reshape(tensor=kl_divs[name], shape=(-1,))
+                            x = tf.math.reduce_mean(input_tensor=kl_divs[name], axis=0)
+                            dependencies.append(tf.summary.scalar(
+                                name=('kl-divergences/' + name), data=x, step=self.updates
+                            ))
+                        kl_divergence = tf.concat(values=tuple(kl_divs.values()), axis=0)
+                    else:
+                        kl_divergence = self.policy.kl_divergence(
+                            states=policy_states, horizons=policy_horizons,
+                            internals=policy_internals, auxiliaries=auxiliaries,
+                            reference=kldiv_reference
+                        )
+                    x = tf.math.reduce_mean(input_tensor=kl_divergence, axis=0)
+                    dependencies.append(
+                        tf.summary.scalar(name='kl-divergence', data=x, step=self.updates)
                     )
-                    kl_divergences = kl_divergences.fmap(function=tf.math.reduce_mean)
-                    kl_divergences = list(kl_divergences.values())
-                    kl_divergence = tf.stack(values=kl_divergences, axis=0)
-                    kl_divergences.append(tf.math.reduce_mean(input_tensor=kl_divergence, axis=0))
-                    return kl_divergences
-
-                names = ['kl-divergences/' + name for name in self.actions_spec]
-                names.append('kl-divergences/overall')
-
-            else:
-
-                def fn_summary():
-                    kl_divergence = self.policy.kl_divergence(
-                        states=policy_states, horizons=policy_horizons, internals=policy_internals,
-                        auxiliaries=auxiliaries, reference=kldiv_reference
-                    )
-                    return tf.math.reduce_mean(input_tensor=kl_divergence, axis=0)
-
-            self.summary(
-                label='kl-divergence', name=names, data=fn_summary, step='updates',
-                unconditional=True
-            )
 
         # Increment update
         with tf.control_dependencies(control_inputs=dependencies):
             assignment = self.updates.assign_add(delta=one, read_value=False)
 
         with tf.control_dependencies(control_inputs=(assignment,)):
+            dependencies = list()
+
+            # Variables summaries
+            if self.summary_labels == 'all' or 'variables' in self.summary_labels:
+                with self.summarizer.as_default():
+                    for variable in self.trainable_variables:
+                        name = variable.name
+                        assert name.startswith(self.name + '/') and name[-2:] == ':0'
+                        name = 'variables/' + name[len(self.name) + 1: -2]
+                        x = tf.math.reduce_mean(input_tensor=variable)
+                        dependencies.append(tf.summary.scalar(name=name, data=x, step=self.updates))
+
+        with tf.control_dependencies(control_inputs=dependencies):
             return tf_util.identity(input=optimized)
 
     @tf_function(num_args=7)

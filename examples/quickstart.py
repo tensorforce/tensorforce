@@ -35,12 +35,12 @@ def main():
         # Baseline network and optimizer
         baseline=dict(type='auto', size=32, depth=1),
         baseline_optimizer=dict(optimizer='adam', learning_rate=1e-3, multi_step=10),
+        # Regularization
+        l2_regularization=0.0, entropy_regularization=0.0,
         # Preprocessing
         preprocessing='linear_normalization',
         # Exploration
         exploration=0.0, variable_noise=0.0,
-        # Regularization
-        l2_regularization=0.0, entropy_regularization=0.0,
         # Default additional config values
         config=None,
         # Save model every 10 updates and keep the 5 most recent checkpoints

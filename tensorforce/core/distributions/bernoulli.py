@@ -81,8 +81,6 @@ class Bernoulli(Distribution):
 
         name = 'distributions/' + self.name + '-probability'
         self.register_summary(label='distribution', name=name)
-        name = 'entropies/' + self.name
-        self.register_summary(label='entropy', name=name)
 
     @tf_function(num_args=2)
     def parametrize(self, *, x, conditions):
@@ -135,17 +133,6 @@ class Bernoulli(Distribution):
         name = 'distributions/' + self.name + '-probability'
         dependencies = self.summary(
             label='distribution', name=name, data=fn_summary, step='timesteps'
-        )
-
-        # Entropy summary
-        def fn_summary():
-            one = tf_util.constant(value=1.0, dtype='float')
-            entropy = -probability * true_logit - (one - probability) * false_logit
-            return tf.math.reduce_mean(input_tensor=entropy)
-
-        name = 'entropies/' + self.name
-        dependencies.extend(
-            self.summary(label='entropy', name=name, data=fn_summary, step='timesteps')
         )
 
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')

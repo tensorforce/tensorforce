@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
+import importlib
+
 import numpy as np
 
 from tensorforce import TensorforceError, util
@@ -135,13 +137,22 @@ class OpenAIGym(Environment):
         return gym.make(id=level, **kwargs), max_episode_steps
 
     def __init__(
-        self, level, visualize=False, min_value=None, max_value=None, terminal_reward=0.0,
-        reward_threshold=None, drop_states_indices=None, visualize_directory=None, **kwargs
+        self, level, visualize=False, import_modules=None, min_value=None, max_value=None,
+        terminal_reward=0.0, reward_threshold=None, drop_states_indices=None,
+        visualize_directory=None, **kwargs
     ):
         super().__init__()
 
         import gym
         import gym.wrappers
+
+        if import_modules is None:
+            pass
+        elif isinstance(import_modules, str):
+            importlib.import_module(name=import_modules)
+        elif isinstance(import_modules, (list, tuple)):
+            for module in import_modules:
+                importlib.import_module(name=module)
 
         self.level = level
         self.visualize = visualize

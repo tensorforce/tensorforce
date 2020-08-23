@@ -643,7 +643,7 @@ class Module(tf.Module):
                 is_trainable=False, is_saved=False
             )
 
-    def summary(self, *, label, name, data, step, unconditional=False):
+    def summary(self, *, label, name, data, step):
         # label
         if not isinstance(label, str):
             raise TensorforceError.type(name='Module.summary', argument='label', dtype=type(label))
@@ -660,14 +660,9 @@ class Module(tf.Module):
         # step
         if step not in self.root.units:
             raise TensorforceError.value(name='Module.summary', argument='step', value=step)
-        # unconditional
-        if not isinstance(unconditional, bool):
-            raise TensorforceError.type(
-                name='Module.summary', argument='unconditional', dtype=type(unconditional)
-            )
 
         if self.root.summary_labels == 'all' or label in self.root.summary_labels:
-            if not unconditional and name[0] not in self.summary_steps:
+            if name[0] not in self.summary_steps:
                 raise TensorforceError.value(
                     name='Module.summary', argument='name', value=name, hint='is not registered'
                 )
@@ -685,16 +680,11 @@ class Module(tf.Module):
                 with self.root.summarizer.as_default():
                     for n, d in zip(name, d):
                         dependencies.append(tf.summary.scalar(name=n, data=d, step=unit))
-                if not unconditional:
-                    previous = self.summary_steps[name[0]]
-                    dependencies.append(previous.assign(value=unit, read_value=False))
+                previous = self.summary_steps[name[0]]
+                dependencies.append(previous.assign(value=unit, read_value=False))
                 return tf.group(*dependencies)
 
-            if unconditional:
-                pred = tf_util.constant(value=True, dtype='bool')
-            else:
-                pred = unit > self.summary_steps[name[0]]
-
+            pred = unit > self.summary_steps[name[0]]
             return [tf.cond(pred=pred, true_fn=write_summary, false_fn=tf.no_op)]
 
         else:

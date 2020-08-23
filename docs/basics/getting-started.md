@@ -192,7 +192,7 @@ runner.close()
 
 Note that in this case both agent and environment are created as part of `Runner`, not via `Agent.create(...)` and `Environment.create(...)`. If agent and environment are specified separately, the user is required to take care of passing the agent arguments `environment` and `parallel_interactions` (in the parallelized case) as well as closing both agent and environment separately at the end.
 
-The execution utility classes take care of handling the agent-environment interaction correctly, and thus should be used where possible. Alternatively, if more detailed control over the agent-environment interaction is required, a simple training and evaluation loop can be defined as follows:
+The execution utility classes take care of handling the agent-environment interaction correctly, and thus should be used where possible. Alternatively, if more detailed control over the agent-environment interaction is required, a simple training loop can be defined as follows, using the act-observe interaction pattern:
 
 ```python
 # Create agent and environment
@@ -209,7 +209,41 @@ for _ in range(200):
         actions = agent.act(states=states)
         states, terminal, reward = environment.execute(actions=actions)
         agent.observe(terminal=terminal, reward=reward)
+```
 
+Alternatively, the act-experience-update interface offers even more flexibility (see also the [act-experience-update script](https://github.com/tensorforce/tensorforce/blob/master/examples/act_experience_update.py)):
+
+```python
+# Train for 200 episodes
+for _ in range(200):
+    episode_states = list()
+    episode_internals = list()
+    episode_actions = list()
+    episode_terminal = list()
+    episode_reward = list()
+
+    states = environment.reset()
+    internals = agent.initial_internals()
+    terminal = False
+    while not terminal:
+        episode_states.append(states)
+        episode_internals.append(internals)
+        actions, internals = agent.act(states=states, internals=internals, independent=True)
+        episode_actions.append(actions)
+        states, terminal, reward = environment.execute(actions=actions)
+        episode_terminal.append(terminal)
+        episode_reward.append(reward)
+
+    agent.experience(
+        states=episode_states, internals=episode_internals, actions=episode_actions,
+        terminal=episode_terminal, reward=episode_reward
+    )
+    agent.update()
+```
+
+Finally, the evaluation loop can be defined as follows:
+
+```python
 # Evaluate for 100 episodes
 sum_rewards = 0.0
 for _ in range(100):
@@ -219,7 +253,7 @@ for _ in range(100):
     while not terminal:
         actions, internals = agent.act(
             states=states, internals=internals,
-            deterministic=True, independent=True
+            independent=True, deterministic=True
         )
         states, terminal, reward = environment.execute(actions=actions)
         sum_rewards += reward

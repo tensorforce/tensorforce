@@ -464,6 +464,8 @@ class TensorforceModel(Model):
                 min_capacity += self.max_episode_timesteps
             else:
                 min_capacity += self.reward_horizon.max_value()
+            if self.max_episode_timesteps is not None:
+                min_capacity = max(min_capacity, self.max_episode_timesteps)
         elif self.update_unit == 'episodes':
             if self.max_episode_timesteps is None:
                 min_capacity = None

@@ -85,7 +85,7 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
 
         runner = Runner(
             agent='test/data/agent.json', environment=dict(environment='gym', level='CartPole'),
-            max_episode_timesteps=500, num_parallel=5, remote='multiprocessing'
+            max_episode_timesteps=50, num_parallel=5, remote='multiprocessing'
         )
         runner.run(num_episodes=10)
         runner.close()
@@ -106,6 +106,32 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
                 states, terminal, reward = environment.execute(actions=actions)
                 agent.observe(terminal=terminal, reward=reward)
 
+        # Train for 200 episodes
+        for _ in range(10):
+            episode_states = list()
+            episode_internals = list()
+            episode_actions = list()
+            episode_terminal = list()
+            episode_reward = list()
+
+            states = environment.reset()
+            internals = agent.initial_internals()
+            terminal = False
+            while not terminal:
+                episode_states.append(states)
+                episode_internals.append(internals)
+                actions, internals = agent.act(states=states, internals=internals, independent=True)
+                episode_actions.append(actions)
+                states, terminal, reward = environment.execute(actions=actions)
+                episode_terminal.append(terminal)
+                episode_reward.append(reward)
+
+            agent.experience(
+                states=episode_states, internals=episode_internals, actions=episode_actions,
+                terminal=episode_terminal, reward=episode_reward
+            )
+            agent.update()
+
         # Evaluate for 100 episodes
         sum_rewards = 0.0
         for _ in range(5):
@@ -120,7 +146,7 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
                 states, terminal, reward = environment.execute(actions=actions)
                 sum_rewards += reward
 
-        sum_rewards / 100
+        print('Mean episode reward:', sum_rewards / 100)
 
         # Close agent and environment
         agent.close()

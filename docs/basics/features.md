@@ -19,7 +19,7 @@ Besides `terminal=False` or `=0` for non-terminal and `terminal=True` or `=1` fo
 ```python
 agent = Agent.create(
     states=dict(type='float', shape=(10,)),
-    actions=dict(type='int', shape=(), num_actions=3),
+    actions=dict(type='int', shape=(), num_values=3),
     ...
 )
 ...
@@ -35,7 +35,7 @@ assert action != 1
 
 ### Parallel environment execution
 
-See also [parallelization example](https://github.com/tensorforce/tensorforce/blob/master/examples/parallelization.py).
+See also the [parallelization example](https://github.com/tensorforce/tensorforce/blob/master/examples/parallelization.py) for details on how to use this feature.
 
 Execute multiple environments running locally in one call / batched:
 
@@ -116,16 +116,22 @@ Agent.create(...
     summarizer=dict(
         directory='data/summaries',
         # list of labels, or 'all'
-        labels=['entropy', 'graph', 'kl-divergence', 'loss', 'reward', 'update-norm']
+        labels=['entropy', 'kl-divergence', 'loss', 'reward', 'update-norm']
     ), ...
 )
 ```
 
 
 
+### Act-experience-update interaction
+
+Instead of the default act-observe interaction pattern or the [Runner utility](../execution/runner.html), one can alternatively use the act-experience-update interface, which allows for more control over the experience the agent stores. See the [act-experience-update example](https://github.com/tensorforce/tensorforce/blob/master/examples/act_experience_update.py) for details on how to use this feature.
+
+
+
 ### Record & pretrain
 
-See [record-and-pretrain example](https://github.com/tensorforce/tensorforce/blob/master/examples/record_and_pretrain.py).
+See the [record-and-pretrain example](https://github.com/tensorforce/tensorforce/blob/master/examples/record_and_pretrain.py) for details on how to use this feature.
 
 Alternatively, interaction traces can be recorded for any act-function mapping states to actions:
 

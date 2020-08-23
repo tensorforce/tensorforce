@@ -53,8 +53,8 @@ class UnittestBase(object):
         l2_regularization=0.01, entropy_regularization=0.01,
         exploration=0.01, variable_noise=0.01,
         # Config default changes need to be adapted everywhere (search "config=dict"):
-        #   test_agents, test_environments, test_examples, test_layers, test_reward_estimation,
-        #   test_saving, test_seed, test_summaries
+        #   test_agents, test_environments, test_examples, test_layers, test_precision,
+        #   test_reward_estimation, test_saving, test_seed, test_summaries
         config=dict(eager_mode=True, create_debug_assertions=True, tf_log_level=20)
     )
 

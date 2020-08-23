@@ -32,7 +32,9 @@ class TestPrecision(UnittestBase, unittest.TestCase):
             util.np_dtype_mapping = dict(bool=np.bool_, int=np.int32, float=np.float16)
             tf_util.DTYPE_MAPPING = dict(bool=tf.bool, int=tf.int32, float=tf.float16)
 
-            self.unittest()
+            self.unittest(
+                config=dict(eager_mode=True, create_debug_assertions=False, tf_log_level=20)
+            )
 
             util.np_dtype_mapping = dict(bool=np.bool_, int=np.int64, float=np.float64)
             tf_util.DTYPE_MAPPING = dict(bool=tf.bool, int=tf.int64, float=tf.float64)

@@ -414,6 +414,10 @@ class TensorforceAgent(Agent):
         """
         Feed experience traces.
 
+        See the [act-experience-update script](https://github.com/tensorforce/tensorforce/blob/master/examples/act_experience_update.py)
+        for an example application as part of the act-experience-update interface, which is an
+        alternative to the act-observe interaction pattern.
+
         Args:
             states (dict[array[state]]): Dictionary containing arrays of states
                 (<span style="color:#C00000"><b>required</b></span>).
@@ -548,6 +552,9 @@ class TensorforceAgent(Agent):
             ones = np.ones_like(terminal, dtype=util.np_dtype(dtype='int'))
             terminal = np.where(terminal, ones, zeros)
 
+        if terminal[-1] == 0:
+            raise TensorforceError(message="Agent.experience() requires full episodes as input.")
+
         # Batch experiences split into episodes and at most size buffer_observe
         last = 0
         for index in range(1, len(terminal) + 1):
@@ -590,6 +597,10 @@ class TensorforceAgent(Agent):
     def update(self, query=None, **kwargs):
         """
         Perform an update.
+
+        See the [act-experience-update script](https://github.com/tensorforce/tensorforce/blob/master/examples/act_experience_update.py)
+        for an example application as part of the act-experience-update interface, which is an
+        alternative to the act-observe interaction pattern.
         """
         timesteps, episodes, updates = self.model.update()
         self.timesteps = timesteps.numpy().item()
@@ -604,8 +615,8 @@ class TensorforceAgent(Agent):
         Naive pretraining approach as a combination of `experience()` and `update`, uses experience
         traces obtained e.g. via recorder argument.
 
-        See [record-and-pretrain script](https://github.com/tensorforce/tensorforce/blob/master/examples/record_and_pretrain.py)
-        for illustrative example.
+        See the [record-and-pretrain script](https://github.com/tensorforce/tensorforce/blob/master/examples/record_and_pretrain.py)
+        for an example application.
 
         Args:
             directory (path): Directory with experience traces, e.g. obtained via recorder; episode

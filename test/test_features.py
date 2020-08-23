@@ -18,32 +18,29 @@ from random import random
 from tempfile import TemporaryDirectory
 import unittest
 
-from tensorforce import Environment, Runner
+import numpy as np
+
+from tensorforce import Agent, Environment, Runner
 from test.unittest_base import UnittestBase
 
 
 class TestFeatures(UnittestBase, unittest.TestCase):
 
-    def test_act_experience_update(self):
-        self.start_tests(name='act-experience-update')
+    def test_masking(self):
+        # FEATURES.MD
+        self.start_tests(name='masking')
 
-        agent, environment = self.prepare(update=dict(unit='episodes', batch_size=1))
+        agent = Agent.create(agent=self.agent_spec(
+            states=dict(type='float', shape=(10,)),
+            actions=dict(type='int', shape=(), num_values=3)
+        ))
 
-        for n in range(2):
-            states = environment.reset()
-            internals = agent.initial_internals()
-            terminal = False
-            while not terminal:
-                actions, internals = agent.act(states=states, internals=internals, independent=True)
-                next_states, terminal, reward = environment.execute(actions=actions)
-                agent.experience(
-                    states=states, internals=internals, actions=actions, terminal=terminal,
-                    reward=reward
-                )
-                states = next_states
-            agent.update()
-
-        self.finished_test()
+        states = dict(
+            state=np.random.random_sample(size=(10,)),  # state (default name: "state")
+            action_mask=[True, False, True]  # mask as'[ACTION-NAME]_mask' (default name: "action")
+        )
+        action = agent.act(states=states)
+        assert action != 1
 
     def test_pretrain(self):
         # FEATURES.MD

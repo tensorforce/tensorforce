@@ -95,6 +95,56 @@ class TestExamples(UnittestBase, unittest.TestCase):
 
         self.finished_test()
 
+    def test_act_experience_update(self):
+        self.start_tests(name='act-experience-update')
+
+        # ====================
+
+        environment = Environment.create(environment='benchmarks/configs/cartpole.json')
+        agent = Agent.create(agent='benchmarks/configs/ppo.json', environment=environment)
+
+        # Train for 100 episodes
+        for episode in range(10):
+
+            # Record episode experience
+            episode_states = list()
+            episode_internals = list()
+            episode_actions = list()
+            episode_terminal = list()
+            episode_reward = list()
+
+            # Episode using independent-act and agent.intial_internals()
+            states = environment.reset()
+            internals = agent.initial_internals()
+            terminal = False
+            sum_reward = 0.0
+            while not terminal:
+                episode_states.append(states)
+                episode_internals.append(internals)
+                actions, internals = agent.act(states=states, internals=internals, independent=True)
+                episode_actions.append(actions)
+                states, terminal, reward = environment.execute(actions=actions)
+                episode_terminal.append(terminal)
+                episode_reward.append(reward)
+                sum_reward += reward
+            print('Episode {}: {}'.format(episode, sum_reward))
+
+            # Feed recorded experience to agent
+            agent.experience(
+                states=episode_states, internals=episode_internals, actions=episode_actions,
+                terminal=episode_terminal, reward=episode_reward
+            )
+
+            # Perform update
+            agent.update()
+
+        agent.close()
+        environment.close()
+
+        # ====================
+
+        self.finished_test()
+
     def test_record_and_pretrain(self):
         self.start_tests(name='record-and-pretrain')
 

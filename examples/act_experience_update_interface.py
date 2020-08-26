@@ -18,7 +18,7 @@ from tensorforce import Agent, Environment
 
 def main():
     environment = Environment.create(environment='benchmarks/configs/cartpole.json')
-    agent = Agent.create(agent='benchmarks/configs/ppo.json', environment=environment, config=dict(eager_mode=True))
+    agent = Agent.create(agent='benchmarks/configs/ppo.json', environment=environment)
 
     # Train for 100 episodes
     for episode in range(100):
@@ -55,6 +55,21 @@ def main():
         # Perform update
         agent.update()
 
+    # Evaluate for 100 episodes
+    sum_rewards = 0.0
+    for _ in range(100):
+        states = environment.reset()
+        internals = agent.initial_internals()
+        terminal = False
+        while not terminal:
+            actions, internals = agent.act(
+                states=states, internals=internals, independent=True, deterministic=True
+            )
+            states, terminal, reward = environment.execute(actions=actions)
+            sum_rewards += reward
+    print('Mean evaluation return:', sum_rewards / 100.0)
+
+    # Close agent and environment
     agent.close()
     environment.close()
 

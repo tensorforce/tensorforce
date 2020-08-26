@@ -353,6 +353,9 @@ class Agent(Recorder):
         Returns action(s) for the given state(s), needs to be followed by `observe()` unless
         independent mode.
 
+        See the [act-observe script](https://github.com/tensorforce/tensorforce/blob/master/examples/act_observe_interface.py)
+        for an example application as part of the act-observe interface.
+
         Args:
             states (dict[state] | iter[dict[state]]): Dictionary containing state(s) to be acted on
                 (<span style="color:#C00000"><b>required</b></span>).
@@ -457,6 +460,9 @@ class Agent(Recorder):
     def observe(self, reward=0.0, terminal=False, parallel=0):
         """
         Observes reward and whether a terminal state is reached, needs to be preceded by `act()`.
+
+        See the [act-observe script](https://github.com/tensorforce/tensorforce/blob/master/examples/act_observe_interface.py)
+        for an example application as part of the act-observe interface.
 
         Args:
             reward (float | iter[float]): Reward

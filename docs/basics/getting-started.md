@@ -192,7 +192,7 @@ runner.close()
 
 Note that in this case both agent and environment are created as part of `Runner`, not via `Agent.create(...)` and `Environment.create(...)`. If agent and environment are specified separately, the user is required to take care of passing the agent arguments `environment` and `parallel_interactions` (in the parallelized case) as well as closing both agent and environment separately at the end.
 
-The execution utility classes take care of handling the agent-environment interaction correctly, and thus should be used where possible. Alternatively, if more detailed control over the agent-environment interaction is required, a simple training loop can be defined as follows, using the act-observe interaction pattern:
+The execution utility classes take care of handling the agent-environment interaction correctly, and thus should be used where possible. Alternatively, if more detailed control over the agent-environment interaction is required, a simple training loop can be defined as follows, using the act-observe interaction pattern (see also the [act-observe example](https://github.com/tensorforce/tensorforce/blob/master/examples/act_observe_interface.py)):
 
 ```python
 # Create agent and environment
@@ -201,8 +201,8 @@ environment = Environment.create(
 )
 agent = Agent.create(agent='agent.json', environment=environment)
 
-# Train for 200 episodes
-for _ in range(200):
+# Train for 100 episodes
+for _ in range(100):
     states = environment.reset()
     terminal = False
     while not terminal:
@@ -211,11 +211,11 @@ for _ in range(200):
         agent.observe(terminal=terminal, reward=reward)
 ```
 
-Alternatively, the act-experience-update interface offers even more flexibility (see also the [act-experience-update script](https://github.com/tensorforce/tensorforce/blob/master/examples/act_experience_update.py)):
+Alternatively, the act-experience-update interface offers even more flexibility (see also the [act-experience-update example](https://github.com/tensorforce/tensorforce/blob/master/examples/act_experience_update_interface.py)), however, note that a few stateful network layers will not be updated correctly in independent-mode (currently, `exponential_normalization`):
 
 ```python
-# Train for 200 episodes
-for _ in range(200):
+# Train for 100 episodes
+for _ in range(100):
     episode_states = list()
     episode_internals = list()
     episode_actions = list()
@@ -228,15 +228,18 @@ for _ in range(200):
     while not terminal:
         episode_states.append(states)
         episode_internals.append(internals)
-        actions, internals = agent.act(states=states, internals=internals, independent=True)
+        actions, internals = agent.act(
+            states=states, internals=internals, independent=True
+        )
         episode_actions.append(actions)
         states, terminal, reward = environment.execute(actions=actions)
         episode_terminal.append(terminal)
         episode_reward.append(reward)
 
     agent.experience(
-        states=episode_states, internals=episode_internals, actions=episode_actions,
-        terminal=episode_terminal, reward=episode_reward
+        states=episode_states, internals=episode_internals,
+        actions=episode_actions, terminal=episode_terminal,
+        reward=episode_reward
     )
     agent.update()
 ```

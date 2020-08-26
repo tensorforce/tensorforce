@@ -155,10 +155,11 @@ class ParametrizedValuePolicy(ValuePolicy):
     def past_horizon(self, *, on_policy):
         return self.network.past_horizon(on_policy=on_policy)
 
-    @tf_function(num_args=4)
-    def next_internals(self, *, states, horizons, internals, actions, independent):
+    @tf_function(num_args=5)
+    def next_internals(self, *, states, horizons, internals, actions, deterministic, independent):
         _, internals = self.network.apply(
-            x=states, horizons=horizons, internals=internals, independent=independent
+            x=states, horizons=horizons, internals=internals, deterministic=deterministic,
+            independent=independent
         )
 
         return internals
@@ -166,7 +167,8 @@ class ParametrizedValuePolicy(ValuePolicy):
     @tf_function(num_args=5)
     def act(self, *, states, horizons, internals, auxiliaries, deterministic, independent):
         embedding, internals = self.network.apply(
-            x=states, horizons=horizons, internals=internals, independent=independent
+            x=states, horizons=horizons, internals=internals, deterministic=deterministic,
+            independent=independent
         )
 
         if self.state_value_mode == 'implicit':
@@ -223,7 +225,7 @@ class ParametrizedValuePolicy(ValuePolicy):
             if spec.type == 'bool':
 
                 def fn_summary():
-                    axis = range(self.action_spec.rank + 1)
+                    axis = range(spec.rank + 1)
                     values = tf.math.reduce_mean(input_tensor=action_value, axis=axis)
                     return [values[0], values[1]]
 
@@ -241,7 +243,7 @@ class ParametrizedValuePolicy(ValuePolicy):
             elif spec.type == 'int':
 
                 def fn_summary():
-                    axis = range(self.action_spec.rank + 1)
+                    axis = range(spec.rank + 1)
                     values = tf.math.reduce_mean(input_tensor=action_value, axis=axis)
                     return [values[n] for n in range(spec.num_values)]
 
@@ -270,8 +272,10 @@ class ParametrizedValuePolicy(ValuePolicy):
     @tf_function(num_args=4)
     def state_value(self, *, states, horizons, internals, auxiliaries):
         if self.state_value_mode == 'separate':
+            deterministic = tf_util.constant(value=True, dtype='bool')
             embedding, _ = self.network.apply(
-                x=states, horizons=horizons, internals=internals, independent=True
+                x=states, horizons=horizons, internals=internals, deterministic=deterministic,
+                independent=True
             )
 
             return self.s_value.apply(x=embedding)
@@ -283,8 +287,10 @@ class ParametrizedValuePolicy(ValuePolicy):
 
     @tf_function(num_args=5)
     def action_values(self, *, states, horizons, internals, auxiliaries, actions):
+        deterministic = tf_util.constant(value=True, dtype='bool')
         embedding, _ = self.network.apply(
-            x=states, horizons=horizons, internals=internals, independent=True
+            x=states, horizons=horizons, internals=internals, deterministic=deterministic,
+            independent=True
         )
 
         if self.state_value_mode == 'implicit':
@@ -370,8 +376,10 @@ class ParametrizedValuePolicy(ValuePolicy):
 
     @tf_function(num_args=4)
     def state_values(self, *, states, horizons, internals, auxiliaries):
+        deterministic = tf_util.constant(value=True, dtype='bool')
         embedding, _ = self.network.apply(
-            x=states, horizons=horizons, internals=internals, independent=True
+            x=states, horizons=horizons, internals=internals, deterministic=deterministic,
+            independent=True
         )
 
         if self.state_value_mode == 'implicit':

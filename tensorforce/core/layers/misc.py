@@ -20,7 +20,7 @@ import tensorflow as tf
 from tensorforce import TensorforceError, util
 import tensorforce.core
 from tensorforce.core import parameter_modules, TensorSpec, tf_function, tf_util
-from tensorforce.core.layers import Layer, StatefulLayer
+from tensorforce.core.layers import Layer, NondeterministicLayer
 
 
 class Activation(Layer):
@@ -115,11 +115,12 @@ class Block(Layer):
             )
 
         self._input_spec = input_spec
-        self.layers = layers
+        self.layers = list(layers)
 
         super().__init__(name=name, input_spec=input_spec)
 
     def default_input_spec(self):
+        # if not isinstance(self.layers[0], Layer):
         layer_counter = Counter()
         for n, layer_spec in enumerate(self.layers):
             if 'name' in layer_spec:
@@ -153,7 +154,7 @@ class Block(Layer):
         return x
 
 
-class Dropout(StatefulLayer):
+class Dropout(NondeterministicLayer):
     """
     Dropout layer (specification key: `dropout`).
 
@@ -177,11 +178,8 @@ class Dropout(StatefulLayer):
     def default_input_spec(self):
         return TensorSpec(type='float', shape=None)
 
-    @tf_function(num_args=1)
-    def apply(self, *, x, independent):
-        if independent:
-            return x
-
+    @tf_function(num_args=2)
+    def apply(self, *, x, deterministic):
         rate = self.rate.value()
 
         def no_dropout():
@@ -191,7 +189,7 @@ class Dropout(StatefulLayer):
             return tf.nn.dropout(x=x, rate=rate)
 
         zero = tf_util.constant(value=0.0, dtype='float')
-        skip_dropout = tf.math.equal(x=rate, y=zero)
+        skip_dropout = tf.math.logical_or(x=deterministic, y=tf.math.equal(x=rate, y=zero))
         return tf.cond(pred=skip_dropout, true_fn=no_dropout, false_fn=apply_dropout)
 
 

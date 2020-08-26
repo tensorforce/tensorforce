@@ -106,28 +106,35 @@ class TensorforceAgent(Agent):
             <ul>
             <li><b>horizon</b>
             (<i>"episode" | <a href="../modules/parameters.html">parameter</a>, int >= 1</i>)
-            &ndash; Horizon of discounted-sum reward estimation
+            &ndash; Horizon of discounted-sum return estimation
             (<span style="color:#C00000"><b>required</b></span>).</li>
             <li><b>discount</b>
             (<i><a href="../modules/parameters.html">parameter</a>, 0.0 <= float <= 1.0</i>) &ndash;
-            Discount factor for future rewards of discounted-sum reward estimation
+            Discount factor of future rewards for discounted-sum return estimation
             (<span style="color:#00C000"><b>default</b></span>: 1.0).</li>
-            <li><b>estimate_horizon</b> (<i>false | "early" | "late"</i>) &ndash; Whether to include
-            a baseline estimate of the horizon value as part of the return estimation, and if so,
-            whether to compute the estimate early when experiences are stored to memory, or late
-            when batches of experience are retrieved for optimization
+            <li><b>predict_horizon_values</b> (<i>false | "early" | "late"</i>) &ndash; Whether to
+            include a baseline prediction of the horizon value as part of the return estimation, and
+            if so, whether to compute the horizon value prediction "early" when experiences are
+            stored to memory, or "late" when batches of experience are retrieved for the update
             (<span style="color:#00C000"><b>default</b></span>: "late" if baseline_policy or
             baseline_objective are specified, else false).</li>
-            <li><b>estimate_advantage</b> (<i>bool</i>) &ndash; Whether to estimate the advantage
-            instead of the return by subtracting the baseline value estimate from the return
-            (<span style="color:#00C000"><b>default</b></span>: false, unless baseline_policy is
-            specified but baseline_objective/optimizer are not).</li>
-            <li><b>estimate_action_values</b> (<i>bool</i>) &ndash; Whether to estimate state-action
-            instead of state values for the horizon and advantage estimate
+            <li><b>predict_action_values</b> (<i>bool</i>) &ndash; Whether to predict state-action-
+            instead of state-values as horizon values and for advantage estimation
             (<span style="color:#00C000"><b>default</b></span>: false).</li>
             <li><b>predict_terminal_values</b> (<i>bool</i>) &ndash; Whether to predict the value of
             terminal states
             (<span style="color:#00C000"><b>default</b></span>: false).</li>
+            <li><b>estimate_advantage</b> (<i>bool</i>) &ndash; Whether to use an estimate of the
+            advantage (return minus baseline value prediction) instead of the return as learning
+            signal
+            (<span style="color:#00C000"><b>default</b></span>: false, unless baseline_policy is
+            specified but baseline_objective/optimizer are not).</li>
+            <li><b>return_processing</b> (<i>specification</i>) &ndash; Return processing as layer
+            or list of layers, see the [preprocessing documentation](../modules/preprocessing.html)
+            (<span style="color:#00C000"><b>default</b></span>: no return processing).</li>
+            <li><b>advantage_processing</b> (<i>specification</i>) &ndash; Advantage processing as
+            layer or list of layers, see the [preprocessing documentation](../modules/preprocessing.html)
+            (<span style="color:#00C000"><b>default</b></span>: no advantage processing).</li>
             </ul>
 
         baseline (specification): Baseline configuration, policy will be used as baseline if none,
@@ -154,11 +161,14 @@ class TensorforceAgent(Agent):
             "too certain"
             (<span style="color:#00C000"><b>default</b></span>: no entropy regularization).
 
-        preprocessing (dict[specification]): Preprocessing as layer or list of layers, see the
-            [preprocessing documentation](../modules/preprocessing.html),
-            specified per state-type or -name, and for reward/return/advantage
+        state_preprocessing (dict[specification]): State preprocessing as layer or list of layers,
+            see the [preprocessing documentation](../modules/preprocessing.html),
+            specified per state-type or -name
             (<span style="color:#00C000"><b>default</b></span>: linear normalization of bounded
             float states to [-2.0, 2.0]).
+        reward_preprocessing (specification): Reward preprocessing as layer or list of layers,
+            see the [preprocessing documentation](../modules/preprocessing.html)
+            (<span style="color:#00C000"><b>default</b></span>: no reward preprocessing).
         exploration (<a href="../modules/parameters.html">parameter</a> | dict[<a href="../modules/parameters.html">parameter</a>], float >= 0.0):
             Exploration, defined as the probability for uniformly random output in case of `bool`
             and `int` actions, and the standard deviation of Gaussian noise added to every output in
@@ -249,7 +259,7 @@ class TensorforceAgent(Agent):
             </ul>
         recorder (specification): Experience traces recorder configuration (see
             [record-and-pretrain script](https://github.com/tensorforce/tensorforce/blob/master/examples/record_and_pretrain.py)
-            for illustrative example), with the following attributes
+            for example application), with the following attributes
             (<span style="color:#00C000"><b>default</b></span>: no recorder):
             <ul>
             <li><b>directory</b> (<i>path</i>) &ndash; recorder directory
@@ -274,7 +284,7 @@ class TensorforceAgent(Agent):
         # Regularization
         l2_regularization=0.0, entropy_regularization=0.0,
         # Preprocessing
-        preprocessing='linear_normalization',
+        state_preprocessing='linear_normalization', reward_preprocessing=None,
         # Exploration
         exploration=0.0, variable_noise=0.0,
         # Parallel interactions
@@ -329,7 +339,7 @@ class TensorforceAgent(Agent):
                 # Regularization
                 l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
                 # Preprocessing
-                preprocessing=preprocessing,
+                state_preprocessing=state_preprocessing, reward_preprocessing=reward_preprocessing,
                 # Exploration
                 exploration=exploration, variable_noise=variable_noise,
                 # Parallel interactions
@@ -405,7 +415,8 @@ class TensorforceAgent(Agent):
             baseline=baseline, baseline_optimizer=baseline_optimizer,
             baseline_objective=baseline_objective,
             l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
-            preprocessing=preprocessing, exploration=exploration, variable_noise=variable_noise,
+            state_preprocessing=state_preprocessing, reward_preprocessing=reward_preprocessing,
+            exploration=exploration, variable_noise=variable_noise,
             parallel_interactions=self.parallel_interactions,
             config=self.config, saver=saver, summarizer=summarizer
         )
@@ -414,7 +425,7 @@ class TensorforceAgent(Agent):
         """
         Feed experience traces.
 
-        See the [act-experience-update script](https://github.com/tensorforce/tensorforce/blob/master/examples/act_experience_update.py)
+        See the [act-experience-update script](https://github.com/tensorforce/tensorforce/blob/master/examples/act_experience_update_interface.py)
         for an example application as part of the act-experience-update interface, which is an
         alternative to the act-observe interaction pattern.
 
@@ -598,7 +609,7 @@ class TensorforceAgent(Agent):
         """
         Perform an update.
 
-        See the [act-experience-update script](https://github.com/tensorforce/tensorforce/blob/master/examples/act_experience_update.py)
+        See the [act-experience-update script](https://github.com/tensorforce/tensorforce/blob/master/examples/act_experience_update_interface.py)
         for an example application as part of the act-experience-update interface, which is an
         alternative to the act-observe interaction pattern.
         """
@@ -612,8 +623,14 @@ class TensorforceAgent(Agent):
 
     def pretrain(self, directory, num_iterations, num_traces=1, num_updates=1, extension='.npz'):
         """
-        Naive pretraining approach as a combination of `experience()` and `update`, uses experience
-        traces obtained e.g. via recorder argument.
+        Simple pretraining approach as a combination of `experience()` and `update`, akin to
+        behavioral cloning, using experience traces obtained e.g. via recording agent interactions
+        ([see documentation](https://tensorforce.readthedocs.io/en/latest/basics/features.html#record-pretrain)).
+
+        For the given number of iterations, load the given number of trace files (which each contain
+        recorder[frequency] episodes), feed the experience to the agent's internal memory, and
+        subsequently trigger the given number of updates (which will use the experience in the
+        internal memory, fed in this or potentially previous iterations).
 
         See the [record-and-pretrain script](https://github.com/tensorforce/tensorforce/blob/master/examples/record_and_pretrain.py)
         for an example application.
@@ -650,13 +667,6 @@ class TensorforceAgent(Agent):
             else:
                 selection = indices[:num_traces]
 
-            # function = (lambda x: list())
-            # values = ListDict()
-            # values['states'] = self.states_spec.fmap(function=function, cls=ListDict)
-            # values['auxiliaries'] = self.auxiliaries_spec.fmap(function=function, cls=ListDict)
-            # values['actions'] = self.actions_spec.fmap(function=function, cls=ListDict)
-            # values['terminal'] = list()
-            # values['reward'] = list()
             batch = None
             for index in selection:
                 trace = ArrayDict(np.load(files[index]))
@@ -670,8 +680,6 @@ class TensorforceAgent(Agent):
             for name, value in batch.pop('auxiliaries', dict()).items():
                 assert name.endswith('/mask')
                 batch['states'][name[:-5] + '_mask'] = value
-
-            # values = values.fmap(function=np.concatenate, cls=ArrayDict)
 
             self.experience(**batch.to_kwargs())
             for _ in range(num_updates):

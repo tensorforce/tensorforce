@@ -108,11 +108,14 @@ class DeterministicPolicyGradient(TensorforceAgent):
             "too certain"
             (<span style="color:#00C000"><b>default</b></span>: no entropy regularization).
 
-        preprocessing (dict[specification]): Preprocessing as layer or list of layers, see the
-            [preprocessing documentation](../modules/preprocessing.html),
-            specified per state-type or -name, and for reward/return/advantage
+        state_preprocessing (dict[specification]): State preprocessing as layer or list of layers,
+            see the [preprocessing documentation](../modules/preprocessing.html),
+            specified per state-type or -name
             (<span style="color:#00C000"><b>default</b></span>: linear normalization of bounded
             float states to [-2.0, 2.0]).
+        reward_preprocessing (specification): Reward preprocessing as layer or list of layers,
+            see the [preprocessing documentation](../modules/preprocessing.html)
+            (<span style="color:#00C000"><b>default</b></span>: no reward preprocessing).
         exploration (<a href="../modules/parameters.html">parameter</a> | dict[<a href="../modules/parameters.html">parameter</a>], float >= 0.0):
             Exploration, defined as the probability for uniformly random output in case of `bool`
             and `int` actions, and the standard deviation of Gaussian noise added to every output in
@@ -140,7 +143,7 @@ class DeterministicPolicyGradient(TensorforceAgent):
         # Critic
         critic='auto', critic_optimizer=1.0,
         # Preprocessing
-        preprocessing='linear_normalization',
+        state_preprocessing='linear_normalization', reward_preprocessing=None,
         # Exploration
         exploration=0.1, variable_noise=0.0,
         # Regularization
@@ -170,7 +173,7 @@ class DeterministicPolicyGradient(TensorforceAgent):
             learning_rate=learning_rate,
             horizon=horizon, discount=discount, predict_terminal_values=predict_terminal_values,
             critic=critic, critic_optimizer=critic_optimizer,
-            preprocessing=preprocessing,
+            state_preprocessing=state_preprocessing, reward_preprocessing=reward_preprocessing,
             exploration=exploration, variable_noise=variable_noise,
             l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
             parallel_interactions=parallel_interactions,
@@ -207,12 +210,13 @@ class DeterministicPolicyGradient(TensorforceAgent):
             # Agent
             states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
             parallel_interactions=parallel_interactions, config=config, recorder=recorder,
-            # Model
-            preprocessing=preprocessing, exploration=exploration, variable_noise=variable_noise,
-            l2_regularization=l2_regularization, saver=saver, summarizer=summarizer,
             # TensorforceModel
             policy=policy, memory=memory, update=update, optimizer=optimizer, objective=objective,
-            reward_estimation=reward_estimation, baseline=baseline,
-            baseline_optimizer=baseline_optimizer, baseline_objective=baseline_objective,
-            entropy_regularization=entropy_regularization, **kwargs
+            reward_estimation=reward_estimation,
+            baseline=baseline, baseline_optimizer=baseline_optimizer,
+            baseline_objective=baseline_objective,
+            l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
+            state_preprocessing=state_preprocessing, reward_preprocessing=reward_preprocessing,
+            exploration=exploration, variable_noise=variable_noise,
+            saver=saver, summarizer=summarizer, **kwargs
         )

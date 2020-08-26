@@ -38,7 +38,7 @@ def main():
         # Regularization
         l2_regularization=0.0, entropy_regularization=0.0,
         # Preprocessing
-        preprocessing='linear_normalization',
+        state_preprocessing='linear_normalization', reward_preprocessing=None,
         # Exploration
         exploration=0.0, variable_noise=0.0,
         # Default additional config values

@@ -41,27 +41,3 @@ class TestFeatures(UnittestBase, unittest.TestCase):
         )
         action = agent.act(states=states)
         assert action != 1
-
-    def test_pretrain(self):
-        # FEATURES.MD
-        self.start_tests(name='pretrain')
-
-        def fn_act(states):
-            return int(states[2] >= 0.0)
-
-        with TemporaryDirectory() as directory:
-            runner = Runner(
-                agent=dict(agent=fn_act, recorder=dict(directory=directory)),
-                environment='benchmarks/configs/cartpole.json'
-            )
-            # or: agent = Agent.create(agent=fn_act, recorder=dict(directory='traces'))
-            runner.run(num_episodes=10)
-            runner.close()
-
-            files = os.listdir(path=directory)
-            self.assertEqual(len(files), 10)
-            self.assertTrue(
-                all(file.startswith('trace-') and file.endswith('.npz') for file in files)
-            )
-
-        self.finished_test()

@@ -14,7 +14,8 @@
 # ==============================================================================
 
 from tensorforce import TensorforceError
-from tensorforce.core import layer_modules, network_modules, TensorDict, TensorsSpec, tf_function
+from tensorforce.core import layer_modules, network_modules, TensorDict, TensorsSpec, tf_function, \
+    tf_util
 from tensorforce.core.policies import ActionValue
 
 
@@ -87,12 +88,21 @@ class ParametrizedActionValue(ActionValue):
     def past_horizon(self, *, on_policy):
         return self.network.past_horizon(on_policy=on_policy)
 
-    @tf_function(num_args=4)
-    def next_internals(self, *, states, horizons, internals, actions, independent):
-        states_actions = TensorDict(states=states, actions=actions)
+    @tf_function(num_args=5)
+    def next_internals(self, *, states, horizons, internals, actions, deterministic, independent):
+        inputs = TensorDict()
+        if self.states_spec.is_singleton():
+            inputs['states'] = states.singleton()
+        else:
+            inputs['states'] = states
+        if self.actions_spec.is_singleton():
+            inputs['actions'] = actions.singleton()
+        else:
+            inputs['actions'] = actions
 
         _, internals = self.network.apply(
-            x=states_actions, horizons=horizons, internals=internals, independent=independent
+            x=inputs, horizons=horizons, internals=internals, deterministic=deterministic,
+            independent=independent
         )
 
         return internals
@@ -109,8 +119,10 @@ class ParametrizedActionValue(ActionValue):
         else:
             inputs['actions'] = actions
 
+        deterministic = tf_util.constant(value=True, dtype='bool')
         embedding, _ = self.network.apply(
-            x=inputs, horizons=horizons, internals=internals, independent=True
+            x=inputs, horizons=horizons, internals=internals, deterministic=deterministic,
+            independent=True
         )
 
         return self.value.apply(x=embedding)

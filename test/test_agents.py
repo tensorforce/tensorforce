@@ -38,7 +38,7 @@ class TestAgents(UnittestBase, unittest.TestCase):
 
     def test_constant(self):
         self.start_tests(name='Constant')
-        self.unittest(num_episodes=2, agent='constant')
+        self.unittest(num_episodes=2, experience_update=False, agent='constant')
 
     def test_dpg(self):
         self.start_tests(name='DPG')
@@ -93,7 +93,7 @@ class TestAgents(UnittestBase, unittest.TestCase):
 
     def test_random(self):
         self.start_tests(name='Random')
-        self.unittest(num_episodes=2, agent='random')
+        self.unittest(num_episodes=2, experience_update=False, agent='random')
 
     def test_tensorforce(self):
         self.start_tests(name='Tensorforce')

@@ -30,7 +30,6 @@ class TestSummaries(UnittestBase, unittest.TestCase):
             type='linear', unit='updates', num_steps=10, initial_value=1e-3, final_value=1e-4
         )
         horizon = dict(type='linear', unit='episodes', num_steps=2, initial_value=2, final_value=4)
-        preprocessing = dict(reward=dict(type='clipping', upper=0.25))
         exploration = dict(
             type='exponential', unit='timesteps', num_steps=5, initial_value=0.1, decay_rate=0.5
         )
@@ -38,8 +37,9 @@ class TestSummaries(UnittestBase, unittest.TestCase):
         with TemporaryDirectory() as directory:
             agent, environment = self.prepare(
                 optimizer=dict(optimizer='adam', learning_rate=learning_rate),
-                reward_estimation=dict(horizon=horizon),
-                preprocessing=preprocessing, exploration=exploration,
+                reward_estimation=dict(
+                    horizon=horizon, return_processing=dict(type='clipping', lower=-1.0, upper=1.0)
+                ), exploration=exploration,
                 config=dict(eager_mode=False, create_debug_assertions=True, tf_log_level=20),
                 summarizer=dict(directory=directory, labels='all')
             )

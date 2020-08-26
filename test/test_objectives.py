@@ -33,7 +33,10 @@ class TestObjectives(UnittestBase, unittest.TestCase):
             gaussian_action2=dict(type='gaussian', global_stddev=True), beta_action='beta'
         ))
         objective = 'deterministic_policy_gradient'
-        reward_estimation = dict(horizon=3, predict_action_values=True)
+        reward_estimation = dict(
+            horizon=3, predict_action_values=True,
+            return_processing=dict(type='clipping', lower=-1.0, upper=1.0)
+        )
         baseline = dict(network=dict(type='auto', size=7, depth=1, rnn=False))
         baseline_objective = 'action_value'
         self.unittest(

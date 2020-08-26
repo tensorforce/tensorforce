@@ -18,8 +18,9 @@ from tempfile import TemporaryDirectory
 from threading import Thread
 import unittest
 
-from tensorforce import Agent, Environment, Runner
+import numpy as np
 
+from tensorforce import Agent, Environment, Runner
 from test.unittest_base import UnittestBase
 
 
@@ -55,7 +56,7 @@ class TestExamples(UnittestBase, unittest.TestCase):
                 # Regularization
                 l2_regularization=0.0, entropy_regularization=0.0,
                 # Preprocessing
-                preprocessing='linear_normalization',
+                state_preprocessing='linear_normalization', reward_preprocessing=None,
                 # Exploration
                 exploration=0.0, variable_noise=0.0,
                 # Default additional config values
@@ -92,6 +93,51 @@ class TestExamples(UnittestBase, unittest.TestCase):
             files = os.listdir(path=os.path.join(summarizer_directory, directories[0]))
             self.assertEqual(len(files), 1)
             self.assertTrue(files[0].startswith('events.out.tfevents.'))
+
+        self.finished_test()
+
+    def test_act_observe(self):
+        self.start_tests(name='act-observe')
+
+        # ====================
+
+        environment = Environment.create(environment='benchmarks/configs/cartpole.json')
+        agent = Agent.create(agent='benchmarks/configs/ppo.json', environment=environment)
+
+        # Train for 100 episodes
+        for episode in range(10):
+
+            # Episode using act and observe
+            states = environment.reset()
+            terminal = False
+            sum_reward = 0.0
+            num_updates = 0
+            while not terminal:
+                actions = agent.act(states=states)
+                states, terminal, reward = environment.execute(actions=actions)
+                num_updates += agent.observe(terminal=terminal, reward=reward)
+                sum_reward += reward
+            print('Episode {}: return={} updates={}'.format(episode, sum_reward, num_updates))
+
+        # Evaluate for 100 episodes
+        sum_rewards = 0.0
+        for _ in range(10):
+            states = environment.reset()
+            internals = agent.initial_internals()
+            terminal = False
+            while not terminal:
+                actions, internals = agent.act(
+                    states=states, internals=internals, independent=True, deterministic=True
+                )
+                states, terminal, reward = environment.execute(actions=actions)
+                sum_rewards += reward
+        print('Mean evaluation return:', sum_rewards / 100.0)
+
+        # Close agent and environment
+        agent.close()
+        environment.close()
+
+        # ====================
 
         self.finished_test()
 
@@ -138,6 +184,21 @@ class TestExamples(UnittestBase, unittest.TestCase):
             # Perform update
             agent.update()
 
+        # Evaluate for 100 episodes
+        sum_rewards = 0.0
+        for _ in range(10):
+            states = environment.reset()
+            internals = agent.initial_internals()
+            terminal = False
+            while not terminal:
+                actions, internals = agent.act(
+                    states=states, internals=internals, independent=True, deterministic=True
+                )
+                states, terminal, reward = environment.execute(actions=actions)
+                sum_rewards += reward
+        print('Mean evaluation return:', sum_rewards / 100.0)
+
+        # Close agent and environment
         agent.close()
         environment.close()
 
@@ -152,8 +213,7 @@ class TestExamples(UnittestBase, unittest.TestCase):
 
             # ====================
 
-            # Start recording traces after the first 100 episodes -- by then, the agent
-            # has solved the environment
+            # Start recording traces after 80 episodes -- by then, the environment is solved
             runner = Runner(
                 agent=dict(
                     agent='benchmarks/configs/ppo.json',
@@ -163,20 +223,70 @@ class TestExamples(UnittestBase, unittest.TestCase):
             runner.run(num_episodes=10)
             runner.close()
 
+            # ====================
+
+            # Trivial custom act function
+            def fn_act(states):
+                return int(states[2] < 0.0)
+
+            # Record 20 episodes
+            runner = Runner(
+                agent=dict(agent=fn_act, recorder=dict(directory=directory)),
+                environment='benchmarks/configs/cartpole.json'
+            )
+            # or: agent = Agent.create(agent=fn_act, recorder=dict(directory=directory))
+            runner.run(num_episodes=2)
+            runner.close()
+
+            # ====================
+
+            # Start recording traces after 80 episodes -- by then, the environment is solved
+            environment = Environment.create(environment='benchmarks/configs/cartpole.json')
+            agent = Agent.create(agent='benchmarks/configs/ppo.json', environment=environment)
+            runner = Runner(agent=agent, environment=environment)
+            runner.run(num_episodes=8)
+            runner.close()
+
+            # Record 20 episodes
+            for episode in range(2, 4):
+
+                # Record episode experience
+                episode_states = list()
+                episode_actions = list()
+                episode_terminal = list()
+                episode_reward = list()
+
+                # Evaluation episode
+                states = environment.reset()
+                terminal = False
+                while not terminal:
+                    episode_states.append(states)
+                    actions = agent.act(states=states, independent=True, deterministic=True)
+                    episode_actions.append(actions)
+                    states, terminal, reward = environment.execute(actions=actions)
+                    episode_terminal.append(terminal)
+                    episode_reward.append(reward)
+
+                # Write recorded episode trace to npz file
+                np.savez_compressed(
+                    file=os.path.join(directory, 'trace-{:09d}.npz'.format(episode)),
+                    states=np.stack(episode_states, axis=0),
+                    actions=np.stack(episode_actions, axis=0),
+                    terminal=np.stack(episode_terminal, axis=0),
+                    reward=np.stack(episode_reward, axis=0)
+                )
+
+            # ====================
+
             # Pretrain a new agent on the recorded traces: for 30 iterations, feed the
             # experience of one episode to the agent and subsequently perform one update
             environment = Environment.create(environment='benchmarks/configs/cartpole.json')
             agent = Agent.create(agent='benchmarks/configs/ppo.json', environment=environment)
-            agent.pretrain(
-                directory='test/data/ppo-traces', num_iterations=30, num_traces=1, num_updates=1
-            )
+            agent.pretrain(directory=directory, num_iterations=30, num_traces=1, num_updates=1)
 
             # Evaluate the pretrained agent
             runner = Runner(agent=agent, environment=environment)
             runner.run(num_episodes=10, evaluation=True)
-            self.assertTrue(
-                all(episode_reward == 500.0 for episode_reward in runner.episode_rewards)
-            )
             runner.close()
 
             # Close agent and environment
@@ -185,11 +295,26 @@ class TestExamples(UnittestBase, unittest.TestCase):
 
             # ====================
 
+            # Performance test
+            environment = Environment.create(environment='benchmarks/configs/cartpole.json')
+            agent = Agent.create(agent='benchmarks/configs/ppo.json', environment=environment)
+            agent.pretrain(
+                directory='test/data/ppo-traces', num_iterations=30, num_traces=1, num_updates=1
+            )
+            runner = Runner(agent=agent, environment=environment)
+            runner.run(num_episodes=10, evaluation=True)
+            self.assertTrue(
+                all(episode_reward == 500.0 for episode_reward in runner.episode_rewards)
+            )
+            runner.close()
+            agent.close()
+            environment.close()
+
             files = sorted(os.listdir(path=directory))
-            self.assertEqual(len(files), 2)
+            self.assertEqual(len(files), 6)
             self.assertTrue(all(
                 file.startswith('trace-') and file.endswith('0000000{}.npz'.format(n))
-                for n, file in enumerate(files, start=8)
+                for n, file in zip([0, 1, 2, 3, 8, 9], files)
             ))
 
         self.finished_test()
@@ -201,36 +326,24 @@ class TestExamples(UnittestBase, unittest.TestCase):
 
         agent = 'benchmarks/configs/ppo.json'
         environment = 'benchmarks/configs/cartpole.json'
-
-        # Parallelization mode 1
-        # Train agent on experience collected in parallel from 4 local CartPole environments
-        # Typical use case:
-        #     time for batched agent.act() ~ time for agent.act() > time for environment.execute()
         runner = Runner(agent=agent, environment=environment, num_parallel=4)
         # Batch act/observe calls to agent (otherwise essentially equivalent to single environment)
         runner.run(num_episodes=10, batch_agent_calls=True)
         runner.close()
 
-        # Parallelization mode 2
-        # Train agent on experience collected in parallel from 4 CartPole environments running in
-        # separate processes
-        # Typical use case:
-        #     (a) time for batched agent.act() ~ time for agent.act()
-        #                     > time for environment.execute() + remote communication
-        #         --> batch_agent_calls = True
-        #     (b) time for environment.execute() > time for agent.act() + process communication
-        #         --> batch_agent_calls = False
+        # ====================
+
+        agent = 'benchmarks/configs/ppo.json'
+        environment = 'benchmarks/configs/cartpole.json'
         runner = Runner(agent=agent, environment=environment, num_parallel=4, remote='multiprocessing')
-        runner.run(num_episodes=10)
+        runner.run(num_episodes=10)  # optional: batch_agent_calls=True
         runner.close()
 
-        # Parallelization mode 3
-        # Train agent on experience collected in parallel from 2 CartPole environments running on
-        # another machine
-        # Typical use case: same as mode 2, but generally remote communication socket > process
+        # ====================
 
-        # Simulate remote environment, usually run on another machine via:
-        #     python run.py --environment gym --level CartPole-v1 --remote socket-server --port 65432
+        agent = 'benchmarks/configs/ppo.json'
+        environment = 'benchmarks/configs/cartpole.json'
+
         def server(port):
             Environment.create(environment=environment, remote='socket-server', port=port)
 
@@ -242,7 +355,7 @@ class TestExamples(UnittestBase, unittest.TestCase):
         runner = Runner(
             agent=agent, num_parallel=2, remote='socket-client', host='127.0.0.1', port=65432
         )
-        runner.run(num_episodes=10, batch_agent_calls=True)
+        runner.run(num_episodes=10)  # optional: batch_agent_calls=True
         runner.close()
 
         server1.join()

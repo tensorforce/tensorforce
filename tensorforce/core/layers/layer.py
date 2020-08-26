@@ -134,6 +134,33 @@ class MultiInputLayer(Layer):
         raise NotImplementedError
 
 
+class NondeterministicLayer(Layer):
+    """
+    Base class for nondeterministic layers.
+
+    Args:
+        l2_regularization (float >= 0.0): Scalar controlling L2 regularization
+            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        name (string): Layer name
+            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
+        input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
+    """
+
+    def input_signature(self, *, function):
+        if function == 'apply':
+            return SignatureDict(
+                x=self.input_spec.signature(batched=True),
+                deterministic=TensorSpec(type='bool', shape=()).signature(batched=False)
+            )
+
+        else:
+            return super().input_signature(function=function)
+
+    @tf_function(num_args=2)
+    def apply(self, *, x, deterministic):
+        raise NotImplementedError
+
+
 class Register(Layer):
     """
     Tensor retrieval layer, which is useful when defining more complex network architectures which

@@ -18,7 +18,8 @@ import tensorflow as tf
 from tensorforce import TensorforceError
 from tensorforce.core import SignatureDict, TensorDict, TensorSpec, TensorsSpec, tf_function, \
     tf_util
-from tensorforce.core.layers import MultiInputLayer, PreprocessingLayer, Register, StatefulLayer
+from tensorforce.core.layers import MultiInputLayer, NondeterministicLayer, PreprocessingLayer, \
+    Register, StatefulLayer, TemporalLayer
 from tensorforce.core.networks import LayeredNetwork
 
 
@@ -35,20 +36,32 @@ class Preprocessor(LayeredNetwork):
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        is_preprocessing_layer_valid (bool): <span style="color:#0000C0"><b>internal use</b></span>.
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
         input_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(self, *, layers, device=None, l2_regularization=None, name=None, input_spec=None):
+    def __init__(
+        self, *, layers, device=None, l2_regularization=None, is_preprocessing_layer_valid=True,
+        name=None, input_spec=None
+    ):
         if not isinstance(input_spec, TensorSpec):
             raise TensorforceError.type(
                 name='preprocessor', argument='inputs_spec', dtype=type(input_spec)
             )
 
+        self.is_preprocessing_layer_valid = is_preprocessing_layer_valid
+
         super().__init__(
             layers=[layers], device=device, l2_regularization=l2_regularization, name=name,
-            inputs_spec=TensorsSpec(x=input_spec)
+            inputs_spec=TensorsSpec(singleton=input_spec)
         )
+
+    def invalid_layer_types(self):
+        if self.is_preprocessing_layer_valid:
+            return (TemporalLayer,)
+        else:
+            return (PreprocessingLayer, TemporalLayer)
 
     @property
     def internals_spec(self):
@@ -65,7 +78,10 @@ class Preprocessor(LayeredNetwork):
 
     def input_signature(self, *, function):
         if function == 'apply':
-            return self.inputs_spec.signature(batched=True)
+            return SignatureDict(
+                x=self.inputs_spec.signature(batched=True),
+                deterministic=TensorSpec(type='bool', shape=()).signature(batched=False)
+            )
 
         elif function == 'reset':
             return SignatureDict()
@@ -98,9 +114,11 @@ class Preprocessor(LayeredNetwork):
         else:
             return tf_util.constant(value=False, dtype='bool')
 
-    @tf_function(num_args=1)
-    def apply(self, *, x, independent):
-        registered_tensors = TensorDict(x=x)
+    @tf_function(num_args=2)
+    def apply(self, *, x, deterministic, independent):
+        assert x.is_singleton()
+        x = x.singleton()
+        registered_tensors = TensorDict(input=x)
 
         for layer in self.layers:
             if isinstance(layer, Register):
@@ -113,6 +131,9 @@ class Preprocessor(LayeredNetwork):
                 if layer.tensors not in registered_tensors:
                     raise TensorforceError.exists_not(name='registered tensor', value=layer.tensors)
                 x = layer.apply(x=registered_tensors[layer.tensors])
+
+            elif isinstance(layer, NondeterministicLayer):
+                x = layer.apply(x=x, deterministic=deterministic)
 
             elif isinstance(layer, StatefulLayer):
                 x = layer.apply(x=x, independent=independent)

@@ -88,8 +88,8 @@ class LinearNormalization(Layer):
 
 class ExponentialNormalization(StatefulLayer):
     """
-    Normalization layer based on the exponential moving average (specification key:
-    `exponential_normalization`).
+    Normalization layer based on the exponential moving average over the temporal sequence of inputs
+    (specification key: `exponential_normalization`).
 
     Args:
         decay (parameter, 0.0 <= float <= 1.0): Decay rate
@@ -132,62 +132,46 @@ class ExponentialNormalization(StatefulLayer):
         )
 
         self.moving_variance = self.variable(
-            name='variance', spec=TensorSpec(type='float', shape=shape), initializer='zeros',
-            is_trainable=False, is_saved=True
-        )
-
-        self.after_first_call = self.variable(
-            name='after-first-call', spec=TensorSpec(type='bool'), initializer='zeros',
+            name='variance', spec=TensorSpec(type='float', shape=shape), initializer='ones',
             is_trainable=False, is_saved=True
         )
 
     @tf_function(num_args=1)
     def apply(self, *, x, independent):
-        dependencies = list()
-
         if independent:
             mean = self.moving_mean
             variance = self.moving_variance
 
         else:
-            one = tf_util.constant(value=1.0, dtype='float')
+            zero = tf_util.constant(value=0, dtype='int')
+            one_float = tf_util.constant(value=1.0, dtype='float')
             axes = (0,) + tuple(1 + axis for axis in self.axes)
 
             decay = self.decay.value()
-            batch_size = tf_util.cast(x=tf.shape(input=x)[0], dtype='float')
+            batch_size = tf_util.cast(x=tf.shape(input=x)[0], dtype='int')
+            is_zero_batch = tf.math.equal(x=batch_size, y=zero)
+            batch_size = tf_util.cast(x=batch_size, dtype='float')
             # Pow numerically stable since 0.0 <= decay <= 1.0
             decay = tf.math.pow(x=decay, y=batch_size)
-            condition = tf.math.logical_or(
-                x=self.after_first_call, y=tf.math.equal(x=batch_size, y=0)
-            )
 
             mean = tf.math.reduce_mean(input_tensor=x, axis=axes, keepdims=True)
             mean = tf.where(
-                condition=condition, x=(decay * self.moving_mean + (one - decay) * mean), y=mean
+                condition=is_zero_batch, x=(decay * self.moving_mean + (one_float - decay) * mean),
+                y=mean
             )
 
             variance = tf.reduce_mean(
                 input_tensor=tf.math.squared_difference(x=x, y=mean), axis=axes, keepdims=True
             )
             variance = tf.where(
-                condition=condition, x=(decay * self.moving_variance + (one - decay) * variance),
-                y=variance
+                condition=is_zero_batch,
+                x=(decay * self.moving_variance + (one_float - decay) * variance), y=variance
             )
-
-            with tf.control_dependencies(control_inputs=(mean, variance)):
-                value = tf.math.logical_or(x=self.after_first_call, y=(batch_size > 0))
-                dependencies.append(self.after_first_call.assign(value=value, read_value=False))
-
-            mean = self.moving_mean.assign(value=mean)
-            variance = self.moving_variance.assign(value=variance)
 
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')
         reciprocal_stddev = tf.math.rsqrt(x=tf.maximum(x=variance, y=epsilon))
 
-        with tf.control_dependencies(control_inputs=dependencies):
-            x = (x - tf.stop_gradient(input=mean)) * tf.stop_gradient(input=reciprocal_stddev)
-
-        return x
+        return (x - tf.stop_gradient(input=mean)) * tf.stop_gradient(input=reciprocal_stddev)
 
 
 class InstanceNormalization(Layer):
@@ -223,6 +207,4 @@ class InstanceNormalization(Layer):
 
         reciprocal_stddev = tf.math.rsqrt(x=tf.maximum(x=variance, y=epsilon))
 
-        x = (x - tf.stop_gradient(input=mean)) * tf.stop_gradient(input=reciprocal_stddev)
-
-        return x
+        return (x - tf.stop_gradient(input=mean)) * tf.stop_gradient(input=reciprocal_stddev)

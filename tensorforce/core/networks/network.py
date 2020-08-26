@@ -20,8 +20,8 @@ import tensorflow as tf
 from tensorforce import TensorforceError
 from tensorforce.core import ArrayDict, Module, SignatureDict, TensorDict, TensorSpec, \
     TensorsSpec, tf_function, tf_util
-from tensorforce.core.layers import Layer, layer_modules, MultiInputLayer, Register, \
-    StatefulLayer, TemporalLayer
+from tensorforce.core.layers import Layer, layer_modules, MultiInputLayer, NondeterministicLayer, \
+    PreprocessingLayer, Register, StatefulLayer, TemporalLayer
 from tensorforce.core.parameters import Parameter
 
 
@@ -61,7 +61,8 @@ class Network(Module):
             return SignatureDict(
                 x=self.inputs_spec.signature(batched=True),
                 horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
-                internals=self.internals_spec.signature(batched=True)
+                internals=self.internals_spec.signature(batched=True),
+                deterministic=TensorSpec(type='bool', shape=()).signature(batched=False)
             )
 
         elif function == 'past_horizon':
@@ -110,6 +111,9 @@ class LayerbasedNetwork(Network):
             self.registered_tensors_spec = self.inputs_spec.copy()
 
         self._output_spec = self.inputs_spec.value()
+
+    def invalid_layer_types(self):
+        return (PreprocessingLayer,)
 
     def output_spec(self):
         return self._output_spec
@@ -202,6 +206,11 @@ class LayerbasedNetwork(Network):
                 name='layer-based network', argument='sub-module', value=layer
             )
 
+        elif isinstance(layer, self.invalid_layer_types()):
+            raise TensorforceError.type(
+                name='network', argument='layer', value=layer, hint='invalid layer type'
+            )
+
         if isinstance(layer, Layer):
             self._output_spec = layer.output_spec()
 
@@ -274,8 +283,8 @@ class LayeredNetwork(LayerbasedNetwork):
 
             yield self.submodule(name=name, module=spec)
 
-    @tf_function(num_args=3)
-    def apply(self, *, x, horizons, internals, independent):
+    @tf_function(num_args=4)
+    def apply(self, *, x, horizons, internals, deterministic, independent):
         if x.is_singleton():
             registered_tensors = TensorDict(state=x.singleton())
         else:
@@ -293,6 +302,9 @@ class LayeredNetwork(LayerbasedNetwork):
                 if layer.tensors not in registered_tensors:
                     raise TensorforceError.exists_not(name='registered tensor', value=layer.tensors)
                 x = layer.apply(x=registered_tensors[layer.tensors])
+
+            elif isinstance(layer, NondeterministicLayer):
+                x = layer.apply(x=x, deterministic=deterministic)
 
             elif isinstance(layer, StatefulLayer):
                 x = layer.apply(x=x, independent=independent)

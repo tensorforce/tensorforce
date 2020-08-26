@@ -408,7 +408,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
         agent = tf.saved_model.load(export_dir='test/data/ppo-checkpoint')
         act = next(iter(agent._independent_act_graphs.values()))
 
-        # one episode
+        # 10 episodes
         for _ in range(10):
             states = environment.reset()
             terminal = False

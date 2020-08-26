@@ -97,7 +97,7 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
         )
         agent = Agent.create(agent='test/data/agent.json', environment=environment)
 
-        # Train for 200 episodes
+        # Train for 100 episodes
         for _ in range(10):
             states = environment.reset()
             terminal = False
@@ -106,7 +106,7 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
                 states, terminal, reward = environment.execute(actions=actions)
                 agent.observe(terminal=terminal, reward=reward)
 
-        # Train for 200 episodes
+        # Train for 100 episodes
         for _ in range(10):
             episode_states = list()
             episode_internals = list()
@@ -134,7 +134,7 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
 
         # Evaluate for 100 episodes
         sum_rewards = 0.0
-        for _ in range(5):
+        for _ in range(10):
             states = environment.reset()
             internals = agent.initial_internals()
             terminal = False
@@ -288,13 +288,11 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
         # preprocessing
         self.unittest(
             states=dict(type='float', shape=(8, 8, 3), min_value=-1.0, max_value=2.0),
-            preprocessing=dict(
-                state=[
-                    dict(type='image', height=4, width=4, grayscale=True),
-                    dict(type='exponential_normalization')
-                ],
-                reward=dict(type='clipping', lower=-1.0, upper=1.0)
-            )
+            state_preprocessing=[
+                dict(type='image', height=4, width=4, grayscale=True),
+                dict(type='exponential_normalization')
+            ],
+            reward_preprocessing=dict(type='clipping', lower=-1.0, upper=1.0)
         )
 
         # policy

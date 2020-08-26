@@ -29,8 +29,8 @@ class TestNetwork(LayerbasedNetwork):
         self.layer1 = self.submodule(name='dense0', module=dict(type='dense', size=8))
         self.layer2 = self.submodule(name='dense1', module=dict(type='dense', size=8))
 
-    @tf_function(num_args=3)
-    def apply(self, x, horizons, internals, independent):
+    @tf_function(num_args=4)
+    def apply(self, x, horizons, internals, deterministic, independent):
         x = self.layer2.apply(x=self.layer1.apply(x=next(iter(x.values()))))
         return x, dict()
 

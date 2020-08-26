@@ -15,42 +15,62 @@
 
 from threading import Thread
 
-from tensorforce import Agent, Environment, Runner
+from tensorforce import Environment, Runner
 
 
 def main():
+    local()
+    multiprocessing()
+    socket()
+
+
+def local():
+    """
+    Train agent on experience collected in parallel from 4 local CartPole environments.
+
+    Typical use case:
+        time for batched agent.act() ~ time for agent.act() > time for environment.execute()
+    """
     agent = 'benchmarks/configs/ppo.json'
     environment = 'benchmarks/configs/cartpole.json'
-
-    # Parallelization mode 1
-    # Train agent on experience collected in parallel from 4 local CartPole environments
-    # Typical use case:
-    #     time for batched agent.act() ~ time for agent.act() > time for environment.execute()
     runner = Runner(agent=agent, environment=environment, num_parallel=4)
     # Batch act/observe calls to agent (otherwise essentially equivalent to single environment)
     runner.run(num_episodes=100, batch_agent_calls=True)
     runner.close()
 
-    # Parallelization mode 2
-    # Train agent on experience collected in parallel from 4 CartPole environments running in
-    # separate processes
-    # Typical use case:
-    #     (a) time for batched agent.act() ~ time for agent.act()
-    #                     > time for environment.execute() + remote communication
-    #         --> batch_agent_calls = True
-    #     (b) time for environment.execute() > time for agent.act() + process communication
-    #         --> batch_agent_calls = False
+
+def multiprocessing():
+    """
+    Train agent on experience collected in parallel from 4 CartPole environments running in
+    separate processes.
+
+    Typical use case:
+        (a) time for batched agent.act() ~ time for agent.act()
+                        > time for environment.execute() + remote communication
+            --> batch_agent_calls = True
+        (b) time for environment.execute() > time for agent.act() + process communication
+            --> batch_agent_calls = False
+    """
+    agent = 'benchmarks/configs/ppo.json'
+    environment = 'benchmarks/configs/cartpole.json'
     runner = Runner(agent=agent, environment=environment, num_parallel=4, remote='multiprocessing')
-    runner.run(num_episodes=100)
+    runner.run(num_episodes=100)  # optional: batch_agent_calls=True
     runner.close()
 
-    # Parallelization mode 3
-    # Train agent on experience collected in parallel from 2 CartPole environments running on
-    # another machine
-    # Typical use case: same as mode 2, but generally remote communication socket > process
 
-    # Simulate remote environment, usually run on another machine via:
-    #     python run.py --environment gym --level CartPole-v1 --remote socket-server --port 65432
+def socket():
+    """
+    Train agent on experience collected in parallel from 2 CartPole environments running on
+    another machine.
+
+    Typical use case: same as mode 2, but generally remote communication socket > process
+
+    Simulate remote environment, usually run on another machine via:
+        python run.py --environment gym --level CartPole-v1 --remote socket-server --port 65432
+    """
+    agent = 'benchmarks/configs/ppo.json'
+    environment = 'benchmarks/configs/cartpole.json'
+
     def server(port):
         Environment.create(environment=environment, remote='socket-server', port=port)
 
@@ -62,7 +82,7 @@ def main():
     runner = Runner(
         agent=agent, num_parallel=2, remote='socket-client', host='127.0.0.1', port=65432
     )
-    runner.run(num_episodes=100, batch_agent_calls=True)
+    runner.run(num_episodes=100)  # optional: batch_agent_calls=True
     runner.close()
 
     server1.join()

@@ -19,7 +19,7 @@ import tensorflow as tf
 
 from tensorforce import TensorforceError
 from tensorforce.core import distribution_modules, ModuleDict, network_modules, TensorDict, \
-    TensorsSpec, tf_function
+    TensorsSpec, tf_function, tf_util
 from tensorforce.core.policies import StochasticPolicy, ValuePolicy
 
 
@@ -151,10 +151,11 @@ class ParametrizedDistributions(StochasticPolicy, ValuePolicy):
     def past_horizon(self, *, on_policy):
         return self.network.past_horizon(on_policy=on_policy)
 
-    @tf_function(num_args=4)
-    def next_internals(self, *, states, horizons, internals, actions, independent):
+    @tf_function(num_args=5)
+    def next_internals(self, *, states, horizons, internals, actions, deterministic, independent):
         _, internals = self.network.apply(
-            x=states, horizons=horizons, internals=internals, independent=independent
+            x=states, horizons=horizons, internals=internals, deterministic=deterministic,
+            independent=independent
         )
 
         return internals
@@ -168,8 +169,10 @@ class ParametrizedDistributions(StochasticPolicy, ValuePolicy):
 
     @tf_function(num_args=5)
     def sample(self, *, states, horizons, internals, auxiliaries, temperature, independent):
+        deterministic = tf_util.constant(value=False, dtype='bool')
         embedding, internals = self.network.apply(
-            x=states, horizons=horizons, internals=internals, independent=independent
+            x=states, horizons=horizons, internals=internals, deterministic=deterministic,
+            independent=independent
         )
 
         def function(name, distribution, temp):
@@ -190,8 +193,10 @@ class ParametrizedDistributions(StochasticPolicy, ValuePolicy):
 
     @tf_function(num_args=5)
     def log_probabilities(self, *, states, horizons, internals, auxiliaries, actions):
+        deterministic = tf_util.constant(value=True, dtype='bool')
         embedding, _ = self.network.apply(
-            x=states, horizons=horizons, internals=internals, independent=True
+            x=states, horizons=horizons, internals=internals, deterministic=deterministic,
+            independent=True
         )
 
         def function(name, distribution, action):
@@ -205,8 +210,10 @@ class ParametrizedDistributions(StochasticPolicy, ValuePolicy):
 
     @tf_function(num_args=4)
     def entropies(self, *, states, horizons, internals, auxiliaries):
+        deterministic = tf_util.constant(value=True, dtype='bool')
         embedding, _ = self.network.apply(
-            x=states, horizons=horizons, internals=internals, independent=True
+            x=states, horizons=horizons, internals=internals, deterministic=deterministic,
+            independent=True
         )
 
         def function(name, distribution):
@@ -232,8 +239,10 @@ class ParametrizedDistributions(StochasticPolicy, ValuePolicy):
 
     @tf_function(num_args=4)
     def kldiv_reference(self, *, states, horizons, internals, auxiliaries):
+        deterministic = tf_util.constant(value=True, dtype='bool')
         embedding, _ = self.network.apply(
-            x=states, horizons=horizons, internals=internals, independent=True
+            x=states, horizons=horizons, internals=internals, deterministic=deterministic,
+            independent=True
         )
 
         def function(name, distribution):
@@ -244,8 +253,10 @@ class ParametrizedDistributions(StochasticPolicy, ValuePolicy):
 
     @tf_function(num_args=5)
     def action_values(self, *, states, horizons, internals, auxiliaries, actions):
+        deterministic = tf_util.constant(value=True, dtype='bool')
         embedding, _ = self.network.apply(
-            x=states, horizons=horizons, internals=internals, independent=True
+            x=states, horizons=horizons, internals=internals, deterministic=deterministic,
+            independent=True
         )
 
         def function(name, distribution, action):
@@ -259,8 +270,10 @@ class ParametrizedDistributions(StochasticPolicy, ValuePolicy):
 
     @tf_function(num_args=4)
     def state_values(self, *, states, horizons, internals, auxiliaries):
+        deterministic = tf_util.constant(value=True, dtype='bool')
         embedding, _ = self.network.apply(
-            x=states, horizons=horizons, internals=internals, independent=True
+            x=states, horizons=horizons, internals=internals, deterministic=deterministic,
+            independent=True
         )
 
         def function(name, distribution):

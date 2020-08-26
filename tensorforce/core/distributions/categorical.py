@@ -134,7 +134,8 @@ class Categorical(Distribution):
     def mode(self, *, parameters):
         action_values = parameters['action_values']
 
-        return tf.argmax(input=action_values, axis=-1)
+        action = tf.math.argmax(input=action_values, axis=-1)
+        return tf_util.cast(x=action, dtype='int')
 
     @tf_function(num_args=2)
     def sample(self, *, parameters, temperature):
@@ -158,7 +159,7 @@ class Categorical(Distribution):
 
         def fn_mode():
             # Deterministic: maximum likelihood action
-            action = tf.argmax(input=action_values, axis=-1)
+            action = tf.math.argmax(input=action_values, axis=-1)
             return tf_util.cast(x=action, dtype='int')
 
         def fn_sample():
@@ -175,7 +176,7 @@ class Categorical(Distribution):
             )
             # Second log numerically stable since log(1-eps) ~ -eps
             gumbel_distribution = -tf.math.log(x=-tf.math.log(x=uniform_distribution))
-            action = tf.argmax(input=(temp_logits + gumbel_distribution), axis=-1)
+            action = tf.math.argmax(input=(temp_logits + gumbel_distribution), axis=-1)
             return tf_util.cast(x=action, dtype='int')
 
         with tf.control_dependencies(control_inputs=dependencies):

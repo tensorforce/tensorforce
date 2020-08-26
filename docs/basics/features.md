@@ -125,25 +125,10 @@ Agent.create(...
 
 ### Act-experience-update interaction
 
-Instead of the default act-observe interaction pattern or the [Runner utility](../execution/runner.html), one can alternatively use the act-experience-update interface, which allows for more control over the experience the agent stores. See the [act-experience-update example](https://github.com/tensorforce/tensorforce/blob/master/examples/act_experience_update.py) for details on how to use this feature.
+Instead of the default act-observe interaction pattern or the [Runner utility](../execution/runner.html), one can alternatively use the act-experience-update interface, which allows for more control over the experience the agent stores. See the [act-experience-update example](https://github.com/tensorforce/tensorforce/blob/master/examples/act_experience_update_interface.py) for details on how to use this feature. Note that a few stateful network layers will not be updated correctly in independent-mode (currently, `exponential_normalization`).
 
 
 
 ### Record & pretrain
 
 See the [record-and-pretrain example](https://github.com/tensorforce/tensorforce/blob/master/examples/record_and_pretrain.py) for details on how to use this feature.
-
-Alternatively, interaction traces can be recorded for any act-function mapping states to actions:
-
-```python
-def fn_act(states):
-    ...
-    return actions
-
-runner = Runner(
-    agent=dict(agent=fn_act, recorder=dict(directory='traces')),
-    environment='benchmarks/configs/cartpole.json'
-)
-# or: agent = Agent.create(agent=fn_act, recorder=dict(directory='traces'))
-runner.run(num_episodes=100)
-runner.close()

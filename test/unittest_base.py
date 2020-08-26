@@ -41,16 +41,20 @@ class UnittestBase(object):
     )
     min_timesteps = 5
     max_episode_timesteps = 10
+    experience_update = True
 
     # Agent
     agent = dict(
         # Also used in: text_reward_estimation
         policy=dict(network=dict(type='auto', size=8, depth=1, rnn=2), distributions=dict(
             gaussian_action2=dict(type='gaussian', global_stddev=True), beta_action='beta'
-        )), update=4, objective='policy_gradient', reward_estimation=dict(horizon=3),
-        baseline=dict(network=dict(type='auto', size=7, depth=1, rnn=1)),
+        )), update=4, objective='policy_gradient', reward_estimation=dict(
+            horizon=3, return_processing=dict(type='clipping', lower=-1.0, upper=1.0)
+        ), baseline=dict(network=dict(type='auto', size=7, depth=1, rnn=1)),
         baseline_optimizer='adam', baseline_objective='state_value',
         l2_regularization=0.01, entropy_regularization=0.01,
+        state_preprocessing='linear_normalization',
+        reward_preprocessing=dict(type='clipping', lower=-1.0, upper=1.0),
         exploration=0.01, variable_noise=0.01,
         # Config default changes need to be adapted everywhere (search "config=dict"):
         #   test_agents, test_environments, test_examples, test_layers, test_precision,
@@ -123,7 +127,10 @@ class UnittestBase(object):
 
         return agent, environment
 
-    def unittest(self, environment=None, states=None, actions=None, num_episodes=None, **agent):
+    def unittest(
+        self, environment=None, states=None, actions=None, num_episodes=None,
+        experience_update=None, **agent
+    ):
         """
         Generic unit-test.
         """
@@ -146,5 +153,39 @@ class UnittestBase(object):
         )
         runner.run(num_episodes=num_episodes, num_updates=num_updates, use_tqdm=False)
         runner.close()
+
+        # Test experience-update, independent, deterministic
+        if experience_update or (experience_update is None and self.__class__.experience_update):
+            environment = Environment.create(
+                environment=environment, max_episode_timesteps=max_episode_timesteps
+            )
+            agent = Agent.create(agent=agent, environment=environment)
+            for episode in range(num_updates if num_episodes is None else num_episodes):
+                episode_states = list()
+                episode_internals = list()
+                episode_actions = list()
+                episode_terminal = list()
+                episode_reward = list()
+                states = environment.reset()
+                internals = agent.initial_internals()
+                terminal = False
+                deterministic = True
+                while not terminal:
+                    episode_states.append(states)
+                    episode_internals.append(internals)
+                    actions, internals = agent.act(
+                        states=states, internals=internals, independent=True,
+                        deterministic=deterministic
+                    )
+                    deterministic = not deterministic
+                    episode_actions.append(actions)
+                    states, terminal, reward = environment.execute(actions=actions)
+                    episode_terminal.append(terminal)
+                    episode_reward.append(reward)
+                agent.experience(
+                    states=episode_states, internals=episode_internals, actions=episode_actions,
+                    terminal=episode_terminal, reward=episode_reward
+                )
+                agent.update()
 
         self.finished_test()

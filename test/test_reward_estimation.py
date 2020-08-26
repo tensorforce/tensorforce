@@ -23,9 +23,12 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
     agent = dict(
         policy=dict(network=dict(type='auto', size=8, depth=1, rnn=2), distributions=dict(
             gaussian_action2=dict(type='gaussian', global_stddev=True), beta_action='beta'
-        )), update=4, objective='policy_gradient', reward_estimation=dict(horizon=3),
-        l2_regularization=0.1, entropy_regularization=0.1,
-        exploration=0.1, variable_noise=0.1,
+        )), update=4, objective='policy_gradient', reward_estimation=dict(
+            horizon=3, return_processing=dict(type='clipping', lower=-1.0, upper=1.0)
+        ), l2_regularization=0.01, entropy_regularization=0.01,
+        state_preprocessing='linear_normalization',
+        reward_preprocessing=dict(type='clipping', lower=-1.0, upper=1.0),
+        exploration=0.01, variable_noise=0.01,
         config=dict(eager_mode=True, create_debug_assertions=True, tf_log_level=20)
     )
 

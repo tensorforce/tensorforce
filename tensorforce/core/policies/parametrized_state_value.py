@@ -14,7 +14,7 @@
 # ==============================================================================
 
 from tensorforce import TensorforceError
-from tensorforce.core import layer_modules, network_modules, tf_function
+from tensorforce.core import layer_modules, network_modules, tf_function, tf_util
 from tensorforce.core.policies import StateValue
 
 
@@ -78,18 +78,21 @@ class ParametrizedStateValue(StateValue):
     def past_horizon(self, *, on_policy):
         return self.network.past_horizon(on_policy=on_policy)
 
-    @tf_function(num_args=4)
-    def next_internals(self, *, states, horizons, internals, actions, independent):
+    @tf_function(num_args=5)
+    def next_internals(self, *, states, horizons, internals, actions, deterministic, independent):
         _, internals = self.network.apply(
-            x=states, horizons=horizons, internals=internals, independent=independent
+            x=states, horizons=horizons, internals=internals, deterministic=deterministic,
+            independent=independent
         )
 
         return internals
 
     @tf_function(num_args=4)
     def state_value(self, *, states, horizons, internals, auxiliaries):
+        deterministic = tf_util.constant(value=True, dtype='bool')
         embedding, _ = self.network.apply(
-            x=states, horizons=horizons, internals=internals, independent=True
+            x=states, horizons=horizons, internals=internals, deterministic=deterministic,
+            independent=True
         )
 
         return self.value.apply(x=embedding)

@@ -123,6 +123,7 @@ class TestLayers(UnittestBase, unittest.TestCase):
 
         states = dict(type='float', shape=(3,), min_value=1.0, max_value=2.0)
         network = [
+            dict(type='linear_normalization'),
             dict(type='exponential_normalization'),
             dict(type='instance_normalization')
         ]
@@ -149,28 +150,32 @@ class TestLayers(UnittestBase, unittest.TestCase):
         self.start_tests(name='preprocessing')
 
         states = dict(type='float', shape=(), min_value=-1.0, max_value=2.0)
-        preprocessing = dict(
-            state=[
-                dict(type='sequence', length=3, concatenate=False),
-                dict(type='clipping', lower=-1.0, upper=1.0),
-                dict(type='linear_normalization')
-            ], reward=[dict(type='clipping', upper=1.0)]
-        )
+        state_preprocessing = [
+            dict(type='sequence', length=3, concatenate=False),
+            dict(type='clipping', lower=-1.0, upper=1.0),
+            dict(type='linear_normalization')
+        ]
+        reward_preprocessing = [dict(type='clipping', upper=1.0)]
         network = [dict(type='dense', size=8)]
-        self.unittest(states=states, preprocessing=preprocessing, policy=network)
-
-        states = dict(type='float', shape=(4, 4, 3), min_value=1.0, max_value=2.0)
-        preprocessing = dict(
-            state=[
-                dict(type='image', height=2, width=2, grayscale=True),
-                dict(type='deltafier', concatenate=0),
-                dict(type='sequence', length=4)
-            ], reward=dict(type='deltafier')
+        self.unittest(
+            states=states, experience_update=False, policy=network,
+            state_preprocessing=state_preprocessing, reward_preprocessing=reward_preprocessing
         )
+
+        states = dict(state=dict(type='float', shape=(4, 4, 3), min_value=1.0, max_value=2.0))
+        state_preprocessing = dict(state=[
+            dict(type='image', height=2, width=2, grayscale=True),
+            dict(type='deltafier', concatenate=0),
+            dict(type='sequence', length=4),
+            dict(type='linear_normalization')
+        ])
+        reward_preprocessing = dict(type='deltafier')
         network = [dict(type='reshape', shape=32)]
         # TODO: buffer_observe incompatible with Deltafier/Sequence expecting single-step inputs
         self.unittest(
-            states=states, preprocessing=preprocessing, policy=network, config=dict(
+            states=states, experience_update=False, policy=network,
+            state_preprocessing=state_preprocessing, reward_preprocessing=reward_preprocessing,
+            config=dict(
                 buffer_observe=1, eager_mode=True, create_debug_assertions=True, tf_log_level=20
             )
         )

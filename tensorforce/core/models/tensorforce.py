@@ -34,7 +34,7 @@ class TensorforceModel(Model):
         policy, memory, update, optimizer, objective, reward_estimation,
         baseline, baseline_optimizer, baseline_objective,
         l2_regularization, entropy_regularization,
-        preprocessing,
+        state_preprocessing, reward_preprocessing,
         exploration, variable_noise,
         parallel_interactions,
         config, saver, summarizer
@@ -47,45 +47,29 @@ class TensorforceModel(Model):
 
         self.max_episode_timesteps = max_episode_timesteps
 
-        # States preprocessing
+        # State preprocessing
         self.processed_states_spec = TensorsSpec()
-        self.preprocessing = ModuleDict()
+        self.state_preprocessing = ModuleDict()
+        if state_preprocessing == 'linear_normalization':
+            # Default handling, otherwise layer will be applied to all input types
+            state_preprocessing = None
+        if not isinstance(state_preprocessing, dict) or \
+                any(name not in self.states_spec for name in state_preprocessing):
+            state_preprocessing = {name: state_preprocessing for name in self.states_spec}
+
         for name, spec in self.states_spec.items():
-            if preprocessing is None:
-                layers = None
-            elif name is None and isinstance(preprocessing, list):
-                layers = preprocessing
-            elif isinstance(preprocessing, str):
-                if preprocessing == 'linear_normalization':
-                    layers = None
-                else:
-                    raise TensorforceError.value(
-                        name='Agent', argument='preprocessing', value=preprocessing
-                    )
-            elif name in preprocessing:
-                # TODO: recursive lookup
-                layers = preprocessing[name]
-            elif spec.type in preprocessing:
-                layers = preprocessing[spec.type]
-            elif name is None and 'state' in preprocessing:
-                layers = preprocessing['state']
-            elif name is None and 'type' in preprocessing:
-                layers = preprocessing
+            if name in state_preprocessing:
+                layers = state_preprocessing[name]
+            elif spec.type in state_preprocessing:
+                layers = state_preprocessing[spec.type]
             else:
                 layers = None
+
             # Normalize bounded inputs to [-2.0, 2.0]
-            if spec.type == 'float' and spec.min_value is not None and spec.max_value is not None:
-                if layers is None:
-                    layers = ['linear_normalization']
-                elif isinstance(layers, (str, dict)) or callable(layers):
-                    if not isinstance(layers, str) or layers != 'linear_normalization':
-                        layers = [layers, 'linear_normalization']
-                elif isinstance(layers, list):
-                    if layers[-1] != 'linear_normalization':
-                        layers.append('linear_normalization')
-                else:
-                    logging.warning("Could not add default linear normalization preprocessing for "
-                                    "state{}.".format('' if name is None else ' ' + name))
+            if spec.type == 'float' and spec.min_value is not None and \
+                    spec.max_value is not None and layers is None:
+                layers = ['linear_normalization']
+
             if layers is None:
                 self.processed_states_spec[name] = self.states_spec[name]
             else:
@@ -93,61 +77,52 @@ class TensorforceModel(Model):
                     module_name = 'state_preprocessing'
                 else:
                     module_name = name + '_preprocessing'
-                preprocessor = self.submodule(
+                self.state_preprocessing[name] = self.submodule(
                     name=module_name, module=Preprocessor, is_trainable=False, input_spec=spec,
                     layers=layers
                 )
-                self.preprocessing[name] = preprocessor
-                self.processed_states_spec[name] = self.preprocessing[name].output_spec()
+                spec = self.state_preprocessing[name].output_spec()
+                self.processed_states_spec[name] = spec
+
+            if spec.type == 'float' and spec.min_value is not None and \
+                    spec.max_value is not None:
+                if isinstance(spec.min_value, float):
+                    if not (-10.0 <= spec.min_value < 0.0) or not (0.0 < spec.max_value <= 10.0):
+                        logging.warning("{}tate{} does not seem to be normalized, consider "
+                                        "adding linear_normalization preprocessing.".format(
+                                            'S' if layers is None else 'Preprocessed s',
+                                            '' if name is None else ' ' + name
+                                        ))
+                else:
+                    # TODO: missing +/-10.0 check, but cases of values +/-inf are already covered by
+                    # previous no-bound warning
+                    if (spec.min_value >= 0.0).any() or (spec.max_value <= 0.0).any():
+                        logging.warning("{}tate{} does not seem to be normalized, consider "
+                                        "adding linear_normalization preprocessing.".format(
+                                            'S' if layers is None else 'Preprocessed s',
+                                            '' if name is None else ' ' + name
+                                        ))
 
         # Reward preprocessing
-        self.reward_preprocessing = None
-        self.return_preprocessing = None
-        self.advantage_preprocessing = None
-        if preprocessing is not None:
-            if 'reward' in preprocessing:
-                self.reward_preprocessing = self.submodule(
-                    name=('reward_preprocessing'), module=Preprocessor, is_trainable=False,
-                    input_spec=self.reward_spec, layers=preprocessing['reward']
+        if reward_preprocessing is None:
+            self.reward_preprocessing = None
+        else:
+            self.reward_preprocessing = self.submodule(
+                name='reward_preprocessing', module=Preprocessor, is_trainable=False,
+                input_spec=self.reward_spec, layers=reward_preprocessing
+            )
+            if self.reward_preprocessing.output_spec() != self.reward_spec:
+                raise TensorforceError.mismatch(
+                    name='reward_estimation[reward_preprocessing]', argument='output spec',
+                    value1=self.reward_preprocessing.output_spec(), value2=self.reward_spec
                 )
-                if self.reward_preprocessing.output_spec() != self.reward_spec:
-                    raise TensorforceError.mismatch(
-                        name='preprocessing', argument='reward output spec',
-                        value1=self.reward_preprocessing.output_spec(),
-                        value2=self.reward_spec
-                    )
-            if 'return' in preprocessing:
-                self.return_preprocessing = self.submodule(
-                    name=('return_preprocessing'), module=Preprocessor, is_trainable=False,
-                    input_spec=self.reward_spec, layers=preprocessing['return']
-                )
-                if self.return_preprocessing.get_output_spec() != self.reward_spec:
-                    raise TensorforceError.mismatch(
-                        name='preprocessing', argument='return output spec',
-                        value1=self.return_preprocessing.get_output_spec(),
-                        value2=self.reward_spec
-                    )
-            if 'advantage' in preprocessing:
-                self.advantage_preprocessing = self.submodule(
-                    name=('advantage_preprocessing'), module=Preprocessor, is_trainable=False,
-                    input_spec=self.reward_spec, layers=preprocessing['advantage']
-                )
-                if self.advantage_preprocessing.get_output_spec() != self.reward_spec:
-                    raise TensorforceError.mismatch(
-                        name='preprocessing', argument='advantage output spec',
-                        value1=self.advantage_preprocessing.get_output_spec(),
-                        value2=self.reward_spec
-                    )
 
-        # Exploration
-        # TODO: recursive lookup?
+        # Action exploration
         if isinstance(exploration, dict) and all(name in self.actions_spec for name in exploration):
             # Different exploration per action
             self.exploration = ModuleDict()
             for name, spec in self.actions_spec.items():
-                # TODO: recursive lookup
                 if name in exploration:
-                    # TODO: recursive lookup
                     module = exploration[name]
                 elif spec.type in exploration:
                     module = exploration[spec.type]
@@ -180,13 +155,15 @@ class TensorforceModel(Model):
 
         # Reward estimation argument check
         if not all(key in (
-            'discount', 'estimate_advantage', 'predict_action_values', 'predict_horizon_values',
-            'predict_terminal_values', 'horizon'
+            'advantage_processing', 'discount', 'estimate_advantage', 'horizon',
+            'predict_action_values', 'predict_horizon_values', 'predict_terminal_values',
+            'return_processing'
         ) for key in reward_estimation):
             raise TensorforceError.value(
                 name='agent', argument='reward_estimation', value=reward_estimation,
-                hint='not from {discount,estimate_advantage,predict_action_values,'
-                     'predict_horizon_values,predict_terminal_values,horizon}'
+                hint='not from {advantage_processing,discount,estimate_advantage,horizon,'
+                     'predict_action_values,predict_horizon_values,predict_terminal_values,'
+                     'return_processing}'
             )
 
         # Reward estimation
@@ -290,6 +267,41 @@ class TensorforceModel(Model):
             baseline_is_trainable = True
         else:
             baseline_is_trainable = False
+
+        # Return processing
+        if 'return_processing' in reward_estimation:
+            self.return_processing = self.submodule(
+                name='return_processing', module=Preprocessor, is_trainable=False,
+                input_spec=self.reward_spec, layers=reward_estimation['return_processing'],
+                is_preprocessing_layer_valid=False
+            )
+            if self.return_processing.output_spec() != self.reward_spec:
+                raise TensorforceError.mismatch(
+                    name='reward_estimation[return_processing]', argument='output spec',
+                    value1=self.return_processing.output_spec(), value2=self.reward_spec
+                )
+        else:
+            self.return_processing = None
+
+        # Advantage processing
+        if 'advantage_processing' in reward_estimation:
+            if not self.estimate_advantage:
+                raise TensorforceError.invalid(
+                    name='agent', argument='reward_estimation[advantage_processing]',
+                    condition='reward_estimation[estimate_advantage] is false'
+                )
+            self.advantage_processing = self.submodule(
+                name='advantage_processing', module=Preprocessor, is_trainable=False,
+                input_spec=self.reward_spec, layers=reward_estimation['advantage_processing'],
+                is_preprocessing_layer_valid=False
+            )
+            if self.advantage_processing.output_spec() != self.reward_spec:
+                raise TensorforceError.mismatch(
+                    name='reward_estimation[advantage_processing]', argument='output spec',
+                    value1=self.advantage_processing.output_spec(), value2=self.reward_spec
+                )
+        else:
+            self.advantage_processing = None
 
         # Objectives
         self.objective = self.submodule(
@@ -833,10 +845,14 @@ class TensorforceModel(Model):
         with tf.control_dependencies(control_inputs=assertions):
             # Preprocessing
             for name in states:
-                if name in self.preprocessing:
-                    states[name] = self.preprocessing[name].apply(x=states[name], independent=False)
+                if name in self.state_preprocessing:
+                    states[name] = self.state_preprocessing[name].apply(
+                        x=states[name], deterministic=true, independent=False
+                    )
             if self.reward_preprocessing is not None:
-                reward = self.reward_preprocessing.apply(x=reward, independent=False)
+                reward = self.reward_preprocessing.apply(
+                    x=reward, deterministic=true, independent=False
+                )
 
             # Core experience
             experienced = self.core_experience(
@@ -921,9 +937,9 @@ class TensorforceModel(Model):
 
             # State preprocessing (after variable noise)
             for name in self.states_spec:
-                if name in self.preprocessing:
-                    states[name] = self.preprocessing[name].apply(
-                        x=states[name], independent=independent
+                if name in self.state_preprocessing:
+                    states[name] = self.state_preprocessing[name].apply(
+                        x=states[name], deterministic=deterministic, independent=independent
                     )
 
             # Policy act (after variable noise)
@@ -945,7 +961,7 @@ class TensorforceModel(Model):
             if self.separate_baseline and len(self.internals_spec['baseline']) > 0:
                 next_internals['baseline'] = self.baseline.next_internals(
                     states=states, horizons=horizons, internals=internals['baseline'],
-                    actions=actions, independent=independent
+                    actions=actions, deterministic=deterministic, independent=independent
                 )
             else:
                 next_internals['baseline'] = TensorDict()
@@ -1139,6 +1155,7 @@ class TensorforceModel(Model):
 
     @tf_function(num_args=3)
     def core_observe(self, *, terminal, reward, parallel):
+        true = tf_util.constant(value=True, dtype='bool')
         zero = tf_util.constant(value=0, dtype='int')
         one = tf_util.constant(value=1, dtype='int')
         buffer_index = tf.gather(params=self.buffer_index, indices=parallel)
@@ -1169,7 +1186,7 @@ class TensorforceModel(Model):
 
         # Reward preprocessing
         if self.reward_preprocessing is not None:
-            reward = self.reward_preprocessing.apply(x=reward, independent=False)
+            reward = self.reward_preprocessing.apply(x=reward, deterministic=true, independent=False)
 
             # Preprocessed reward summary
             if self.summary_labels == 'all' or 'reward' in self.summary_labels:
@@ -1441,8 +1458,10 @@ class TensorforceModel(Model):
                         ))
 
                 # Reset preprocessors
-                for preprocessor in self.preprocessing.values():
+                for preprocessor in self.state_preprocessing.values():
                     operations.append(preprocessor.reset())
+                if self.reward_preprocessing is not None:
+                    operations.append(self.reward_preprocessing.reset())
 
                 return tf.group(*operations)
 
@@ -1535,23 +1554,24 @@ class TensorforceModel(Model):
                 _internals = internals['policy']
 
             if self.predict_action_values:
-                if self.separate_baseline:
-                    policy_horizon = self.policy.past_horizon(on_policy=True)
-                    policy_horizon = tf.math.minimum(x=policy_horizon, y=episode_length)
-                    policy_horizon_start = terminal_index - policy_horizon
-                else:
-                    policy_horizon_start = past_horizon_start
-                deterministic = tf_util.constant(value=True, dtype='bool')
-                _actions, _ = self.policy.act(
-                    states=states[policy_horizon_start:], horizons=horizons[:maybe_one],
-                    internals=internals['policy'][policy_horizon_start: policy_horizon_start + maybe_one],
-                    auxiliaries=auxiliaries[terminal_index:], deterministic=deterministic,
-                    independent=True
-                )
+                # Use given actions since early estimate
+                # if self.separate_baseline:
+                #     policy_horizon = self.policy.past_horizon(on_policy=True)
+                #     policy_horizon = tf.math.minimum(x=policy_horizon, y=episode_length)
+                #     policy_horizon_start = terminal_index - policy_horizon
+                # else:
+                #     policy_horizon_start = past_horizon_start
+                # deterministic = tf_util.constant(value=True, dtype='bool')
+                # _actions, _ = self.policy.act(
+                #     states=states[policy_horizon_start:], horizons=horizons[:maybe_one],
+                #     internals=internals['policy'][policy_horizon_start: policy_horizon_start + maybe_one],
+                #     auxiliaries=auxiliaries[terminal_index:], deterministic=deterministic,
+                #     independent=True
+                # )
                 terminal_values = self.baseline.action_value(
                     states=states[past_horizon_start:], horizons=horizons[:maybe_one],
                     internals=_internals[past_horizon_start: past_horizon_start + maybe_one],
-                    auxiliaries=auxiliaries[terminal_index:], actions=_actions
+                    auxiliaries=auxiliaries[terminal_index:], actions=actions[terminal_index:]
                 )
             else:
                 terminal_values = self.baseline.state_value(
@@ -1608,42 +1628,43 @@ class TensorforceModel(Model):
                     _internals = internals['policy']
 
                 if self.predict_action_values:
-                    if self.separate_baseline:
-                        policy_horizon = self.policy.past_horizon(on_policy=True)
-                        policy_horizon_start = tf.maximum(
-                            x=(reward_horizon_start - policy_horizon), y=zero
-                        )
-                        policy_horizon_end = reward_horizon_end - policy_horizon
-                        policy_horizon_end = tf.maximum(
-                            x=policy_horizon_end, y=policy_horizon_start
-                        )
+                    # Use given actions since early estimate
+                    # if self.separate_baseline:
+                    #     policy_horizon = self.policy.past_horizon(on_policy=True)
+                    #     policy_horizon_start = tf.maximum(
+                    #         x=(reward_horizon_start - policy_horizon), y=zero
+                    #     )
+                    #     policy_horizon_end = reward_horizon_end - policy_horizon
+                    #     policy_horizon_end = tf.maximum(
+                    #         x=policy_horizon_end, y=policy_horizon_start
+                    #     )
 
-                        _horizons_start = tf.range(policy_horizon_end - policy_horizon_start)
-                        _horizons_length = reward_horizon_start + _horizons_start
-                        _horizons_length = tf.math.minimum(
-                            x=_horizons_length, y=(policy_horizon + one)
-                        )
-                        policy_horizons = tf.stack(
-                            values=(_horizons_start, _horizons_length), axis=1
-                        )
-                    else:
-                        policy_horizon_start = past_horizon_start
-                        policy_horizon_end = past_horizon_end
-                        policy_horizons = horizons
-                    deterministic = tf_util.constant(value=True, dtype='bool')
-                    _actions, _ = self.policy.act(
-                        states=states[policy_horizon_start: reward_horizon_end],
-                        horizons=policy_horizons,
-                        internals=internals['policy'][policy_horizon_start: policy_horizon_end],
-                        auxiliaries=auxiliaries[reward_horizon_start: reward_horizon_end],
-                        deterministic=deterministic, independent=True
-                    )
+                    #     _horizons_start = tf.range(policy_horizon_end - policy_horizon_start)
+                    #     _horizons_length = reward_horizon_start + _horizons_start
+                    #     _horizons_length = tf.math.minimum(
+                    #         x=_horizons_length, y=(policy_horizon + one)
+                    #     )
+                    #     policy_horizons = tf.stack(
+                    #         values=(_horizons_start, _horizons_length), axis=1
+                    #     )
+                    # else:
+                    #     policy_horizon_start = past_horizon_start
+                    #     policy_horizon_end = past_horizon_end
+                    #     policy_horizons = horizons
+                    # deterministic = tf_util.constant(value=True, dtype='bool')
+                    # _actions, _ = self.policy.act(
+                    #     states=states[policy_horizon_start: reward_horizon_end],
+                    #     horizons=policy_horizons,
+                    #     internals=internals['policy'][policy_horizon_start: policy_horizon_end],
+                    #     auxiliaries=auxiliaries[reward_horizon_start: reward_horizon_end],
+                    #     deterministic=deterministic, independent=True
+                    # )
                     horizon_values = self.baseline.action_value(
                         states=states[past_horizon_start: reward_horizon_end],
                         horizons=horizons,
                         internals=_internals[past_horizon_start: past_horizon_end],
                         auxiliaries=auxiliaries[reward_horizon_start: reward_horizon_end],
-                        actions=_actions
+                        actions=actions[reward_horizon_start: reward_horizon_end]
                     )
                 else:
                     horizon_values = self.baseline.state_value(
@@ -1698,6 +1719,7 @@ class TensorforceModel(Model):
     def core_update(self):
         zero = tf_util.constant(value=0, dtype='int')
         one = tf_util.constant(value=1, dtype='int')
+        true = tf_util.constant(value=True, dtype='bool')
 
         if self.reward_horizon != 'episode':
             reward_horizon = self.reward_horizon.value()
@@ -1935,10 +1957,9 @@ class TensorforceModel(Model):
                     final_horizons = _starts + _horizons[:, 1]
 
             if self.predict_action_values:
-                deterministic = tf_util.constant(value=True, dtype='bool')
                 _actions, _ = self.policy.act(
                     states=_states, horizons=_horizons, internals=_policy_internals,
-                    auxiliaries=_auxiliaries, deterministic=deterministic, independent=True
+                    auxiliaries=_auxiliaries, deterministic=true, independent=True
                 )
                 horizon_values = self.baseline.action_value(
                     states=_states, horizons=_horizons, internals=_baseline_internals,
@@ -1962,13 +1983,27 @@ class TensorforceModel(Model):
 
             reward += discounts * horizon_values
 
-        # reward = self.add_summary(label=('return', 'rewards'), name='return', tensor=reward)  # TODO: need to be moved to episode?
-        if self.return_preprocessing is not None:
-            # TODO: Can't require state, reset!
-            reward = self.return_preprocessing.apply(x=reward, independent=False)
-            # reward = self.add_summary(
-            #     label=('return', 'rewards'), name='preprocessed-return', tensor=reward
-            # )
+        dependencies = [reward]
+        if self.summary_labels == 'all' or 'reward' in self.summary_labels:
+            with self.summarizer.as_default():
+                x = tf.math.reduce_mean(input_tensor=reward, axis=0)
+                dependencies.append(tf.summary.scalar(
+                    name='update-return', data=x, step=self.updates
+                ))
+
+        if self.return_processing is not None:
+            with tf.control_dependencies(control_inputs=dependencies):
+                reward = self.return_processing.apply(
+                    x=reward, deterministic=true, independent=False
+                )
+
+                dependencies = [reward]
+                if self.summary_labels == 'all' or 'reward' in self.summary_labels:
+                    with self.summarizer.as_default():
+                        x = tf.math.reduce_mean(input_tensor=reward, axis=0)
+                        dependencies.append(tf.summary.scalar(
+                            name='update-processed-return', data=x, step=self.updates
+                        ))
 
         baseline_arguments = TensorDict(
             states=baseline_states, horizons=baseline_horizons, internals=baseline_internals,
@@ -2004,24 +2039,20 @@ class TensorforceModel(Model):
             except ValueError:
                 pass
 
+            dependencies += baseline_arguments.flatten()
+
             # Optimization
-            optimized = self.baseline_optimizer.update(
-                arguments=baseline_arguments, variables=variables, fn_loss=self.baseline_loss,
-                fn_kl_divergence=fn_kl_divergence, **kwargs
-            )
-            dependencies = (optimized,)
-        else:
-            dependencies = (reward,)
+            with tf.control_dependencies(control_inputs=dependencies):
+                optimized = self.baseline_optimizer.update(
+                    arguments=baseline_arguments, variables=variables, fn_loss=self.baseline_loss,
+                    fn_kl_divergence=fn_kl_divergence, **kwargs
+                )
+                dependencies = [optimized]
 
         with tf.control_dependencies(control_inputs=dependencies):
             if self.estimate_advantage and not self.advantage_in_loss:
                 if self.predict_action_values:
-                    # TODO: policy act
-                    # deterministic = tf_util.constant(value=True, dtype='bool')
-                    # _actions, _ = self.policy.act(
-                    #     states=states, horizons=horizons, internals=internals['policy']?,
-                    #     auxiliaries=auxiliaries, deterministic=deterministic, independent=True
-                    # )
+                    # Use past actions since advantage R(s,a) - Q(s,a)
                     baseline_prediction = self.baseline.action_value(
                         states=baseline_states, horizons=baseline_horizons,
                         internals=baseline_internals, auxiliaries=auxiliaries, actions=actions
@@ -2032,15 +2063,28 @@ class TensorforceModel(Model):
                         internals=baseline_internals, auxiliaries=auxiliaries
                     )
                 reward = reward - baseline_prediction
-                # reward = self.add_summary(
-                #     label=('advantage', 'rewards'), name='advantage', tensor=reward
-                # )
-                if self.advantage_preprocessing is not None:
-                    # TODO: Can't require state, reset!
-                    reward = self.advantage_preprocessing.apply(x=reward, independent=False)
-                    # reward = self.add_summary(
-                    #     label=('advantage', 'rewards'), name='preprocessed-advantage', tensor=reward
-                    # )
+
+                dependencies = [reward]
+                if self.summary_labels == 'all' or 'reward' in self.summary_labels:
+                    with self.summarizer.as_default():
+                        x = tf.math.reduce_mean(input_tensor=reward, axis=0)
+                        dependencies.append(tf.summary.scalar(
+                            name='update-advantage', data=x, step=self.updates
+                        ))
+
+                if self.advantage_processing is not None:
+                    with tf.control_dependencies(control_inputs=dependencies):
+                        reward = self.advantage_processing.apply(
+                            x=reward, deterministic=true, independent=False
+                        )
+
+                        dependencies = [reward]
+                        if self.summary_labels == 'all' or 'reward' in self.summary_labels:
+                            with self.summarizer.as_default():
+                                x = tf.math.reduce_mean(input_tensor=reward, axis=0)
+                                dependencies.append(tf.summary.scalar(
+                                    name='update-processed-advantage', data=x, step=self.updates
+                                ))
 
         if self.baseline_optimizer is None:
             policy_only_internals = policy_internals['policy']
@@ -2073,12 +2117,7 @@ class TensorforceModel(Model):
                     ))
                 with tf.control_dependencies(control_inputs=assertions):
                     if self.predict_action_values:
-                        # TODO: policy act
-                        # deterministic = tf_util.constant(value=True, dtype='bool')
-                        # _actions, _ = self.policy.act(
-                        #     states=states, horizons=horizons, internals=internals['policy'],
-                        #     auxiliaries=auxiliaries, deterministic=deterministic, independent=True
-                        # )
+                        # Use past actions since advantage R(s,a) - Q(s,a)
                         baseline_prediction = self.baseline.action_value(
                             states=states, horizons=horizons, internals=internals['baseline'],
                             auxiliaries=auxiliaries, actions=actions
@@ -2089,19 +2128,33 @@ class TensorforceModel(Model):
                             auxiliaries=auxiliaries
                         )
                     reward = reward - baseline_prediction
-                    # reward = self.add_summary(
-                    #     label=('advantage', 'rewards'), name='advantage', tensor=reward
-                    # )
-                    if self.advantage_preprocessing is not None:
-                        # TODO: Can't require state, reset!
-                        reward = self.advantage_preprocessing.apply(x=reward, independent=False)
-                        # reward = self.add_summary(
-                        #     label=('advantage', 'rewards'), name='preprocessed-advantage', tensor=reward
-                        # )
-                return self.loss(
-                    states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-                    actions=actions, reward=reward, reference=reference
-                )
+
+                    def fn_summary1():
+                        return tf.math.reduce_mean(input_tensor=reward, axis=0)
+
+                    dependencies = self.summary(
+                        label='reward', name='update-advantage', data=fn_summary1, step='updates'
+                    )
+
+                    if self.advantage_processing is not None:
+                        with tf.control_dependencies(control_inputs=dependencies):
+                            reward = self.advantage_processing.apply(
+                                x=reward, deterministic=true, independent=False
+                            )
+
+                            def fn_summary2():
+                                return tf.math.reduce_mean(input_tensor=reward, axis=0)
+
+                            dependencies = self.summary(
+                                label='reward', name='update-processed-advantage', data=fn_summary2,
+                                step='updates'
+                            )
+
+                with tf.control_dependencies(control_inputs=dependencies):
+                    return self.loss(
+                        states=states, horizons=horizons, internals=internals,
+                        auxiliaries=auxiliaries, actions=actions, reward=reward, reference=reference
+                    )
 
         else:
             variables = tuple(self.policy.trainable_variables)
@@ -2135,7 +2188,7 @@ class TensorforceModel(Model):
         #     assert 'global_variables' not in kwargs
         #     kwargs['global_variables'] = tuple(self.global_model.trainable_variables)
 
-        dependencies = policy_arguments.flatten()
+        dependencies += policy_arguments.flatten()
 
         # Hack: KL divergence summary: reference before update
         if isinstance(self.policy, StochasticPolicy) and (
@@ -2255,13 +2308,15 @@ class TensorforceModel(Model):
 
         # Objective loss
         loss = tf.math.reduce_mean(input_tensor=loss, axis=0)
-        self.summary(label='loss', name='losses/policy-objective-loss', data=loss, step='updates')
+        dependencies = self.summary(
+            label='loss', name='losses/policy-objective-loss', data=loss, step='updates'
+        )
 
         # Regularization losses
         regularization_loss = self.regularize(
             states=states, horizons=horizons, internals=policy_internals, auxiliaries=auxiliaries
         )
-        self.summary(
+        dependencies += self.summary(
             label='loss', name='losses/policy-regularization-loss', data=regularization_loss,
             step='updates'
         )
@@ -2298,9 +2353,12 @@ class TensorforceModel(Model):
                 true_fn=no_baseline_loss, false_fn=apply_baseline_loss
             )
 
-        self.summary(label='loss', name='losses/policy-loss', data=loss, step='updates')
+        dependencies += self.summary(
+            label='loss', name='losses/policy-loss', data=loss, step='updates'
+        )
 
-        return loss
+        with tf.control_dependencies(control_inputs=dependencies):
+            return tf_util.identity(input=loss)
 
     @tf_function(num_args=4, overwrites_signature=True)
     def regularize(self, *, states, horizons, internals, auxiliaries):
@@ -2341,19 +2399,23 @@ class TensorforceModel(Model):
         # Objective loss
         loss = tf.math.reduce_mean(input_tensor=loss, axis=0)
 
+        dependencies = list()
         if self.separate_baseline:
-            self.summary(
+            dependencies += self.summary(
                 label='loss', name='losses/baseline-objective-loss', data=loss, step='updates'
             )
 
             # Regularization losses
             regularization_loss = self.baseline.regularize()
-            self.summary(
+            dependencies += self.summary(
                 label='loss', name='losses/baseline-regularization-loss',
                 data=regularization_loss, step='updates'
             )
             loss += regularization_loss
 
-        self.summary(label='loss', name='losses/baseline-loss', data=loss, step='updates')
+        dependencies += self.summary(
+            label='loss', name='losses/baseline-loss', data=loss, step='updates'
+        )
 
-        return loss
+        with tf.control_dependencies(control_inputs=dependencies):
+            return tf_util.identity(input=loss)

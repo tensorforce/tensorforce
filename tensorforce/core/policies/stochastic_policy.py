@@ -215,7 +215,8 @@ class StochasticPolicy(Policy):
 
         def fn_deterministic():
             embedding, next_internals = self.network.apply(
-                x=states, horizons=horizons, internals=internals, independent=independent
+                x=states, horizons=horizons, internals=internals, deterministic=deterministic,
+                independent=independent
             )
 
             def function(name, distribution):

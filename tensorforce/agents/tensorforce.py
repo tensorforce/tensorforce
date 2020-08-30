@@ -594,13 +594,12 @@ class TensorforceAgent(Agent):
             reward_batch = self.reward_spec.to_tensor(value=reward_batch, batched=True)
 
             # Model.experience()
-            timesteps, episodes, updates = self.model.experience(
+            timesteps, episodes = self.model.experience(
                 states=states_batch, internals=internals_batch, auxiliaries=auxiliaries_batch,
                 actions=actions_batch, terminal=terminal_batch, reward=reward_batch
             )
             self.timesteps = timesteps.numpy().item()
             self.episodes = episodes.numpy().item()
-            self.updates = updates.numpy().item
 
         if self.model.saver is not None:
             self.model.save()
@@ -613,9 +612,7 @@ class TensorforceAgent(Agent):
         for an example application as part of the act-experience-update interface, which is an
         alternative to the act-observe interaction pattern.
         """
-        timesteps, episodes, updates = self.model.update()
-        self.timesteps = timesteps.numpy().item()
-        self.episodes = episodes.numpy().item()
+        updates = self.model.update()
         self.updates = updates.numpy().item()
 
         if self.model.saver is not None:

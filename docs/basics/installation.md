@@ -16,4 +16,4 @@ cd tensorforce
 pip3 install -e .
 ```
 
-Environments require additional packages for which there are setup options available (`ale`, `gym`, `retro`, `vizdoom`, `carla`; or `envs` for all environments), however, some require additional tools to be installed separately (see [environments documentation](http://tensorforce.readthedocs.io)).
+Environments require additional packages for which there are setup options available (`ale`, `gym`, `retro`, `vizdoom`, `carla`; or `envs` for all environments), however, some require additional tools to be installed separately (see [environments documentation](http://tensorforce.readthedocs.io)). Other setup options include `tfa` for [TensorFlow Addons](https://www.tensorflow.org/addons) and `tune` for [HpBandSter](https://github.com/automl/HpBandSter) required for the `tune.py` script.

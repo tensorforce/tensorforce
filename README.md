@@ -58,11 +58,10 @@ To always use the latest version of Tensorforce, install the GitHub version inst
 
 ```bash
 git clone https://github.com/tensorforce/tensorforce.git
-cd tensorforce
-pip3 install -e .
+pip3 install -e tensorforce
 ```
 
-Environments require additional packages for which there are setup options available (`ale`, `gym`, `retro`, `vizdoom`, `carla`; or `envs` for all environments), however, some require additional tools to be installed separately (see [environments documentation](http://tensorforce.readthedocs.io)).
+Environments require additional packages for which there are setup options available (`ale`, `gym`, `retro`, `vizdoom`, `carla`; or `envs` for all environments), however, some require additional tools to be installed separately (see [environments documentation](http://tensorforce.readthedocs.io)). Other setup options include `tfa` for [TensorFlow Addons](https://www.tensorflow.org/addons) and `tune` for [HpBandSter](https://github.com/automl/HpBandSter) required for the `tune.py` script.
 
 
 
@@ -112,8 +111,8 @@ environment.close()
 Tensorforce comes with a range of [example configurations](https://github.com/tensorforce/tensorforce/tree/master/benchmarks/configs) for different popular reinforcement learning environments. For instance, to run Tensorforce's implementation of the popular [Proximal Policy Optimization (PPO) algorithm](https://arxiv.org/abs/1707.06347) on the [OpenAI Gym CartPole environment](https://gym.openai.com/envs/CartPole-v1/), execute the following line:
 
 ```bash
-python3 run.py --agent benchmarks/configs/ppo1.json --environment gym \
-    --level CartPole-v1 --episodes 300
+python3 run.py --agent benchmarks/configs/ppo.json --environment gym \
+    --level CartPole-v1 --episodes 100
 ```
 
 For more information check out the [documentation](http://tensorforce.readthedocs.io).
@@ -133,14 +132,13 @@ For more information check out the [documentation](http://tensorforce.readthedoc
 - **Preprocessing**: Clipping, deltafier, sequence, image processing.
 - **Regularization**: L2 and entropy regularization.
 - **Execution modes**: Parallelized execution of multiple environments based on Python's `multiprocessing` and `socket`.
-- **Optimized act-only TF model extraction**.
+- **Optimized act-only SavedModel extraction**.
 - **TensorBoard support**.
 
 By combining these modular components in different ways, a variety of popular deep reinforcement learning models/features can be replicated:
 
 - Q-learning: [Deep Q-learning](https://www.nature.com/articles/nature14236), [Double-DQN](https://arxiv.org/abs/1509.06461), [Dueling DQN](https://arxiv.org/abs/1511.06581), [n-step DQN](https://arxiv.org/abs/1602.01783), [Normalised Advantage Function (NAF)](https://arxiv.org/abs/1603.00748)
 - Policy gradient: [vanilla policy-gradient / REINFORCE](http://www-anw.cs.umass.edu/~barto/courses/cs687/williams92simple.pdf), [Actor-critic and A3C](https://arxiv.org/abs/1602.01783), [Proximal Policy Optimization](https://arxiv.org/abs/1707.06347), [Trust Region Policy Optimization](https://arxiv.org/abs/1502.05477), [Deterministic Policy Gradient](https://arxiv.org/abs/1509.02971)
-- Features: [Generalized Advantage estimation (GAE)](https://arxiv.org/abs/1506.02438), etc.
 
 Note that in general the replication is not 100% faithful, since the models as described in the corresponding paper often involve additional minor tweaks and modifications which are hard to support with a modular design (and, arguably, also questionable whether it is important/desirable to support them). On the upside, these models are just a few examples from the multitude of module combinations supported by Tensorforce.
 
@@ -149,13 +147,12 @@ Note that in general the replication is not 100% faithful, since the models as d
 ## Environment adapters
 
 - [Arcade Learning Environment](https://github.com/mgbellemare/Arcade-Learning-Environment), a simple object-oriented framework that allows researchers and hobbyists to develop AI agents for Atari 2600 games.
-- [MazeExplorer](https://github.com/mryellow/maze_explorer), a maze exploration game for AI agents.
+- [CARLA](https://github.com/carla-simulator/carla), is an open-source simulator for autonomous driving research.
 - [OpenAI Gym](https://gym.openai.com/), a toolkit for developing and comparing reinforcement learning algorithms which supports teaching agents everything from walking to playing games like Pong or Pinball.
 - [OpenAI Retro](https://github.com/openai/retro), lets you turn classic video games into Gym environments for reinforcement learning and comes with integrations for ~1000 games.
 - [OpenSim](http://osim-rl.stanford.edu/), reinforcement learning with musculoskeletal models.
 - [PyGame Learning Environment](https://github.com/ntasfi/PyGame-Learning-Environment/), learning environment which allows a quick start to Reinforcement Learning in Python.
 - [ViZDoom](https://github.com/mwydmuch/ViZDoom), allows developing AI bots that play Doom using only the visual information.
-- [CARLA](https://github.com/carla-simulator/carla), is an open-source simulator for autonomous driving research.
 
 
 ## Support, feedback and donating

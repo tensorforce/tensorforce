@@ -6,41 +6,40 @@ This file records all major updates and new features, starting from version 0.5.
 
 ### Version 0.6
 
-- Removed agent arguments: `execution`, `buffer_observe`, `seed` (see next point)
-- Removed agent `act()` argument: `deterministic`, `evaluation` (use `independent=True` instead)
-- Removed agent function arguments: `query` (functionality removed)
-- New agent argument `config` with values: `buffer_observe`, `enable_int_action_masking`, `seed`
-- Agent saver functionality changed (Checkpoint/SavedModel instead of Saver/Protobuf): `save`/`load` functions and `saver` argument changed
-- Agent summarizer functionality changed: `summarizer` argument changed, some summary labels and other options removed
-- Default behavior when specifying `saver` is not to load agent, unless agent is created via `Agent.load`
-- Renamed PPO/TRPO/DPG argument: `critic_network`/`_optimizer` to `baseline`/`baseline_optimizer`
-- Renamed PPO argument: `optimization_steps` to `multi_step`
-- Renamed RNN layers: `internal_{rnn/lstm/gru}` to `rnn/lstm/gru`, `rnn/lstm/gru` --> `input_{rnn/lstm/gru}`
-- Renamed reward estimation arguments: `estimate_horizon` to `predict_horizon_values`, `estimate_actions` to `predict_action_values`, `estimate_terminal` to `predict_terminal_values`
-- Renamed `auto` network argument: `internal_rnn` to `rnn`
-- Renamed `(internal_)rnn/lstm/gru` layer argument: `length` to `horizon`
-- Renamed `optimizing_step` to `linesearch_step`, and `UpdateModifierWrapper` argument `optimizing_iterations` to `linesearch_iterations`
-- Changed default memory `device` argument: `CPU:0`
-- Renamed rewards summaries
-- Combined `long` and `int` type
-- Added double DQN agent (`double_dqn`)
-- Always wrap environment in `EnvironmentWrapper` class
-- Optimizer `subsampling_step` accepts both absolute (int) and relative (float) fractions
+- Removed agent arguments `execution`, `buffer_observe`, `seed`
+- Renamed agent arguments `baseline_policy`/`baseline_network`/`critic_network` to `baseline`/`critic`
+- Renamed agent `reward_estimation` arguments `estimate_horizon` to `predict_horizon_values`, `estimate_actions` to `predict_action_values`, `estimate_terminal` to `predict_terminal_values`
+- Renamed agent argument `preprocessing` to `state_preprocessing`
+- Default agent preprocessing `linear_normalization`
+- Moved agent arguments for reward/return/advantage processing from `preprocessing` to `reward_preprocessing` and `reward_estimation[return_/advantage_processing]`
+- New agent argument `config` with values `buffer_observe`, `enable_int_action_masking`, `seed`
+- Renamed PPO/TRPO/DPG argument `critic_network`/`_optimizer` to `baseline`/`baseline_optimizer`
+- Renamed PPO argument `optimization_steps` to `multi_step`
 - New TRPO argument `subsampling_fraction`
-- Objective `policy_gradient` argument `ratio_based` renamed to `importance_sampling`
-- Changed `use_beta_distribution` default to false
-- Added `Gaussian` distribution arguments `global_stddev` and `bounded_transform` (for improved bounded action space handling)
-- Changed `tune.py` arguments
+- Changed agent argument `use_beta_distribution` default to false
+- Added double DQN agent (`double_dqn`)
+- Removed `Agent.act()` argument `evaluation`
+- Removed agent function arguments `query` (functionality removed)
+- Agent saver functionality changed (Checkpoint/SavedModel instead of Saver/Protobuf): `save`/`load` functions and `saver` argument changed
+- Default behavior when specifying `saver` is not to load agent, unless agent is created via `Agent.load`
+- Agent summarizer functionality changed: `summarizer` argument changed, some summary labels and other options removed
+- Renamed RNN layers `internal_{rnn/lstm/gru}` to `rnn/lstm/gru` and `rnn/lstm/gru` to `input_{rnn/lstm/gru}`
+- Renamed `auto` network argument `internal_rnn` to `rnn`
+- Renamed `(internal_)rnn/lstm/gru` layer argument `length` to `horizon`
 - Renamed `update_modifier_wrapper` to `optimizer_wrapper`
-- Default preprocessing `linear_normalization`
+- Renamed `optimizing_step` to `linesearch_step`, and `UpdateModifierWrapper` argument `optimizing_iterations` to `linesearch_iterations`
+- Optimizer `subsampling_step` accepts both absolute (int) and relative (float) fractions
+- Objective `policy_gradient` argument `ratio_based` renamed to `importance_sampling`
+- Added objectives `state_value` and `action_value`
+- Added `Gaussian` distribution arguments `global_stddev` and `bounded_transform` (for improved bounded action space handling)
+- Changed default memory `device` argument to `CPU:0`
+- Renamed rewards summaries
 - `Agent.create()` accepts act-function as `agent` argument for recording
 - Singleton states and actions are now consistently handled as singletons
-- Renamed agent arguments `baseline_policy`/`baseline_network`/`critic_network` to `baseline`/`critic`
-- Added objectives `state_value` and `action_value`
 - Major change to policy handling and defaults, in particular `parametrized_distributions`, new default policies `parametrized_state/action_value`
-- Added `Agent.act()` argument `deterministic` to distinguish between `independent` and `deterministic`
-- Moved agent arguments for reward/return/advantage processing from `preprocessing` to `reward_preprocessing` and `reward_estimation[return_/advantage_processing]`
-- Renamed agent argument `preprocessing` to `state_preprocessing`
+- Combined `long` and `int` type
+- Always wrap environment in `EnvironmentWrapper` class
+- Changed `tune.py` arguments
 
 
 

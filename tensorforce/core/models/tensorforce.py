@@ -757,8 +757,7 @@ class TensorforceModel(Model):
         elif function == 'experience':
             return SignatureDict(
                 timesteps=TensorSpec(type='int', shape=()).signature(batched=False),
-                episodes=TensorSpec(type='int', shape=()).signature(batched=False),
-                updates=TensorSpec(type='int', shape=()).signature(batched=False)
+                episodes=TensorSpec(type='int', shape=()).signature(batched=False)
             )
 
         elif function == 'loss':
@@ -768,9 +767,7 @@ class TensorforceModel(Model):
 
         elif function == 'update':
             return SignatureDict(
-                timesteps=TensorSpec(type='int', shape=()).signature(batched=False),
-                episodes=TensorSpec(type='int', shape=()).signature(batched=False),
-                updates=TensorSpec(type='int', shape=()).signature(batched=False)
+                singleton=TensorSpec(type='int', shape=()).signature(batched=False)
             )
 
         else:
@@ -871,11 +868,18 @@ class TensorforceModel(Model):
                 terminal=terminal, reward=reward
             )
 
+        # Increment timestep and episode
         with tf.control_dependencies(control_inputs=(experienced,)):
+            assignments = list()
+            assignments.append(self.timesteps.assign_add(delta=batch_size, read_value=False))
+            assignments.append(self.episodes.assign_add(
+                delta=tf.math.minimum(x=one, y=batch_size), read_value=False
+            ))
+
+        with tf.control_dependencies(control_inputs=assignments):
             timestep = tf_util.identity(input=self.timesteps)
             episode = tf_util.identity(input=self.episodes)
-            update = tf_util.identity(input=self.updates)
-            return timestep, episode, update
+            return timestep, episode
 
     @tf_function(num_args=0)
     def update(self):
@@ -883,10 +887,7 @@ class TensorforceModel(Model):
         updated = self.core_update()
 
         with tf.control_dependencies(control_inputs=(updated,)):
-            timestep = tf_util.identity(input=self.timesteps)
-            episode = tf_util.identity(input=self.episodes)
-            update = tf_util.identity(input=self.updates)
-            return timestep, episode, update
+            return tf_util.identity(input=self.updates)
 
     @tf_function(num_args=5)
     def core_act(self, *, states, internals, auxiliaries, parallel, deterministic, independent):

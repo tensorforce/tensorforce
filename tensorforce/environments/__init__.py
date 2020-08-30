@@ -15,7 +15,6 @@
 
 from tensorforce.environments.environment import Environment, RemoteEnvironment
 
-from tensorforce.environments.multiplayer_environment import MultiplayerEnvironment
 from tensorforce.environments.multiprocessing_environment import MultiprocessingEnvironment
 from tensorforce.environments.socket_environment import SocketEnvironment
 
@@ -41,8 +40,7 @@ environments = dict(
 
 
 __all__ = [
-    'ArcadeLearningEnvironment', 'Environment', 'MazeExplorer', 'MultiplayerEnvironment',
-    'MultiprocessingEnvironment', 'OpenAIGym', 'OpenAIRetro', 'OpenSim',
-    'PyGameLearningEnvironment', 'RemoteEnvironment', 'SocketEnvironment', 'ViZDoom',
-    'CARLAEnvironment'
+    'ArcadeLearningEnvironment', 'Environment', 'MazeExplorer', 'MultiprocessingEnvironment',
+    'OpenAIGym', 'OpenAIRetro', 'OpenSim', 'PyGameLearningEnvironment', 'RemoteEnvironment',
+    'SocketEnvironment', 'ViZDoom', 'CARLAEnvironment'
 ]

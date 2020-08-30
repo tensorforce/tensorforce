@@ -20,13 +20,22 @@ import sys
 
 """
 test: cd docs; make html; cd ..;
+
+pip install --upgrade -r requirements-all.txt
+update requirements.txt and setup.py
+
+rm -r build
+rm -r dist
+rm -r docs/_*
 pip install --upgrade pip setuptools wheel twine
 python setup.py sdist bdist_wheel
-twine upload --repository-url https://test.pypi.org/legacy/ dist/Tensorforce-0.5.5*
+
+twine upload --repository-url https://test.pypi.org/legacy/ dist/Tensorforce-0.6.0*
 test: pip install --upgrade --index-url https://test.pypi.org/simple/ tensorforce
 test: python; import tensorforce;
-test: python tensorforce-master/examples/quickstart.py
-twine upload dist/Tensorforce-0.5.5*
+test: python tensorforce/examples/quickstart.py
+
+twine upload dist/Tensorforce-0.6.0*
 """
 
 if sys.version_info.major != 3:
@@ -35,10 +44,12 @@ if sys.version_info.major != 3:
 tensorforce_directory = os.path.abspath(os.path.dirname(__file__))
 
 # Extract version from tensorforce/__init__.py
+version = None
 with open(os.path.join(tensorforce_directory, 'tensorforce', '__init__.py'), 'r') as filehandle:
     for line in filehandle:
-        if line.startswith('__version__'):
+        if line.startswith('__version__ = \'') and line.endswith('\'\n'):
             version = line[15:-2]
+assert version is not None
 
 # Extract long_description from README.md introduction
 long_description = list()
@@ -68,6 +79,11 @@ with open(os.path.join(tensorforce_directory, 'README.md'), 'r') as filehandle:
         line = next(lines)
     if not line.startswith('#### '):
         raise NotImplementedError
+assert len(long_description) > 0
+long_description.append('\n')
+long_description.append('For more information, see the [GitHub project page](https://github.com/ten'
+                        'sorforce/tensorforce) and [ReadTheDocs documentation](https://tensorforce.'
+                        'readthedocs.io/en/latest/).\n')
 long_description = ''.join(long_description)
 
 # Find packages
@@ -81,6 +97,7 @@ with open(os.path.join(tensorforce_directory, 'requirements.txt'), 'r') as fileh
         line = line.strip()
         if line:
             install_requires.append(line)
+assert len(install_requires) > 0
 
 # Readthedocs requires Sphinx extensions to be specified as part of install_requires.
 if os.environ.get('READTHEDOCS', None) == 'True':

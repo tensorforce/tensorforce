@@ -10,6 +10,7 @@ branches:
 
 install:
   - pip install .[tfa,tune,ale,gym,retro]
+  - pip install pytest
 
 script:
   - pytest

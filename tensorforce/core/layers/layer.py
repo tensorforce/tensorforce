@@ -13,8 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-from collections import OrderedDict
-
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
@@ -156,7 +154,7 @@ class NondeterministicLayer(Layer):
         else:
             return super().input_signature(function=function)
 
-    @tf_function(num_args=2)
+    @tf_function(num_args=2, overwrites_signature=True)
     def apply(self, *, x, deterministic):
         raise NotImplementedError
 

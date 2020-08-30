@@ -342,7 +342,7 @@ class Agent(Recorder):
         Returns:
             dict[internal]: Dictionary containing initial internal agent state(s).
         """
-        return self.model.internals_init.fmap(function=(lambda x: x), cls=OrderedDict)
+        return self.model.initial_internals.to_dict()
 
     def act(
         self, states, internals=None, parallel=0, independent=False, deterministic=False,
@@ -673,100 +673,100 @@ class Agent(Recorder):
             directory=directory, filename=filename, format=format
         )
 
-    def get_variables(self):
-        """
-        Returns the names of all agent variables.
+    # def get_variables(self):
+    #     """
+    #     Returns the names of all agent variables.
 
-        Returns:
-            list[str]: Names of variables.
-        """
-        return [
-            variable.name[len(self.model.name) + 1: -2] for variable in self.model.get_variables()
-        ]
+    #     Returns:
+    #         list[str]: Names of variables.
+    #     """
+    #     return [
+    #         variable.name[len(self.model.name) + 1: -2] for variable in self.model.get_variables()
+    #     ]
 
-    def get_variable(self, variable):
-        """
-        Returns the value of the variable with the given name.
+    # def get_variable(self, variable):
+    #     """
+    #     Returns the value of the variable with the given name.
 
-        Args:
-            variable (string): Variable name
-                (<span style="color:#C00000"><b>required</b></span>).
+    #     Args:
+    #         variable (string): Variable name
+    #             (<span style="color:#C00000"><b>required</b></span>).
 
-        Returns:
-            numpy-array: Variable value.
-        """
-        return self.model.get_variable(variable=variable)
+    #     Returns:
+    #         numpy-array: Variable value.
+    #     """
+    #     return self.model.get_variable(variable=variable)
 
-    def assign_variable(self, variable, value):
-        """
-        Assigns the given value to the variable with the given name.
+    # def assign_variable(self, variable, value):
+    #     """
+    #     Assigns the given value to the variable with the given name.
 
-        Args:
-            variable (string): Variable name
-                (<span style="color:#C00000"><b>required</b></span>).
-            value (variable-compatible value): Value to assign to variable
-                (<span style="color:#C00000"><b>required</b></span>).
-        """
-        self.model.assign_variable(variable=variable, value=value)
+    #     Args:
+    #         variable (string): Variable name
+    #             (<span style="color:#C00000"><b>required</b></span>).
+    #         value (variable-compatible value): Value to assign to variable
+    #             (<span style="color:#C00000"><b>required</b></span>).
+    #     """
+    #     self.model.assign_variable(variable=variable, value=value)
 
-    def summarize(self, summary, value, step=None):
-        """
-        Records a value for the given custom summary label (as specified via summarizer[custom]).
+    # def summarize(self, summary, value, step=None):
+    #     """
+    #     Records a value for the given custom summary label (as specified via summarizer[custom]).
 
-        Args:
-            variable (string): Custom summary label
-                (<span style="color:#C00000"><b>required</b></span>).
-            value (summary-compatible value): Summary value to record
-                (<span style="color:#C00000"><b>required</b></span>).
-            step (int): Summary recording step
-                (<span style="color:#00C000"><b>default</b></span>: current timestep).
-        """
-        self.model.summarize(summary=summary, value=value, step=step)
+    #     Args:
+    #         variable (string): Custom summary label
+    #             (<span style="color:#C00000"><b>required</b></span>).
+    #         value (summary-compatible value): Summary value to record
+    #             (<span style="color:#C00000"><b>required</b></span>).
+    #         step (int): Summary recording step
+    #             (<span style="color:#00C000"><b>default</b></span>: current timestep).
+    #     """
+    #     self.model.summarize(summary=summary, value=value, step=step)
 
-    def get_output_tensors(self, function):
-        """
-        Returns the names of output tensors for the given function.
+    # def get_output_tensors(self, function):
+    #     """
+    #     Returns the names of output tensors for the given function.
 
-        Args:
-            function (str): Function name
-                (<span style="color:#C00000"><b>required</b></span>).
+    #     Args:
+    #         function (str): Function name
+    #             (<span style="color:#C00000"><b>required</b></span>).
 
-        Returns:
-            list[str]: Names of output tensors.
-        """
-        if function in self.model.output_tensors:
-            return self.model.output_tensors[function]
-        else:
-            raise TensorforceError.value(
-                name='agent.get_output_tensors', argument='function', value=function
-            )
+    #     Returns:
+    #         list[str]: Names of output tensors.
+    #     """
+    #     if function in self.model.output_tensors:
+    #         return self.model.output_tensors[function]
+    #     else:
+    #         raise TensorforceError.value(
+    #             name='agent.get_output_tensors', argument='function', value=function
+    #         )
 
-    def get_available_summaries(self):
-        """
-        Returns the summary labels provided by the agent.
+    # def get_available_summaries(self):
+    #     """
+    #     Returns the summary labels provided by the agent.
 
-        Returns:
-            list[str]: Available summary labels.
-        """
-        return self.model.get_available_summaries()
+    #     Returns:
+    #         list[str]: Available summary labels.
+    #     """
+    #     return self.model.get_available_summaries()
 
-    def get_query_tensors(self, function):
-        """
-        Returns the names of queryable tensors for the given function.
+    # def get_query_tensors(self, function):
+    #     """
+    #     Returns the names of queryable tensors for the given function.
 
-        Args:
-            function (str): Function name
-                (<span style="color:#C00000"><b>required</b></span>).
+    #     Args:
+    #         function (str): Function name
+    #             (<span style="color:#C00000"><b>required</b></span>).
 
-        Returns:
-            list[str]: Names of queryable tensors.
-        """
-        if function in self.model.query_tensors:
-            return self.model.query_tensors[function]
-        else:
-            raise TensorforceError.value(
-                name='agent.get_query_tensors', argument='function', value=function
-            )
+    #     Returns:
+    #         list[str]: Names of queryable tensors.
+    #     """
+    #     if function in self.model.query_tensors:
+    #         return self.model.query_tensors[function]
+    #     else:
+    #         raise TensorforceError.value(
+    #             name='agent.get_query_tensors', argument='function', value=function
+    #         )
 
 
 class TensorforceJSONEncoder(json.JSONEncoder):

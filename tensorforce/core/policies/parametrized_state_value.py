@@ -74,6 +74,13 @@ class ParametrizedStateValue(StateValue):
     def max_past_horizon(self, *, on_policy):
         return self.network.max_past_horizon(on_policy=on_policy)
 
+    def get_savedmodel_trackables(self):
+        trackables = dict()
+        for variable in self.network.variables:
+            assert variable.name not in trackables
+            trackables[variable.name] = variable
+        return trackables
+
     @tf_function(num_args=0)
     def past_horizon(self, *, on_policy):
         return self.network.past_horizon(on_policy=on_policy)

@@ -125,7 +125,7 @@ class Model(Module):
 
         # Internal state space specification
         self.internals_spec = TensorsSpec()
-        self.internals_init = ArrayDict()
+        self.initial_internals = ArrayDict()
 
         # Auxiliary value space specification
         self.auxiliaries_spec = TensorsSpec()
@@ -338,7 +338,7 @@ class Model(Module):
             )
 
         self.previous_internals = self.internals_spec.fmap(
-            function=function, cls=VariableDict, with_names=True, zip_values=self.internals_init
+            function=function, cls=VariableDict, with_names=True, zip_values=self.initial_internals
         )
 
     def initialize_api(self):
@@ -371,6 +371,9 @@ class Model(Module):
         )
         if self.summary_labels == 'all' or 'graph' in self.summary_labels:
             tf.summary.trace_export(name='observe', step=self.timesteps, profiler_outdir=None)
+
+    def get_savedmodel_trackables(self):
+        return dict()
 
     def input_signature(self, *, function):
         if function == 'act':
@@ -469,7 +472,7 @@ class Model(Module):
         update = tf_util.identity(input=self.updates)
         return timestep, episode, update
 
-    @tf_function(num_args=4, optional=2, flatten_outputs=True)
+    @tf_function(num_args=4, optional=2, dict_interface=True)
     def independent_act(self, *, states, internals=None, auxiliaries=None, deterministic=None):
         if internals is None:
             assert len(self.internals_spec) == 0
@@ -663,7 +666,7 @@ class Model(Module):
                     return tf_util.constant(value=initial, dtype=spec.type)
 
                 initials = self.internals_spec.fmap(
-                    function=function, cls=TensorDict, zip_values=self.internals_init
+                    function=function, cls=TensorDict, zip_values=self.initial_internals
                 )
                 for name, previous, initial in self.previous_internals.zip_items(initials):
                     sparse_delta = tf.IndexedSlices(values=initial, indices=parallel)
@@ -704,32 +707,31 @@ class Model(Module):
     def core_observe(self, *, terminal, reward, parallel):
         return tf_util.constant(value=False, dtype='bool')
 
-    def get_variable(self, *, variable):
-        assert False, 'Not updated yet!'
-        if not variable.startswith(self.name):
-            variable = util.join_scopes(self.name, variable)
-        fetches = variable + '-output:0'
-        return self.monitored_session.run(fetches=fetches)
+    # def get_variable(self, *, variable):
+    #     assert False, 'Not updated yet!'
+    #     if not variable.startswith(self.name):
+    #         variable = util.join_scopes(self.name, variable)
+    #     fetches = variable + '-output:0'
+    #     return self.monitored_session.run(fetches=fetches)
 
-    def assign_variable(self, *, variable, value):
-        if variable.startswith(self.name + '/'):
-            variable = variable[len(self.name) + 1:]
-        module = self
-        scope = variable.split('/')
-        for _ in range(len(scope) - 1):
-            module = module.modules[scope.pop(0)]
-        fetches = util.join_scopes(self.name, variable) + '-assign'
-        dtype = util.dtype(x=module.variables[scope[0]])
-        feed_dict = {util.join_scopes(self.name, 'assignment-') + dtype + '-input:0': value}
-        self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
+    # def assign_variable(self, *, variable, value):
+    #     if variable.startswith(self.name + '/'):
+    #         variable = variable[len(self.name) + 1:]
+    #     module = self
+    #     scope = variable.split('/')
+    #     for _ in range(len(scope) - 1):
+    #         module = module.modules[scope.pop(0)]
+    #     fetches = util.join_scopes(self.name, variable) + '-assign'
+    #     dtype = util.dtype(x=module.variables[scope[0]])
+    #     feed_dict = {util.join_scopes(self.name, 'assignment-') + dtype + '-input:0': value}
+    #     self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
 
-    def summarize(self, *, summary, value, step=None):
-        fetches = util.join_scopes(self.name, summary, 'write_summary', 'Const:0')
-        feed_dict = {util.join_scopes(self.name, 'summarize-input:0'): value}
-        if step is not None:
-            feed_dict[util.join_scopes(self.name, 'summarize-step-input:0')] = step
-        self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
-
+    # def summarize(self, *, summary, value, step=None):
+    #     fetches = util.join_scopes(self.name, summary, 'write_summary', 'Const:0')
+    #     feed_dict = {util.join_scopes(self.name, 'summarize-input:0'): value}
+    #     if step is not None:
+    #         feed_dict[util.join_scopes(self.name, 'summarize-step-input:0')] = step
+    #     self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
 
         # if self.summarizer_spec is not None:
         #     if len(self.summarizer_spec.get('custom', ())) > 0:
@@ -798,11 +800,38 @@ class Model(Module):
             filename = filename + '-' + str(append_value)
 
         if format == 'saved-model':
-            directory = os.path.join(directory, filename)
+            if filename != self.name:
+                directory = os.path.join(directory, filename)
+
             assert hasattr(self, '_independent_act_graphs')
             assert len(self._independent_act_graphs) == 1
             independent_act = next(iter(self._independent_act_graphs.values()))
-            return tf.saved_model.save(obj=self, export_dir=directory, signatures=independent_act)
+
+            trackables = self.get_savedmodel_trackables()
+            assert 'act' not in trackables and 'initial_internals' not in trackables
+            trackables = OrderedDict(sorted(trackables.items(), key=(lambda kv: kv[0])))
+
+            @tf.function(input_signature=(), autograph=False)
+            def initial_internals():
+                return self.internals_spec.fmap(function=(
+                    lambda spec, internal: tf.constant(value=internal)
+                ), cls=dict, zip_values=self.initial_internals)
+
+            checkpoint = tf.train.Checkpoint(
+                act=independent_act, initial_internals=initial_internals, **trackables
+            )
+
+            # TensorFlow restriction: "Dictionaries outputs for functions used as signatures should
+            # have one Tensor output per string key."
+            if len(self.internals_spec) == 0 and \
+                    not any(name is not None and '/' in name for name in self.actions_spec):
+                signatures = independent_act.get_concrete_function(
+                    *self.input_signature(function='independent_act').to_list(to_dict=True)
+                )
+            else:
+                signatures = None
+
+            return tf.saved_model.save(obj=checkpoint, export_dir=directory, signatures=signatures)
 
         if format == 'checkpoint':
             # which variables are not saved? should all be saved probably, so remove option

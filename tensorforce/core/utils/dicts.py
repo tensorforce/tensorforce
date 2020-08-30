@@ -73,6 +73,19 @@ class ArrayDict(NestedDict):
             value = np.asarray(value)
         super().__setitem__(key, value)
 
+    def to_dict(self):
+        if self.is_singleton():
+            value = self.singleton()
+            if isinstance(value, self.value_type):
+                return value
+            else:
+                return value.to_dict()
+        else:
+            return OrderedDict((
+                (name, arg) if isinstance(arg, self.value_type) else (name, arg.to_dict())
+                for name, arg in super(NestedDict, self).items()
+            ))
+
     def to_kwargs(self):
         if self.is_singleton():
             value = self.singleton()
@@ -104,10 +117,20 @@ class SignatureDict(NestedDict):
             *args, value_type=tf.TensorSpec, overwrite=False, singleton=singleton, **kwargs
         )
 
+    def __setitem__(self, key, value):
+        super().__setitem__(key, value)
+        if key is None or key == self.__class__._SINGLETON or self.is_singleton() or '/' in key or \
+                not isinstance(value, self.value_type):
+            pass
+        elif value._name is None:
+            value._name = key
+        else:
+            assert value._name == key
+
     def num_args(self):
         return super(NestedDict, self).__len__()
 
-    def to_list(self):
+    def to_list(self, to_dict=False):
         if self.is_singleton():
             spec = self.singleton()
             if isinstance(spec, self.value_type):
@@ -117,12 +140,28 @@ class SignatureDict(NestedDict):
 
         else:
             return [
-                spec if isinstance(spec, self.value_type) else spec.to_list()
-                for spec in super(NestedDict, self).values()
+                spec if isinstance(spec, self.value_type) else (
+                    spec.to_dict() if to_dict else spec.to_list()
+                ) for spec in super(NestedDict, self).values()
                 if isinstance(spec, self.value_type) or len(spec) > 0
             ]
 
-    def kwargs_to_args(self, *, kwargs, is_outer=True, flatten=False):
+    def to_dict(self):
+        if self.is_singleton():
+            spec = self.singleton()
+            if isinstance(spec, self.value_type):
+                return spec
+            else:
+                return spec.to_dict()
+
+        else:
+            return OrderedDict((
+                (name, (spec if isinstance(spec, self.value_type) else spec.to_dict()))
+                for name, spec in super(NestedDict, self).items()
+                if isinstance(spec, self.value_type) or len(spec) > 0
+            ))
+
+    def kwargs_to_args(self, *, kwargs, to_dict=False, outer_tuple=False, is_outer=True):
         if self.is_singleton():
             spec = self.singleton()
             if isinstance(spec, self.value_type):
@@ -137,14 +176,17 @@ class SignatureDict(NestedDict):
                     assert spec.is_compatible_with(spec_or_tensor=arg), (spec, arg)
                     return arg
             else:
-                return spec.kwargs_to_args(kwargs=kwargs, is_outer=False, flatten=flatten)
+                return spec.kwargs_to_args(kwargs=kwargs, to_dict=to_dict, is_outer=False)
 
         else:
             if is_outer:
                 assert isinstance(kwargs, (dict, list, tuple))
             else:
                 assert isinstance(kwargs, TensorDict), (self, kwargs)
-            args = list()
+            if to_dict:
+                args = dict()
+            else:
+                args = list()
             for index, (name, spec) in enumerate(super(NestedDict, self).items()):
                 if is_outer and isinstance(kwargs, (list, tuple)):
                     if index < len(kwargs):
@@ -154,6 +196,7 @@ class SignatureDict(NestedDict):
                 if isinstance(spec, self.value_type):
                     assert isinstance(arg, (tf.IndexedSlices, tf.Tensor, tf.Variable))
                     if isinstance(arg, tf.IndexedSlices):
+                        # TODO: why does IndexedSlicesSpec not work?
                         # spec = tf.IndexedSlicesSpec(
                         #     shape=spec.shape, dtype=spec.dtype, indices_dtype=arg.indices.dtype
                         # )
@@ -166,50 +209,60 @@ class SignatureDict(NestedDict):
                         ).is_compatible_with(spec_or_tensor=arg.indices)
                     else:
                         assert spec.is_compatible_with(spec_or_tensor=arg), (name, spec, arg)
-                    args.append(arg)
+                    if to_dict:
+                        args[name] = arg
+                    else:
+                        args.append(arg)
                 elif len(spec) == 0:
                     continue
                 else:
-                    arg = spec.kwargs_to_args(kwargs=arg, is_outer=False, flatten=flatten)
-                    if flatten and isinstance(arg, tuple):
-                        args.extend(arg)
+                    arg = spec.kwargs_to_args(kwargs=arg, to_dict=to_dict, is_outer=False)
+                    if to_dict:
+                        args[name] = arg
                     else:
                         args.append(arg)
-            return tuple(args)
+            if to_dict:
+                if outer_tuple and is_outer:
+                    args = tuple(args.values())
+            else:
+                args = tuple(args)
+            return args
 
-    def args_to_kwargs(self, *, args, is_outer=True, outer_tuple=False, flattened=False):
-        if flattened is True and is_outer and isinstance(args, tuple):
-            args = list(args)
-
+    def args_to_kwargs(self, *, args, from_dict=False, outer_tuple=False, is_outer=True):
         if self.is_singleton():
             spec = self.singleton()
             if isinstance(spec, self.value_type):
-                if flattened and isinstance(args, list):
-                    args = args.pop(0)
                 assert isinstance(args, (tf.IndexedSlices, tf.Tensor, tf.Variable)), (self, args)
                 assert spec.is_compatible_with(spec_or_tensor=args), (spec, args)
                 kwargs = args
             else:
-                kwargs = spec.args_to_kwargs(args=args, is_outer=False, flattened=flattened)
-            if is_outer and outer_tuple:
+                kwargs = spec.args_to_kwargs(args=args, from_dict=from_dict, is_outer=False)
+            if outer_tuple and is_outer:
                 return kwargs
             else:
                 return TensorDict(singleton=kwargs)
 
         else:
-            assert isinstance(args, (list, tuple)), (self, args)
+            if is_outer:
+                assert isinstance(args, (dict, list, tuple))
+            elif from_dict:
+                assert isinstance(args, dict), (self, args)
+            else:
+                assert isinstance(args, (list, tuple)), (self, args)
             kwargs = TensorDict()
             index = 0
             for name, spec in super(NestedDict, self).items():
-                if not flattened and index < len(args):
+                if from_dict and isinstance(args, dict):
+                    arg = args.get(name)
+                elif index < len(args):
+                    assert not from_dict or is_outer
                     arg = args[index]
                 else:
                     arg = None
                 if isinstance(spec, self.value_type):
-                    if flattened and isinstance(args, list):
-                        arg = args.pop(0)
                     assert isinstance(arg, (tf.IndexedSlices, tf.Tensor, tf.Variable))
                     if isinstance(arg, tf.IndexedSlices):
+                        # TODO: why does IndexedSlicesSpec not work?
                         # spec = tf.IndexedSlicesSpec(
                         #     shape=spec.shape, dtype=spec.dtype, indices_dtype=arg.indices.dtype
                         # )
@@ -229,11 +282,11 @@ class SignatureDict(NestedDict):
                     # (False incompatible with TensorDict, so ensures it is never called)
                     kwargs[name] = spec.fmap(function=(lambda: False), cls=TensorDict)
                 else:
-                    if flattened:
-                        arg = args
-                    kwargs[name] = spec.args_to_kwargs(args=arg, is_outer=False, flattened=flattened)
+                    kwargs[name] = spec.args_to_kwargs(
+                        args=arg, from_dict=from_dict, is_outer=False
+                    )
                     index += 1
-            if is_outer and outer_tuple:
+            if outer_tuple and is_outer:
                 return tuple(super(NestedDict, kwargs).values())
             else:
                 return kwargs

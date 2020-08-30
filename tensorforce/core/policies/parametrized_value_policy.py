@@ -151,6 +151,26 @@ class ParametrizedValuePolicy(ValuePolicy):
                 names = [prefix + str(n) for n in range(spec.num_values)]
             self.register_summary(label='action-value', name=names)
 
+    def get_savedmodel_trackables(self):
+        trackables = dict()
+        for variable in self.network.variables:
+            assert variable.name not in trackables
+            trackables[variable.name] = variable
+        for a_value in self.a_values.values():
+            for variable in a_value.variables:
+                assert variable.name not in trackables
+                trackables[variable.name] = variable
+        if self.state_value_mode == 'separate':
+            for variable in self.s_value.variables:
+                assert variable.name not in trackables
+                trackables[variable.name] = variable
+        elif self.state_value_mode == 'separate-per-action':
+            for s_value in self.s_values.values():
+                for variable in s_value.variables:
+                    assert variable.name not in trackables
+                    trackables[variable.name] = variable
+        return trackables
+
     @tf_function(num_args=0)
     def past_horizon(self, *, on_policy):
         return self.network.past_horizon(on_policy=on_policy)

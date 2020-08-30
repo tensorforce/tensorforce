@@ -79,6 +79,10 @@ class BasePolicy(Module):
         else:
             return super().output_signature(function=function)
 
+    # TODO: should be only required for Policy
+    def get_savedmodel_trackables(self):
+        raise NotImplementedError()
+
     @tf_function(num_args=0)
     def past_horizon(self, *, on_policy):
         raise NotImplementedError

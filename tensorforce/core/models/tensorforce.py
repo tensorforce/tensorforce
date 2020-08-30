@@ -355,7 +355,7 @@ class TensorforceModel(Model):
             actions_spec=self.actions_spec
         )
         self.internals_spec['policy'] = self.policy.internals_spec
-        self.internals_init['policy'] = self.policy.internals_init()
+        self.initial_internals['policy'] = self.policy.internals_init()
         self.objective.internals_spec = self.policy.internals_spec
 
         if not self.entropy_regularization.is_constant(value=0.0) and \
@@ -398,7 +398,7 @@ class TensorforceModel(Model):
                 actions_spec=self.actions_spec
             )
             self.internals_spec['baseline'] = self.baseline.internals_spec
-            self.internals_init['baseline'] = self.baseline.internals_init()
+            self.initial_internals['baseline'] = self.baseline.internals_init()
 
         else:
             self.baseline = self.policy
@@ -624,6 +624,17 @@ class TensorforceModel(Model):
             tf.summary.trace_export(name='experience', step=self.timesteps, profiler_outdir=None)
         # TODO: Not possible as it tries to retrieve experiences from memory
         # self.update()
+
+    def get_savedmodel_trackables(self):
+        trackables = super().get_savedmodel_trackables()
+        for name, trackable in self.policy.get_savedmodel_trackables().items():
+            assert name not in trackables
+            trackables[name] = trackable
+        if self.separate_baseline and len(self.internals_spec['baseline']) > 0:
+            for name, trackable in self.baseline.get_savedmodel_trackables().items():
+                assert name not in trackables
+                trackables[name] = trackable
+        return trackables
 
     def input_signature(self, *, function):
         if function == 'baseline_loss':
@@ -958,6 +969,7 @@ class TensorforceModel(Model):
                 dependencies.extend(actions.flatten())
 
             # Baseline internals (after variable noise)
+            # TODO: shouldn't be required for independent-act
             if self.separate_baseline and len(self.internals_spec['baseline']) > 0:
                 next_internals['baseline'] = self.baseline.next_internals(
                     states=states, horizons=horizons, internals=internals['baseline'],

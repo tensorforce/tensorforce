@@ -45,7 +45,7 @@ def make_key(*, x):
 
 
 def tf_function(
-    *, num_args, optional=0, overwrites_signature=False, is_loop_body=False, flatten_outputs=False
+    *, num_args, optional=0, overwrites_signature=False, is_loop_body=False, dict_interface=False
 ):
 
     def decorator(function):
@@ -86,7 +86,9 @@ def tf_function(
 
             # Graph arguments
             if len(kwargs) > 0:
-                graph_args = input_signature.kwargs_to_args(kwargs=kwargs)
+                graph_args = input_signature.kwargs_to_args(
+                    kwargs=kwargs, to_dict=dict_interface, outer_tuple=True
+                )
             else:
                 graph_args = args
 
@@ -106,16 +108,18 @@ def tf_function(
                 def function_graph(*args):
                     with self:
                         # TODO: tf.name_scope instead?
-                        kwargs = input_signature.args_to_kwargs(args=args).to_kwargs()
-                        args = function(self, **kwargs, **params_kwargs)
-                        args = output_signature.kwargs_to_args(kwargs=args, flatten=flatten_outputs)
+                        kwargs = input_signature.args_to_kwargs(args=args, from_dict=dict_interface)
+                        args = function(self, **kwargs.to_kwargs(), **params_kwargs)
+                        args = output_signature.kwargs_to_args(kwargs=args, to_dict=dict_interface)
                     return args
 
                 function_graph.__name__ = name
                 function_graph.__qualname__ = qualname
 
                 function_graphs[str(graph_params)] = tf.function(
-                    func=function_graph, input_signature=input_signature.to_list(), autograph=False
+                    func=function_graph,
+                    input_signature=input_signature.to_list(to_dict=dict_interface),
+                    autograph=False
                     # experimental_implements=None, experimental_autograph_options=None,
                     # experimental_relax_shapes=False, experimental_compile=None
                 )
@@ -124,7 +128,7 @@ def tf_function(
             output_args = function_graphs[str(graph_params)](*graph_args)
             if not is_loop_body:
                 return output_signature.args_to_kwargs(
-                    args=output_args, outer_tuple=True, flattened=flatten_outputs
+                    args=output_args, outer_tuple=True, from_dict=dict_interface
                 )
             else:
                 return output_args

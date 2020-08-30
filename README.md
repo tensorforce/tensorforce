@@ -10,9 +10,6 @@
 [![Donate](https://img.shields.io/badge/donate-Liberapay-yellow)](https://liberapay.com/TensorforceTeam/donate)
 
 
-**Important:** The `master` version has now been updated to 0.6 beta.
-
-
 
 #### Introduction
 

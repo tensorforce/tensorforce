@@ -147,6 +147,17 @@ class ParametrizedDistributions(StochasticPolicy, ValuePolicy):
         except NotImplementedError:
             return ValuePolicy.output_signature(self=self, function=function)
 
+    def get_savedmodel_trackables(self):
+        trackables = dict()
+        for variable in self.network.variables:
+            assert variable.name not in trackables
+            trackables[variable.name] = variable
+        for distribution in self.distributions.values():
+            for variable in distribution.variables:
+                assert variable.name not in trackables
+                trackables[variable.name] = variable
+        return trackables
+
     @tf_function(num_args=0)
     def past_horizon(self, *, on_policy):
         return self.network.past_horizon(on_policy=on_policy)

@@ -18,6 +18,7 @@ from tempfile import TemporaryDirectory
 import unittest
 
 import numpy as np
+import tensorflow as tf
 
 from tensorforce import Agent, Environment, Runner
 from test.unittest_base import UnittestBase
@@ -61,8 +62,9 @@ class TestSaving(UnittestBase, unittest.TestCase):
             files = set(os.listdir(path=directory))
             self.assertTrue(len(files), 2 * len(agent.model.this_submodules))
             for module in agent.model.tensorforce_submodules:
-                self.assertTrue(module.full_name.replace('/', '.') + '.index' in files)
-                self.assertTrue(module.full_name.replace('/', '.') + '.data-00000-of-00001' in files)
+                filename = module.full_name.replace('/', '.')
+                self.assertTrue(filename + '.index' in files)
+                self.assertTrue(filename + '.data-00000-of-00001' in files)
 
         agent.close()
         environment.close()
@@ -203,30 +205,42 @@ class TestSaving(UnittestBase, unittest.TestCase):
             agent.save(directory=directory, format='saved-model', append='updates')
             agent.close()
 
+            # saved-model functions
+            def batch(x):
+                return np.expand_dims(x, axis=0)
+
+            def unbatch(x):
+                if isinstance(x, tf.Tensor):
+                    x = x.numpy()
+                if x.shape == (1,):
+                    return x.item()
+                else:
+                    return np.squeeze(x, axis=0)
+
+            def recursive_map(function, dictionary):
+                mapped = dict()
+                for key, value in dictionary.items():
+                    if isinstance(value, dict):
+                        mapped[key] = recursive_map(function, value)
+                    else:
+                        mapped[key] = function(value)
+                return mapped
+
             # load: saved-model format
-            import tensorflow as tf
             agent = tf.saved_model.load(export_dir=os.path.join(directory, 'agent-1'))
-            act = next(iter(agent._independent_act_graphs.values()))
 
             # one episode
             states = environment.reset()
-            internals = [[[np.zeros(shape=(1, 2, 8))]], [[np.zeros(shape=(1, 2, 7))]]]
-            action_names = sorted(
-                ['bool_action', 'int_action', 'gaussian_action1', 'gaussian_action2', 'beta_action']
-            )
+            internals = agent.initial_internals()
+            internals = recursive_map(batch, internals)
             terminal = False
             while not terminal:
-                # Turn dicts into lists and batch inputs
-                auxiliaries = [[np.expand_dims(states.pop('int_action_mask'), axis=0)]]
-                states = [np.expand_dims(state, axis=0) for state in states.values()]
-                actions = act(states, internals, auxiliaries, False)
-                assert len(actions) == 7
-                internals = [[[actions[5]]], [[actions[6]]]]
-                # Split result dict and unbatch values
-                actions = {
-                    name: action.numpy().item() if action.shape == (1,) else action.numpy()[0]
-                    for name, action in zip(action_names, actions[:5])
-                }
+                auxiliaries = dict(int_action=dict(mask=batch(states.pop('int_action_mask'))))
+                states = recursive_map(batch, states)
+                actions_internals = agent.act(states, internals, auxiliaries, False)
+                actions = actions_internals['actions']
+                internals = actions_internals['internals']
+                actions = recursive_map(unbatch, actions)
                 states, terminal, _ = environment.execute(actions=actions)
 
             environment.close()
@@ -256,19 +270,15 @@ class TestSaving(UnittestBase, unittest.TestCase):
             agent.close()
 
             # load: saved-model format
-            import tensorflow as tf
             agent = tf.saved_model.load(export_dir=os.path.join(directory, 'agent-1'))
-            act = next(iter(agent._independent_act_graphs.values()))
 
             # one episode
             states = environment.reset()
             terminal = False
             while not terminal:
-                # Turn dicts into lists and batch inputs
-                states = np.expand_dims(states, axis=0)
-                actions = act(states, True)
-                # Split result dict and unbatch values
-                actions = actions.numpy()[0].item()
+                states = batch(states)
+                actions = agent.act(states, True)
+                actions = unbatch(actions)
                 states, terminal, _ = environment.execute(actions=actions)
 
             environment.close()
@@ -404,9 +414,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
         agent.close()
         self.finished_test()
 
-        import tensorflow as tf
         agent = tf.saved_model.load(export_dir='test/data/ppo-checkpoint')
-        act = next(iter(agent._independent_act_graphs.values()))
 
         # 10 episodes
         for _ in range(10):
@@ -415,8 +423,8 @@ class TestSaving(UnittestBase, unittest.TestCase):
             episode_reward = 0.0
             while not terminal:
                 states = np.expand_dims(states, axis=0)
-                auxiliaries = [np.ones(shape=(1, 2), dtype=bool)]
-                actions = act(states, auxiliaries, True)
+                auxiliaries = dict(mask=np.ones(shape=(1, 2), dtype=bool))
+                actions = agent.act(states, auxiliaries, True)
                 actions = actions.numpy().item()
                 states, terminal, reward = environment.execute(actions=actions)
                 episode_reward += reward

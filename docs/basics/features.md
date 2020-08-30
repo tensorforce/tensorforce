@@ -108,6 +108,11 @@ agent = Agent.load(directory='data/checkpoints', format='numpy')
 ```
 
 
+##### SavedModel export
+
+See the [SavedModel example](https://github.com/tensorforce/tensorforce/blob/master/examples/saved_model.py) for details on how to use this feature.
+
+
 
 ### TensorBoard
 

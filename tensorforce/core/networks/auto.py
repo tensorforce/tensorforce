@@ -54,8 +54,20 @@ class AutoNetwork(LayeredNetwork):
                 name='AutoNetwork', argument='internal_rnn', replacement='rnn'
             )
 
+        if len(inputs_spec) == 1:
+            if final_size is not None:
+                raise TensorforceError.invalid(
+                    name='AutoNetwork', argument='final_size', condition='input size = 1'
+                )
+            if final_depth is not None and final_depth != 1:
+                raise TensorforceError.invalid(
+                    name='AutoNetwork', argument='final_depth', condition='input size = 1'
+                )
+
         if final_size is None:
             final_size = size
+        if final_depth is None:
+            final_depth = 0
 
         layers = list()
         for input_name, spec in inputs_spec.items():
@@ -128,7 +140,7 @@ class AutoNetwork(LayeredNetwork):
                 final_layers.append(dict(type='dense', name=('dense' + str(n)), size=final_size))
 
         # Rnn
-        if rnn is not False:
+        if rnn is not None and rnn is not False:
             final_layers.append(dict(type='lstm', name='lstm', size=final_size, horizon=rnn))
 
         super().__init__(

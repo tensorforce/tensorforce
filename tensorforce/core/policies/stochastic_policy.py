@@ -26,7 +26,7 @@ class StochasticPolicy(Policy):
 
     Args:
         temperature (parameter | dict[parameter], float >= 0.0): Sampling temperature, global or
-            per action (<span style="color:#00C000"><b>default</b></span>: 0.0).
+            per action (<span style="color:#00C000"><b>default</b></span>: 1.0).
         device (string): Device name
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         l2_regularization (float >= 0.0): Scalar controlling L2 regularization
@@ -40,7 +40,7 @@ class StochasticPolicy(Policy):
     """
 
     def __init__(
-        self, *, temperature=0.0, device=None, l2_regularization=None, name=None, states_spec=None,
+        self, *, temperature=1.0, device=None, l2_regularization=None, name=None, states_spec=None,
         auxiliaries_spec=None, internals_spec=None, actions_spec=None, kldiv_reference_spec=None
     ):
         super().__init__(
@@ -51,6 +51,8 @@ class StochasticPolicy(Policy):
         self.kldiv_reference_spec = kldiv_reference_spec
 
         # Sampling temperature
+        if temperature is None:
+            temperature = 1.0
         if isinstance(temperature, dict) and all(name in self.actions_spec for name in temperature):
             # Different temperature per action
 
@@ -243,6 +245,7 @@ class StochasticPolicy(Policy):
             if independent:
                 return tf.cond(pred=deterministic, true_fn=fn_deterministic, false_fn=fn_sample)
             else:
+                # Always sample to record summaries
                 return fn_sample()
 
     @tf_function(num_args=5)

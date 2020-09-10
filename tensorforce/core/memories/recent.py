@@ -41,7 +41,7 @@ class Recent(Queue):
         # Check whether memory contains at least one valid timestep
         num_timesteps = tf.math.minimum(x=self.buffer_index, y=capacity)
         num_timesteps -= (past_horizon + future_horizon)
-        num_timesteps = tf.maximum(x=num_timesteps, y=self.episode_count)
+        num_timesteps = tf.math.maximum(x=num_timesteps, y=self.episode_count)
 
         # Check whether memory contains at least one timestep
         assertions = list()
@@ -50,6 +50,7 @@ class Recent(Queue):
 
         # Most recent timestep indices range
         with tf.control_dependencies(control_inputs=assertions):
+            n = tf.math.minimum(x=n, y=num_timesteps)
             indices = tf.range(start=(self.buffer_index - n), limit=self.buffer_index)
             indices = tf.math.mod(x=(indices - future_horizon), y=capacity)
 
@@ -68,6 +69,8 @@ class Recent(Queue):
 
         # Get start and limit index for most recent n episodes
         with tf.control_dependencies(control_inputs=assertions):
+            n = tf.math.minimum(x=n, y=self.episode_count)
+
             # (Increment terminal of previous episode)
             start = self.terminal_indices[self.episode_count - n] + one
             limit = self.terminal_indices[self.episode_count] + one

@@ -30,13 +30,13 @@ class Iterative(Solver):
         Creates a new iterative solver instance.
 
         Args:
-            max_iterations (parameter, int >= 0): Maximum number of iterations before termination.
+            max_iterations (parameter, int >= 1): Maximum number of iterations before termination.
         """
         super().__init__(name=name)
 
         self.max_iterations = self.submodule(
             name='max_iterations', module=max_iterations, modules=parameter_modules,
-            dtype='int', min_value=0
+            dtype='int', min_value=1
         )
 
     def complete_initialize(self, arguments_spec, values_spec):

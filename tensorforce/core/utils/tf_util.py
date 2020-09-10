@@ -94,12 +94,12 @@ def ones(*, shape, dtype):
     return tf.ones(shape=shape, dtype=get_dtype(type=dtype))
 
 
-def identity(input):
+def identity(input, name=None):
     zero = tf.zeros_like(input=input)
     if zero.dtype is tf.bool:
-        return tf.math.logical_or(x=input, y=zero)
+        return tf.math.logical_or(x=input, y=zero, name=name)
     else:
-        return input + zero
+        return tf.math.add(x=input, y=zero, name=name)
 
 
 # def no_op():

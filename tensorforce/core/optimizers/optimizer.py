@@ -82,31 +82,37 @@ class Optimizer(Module):
 
         assertions = list(deltas)
         if self.config.create_debug_assertions:
-            from tensorforce.core.optimizers import LinesearchStep, OptimizerWrapper, \
-                Synchronization
-            if (
-                not isinstance(self, OptimizerWrapper) or
-                not isinstance(self.optimizer, LinesearchStep)
-            ) and (
-                not isinstance(self, Synchronization) or
-                not self.sync_frequency.is_constant(value=1)
-            ):
+            from tensorforce.core.optimizers import DoublecheckStep, NaturalGradient, \
+                Synchronization, UpdateModifier
+            optimizer = self
+            while isinstance(optimizer, UpdateModifier):
+                if isinstance(optimizer, DoublecheckStep):
+                    break
+                optimizer = optimizer.optimizer
+            if not isinstance(optimizer, DoublecheckStep) and (
+                not isinstance(optimizer, NaturalGradient) or not optimizer.only_positive_updates
+            ) and (not isinstance(self, Synchronization) or self.sync_frequency is None):
                 for delta, variable in zip(deltas, variables):
-                    if variable.shape.num_elements() <= 4:
-                        continue
-                    if '_distribution/mean/linear/weights' in variable.name:
+                    if '_distribution/mean/linear/' in variable.name:
                         # Gaussian.state_value does not use mean
                         continue
-                    assertions.append(tf.debugging.assert_equal(
-                        x=tf.math.reduce_any(
-                            input_tensor=tf.math.not_equal(x=delta, y=tf.zeros_like(input=delta))
-                        ), y=tf_util.constant(value=True, dtype='bool'), message=variable.name
+                    # if variable.name.endswith('/bias:0') and isinstance(self, Synchronization) \
+                    #         and self.root.updates.numpy() == 0:
+                    #     # Initialization values are equivalent for bias
+                    #     continue
+                    assertions.append(tf.debugging.assert_equal(x=tf.math.logical_or(
+                        x=tf.math.reduce_all(input_tensor=tf.math.greater(
+                            x=tf.math.count_nonzero(input=delta, dtype=tf_util.get_dtype(type='int')),
+                            y=tf_util.constant(value=0, dtype='int')
+                        )), y=tf.reduce_all(input_tensor=tf.math.equal(
+                            x=arguments['reward'], y=tf_util.constant(value=0.0, dtype='float')
+                        ))), y=tf_util.constant(value=True, dtype='bool'), message=variable.name
                     ))
 
         with tf.control_dependencies(control_inputs=assertions):
             dependencies = list()
 
-            if self.root.summary_labels == 'all' or 'update-norm' in self.root.summary_labels:
+            if self.root.summaries == 'all' or 'update-norm' in self.root.summaries:
                 with self.root.summarizer.as_default():
                     x = tf.linalg.global_norm(
                         t_list=[tf_util.cast(x=delta, dtype='float') for delta in deltas]
@@ -115,7 +121,7 @@ class Optimizer(Module):
                         tf.summary.scalar(name='update-norm', data=x, step=self.root.updates)
                     )
 
-            if self.root.summary_labels == 'all' or 'updates' in self.root.summary_labels:
+            if self.root.summaries == 'all' or 'updates' in self.root.summaries:
                 with self.root.summarizer.as_default():
                     for var in variables:
                         assert var.name.startswith(self.root.name + '/') and var.name[-2:] == ':0'

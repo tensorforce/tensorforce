@@ -34,8 +34,10 @@ class TestObjectives(UnittestBase, unittest.TestCase):
         ))
         objective = 'deterministic_policy_gradient'
         reward_estimation = dict(
-            horizon=3, predict_action_values=True,
-            return_processing=dict(type='clipping', lower=-1.0, upper=1.0)
+            horizon=3, estimate_advantage=True, predict_horizon_values='late',
+            predict_action_values=True,
+            return_processing=dict(type='clipping', lower=-1.0, upper=1.0),
+            advantage_processing='batch_normalization'
         )
         baseline = dict(network=dict(type='auto', size=7, depth=1, rnn=False))
         baseline_objective = 'action_value'

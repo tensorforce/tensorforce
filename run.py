@@ -35,6 +35,15 @@ def main():
         '-a', '--agent', type=str, default=None,
         help='Agent (name, configuration JSON file, or library module)'
     )
+    parser.add_argument(
+        '-c', '--checkpoints', type=str, default=None, help='TensorFlow checkpoints directory'
+    )
+    parser.add_argument(
+        '-s', '--summaries', type=str, default=None, help='TensorBoard summaries directory'
+    )
+    parser.add_argument(
+        '--recordings', type=str, default=None, help='Traces recordings directory'
+    )
     # Environment arguments
     parser.add_argument(
         '-e', '--environment', type=str, default=None,
@@ -167,9 +176,19 @@ def main():
         return
 
     if args.agent is None:
+        assert args.saver is None and args.summarizer is None and args.recorder is None
         agent = None
     else:
         agent = dict(agent=args.agent)
+        if args.checkpoints is not None:
+            assert 'saver' not in agent
+            agent['saver'] = args.checkpoints
+        if args.summaries is not None:
+            assert 'summarizer' not in agent
+            agent['summarizer'] = args.summaries
+        if args.recordings is not None:
+            assert 'recorder' not in agent
+            agent['recorder'] = args.recordings
 
     for _ in range(args.repeat):
         runner = Runner(

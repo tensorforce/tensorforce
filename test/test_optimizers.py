@@ -25,12 +25,14 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
 
         self.unittest(optimizer=dict(type='evolutionary', learning_rate=1e-3))
 
+        self.unittest(optimizer=dict(type='evolutionary', learning_rate=1e-3, num_samples=5))
+
     def test_optimizer_wrapper(self):
         self.start_tests(name='optimizer-wrapper')
 
         self.unittest(optimizer=dict(
-            optimizer='adam', learning_rate=1e-3, clipping_threshold=1e-2, multi_step=5,
-            linesearch_iterations=3, subsampling_fraction=0.5
+            optimizer='adam', learning_rate=1e-1, clipping_threshold=1e-2, multi_step=5,
+            subsampling_fraction=0.5, linesearch_iterations=3, doublecheck_update=True
         ))
 
         self.unittest(optimizer=dict(optimizer='adam', subsampling_fraction=2))
@@ -60,20 +62,31 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
             gaussian_action1=dict(type='float', shape=(1, 2), min_value=1.0, max_value=2.0),
             gaussian_action2=dict(type='float', shape=(), min_value=-2.0, max_value=1.0)
         )
-        baseline = dict(network=dict(type='auto', size=8, depth=1, rnn=1), distributions=dict(
-            gaussian_action2=dict(type='gaussian', global_stddev=True)
-        ))
+        # Requires same size, but can still vary RNN horizon
+        baseline = dict(
+            type='parametrized_distributions', network=dict(type='auto', size=8, depth=1, rnn=1),
+            distributions=dict(gaussian_action2=dict(type='gaussian', global_stddev=True))
+        )
+        # Using policy_gradient here, since action_value is covered by DQN
+        baseline_objective = 'policy_gradient'
         self.unittest(
-            # Requires same size, but can still vary RNN horizon
-            actions=actions, baseline=baseline, baseline_optimizer='synchronization',
-            # Using policy_gradient here, since action_value is covered by DQN
-            baseline_objective='policy_gradient'
+            actions=actions, baseline=baseline,
+            baseline_optimizer=dict(type='synchronization', update_weight=1.0),
+            baseline_objective=baseline_objective
+        )
+
+        self.unittest(
+            actions=actions, baseline=baseline,
+            baseline_optimizer=dict(type='synchronization', update_weight=1.0, sync_frequency=2),
+            baseline_objective=baseline_objective
         )
 
     def test_tf_optimizer(self):
         self.start_tests(name='tf-optimizer')
 
         self.unittest(optimizer=dict(type='adam', learning_rate=1e-3))
+
+        self.unittest(optimizer=dict(type='adam', learning_rate=1e-3, gradient_norm_clipping=1.0))
 
         try:
             import tensorflow_addons as tfa

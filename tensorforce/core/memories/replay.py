@@ -41,7 +41,7 @@ class Replay(Queue):
         # Check whether memory contains at least one valid timestep
         num_timesteps = tf.math.minimum(x=self.buffer_index, y=capacity)
         num_timesteps -= (past_horizon + future_horizon)
-        num_timesteps = tf.maximum(x=num_timesteps, y=self.episode_count)
+        num_timesteps = tf.math.maximum(x=num_timesteps, y=self.episode_count)
 
         # Check whether memory contains at least one timestep
         assertions = list()
@@ -50,6 +50,7 @@ class Replay(Queue):
 
         # Randomly sampled timestep indices
         with tf.control_dependencies(control_inputs=assertions):
+            n = tf.math.minimum(x=n, y=num_timesteps)
             indices = tf.random.uniform(
                 shape=(n,), maxval=num_timesteps, dtype=tf_util.get_dtype(type='int')
             )
@@ -72,9 +73,11 @@ class Replay(Queue):
 
         # Get start and limit indices for randomly sampled n episodes
         with tf.control_dependencies(control_inputs=assertions):
+            n = tf.math.minimum(x=n, y=self.episode_count)
             random_indices = tf.random.uniform(
                 shape=(n,), maxval=self.episode_count, dtype=tf_util.get_dtype(type='int')
             )
+
             # (Increment terminal of previous episode)
             starts = tf.gather(params=self.terminal_indices, indices=random_indices) + one
             limits = tf.gather(params=self.terminal_indices, indices=(random_indices + one)) + one

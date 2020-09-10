@@ -59,9 +59,9 @@ class TFOptimizer(Optimizer):
             and `TensorFlow Addons docs
             <https://www.tensorflow.org/addons/api_docs/python/tfa/optimizers>`__
             (<span style="color:#C00000"><b>required</b></span> unless given by specification key).
-        learning_rate (parameter, float >= 0.0): Learning rate
-            (<span style="color:#00C000"><b>default</b></span>: 1e-3).
-        gradient_norm_clipping (parameter, float >= 0.0): Clip gradients by the ratio of the sum
+        learning_rate (parameter, float > 0.0): Learning rate
+            (<span style="color:#C00000"><b>required</b></span>).
+        gradient_norm_clipping (parameter, float > 0.0): Clip gradients by the ratio of the sum
             of their norms (<span style="color:#00C000"><b>default</b></span>: 1.0).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
         arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
@@ -73,21 +73,27 @@ class TFOptimizer(Optimizer):
     """
 
     def __init__(
-        self, *, optimizer, learning_rate=1e-3, gradient_norm_clipping=1.0, name=None,
+        self, *, optimizer, learning_rate, gradient_norm_clipping=None, name=None,
         arguments_spec=None, **kwargs
     ):
         super().__init__(name=name, arguments_spec=arguments_spec)
 
         assert optimizer in tensorflow_optimizers
         self.tf_optimizer = tensorflow_optimizers[optimizer]
+
         self.learning_rate = self.submodule(
             name='learning_rate', module=learning_rate, modules=parameter_modules, dtype='float',
             min_value=0.0
         )
-        self.gradient_norm_clipping = self.submodule(
-            name='gradient_norm_clipping', module=gradient_norm_clipping,
-            modules=parameter_modules, dtype='float', min_value=0.0
-        )
+
+        if gradient_norm_clipping is None:
+            self.gradient_norm_clipping = None
+        else:
+            self.gradient_norm_clipping = self.submodule(
+                name='gradient_norm_clipping', module=gradient_norm_clipping,
+                modules=parameter_modules, dtype='float', min_value=0.0
+            )
+
         self.optimizer_kwargs = kwargs
 
         def compose(function1, function2):
@@ -167,14 +173,19 @@ class TFOptimizer(Optimizer):
             assert len(gradients) > 0
 
         with tf.control_dependencies(control_inputs=assertions):
-            clip_norm = self.gradient_norm_clipping.value()
-            gradients, grads_norm = tf.clip_by_global_norm(
-                t_list=[tf_util.cast(x=g, dtype='float') for g in gradients], clip_norm=clip_norm
-            )
 
-            dependencies = self.summary(
-                label='update-norm', name='unclipped-gradient-norm', data=grads_norm, step='updates'
-            )
+            dependencies = list()
+            if self.gradient_norm_clipping is not None:
+                clip_norm = self.gradient_norm_clipping.value()
+                gradients, grads_norm = tf.clip_by_global_norm(
+                    t_list=[tf_util.cast(x=g, dtype='float') for g in gradients],
+                    clip_norm=clip_norm
+                )
+                dependencies.extend(self.summary(
+                    label='update-norm', name='unclipped-gradient-norm', data=grads_norm,
+                    step='updates'
+                ))
+                grads_and_vars = [(grad, var) for grad, (_, var) in zip(gradients, grads_and_vars)]
 
             applied = self.tf_optimizer.apply_gradients(grads_and_vars=grads_and_vars)
             dependencies.append(applied)

@@ -29,55 +29,6 @@ class Recorder(object):
     Args:
         fn_act (lambda[states -> actions]): Act-function mapping states to actions which is supposed
             to be recorded.
-        states (specification): States specification
-            (<span style="color:#C00000"><b>required</b></span>, better implicitly specified via
-            `environment` argument for `Agent.create()`), arbitrarily nested dictionary of state
-            descriptions (usually taken from `Environment.states()`) with the following attributes:
-            <ul>
-            <li><b>type</b> (<i>"bool" | "int" | "float"</i>) &ndash; state data type
-            (<span style="color:#00C000"><b>default</b></span>: "float").</li>
-            <li><b>shape</b> (<i>int | iter[int]</i>) &ndash; state shape
-            (<span style="color:#C00000"><b>required</b></span>).</li>
-            <li><b>num_values</b> (<i>int > 0</i>) &ndash; number of discrete state values
-            (<span style="color:#C00000"><b>required</b></span> for type "int").</li>
-            <li><b>min_value/max_value</b> (<i>float</i>) &ndash; minimum/maximum state value
-            (<span style="color:#00C000"><b>optional</b></span> for type "float").</li>
-            </ul>
-        actions (specification): Actions specification
-            (<span style="color:#C00000"><b>required</b></span>, better implicitly specified via
-            `environment` argument for `Agent.create()`), arbitrarily nested dictionary of
-            action descriptions (usually taken from `Environment.actions()`) with the following
-            attributes:
-            <ul>
-            <li><b>type</b> (<i>"bool" | "int" | "float"</i>) &ndash; action data type
-            (<span style="color:#C00000"><b>required</b></span>).</li>
-            <li><b>shape</b> (<i>int > 0 | iter[int > 0]</i>) &ndash; action shape
-            (<span style="color:#00C000"><b>default</b></span>: scalar).</li>
-            <li><b>num_values</b> (<i>int > 0</i>) &ndash; number of discrete action values
-            (<span style="color:#C00000"><b>required</b></span> for type "int").</li>
-            <li><b>min_value/max_value</b> (<i>float</i>) &ndash; minimum/maximum action value
-            (<span style="color:#00C000"><b>optional</b></span> for type "float").</li>
-            </ul>
-        max_episode_timesteps (int > 0): Upper bound for numer of timesteps per episode
-            (<span style="color:#00C000"><b>default</b></span>: not given, better implicitly
-            specified via `environment` argument for `Agent.create()`).
-        parallel_interactions (int > 0): Maximum number of parallel interactions to support,
-            for instance, to enable multiple parallel episodes, environments or agents within an
-            environment
-            (<span style="color:#00C000"><b>default</b></span>: 1).
-        recorder (specification): Experience traces recorder configuration (see
-            [record-and-pretrain script](https://github.com/tensorforce/tensorforce/blob/master/examples/record_and_pretrain.py)
-            for illustrative example), with the following attributes
-            (<span style="color:#00C000"><b>default</b></span>: no recorder):
-            <ul>
-            <li><b>directory</b> (<i>path</i>) &ndash; recorder directory
-            (<span style="color:#C00000"><b>required</b></span>).</li>
-            <li><b>frequency</b> (<i>int > 0</i>) &ndash; how frequently in episodes to record
-            traces (<span style="color:#00C000"><b>default</b></span>: every episode).</li>
-            <li><b>start</b> (<i>int >= 0</i>) &ndash; how many episodes to skip before starting to
-            record traces (<span style="color:#00C000"><b>default</b></span>: 0).</li>
-            <li><b>max-traces</b> (<i>int > 0</i>) &ndash; maximum number of traces to keep
-            (<span style="color:#00C000"><b>default</b></span>: all).</li>
     """
 
     def __init__(
@@ -128,6 +79,8 @@ class Recorder(object):
         self.parallel_spec = TensorSpec(type=int, shape=(), num_values=self.parallel_interactions)
 
         # Recorder
+        if isinstance(recorder, str):
+            recorder = dict(directory=recorder)
         if recorder is None:
             pass
         elif not all(key in ('directory', 'frequency', 'max-traces', 'start') for key in recorder):
@@ -135,7 +88,7 @@ class Recorder(object):
                 name='Agent', argument='recorder values', value=list(recorder),
                 hint='not from {directory,frequency,max-traces,start}'
             )
-        self.recorder_spec = recorder if recorder is None else dict(recorder)
+        self.recorder = recorder if recorder is None else dict(recorder)
 
     def initialize(self):
         # Check whether already initialized
@@ -154,7 +107,7 @@ class Recorder(object):
         )
 
         # Recorder buffers if required
-        if self.recorder_spec is not None:
+        if self.recorder is not None:
             self.num_episodes = 0
 
             self.buffers = ListDict()
@@ -184,11 +137,11 @@ class Recorder(object):
         self.timestep_completed[:] = True
 
         # Reset buffers
-        if self.recorder_spec is not None:
+        if self.recorder is not None:
             for buffer in self.buffers.values():
                 for x in buffer:
                     x.clear()
-            if self.recorder_spec is not None:
+            if self.recorder is not None:
                 for x in self.recorded.values():
                     x.clear()
 
@@ -300,8 +253,8 @@ class Recorder(object):
             self.timestep_completed[parallel] = False
 
         # Buffer inputs for recording
-        if self.recorder_spec is not None and not independent and \
-                self.num_episodes >= self.recorder_spec.get('start', 0):
+        if self.recorder is not None and not independent and \
+                self.num_episodes >= self.recorder.get('start', 0):
             for n in range(num_parallel):
                 for name in self.states_spec:
                     self.buffers['states'][name][parallel[n]].append(states[name][n])
@@ -326,8 +279,8 @@ class Recorder(object):
                     actions = actions.fmap(function=(lambda x: np.asarray([x])))
 
         # Buffer outputs for recording
-        if self.recorder_spec is not None and not independent and \
-                self.num_episodes >= self.recorder_spec.get('start', 0):
+        if self.recorder is not None and not independent and \
+                self.num_episodes >= self.recorder.get('start', 0):
             for n in range(num_parallel):
                 for name in self.actions_spec:
                     self.buffers['actions'][name][parallel[n]].append(actions[name][n])
@@ -449,10 +402,10 @@ class Recorder(object):
             raise TensorforceError(message="Episode longer than max_episode_timesteps.")
         self.timestep_counter[parallel] = np.where(terminal > 0, 0, self.timestep_counter[parallel])
 
-        if self.recorder_spec is None:
+        if self.recorder is None:
             pass
 
-        elif self.num_episodes < self.recorder_spec.get('start', 0):
+        elif self.num_episodes < self.recorder.get('start', 0):
             # Increment num_episodes
             for t in terminal.tolist():
                 if t > 0:
@@ -492,12 +445,12 @@ class Recorder(object):
                 self.buffers['reward'][p].clear()
 
                 # Check whether recording step
-                if (self.num_episodes - self.recorder_spec.get('start', 0)) \
-                        % self.recorder_spec.get('frequency', 1) != 0:
+                if (self.num_episodes - self.recorder.get('start', 0)) \
+                        % self.recorder.get('frequency', 1) != 0:
                     continue
 
                 # Manage recorder directory
-                directory = self.recorder_spec['directory']
+                directory = self.recorder['directory']
                 if os.path.isdir(directory):
                     files = sorted(
                         f for f in os.listdir(directory)
@@ -507,7 +460,7 @@ class Recorder(object):
                 else:
                     os.makedirs(directory)
                     files = list()
-                max_traces = self.recorder_spec.get('max-traces')
+                max_traces = self.recorder.get('max-traces')
                 if max_traces is not None and len(files) > max_traces - 1:
                     for filename in files[:-max_traces + 1]:
                         filename = os.path.join(directory, filename)

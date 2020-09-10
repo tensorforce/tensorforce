@@ -115,6 +115,7 @@ For instance, the [generic Tensorforce agent](../agents/tensorforce.html) can be
 ```python
 agent = Agent.create(
     agent='tensorforce', environment=environment, update=64,
+    optimizer=dict(optimizer='adam', learning_rate=1e-3),
     objective='policy_gradient', reward_estimation=dict(horizon=20)
 )
 ```
@@ -133,6 +134,10 @@ Alternatively, an agent can be specified as a config file:
 {
     "agent": "tensorforce",
     "update": 64,
+    "optimizer": {
+        "optimizer": "adam",
+        "learning_rate": 1e-3
+    },
     "objective": "policy_gradient",
     "reward_estimation": {
         "horizon": 20

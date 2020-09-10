@@ -27,7 +27,7 @@ class ClippingStep(UpdateModifier):
     Args:
         optimizer (specification): Optimizer configuration
             (<span style="color:#C00000"><b>required</b></span>).
-        threshold (parameter, float >= 0.0): Clipping threshold
+        threshold (parameter, float > 0.0): Clipping threshold
             (<span style="color:#C00000"><b>required</b></span>).
         mode ('global_norm' | 'norm' | 'value'): Clipping mode
             (<span style="color:#00C000"><b>default</b></span>: 'global_norm').

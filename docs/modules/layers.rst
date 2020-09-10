@@ -84,6 +84,8 @@ Normalization layers
 
 .. autoclass:: tensorforce.core.layers.InstanceNormalization
 
+.. autoclass:: tensorforce.core.layers.BatchNormalization
+
 
 Misc layers
 -----------

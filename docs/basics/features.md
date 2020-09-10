@@ -95,6 +95,8 @@ agent.close()
 agent = Agent.load(directory='data/checkpoints')
 ```
 
+See also the [save-load example](https://github.com/tensorforce/tensorforce/blob/master/examples/save_load_agent.py).
+
 
 ##### NumPy / HDF5 (only weights)
 
@@ -107,10 +109,12 @@ agent.save(directory='data/checkpoints', format='numpy', append='episodes')
 agent = Agent.load(directory='data/checkpoints', format='numpy')
 ```
 
+See also the [save-load example](https://github.com/tensorforce/tensorforce/blob/master/examples/save_load_agent.py).
+
 
 ##### SavedModel export
 
-See the [SavedModel example](https://github.com/tensorforce/tensorforce/blob/master/examples/saved_model.py) for details on how to use this feature.
+See the [SavedModel example](https://github.com/tensorforce/tensorforce/blob/master/examples/export_saved_model.py) for details on how to use this feature.
 
 
 

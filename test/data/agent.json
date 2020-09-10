@@ -1,6 +1,10 @@
 {
     "agent": "tensorforce",
     "update": 4,
+    "optimizer": {
+        "optimizer": "adam",
+        "learning_rate": 1e-3
+    },
     "objective": "policy_gradient",
     "reward_estimation": {
         "horizon": 2

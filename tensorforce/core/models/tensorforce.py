@@ -118,6 +118,8 @@ class TensorforceModel(Model):
                 )
 
         # Action exploration
+        if exploration is None:
+            exploration = 0.0
         if isinstance(exploration, dict) and all(name in self.actions_spec for name in exploration):
             # Different exploration per action
             self.exploration = ModuleDict()
@@ -148,6 +150,8 @@ class TensorforceModel(Model):
             )
 
         # Variable noise
+        if variable_noise is None:
+            variable_noise = 0.0
         self.variable_noise = self.submodule(
             name='variable_noise', module=variable_noise, modules=parameter_modules,
             is_trainable=False, dtype='float', min_value=0.0
@@ -167,8 +171,10 @@ class TensorforceModel(Model):
             )
 
         # Reward estimation
-        self.predict_horizon_values = reward_estimation.get('predict_horizon_values', 'late')
         self.estimate_advantage = reward_estimation.get('estimate_advantage', False)
+        self.predict_horizon_values = reward_estimation.get('predict_horizon_values')
+        if self.predict_horizon_values is None:
+            self.predict_horizon_values = 'late'
         self.predict_action_values = reward_estimation.get('predict_action_values', False)
         self.predict_terminal_values = reward_estimation.get('predict_terminal_values', False)
 
@@ -183,13 +189,17 @@ class TensorforceModel(Model):
             )
 
         # Discount
+        discount = reward_estimation.get('discount')
+        if discount is None:
+            discount = 1.0
         self.reward_discount = self.submodule(
-            name='reward_discount', module=reward_estimation.get('discount', 1.0),
-            modules=parameter_modules, dtype='float', min_value=0.0, max_value=1.0
+            name='reward_discount', module=discount, modules=parameter_modules, dtype='float',
+            min_value=0.0, max_value=1.0
         )
 
         # Entropy regularization
-        entropy_regularization = 0.0 if entropy_regularization is None else entropy_regularization
+        if entropy_regularization is None:
+            entropy_regularization = 0.0
         self.entropy_regularization = self.submodule(
             name='entropy_regularization', module=entropy_regularization,
             modules=parameter_modules, is_trainable=False, dtype='float', min_value=0.0
@@ -221,14 +231,20 @@ class TensorforceModel(Model):
         if 'frequency' in update and update['frequency'] == 'never':
             self.update_frequency = None
         else:
+            frequency = update.get('frequency')
+            if frequency is None:
+                frequency = update['batch_size']
             self.update_frequency = self.submodule(
-                name='update_frequency', module=update.get('frequency', update['batch_size']),
-                modules=parameter_modules, is_trainable=False, dtype='int', min_value=1,
+                name='update_frequency', module=frequency, modules=parameter_modules,
+                is_trainable=False, dtype='int', min_value=1,
                 max_value=max(2, self.update_batch_size.max_value())
             )
+            start = update.get('start')
+            if start is None:
+                start = 0
             self.update_start = self.submodule(
-                name='update_start', module=update.get('start', 0), modules=parameter_modules,
-                is_trainable=False, dtype='int', min_value=0
+                name='update_start', module=start, modules=parameter_modules, is_trainable=False,
+                dtype='int', min_value=0
             )
 
         # Baseline optimization overview:
@@ -269,10 +285,13 @@ class TensorforceModel(Model):
             baseline_is_trainable = False
 
         # Return processing
-        if 'return_processing' in reward_estimation:
+        return_processing = reward_estimation.get('return_processing')
+        if return_processing is None:
+            self.return_processing = None
+        else:
             self.return_processing = self.submodule(
                 name='return_processing', module=Preprocessor, is_trainable=False,
-                input_spec=self.reward_spec, layers=reward_estimation['return_processing'],
+                input_spec=self.reward_spec, layers=return_processing,
                 is_preprocessing_layer_valid=False
             )
             if self.return_processing.output_spec() != self.reward_spec:
@@ -280,11 +299,12 @@ class TensorforceModel(Model):
                     name='reward_estimation[return_processing]', argument='output spec',
                     value1=self.return_processing.output_spec(), value2=self.reward_spec
                 )
-        else:
-            self.return_processing = None
 
         # Advantage processing
-        if 'advantage_processing' in reward_estimation:
+        advantage_processing = reward_estimation.get('advantage_processing')
+        if advantage_processing is None:
+            self.advantage_processing = None
+        else:
             if not self.estimate_advantage:
                 raise TensorforceError.invalid(
                     name='agent', argument='reward_estimation[advantage_processing]',
@@ -292,7 +312,7 @@ class TensorforceModel(Model):
                 )
             self.advantage_processing = self.submodule(
                 name='advantage_processing', module=Preprocessor, is_trainable=False,
-                input_spec=self.reward_spec, layers=reward_estimation['advantage_processing'],
+                input_spec=self.reward_spec, layers=advantage_processing,
                 is_preprocessing_layer_valid=False
             )
             if self.advantage_processing.output_spec() != self.reward_spec:
@@ -300,8 +320,6 @@ class TensorforceModel(Model):
                     name='reward_estimation[advantage_processing]', argument='output spec',
                     value1=self.advantage_processing.output_spec(), value2=self.reward_spec
                 )
-        else:
-            self.advantage_processing = None
 
         # Objectives
         self.objective = self.submodule(
@@ -503,7 +521,7 @@ class TensorforceModel(Model):
         super().initialize()
 
         # Initial variables summaries
-        if self.summary_labels == 'all' or 'variables' in self.summary_labels:
+        if self.summaries == 'all' or 'variables' in self.summaries:
             with self.summarizer.as_default():
                 for variable in self.trainable_variables:
                     name = variable.name
@@ -610,7 +628,7 @@ class TensorforceModel(Model):
     def initialize_api(self):
         super().initialize_api()
 
-        if self.summary_labels == 'all' or 'graph' in self.summary_labels:
+        if 'graph' in self.summaries:
             tf.summary.trace_on(graph=True, profiler=False)
         self.experience(
             states=self.states_spec.empty(batched=True),
@@ -620,7 +638,7 @@ class TensorforceModel(Model):
             terminal=self.terminal_spec.empty(batched=True),
             reward=self.reward_spec.empty(batched=True)
         )
-        if self.summary_labels == 'all' or 'graph' in self.summary_labels:
+        if 'graph' in self.summaries:
             tf.summary.trace_export(name='experience', step=self.timesteps, profiler_outdir=None)
         # TODO: Not possible as it tries to retrieve experiences from memory
         # self.update()
@@ -1021,7 +1039,7 @@ class TensorforceModel(Model):
                 # Per-action exploration
                 if isinstance(self.exploration, dict):
                     if name not in self.exploration:
-                        exploration = None
+                        continue
                     elif not independent and not self.exploration[name].is_constant(value=0.0):
                         exploration = self.exploration.value()
                     elif independent and self.exploration[name].final_value() != 0.0:
@@ -1162,8 +1180,12 @@ class TensorforceModel(Model):
                 dependencies.append(self.buffer_index.scatter_add(sparse_delta=sparse_delta))
 
         with tf.control_dependencies(control_inputs=dependencies):
-            actions = actions.fmap(function=tf_util.identity)
-            next_internals = next_internals.fmap(function=tf_util.identity)
+            actions = actions.fmap(
+                function=(lambda name, x: tf_util.identity(input=x, name=name)), with_names=True
+            )
+            next_internals = next_internals.fmap(
+                function=(lambda name, x: tf_util.identity(input=x, name=name)), with_names=True
+            )
             return actions, next_internals
 
     @tf_function(num_args=3)
@@ -1202,7 +1224,7 @@ class TensorforceModel(Model):
             reward = self.reward_preprocessing.apply(x=reward, deterministic=true, independent=False)
 
             # Preprocessed reward summary
-            if self.summary_labels == 'all' or 'reward' in self.summary_labels:
+            if self.summaries == 'all' or 'reward' in self.summaries:
                 with self.summarizer.as_default():
                     x = tf.math.reduce_mean(input_tensor=reward, axis=0)
                     dependencies.append(
@@ -1455,7 +1477,7 @@ class TensorforceModel(Model):
                 # Preprocessed episode reward summaries (before preprocessed episode reward reset)
                 dependencies = list()
                 if self.reward_preprocessing is not None:
-                    if self.summary_labels == 'all' or 'reward' in self.summary_labels:
+                    if self.summaries == 'all' or 'reward' in self.summaries:
                         with self.summarizer.as_default():
                             x = tf.gather(params=self.preprocessed_episode_reward, indices=parallel)
                             dependencies.append(tf.summary.scalar(
@@ -1997,7 +2019,7 @@ class TensorforceModel(Model):
             reward += discounts * horizon_values
 
         dependencies = [reward]
-        if self.summary_labels == 'all' or 'reward' in self.summary_labels:
+        if self.summaries == 'all' or 'reward' in self.summaries:
             with self.summarizer.as_default():
                 x = tf.math.reduce_mean(input_tensor=reward, axis=0)
                 dependencies.append(tf.summary.scalar(
@@ -2011,7 +2033,7 @@ class TensorforceModel(Model):
                 )
 
                 dependencies = [reward]
-                if self.summary_labels == 'all' or 'reward' in self.summary_labels:
+                if self.summaries == 'all' or 'reward' in self.summaries:
                     with self.summarizer.as_default():
                         x = tf.math.reduce_mean(input_tensor=reward, axis=0)
                         dependencies.append(tf.summary.scalar(
@@ -2078,7 +2100,7 @@ class TensorforceModel(Model):
                 reward = reward - baseline_prediction
 
                 dependencies = [reward]
-                if self.summary_labels == 'all' or 'reward' in self.summary_labels:
+                if self.summaries == 'all' or 'reward' in self.summaries:
                     with self.summarizer.as_default():
                         x = tf.math.reduce_mean(input_tensor=reward, axis=0)
                         dependencies.append(tf.summary.scalar(
@@ -2092,7 +2114,7 @@ class TensorforceModel(Model):
                         )
 
                         dependencies = [reward]
-                        if self.summary_labels == 'all' or 'reward' in self.summary_labels:
+                        if self.summaries == 'all' or 'reward' in self.summaries:
                             with self.summarizer.as_default():
                                 x = tf.math.reduce_mean(input_tensor=reward, axis=0)
                                 dependencies.append(tf.summary.scalar(
@@ -2205,7 +2227,7 @@ class TensorforceModel(Model):
 
         # Hack: KL divergence summary: reference before update
         if isinstance(self.policy, StochasticPolicy) and (
-            self.summary_labels == 'all' or 'kl-divergence' in self.summary_labels
+            self.summaries == 'all' or 'kl-divergence' in self.summaries
         ):
             kldiv_reference = self.policy.kldiv_reference(
                 states=policy_states, horizons=policy_horizons, internals=policy_internals,
@@ -2226,7 +2248,7 @@ class TensorforceModel(Model):
 
             # Entropy summaries
             if isinstance(self.policy, StochasticPolicy) and (
-                self.summary_labels == 'all' or 'entropy' in self.summary_labels
+                self.summaries == 'all' or 'entropy' in self.summaries
             ):
                 with self.summarizer.as_default():
                     if len(self.actions_spec) > 1:
@@ -2253,7 +2275,7 @@ class TensorforceModel(Model):
 
             # KL divergence summaries
             if isinstance(self.policy, StochasticPolicy) and (
-                self.summary_labels == 'all' or 'kl-divergence' in self.summary_labels
+                self.summaries == 'all' or 'kl-divergence' in self.summaries
             ):
                 with self.summarizer.as_default():
                     if len(self.actions_spec) > 1:
@@ -2288,7 +2310,7 @@ class TensorforceModel(Model):
             dependencies = list()
 
             # Variables summaries
-            if self.summary_labels == 'all' or 'variables' in self.summary_labels:
+            if self.summaries == 'all' or 'variables' in self.summaries:
                 with self.summarizer.as_default():
                     for variable in self.trainable_variables:
                         name = variable.name

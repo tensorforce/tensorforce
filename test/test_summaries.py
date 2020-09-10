@@ -41,7 +41,7 @@ class TestSummaries(UnittestBase, unittest.TestCase):
                     horizon=horizon, return_processing=dict(type='clipping', lower=-1.0, upper=1.0)
                 ), exploration=exploration,
                 config=dict(eager_mode=False, create_debug_assertions=True, tf_log_level=20),
-                summarizer=dict(directory=directory, labels='all')
+                summarizer=dict(directory=directory, summaries='all')
             )
 
             updates = 0

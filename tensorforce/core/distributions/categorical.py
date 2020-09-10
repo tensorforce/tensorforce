@@ -213,6 +213,7 @@ class Categorical(Distribution):
         rank = self.action_spec.rank + 1
         action = tf.expand_dims(input=action, axis=rank)
         action_value = tf.gather(params=action_values, indices=action, batch_dims=rank)
+
         return tf.squeeze(input=action_value, axis=rank)
         # TODO: state_value + tf.squeeze(input=logits, axis=-1)
 

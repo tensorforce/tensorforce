@@ -124,9 +124,10 @@ class TestLayers(UnittestBase, unittest.TestCase):
         states = dict(type='float', shape=(3,), min_value=1.0, max_value=2.0)
         network = [
             dict(type='linear_normalization'),
-            dict(type='exponential_normalization'),
+            dict(type='exponential_normalization', decay=0.99),
             dict(type='instance_normalization')
         ]
+        # 'batch_normalization' used by all tests
         self.unittest(states=states, policy=network)
 
     def test_pooling(self):

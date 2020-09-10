@@ -91,12 +91,12 @@ class DeepQNetwork(TensorforceAgent):
         predict_terminal_values (bool): Whether to predict the value of terminal states
             (<span style="color:#00C000"><b>default</b></span>: false).
 
-        target_sync_frequency (<a href="../modules/parameters.html">parameter</a>, int > 0):
-            Interval between target network updates
-            (<span style="color:#00C000"><b>default</b></span>: every update).
         target_update_weight (<a href="../modules/parameters.html">parameter</a>, 0.0 < float <= 1.0):
             Target network update weight
             (<span style="color:#00C000"><b>default</b></span>: 1.0).
+        target_sync_frequency (<a href="../modules/parameters.html">parameter</a>, int >= 1):
+            Interval between target network updates
+            (<span style="color:#00C000"><b>default</b></span>: every update).
 
         l2_regularization (<a href="../modules/parameters.html">parameter</a>, float >= 0.0):
             L2 regularization loss weight
@@ -135,11 +135,11 @@ class DeepQNetwork(TensorforceAgent):
         # Network
         network='auto',
         # Optimization
-        update_frequency='batch_size', start_updating=None, learning_rate=1e-3, huber_loss=0.0,
+        update_frequency='batch_size', start_updating=None, learning_rate=1e-3, huber_loss=None,
         # Reward estimation
         horizon=1, discount=0.99, predict_terminal_values=False,
         # Target network
-        target_sync_frequency=1, target_update_weight=1.0,
+        target_update_weight=1.0, target_sync_frequency=1,
         # Preprocessing
         state_preprocessing='linear_normalization', reward_preprocessing=None,
         # Exploration
@@ -166,7 +166,7 @@ class DeepQNetwork(TensorforceAgent):
             update_frequency=update_frequency, start_updating=start_updating,
             learning_rate=learning_rate, huber_loss=huber_loss,
             horizon=horizon, discount=discount, predict_terminal_values=predict_terminal_values,
-            target_sync_frequency=target_sync_frequency, target_update_weight=target_update_weight,
+            target_update_weight=target_update_weight, target_sync_frequency=target_sync_frequency,
             state_preprocessing=state_preprocessing, reward_preprocessing=reward_preprocessing,
             exploration=exploration, variable_noise=variable_noise,
             l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
@@ -197,8 +197,8 @@ class DeepQNetwork(TensorforceAgent):
 
         baseline = policy
         baseline_optimizer = dict(
-            type='synchronization', sync_frequency=target_sync_frequency,
-            update_weight=target_update_weight
+            type='synchronization', update_weight=target_update_weight,
+            sync_frequency=target_sync_frequency
         )
         baseline_objective = None
 

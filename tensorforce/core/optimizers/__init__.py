@@ -21,6 +21,7 @@ from tensorforce.core.optimizers.update_modifier import UpdateModifier
 
 from tensorforce.core.optimizers.clipping_step import ClippingStep
 from tensorforce.core.optimizers.evolutionary import Evolutionary
+from tensorforce.core.optimizers.doublecheck_step import DoublecheckStep
 from tensorforce.core.optimizers.global_optimizer import GlobalOptimizer
 from tensorforce.core.optimizers.linesearch_step import LinesearchStep
 from tensorforce.core.optimizers.multi_step import MultiStep
@@ -34,10 +35,11 @@ from tensorforce.core.optimizers.optimizer_wrapper import OptimizerWrapper
 
 
 optimizer_modules = dict(
-    clipping_step=ClippingStep, default=OptimizerWrapper, evolutionary=Evolutionary,
-    global_optimizer=GlobalOptimizer, linesearch_step=LinesearchStep, multi_step=MultiStep,
-    natural_gradient=NaturalGradient, optimizer_wrapper=OptimizerWrapper, plus=Plus,
-    subsampling_step=SubsamplingStep, synchronization=Synchronization, tf_optimizer=TFOptimizer
+    clipping_step=ClippingStep, default=OptimizerWrapper, doublecheck_step=DoublecheckStep,
+    evolutionary=Evolutionary, global_optimizer=GlobalOptimizer, linesearch_step=LinesearchStep,
+    multi_step=MultiStep, natural_gradient=NaturalGradient, optimizer_wrapper=OptimizerWrapper,
+    plus=Plus, subsampling_step=SubsamplingStep, synchronization=Synchronization,
+    tf_optimizer=TFOptimizer
 )
 
 
@@ -47,7 +49,7 @@ for name, optimizer in tensorflow_optimizers.items():
 
 
 __all__ = [
-    'ClippingStep', 'Evolutionary', 'GlobalOptimizer', 'LinesearchStep', 'MultiStep',
-    'NaturalGradient', 'Optimizer', 'optimizer_modules', 'Plus', 'SubsamplingStep',
+    'ClippingStep', 'DoublecheckStep', 'Evolutionary', 'GlobalOptimizer', 'LinesearchStep',
+    'MultiStep', 'NaturalGradient', 'Optimizer', 'optimizer_modules', 'Plus', 'SubsamplingStep',
     'Synchronization', 'TFOptimizer', 'UpdateModifier', 'UpdateModifierWrapper'
 ]

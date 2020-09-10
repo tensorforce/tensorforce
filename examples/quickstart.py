@@ -43,10 +43,10 @@ def main():
         exploration=0.0, variable_noise=0.0,
         # Default additional config values
         config=None,
-        # Save model every 10 updates and keep the 5 most recent checkpoints
+        # Save agent every 10 updates and keep the 5 most recent checkpoints
         saver=dict(directory='model', frequency=10, max_checkpoints=5),
         # Log all available Tensorboard summaries
-        summarizer=dict(directory='summaries', labels='all'),
+        summarizer=dict(directory='summaries', summaries='all'),
         # Do not record agent-environment interaction trace
         recorder=None
     )
@@ -56,7 +56,7 @@ def main():
     # Initialize the runner
     runner = Runner(agent=agent, environment=environment, max_episode_timesteps=500)
 
-    # Start the runner
+    # Train for 200 episodes
     runner.run(num_episodes=200)
     runner.close()
 

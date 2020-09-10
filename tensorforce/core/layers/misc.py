@@ -180,17 +180,21 @@ class Dropout(NondeterministicLayer):
 
     @tf_function(num_args=2)
     def apply(self, *, x, deterministic):
-        rate = self.rate.value()
-
-        def no_dropout():
+        if self.rate.is_constant(value=0.0):
             return x
 
-        def apply_dropout():
-            return tf.nn.dropout(x=x, rate=rate)
+        else:
+            rate = self.rate.value()
 
-        zero = tf_util.constant(value=0.0, dtype='float')
-        skip_dropout = tf.math.logical_or(x=deterministic, y=tf.math.equal(x=rate, y=zero))
-        return tf.cond(pred=skip_dropout, true_fn=no_dropout, false_fn=apply_dropout)
+            def no_dropout():
+                return x
+
+            def apply_dropout():
+                return tf.nn.dropout(x=x, rate=rate)
+
+            zero = tf_util.constant(value=0.0, dtype='float')
+            skip_dropout = tf.math.logical_or(x=deterministic, y=tf.math.equal(x=rate, y=zero))
+            return tf.cond(pred=skip_dropout, true_fn=no_dropout, false_fn=apply_dropout)
 
 
 class Function(Layer):

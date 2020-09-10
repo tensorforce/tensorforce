@@ -406,6 +406,8 @@ class TemporalLayer(Layer):
                 condition='num internals > 0'
             )
 
+        if horizon is None:
+            horizon = 0
         self.horizon = self.submodule(
             name='horizon', module=horizon, modules=parameter_modules, is_trainable=False,
             dtype='int', min_value=0
@@ -530,41 +532,48 @@ class TemporalLayer(Layer):
         output_spec = self.output_spec()
 
         if self.temporal_processing == 'cumulative':
+            if self.horizon.is_constant(value=0):
+                x = self.iterative_apply(xs=x, lengths=ones)
 
-            def body(x, indices, remaining, xs):
-                current_x = tf.gather(params=x, indices=indices)
-                current_x = tf.expand_dims(input=current_x, axis=1)
-                xs = tf.concat(values=(xs, current_x), axis=1)
-                remaining -= tf.where(
-                    condition=tf.math.equal(x=remaining, y=zeros), x=zeros, y=ones
+            else:
+                def body(x, indices, remaining, xs):
+                    current_x = tf.gather(params=x, indices=indices)
+                    current_x = tf.expand_dims(input=current_x, axis=1)
+                    xs = tf.concat(values=(xs, current_x), axis=1)
+                    remaining -= tf.where(
+                        condition=tf.math.equal(x=remaining, y=zeros), x=zeros, y=ones
+                    )
+                    indices += tf.where(condition=tf.math.equal(x=remaining, y=zeros), x=zeros, y=ones)
+                    return x, indices, remaining, xs
+
+                initial_xs = tf_util.zeros(
+                    shape=((batch_size, 0) + output_spec.shape), dtype=output_spec.type
                 )
-                indices += tf.where(condition=tf.math.equal(x=remaining, y=zeros), x=zeros, y=ones)
-                return x, indices, remaining, xs
 
-            initial_xs = tf_util.zeros(
-                shape=((batch_size, 0) + output_spec.shape), dtype=output_spec.type
-            )
+                _, final_indices, final_remaining, xs = tf.while_loop(
+                    cond=tf_util.always_true, body=body, loop_vars=(x, starts, lengths, initial_xs),
+                    maximum_iterations=tf_util.int64(x=horizon)
+                )
 
-            _, final_indices, final_remaining, xs = tf.while_loop(
-                cond=tf_util.always_true, body=body, loop_vars=(x, starts, lengths, initial_xs),
-                maximum_iterations=tf_util.int64(x=horizon)
-            )
-
-            x = self.cumulative_apply(xs=xs, lengths=lengths)
+                x = self.cumulative_apply(xs=xs, lengths=lengths)
 
         elif self.temporal_processing == 'iterative':
-            initial_x = tf_util.zeros(
-                shape=((batch_size,) + output_spec.shape), dtype=output_spec.type
-            )
+            if self.horizon.is_constant(value=0):
+                x, final_internals = self.iterative_apply(x=x, internals=internals)
 
-            signature = self.input_signature(function='iterative_body')
-            internals = signature['current_internals'].kwargs_to_args(kwargs=internals)
-            _, final_indices, final_remaining, x, final_internals = tf.while_loop(
-                cond=tf_util.always_true, body=self.iterative_body,
-                loop_vars=(x, starts, lengths, initial_x, internals),
-                maximum_iterations=tf_util.int32(x=horizon)
-            )
-            internals = signature['current_internals'].args_to_kwargs(args=final_internals)
+            else:
+                initial_x = tf_util.zeros(
+                    shape=((batch_size,) + output_spec.shape), dtype=output_spec.type
+                )
+
+                signature = self.input_signature(function='iterative_body')
+                internals = signature['current_internals'].kwargs_to_args(kwargs=internals)
+                _, final_indices, final_remaining, x, final_internals = tf.while_loop(
+                    cond=tf_util.always_true, body=self.iterative_body,
+                    loop_vars=(x, starts, lengths, initial_x, internals),
+                    maximum_iterations=tf_util.int32(x=horizon)
+                )
+                internals = signature['current_internals'].args_to_kwargs(args=final_internals)
 
         assertions = list()
         if self.config.create_tf_assertions:

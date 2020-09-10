@@ -27,7 +27,7 @@ class MultiStep(UpdateModifier):
     Args:
         optimizer (specification): Optimizer configuration
             (<span style="color:#C00000"><b>required</b></span>).
-        num_steps (parameter, int >= 0): Number of optimization steps
+        num_steps (parameter, int >= 1): Number of optimization steps
             (<span style="color:#C00000"><b>required</b></span>).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
         arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
@@ -38,7 +38,7 @@ class MultiStep(UpdateModifier):
 
         self.num_steps = self.submodule(
             name='num_steps', module=num_steps, modules=parameter_modules, dtype='int',
-            min_value=0
+            min_value=1
         )
 
     @tf_function(num_args=1)

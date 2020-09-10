@@ -4,6 +4,57 @@ This file records all major updates and new features, starting from version 0.5.
 
 
 
+### Latest changes
+
+##### Agents:
+- Removed default value `"adam"` for Tensorforce agent argument `optimizer` (since default optimizer argument `learning_rate` removed, see below)
+- Removed option `"minimum"` for Tensorforce agent argument `memory`, use `None` instead
+- Changed default value for `dqn`/`double_dqn`/`dueling_dqn` agent argument `huber_loss` from `0.0` to `None`
+
+##### Layers:
+- Removed default value `0.999` for `exponential_normalization` layer argument `decay`
+- Added new layer `batch_normalization` (generally should only be used for the agent arguments `reward_processing[return_processing]` and `reward_processing[advantage_processing]`)
+- Added `exponential/instance_normalization` layer argument `only_mean` with default `False`
+- Added `exponential/instance_normalization` layer argument `min_variance` with default `1e-4`
+
+##### Optimizers:
+- Removed default value `1e-3` for optimizer argument `learning_rate`
+- Changed default value for optimizer argument `gradient_norm_clipping` from `1.0` to `None` (no gradient clipping)
+- Added new optimizer `doublecheck_step` and corresponding argument `doublecheck_update` for optimizer wrapper
+- Removed `linesearch_step` optimizer argument `accept_ratio`
+- Removed `natural_gradient` optimizer argument `return_improvement_estimate`
+
+##### Saver:
+- Added option to specify agent argument `saver` as string, which is interpreted as `saver[directory]` with otherwise default values
+- Added default value for agent argument `saver[frequency]` as `10` (save model every 10 updates by default)
+- Changed default value of agent argument `saver[max_checkpoints]` from `5` to `10`
+
+##### Summarizer:
+- Added option to specify agent argument `summarizer` as string, which is interpreted as `summarizer[directory]` with otherwise default values
+- Renamed option of agent argument `summarizer` from `summarizer[labels]` to `summarizer[summaries]` (use of the term "label" due to earlier version, outdated and confusing by now)
+- Changed interpretation of agent argument `summarizer[summaries] = "all"` to include only numerical summaries, so all summaries except "graph"
+- Changed default value of agent argument `summarizer[summaries]` from `["graph"]` to `"all"`
+- Changed default value of agent argument `summarizer[max_summaries]` from `5` to `7` (number of different colors in TensorBoard)
+- Added option `summarizer[filename]` to agent argument `summarizer`
+
+##### Recorder:
+- Added option to specify agent argument `recorder` as string, which is interpreted as `recorder[directory]` with otherwise default values
+
+##### run.py script:
+- Added `--checkpoints`/`--summaries`/`--recordings` command line argument to enable saver/summarizer/recorder agent argument specification separate from core agent configuration
+
+##### Examples:
+- Added `save_load_agent.py` example script to illustrate regular agent saving and loading
+
+##### Buxfixes
+- Fixed problem with optimizer argument `gradient_norm_clipping` not being applied correctly
+- Fixed problem with `exponential_normalization` layer not updating moving mean and variance correctly
+- Fixed problem with `recent` memory for timestep-based updates sometimes sampling invalid memory indices
+
+
+---
+
+
 ### Version 0.6
 
 - Removed agent arguments `execution`, `buffer_observe`, `seed`
@@ -42,6 +93,8 @@ This file records all major updates and new features, starting from version 0.5.
 - Changed `tune.py` arguments
 
 
+---
+
 
 ### Version 0.5.5
 
@@ -57,6 +110,8 @@ This file records all major updates and new features, starting from version 0.5.
 - DQN and dueling DQN properly constrained to `int` actions only
 - Added `use_beta_distribution` argument with default `True` to many agents and `ParametrizedDistributions` policy, so default can be changed
 
+
+---
 
 
 ### Version 0.5.4
@@ -75,6 +130,8 @@ This file records all major updates and new features, starting from version 0.5.
 - Changed `save` argument `append_timestep` to `append` with default `None` (instead of `'timesteps'`)
 - Added `get_variable` and `assign_variable` agent functions
 
+
+---
 
 
 ### Version 0.5.3
@@ -97,6 +154,8 @@ This file records all major updates and new features, starting from version 0.5.
 - Changed unit of `target_sync_frequency` from timesteps to updates for `dqn` and `dueling_dqn` agent
 
 
+---
+
 
 ### Version 0.5.2
 
@@ -115,11 +174,15 @@ This file records all major updates and new features, starting from version 0.5.
 - Combined `state/action_value` to `value` objective with argument `value` either `"state"` or `"action"`
 
 
+---
+
 
 ### Version 0.5.1
 
 - Fixed setup.py packages value
 
+
+---
 
 
 ### Version 0.5.0

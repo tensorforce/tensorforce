@@ -16,7 +16,7 @@
 import numpy as np
 import tensorflow as tf
 
-from tensorforce import TensorforceError, util
+from tensorforce import TensorforceError
 from tensorforce.core import parameter_modules, TensorSpec, tf_function, tf_util
 from tensorforce.core.layers import Layer, StatefulLayer
 
@@ -88,22 +88,27 @@ class LinearNormalization(Layer):
 
 class ExponentialNormalization(StatefulLayer):
     """
-    Normalization layer based on the exponential moving average over the temporal sequence of inputs
+    Normalization layer based on the exponential moving average of mean and variance over the
+    temporal sequence of inputs
     (specification key: `exponential_normalization`).
 
     Args:
         decay (parameter, 0.0 <= float <= 1.0): Decay rate
-            (<span style="color:#00C000"><b>default</b></span>: 0.999).
+            (<span style="color:#C00000"><b>required</b></span>).
         axes (iter[int >= 0]): Normalization axes, excluding batch axis
             (<span style="color:#00C000"><b>default</b></span>: all but last input axes).
-        l2_regularization (float >= 0.0): Scalar controlling L2 regularization
-            (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
+        only_mean (bool): Whether to normalize only with respect to mean, not variance
+            (<span style="color:#00C000"><b>default</b></span>: false).
+        min_variance (float > 0.0): Clip variance lower than minimum
+            (<span style="color:#00C000"><b>default</b></span>: 1e-4).
         name (string): Layer name
             (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(self, *, decay=0.999, axes=None, name=None, input_spec=None):
+    def __init__(
+        self, *, decay, axes=None, only_mean=False, min_variance=1e-4, name=None, input_spec=None
+    ):
         super().__init__(name=name, input_spec=input_spec)
 
         self.decay = self.submodule(
@@ -115,6 +120,10 @@ class ExponentialNormalization(StatefulLayer):
             self.axes = tuple(range(len(self.input_spec.shape) - 1))
         else:
             self.axes = tuple(axes)
+
+        assert not only_mean or min_variance == 1e-4
+        self.only_mean = only_mean
+        self.min_variance = min_variance
 
     def default_input_spec(self):
         return TensorSpec(type='float', shape=None)
@@ -131,47 +140,71 @@ class ExponentialNormalization(StatefulLayer):
             is_trainable=False, is_saved=True
         )
 
-        self.moving_variance = self.variable(
-            name='variance', spec=TensorSpec(type='float', shape=shape), initializer='ones',
-            is_trainable=False, is_saved=True
-        )
+        if not self.only_mean:
+            self.moving_variance = self.variable(
+                name='variance', spec=TensorSpec(type='float', shape=shape), initializer='ones',
+                is_trainable=False, is_saved=True
+            )
 
     @tf_function(num_args=1)
     def apply(self, *, x, independent):
-        if independent:
+        if independent or self.decay.is_constant(value=1.0):
             mean = self.moving_mean
-            variance = self.moving_variance
+            if not self.only_mean:
+                variance = self.moving_variance
 
         else:
             zero = tf_util.constant(value=0, dtype='int')
             one_float = tf_util.constant(value=1.0, dtype='float')
             axes = (0,) + tuple(1 + axis for axis in self.axes)
 
-            decay = self.decay.value()
             batch_size = tf_util.cast(x=tf.shape(input=x)[0], dtype='int')
             is_zero_batch = tf.math.equal(x=batch_size, y=zero)
-            batch_size = tf_util.cast(x=batch_size, dtype='float')
-            # Pow numerically stable since 0.0 <= decay <= 1.0
-            decay = tf.math.pow(x=decay, y=batch_size)
 
-            mean = tf.math.reduce_mean(input_tensor=x, axis=axes, keepdims=True)
-            mean = tf.where(
-                condition=is_zero_batch, x=(decay * self.moving_mean + (one_float - decay) * mean),
-                y=mean
-            )
+            if self.only_mean:
+                def true_fn():
+                    return self.moving_mean
 
-            variance = tf.reduce_mean(
-                input_tensor=tf.math.squared_difference(x=x, y=mean), axis=axes, keepdims=True
-            )
-            variance = tf.where(
-                condition=is_zero_batch,
-                x=(decay * self.moving_variance + (one_float - decay) * variance), y=variance
-            )
+                def false_fn():
+                    return tf.math.reduce_mean(input_tensor=x, axis=axes, keepdims=True)
 
-        epsilon = tf_util.constant(value=util.epsilon, dtype='float')
-        reciprocal_stddev = tf.math.rsqrt(x=tf.maximum(x=variance, y=epsilon))
+                mean = tf.cond(pred=is_zero_batch, true_fn=true_fn, false_fn=false_fn)
 
-        return (x - tf.stop_gradient(input=mean)) * tf.stop_gradient(input=reciprocal_stddev)
+            else:
+                def true_fn():
+                    return self.moving_mean, self.moving_variance
+
+                def false_fn():
+                    _mean = tf.math.reduce_mean(input_tensor=x, axis=axes, keepdims=True)
+                    deviation = tf.math.squared_difference(x=x, y=_mean)
+                    _variance = tf.reduce_mean(input_tensor=deviation, axis=axes, keepdims=True)
+                    return _mean, _variance
+
+                mean, variance = tf.cond(pred=is_zero_batch, true_fn=true_fn, false_fn=false_fn)
+
+            if not self.decay.is_constant(value=0.0):
+                decay = self.decay.value()
+                batch_size = tf_util.cast(x=batch_size, dtype='float')
+                # Pow numerically stable since 0.0 <= decay <= 1.0
+                decay = tf.math.pow(x=decay, y=batch_size)
+
+                mean = decay * self.moving_mean + (one_float - decay) * mean
+                if not self.only_mean:
+                    variance = decay * self.moving_variance + (one_float - decay) * variance
+
+            mean = self.moving_mean.assign(value=mean)
+            if not self.only_mean:
+                variance = self.moving_variance.assign(value=variance)
+
+        if not self.only_mean:
+            min_variance = tf_util.constant(value=self.min_variance, dtype='float')
+            reciprocal_stddev = tf.math.rsqrt(x=tf.maximum(x=variance, y=min_variance))
+
+        x = x - tf.stop_gradient(input=mean)
+        if not self.only_mean:
+            x = x * tf.stop_gradient(input=reciprocal_stddev)
+
+        return x
 
 
 class InstanceNormalization(Layer):
@@ -181,12 +214,18 @@ class InstanceNormalization(Layer):
     Args:
         axes (iter[int >= 0]): Normalization axes, excluding batch axis
             (<span style="color:#00C000"><b>default</b></span>: all input axes).
+        only_mean (bool): Whether to normalize only with respect to mean, not variance
+            (<span style="color:#00C000"><b>default</b></span>: false).
+        min_variance (float > 0.0): Clip variance lower than minimum
+            (<span style="color:#00C000"><b>default</b></span>: 1e-4).
         name (string): Layer name
             (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(self, *, axes=None, name=None, input_spec=None):
+    def __init__(
+        self, *, axes=None, only_mean=False, min_variance=1e-4, name=None, input_spec=None
+    ):
         super().__init__(name=name, input_spec=input_spec)
 
         if axes is None:
@@ -194,17 +233,79 @@ class InstanceNormalization(Layer):
         else:
             self.axes = tuple(axes)
 
+        assert not only_mean or min_variance == 1e-4
+        self.only_mean = only_mean
+        self.min_variance = min_variance
+
     def default_input_spec(self):
         return TensorSpec(type='float', shape=None)
 
     @tf_function(num_args=1)
     def apply(self, *, x):
-        epsilon = tf_util.constant(value=util.epsilon, dtype='float')
+        axes = tuple(1 + axis for axis in self.axes)
 
-        mean, variance = tf.nn.moments(
-            x=x, axes=tuple(1 + axis for axis in self.axes), keepdims=True
-        )
+        if self.only_mean:
+            mean = tf.math.reduce_mean(input_tensor=x, axis=axes, keepdims=True)
 
-        reciprocal_stddev = tf.math.rsqrt(x=tf.maximum(x=variance, y=epsilon))
+            return x - tf.stop_gradient(input=mean)
 
-        return (x - tf.stop_gradient(input=mean)) * tf.stop_gradient(input=reciprocal_stddev)
+        else:
+            mean, variance = tf.nn.moments(x=x, axes=axes, keepdims=True)
+
+            min_variance = tf_util.constant(value=self.min_variance, dtype='float')
+            reciprocal_stddev = tf.math.rsqrt(x=tf.maximum(x=variance, y=min_variance))
+
+            return (x - tf.stop_gradient(input=mean)) * tf.stop_gradient(input=reciprocal_stddev)
+
+
+class BatchNormalization(Layer):
+    """
+    Batch normalization layer, generally should only be used for the agent arguments
+    `reward_processing[return_processing]` and `reward_processing[advantage_processing]`
+    (specification key: `batch_normalization`).
+
+    Args:
+        axes (iter[int >= 0]): Normalization axes, excluding batch axis
+            (<span style="color:#00C000"><b>default</b></span>: all but last input axes).
+        only_mean (bool): Whether to normalize only with respect to mean, not variance
+            (<span style="color:#00C000"><b>default</b></span>: false).
+        min_variance (float > 0.0): Clip variance lower than minimum
+            (<span style="color:#00C000"><b>default</b></span>: 1e-4).
+        name (string): Layer name
+            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
+        input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
+    """
+
+    def __init__(
+        self, *, axes=None, only_mean=False, min_variance=1e-4, name=None, input_spec=None
+    ):
+        super().__init__(name=name, input_spec=input_spec)
+
+        if axes is None:
+            self.axes = tuple(range(len(self.input_spec.shape) - 1))
+        else:
+            self.axes = tuple(axes)
+
+        assert not only_mean or min_variance == 1e-4
+        self.only_mean = only_mean
+        self.min_variance = min_variance
+
+    def default_input_spec(self):
+        return TensorSpec(type='float', shape=None)
+
+    @tf_function(num_args=1)
+    def apply(self, *, x):
+        axes = (0,) + tuple(1 + axis for axis in self.axes)
+
+        if self.only_mean:
+            mean = tf.math.reduce_mean(input_tensor=x, axis=axes, keepdims=True)
+
+            return x - tf.stop_gradient(input=mean)
+
+        else:
+            mean, variance = tf.nn.moments(x=x, axes=axes, keepdims=True)
+
+            min_variance = tf_util.constant(value=self.min_variance, dtype='float')
+            reciprocal_stddev = tf.math.rsqrt(x=tf.maximum(x=variance, y=min_variance))
+
+            return (x - tf.stop_gradient(input=mean)) * tf.stop_gradient(input=reciprocal_stddev)

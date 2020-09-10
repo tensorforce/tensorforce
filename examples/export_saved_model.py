@@ -30,6 +30,7 @@ def main():
     runner.close()
 
     # Model serving, potentially using different programming language etc
+    # (For regular model saving and loading within Python, see save_load_agent.py example)
 
     # Load agent SavedModel
     agent = tf.saved_model.load(export_dir='saved-model')

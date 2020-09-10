@@ -59,7 +59,7 @@ class ConjugateGradient(Iterative):
         Creates a new conjugate gradient solver instance.
 
         Args:
-            max_iterations (parameter, int >= 0): Maximum number of iterations before termination.
+            max_iterations (parameter, int >= 1): Maximum number of iterations before termination.
             damping (parameter, 0.0 <= float <= 1.0): Damping factor.
         """
         super().__init__(name=name, max_iterations=max_iterations)

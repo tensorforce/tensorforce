@@ -48,11 +48,14 @@ class UnittestBase(object):
         # Also used in: text_reward_estimation
         policy=dict(network=dict(type='auto', size=8, depth=1, rnn=2), distributions=dict(
             gaussian_action2=dict(type='gaussian', global_stddev=True), beta_action='beta'
-        )), update=4, objective='policy_gradient', reward_estimation=dict(
-            horizon=3, return_processing=dict(type='clipping', lower=-1.0, upper=1.0)
+        )), update=4, optimizer=dict(optimizer='adam', learning_rate=1e-3),
+        objective='policy_gradient', reward_estimation=dict(
+            horizon=3, estimate_advantage=True, predict_horizon_values='late',
+            return_processing=dict(type='clipping', lower=-1.0, upper=1.0),
+            advantage_processing='batch_normalization'
         ), baseline=dict(network=dict(type='auto', size=7, depth=1, rnn=1)),
-        baseline_optimizer='adam', baseline_objective='state_value',
-        l2_regularization=0.01, entropy_regularization=0.01,
+        baseline_optimizer=dict(optimizer='adam', learning_rate=1e-3),
+        baseline_objective='state_value', l2_regularization=0.01, entropy_regularization=0.01,
         state_preprocessing='linear_normalization',
         reward_preprocessing=dict(type='clipping', lower=-1.0, upper=1.0),
         exploration=0.01, variable_noise=0.01,

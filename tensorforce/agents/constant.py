@@ -89,30 +89,10 @@ class ConstantAgent(Agent):
             TensorFlow assertion operations
             (<span style="color:#00C000"><b>default</b></span>: true).</li>
             </ul>
-        summarizer (specification): TensorBoard summarizer configuration with the following
-            attributes (<span style="color:#00C000"><b>default</b></span>: no summarizer):
-            <ul>
-            <li><b>directory</b> (<i>path</i>) &ndash; summarizer directory
-            (<span style="color:#C00000"><b>required</b></span>).</li>
-            <li><b>frequency</b> (<i>int > 0) &ndash; how frequently in timesteps to record
-            summaries (<span style="color:#00C000"><b>default</b></span>: always).</li>
-            <li><b>flush</b> (<i>int > 0</i>) &ndash; how frequently in seconds to flush the
-            summary writer (<span style="color:#00C000"><b>default</b></span>: 10).</li>
-            <li><b>max-summaries</b> (<i>int > 0</i>) &ndash; maximum number of summaries to keep
-            (<span style="color:#00C000"><b>default</b></span>: 5).</li>
-            <li><b>custom</b> (<i>dict[spec]</i>) &ndash; custom summaries which are recorded via
-            agent.summarize(...), specification with either type "scalar", type "histogram" with
-            optional "buckets", type "image" with optional "max_outputs"
-            (<span style="color:#00C000"><b>default</b></span>: 3), or type "audio"
-            (<span style="color:#00C000"><b>default</b></span>: no custom summaries).</li>
-            <li><b>labels</b> (<i>"all" | iter[string]</i>) &ndash; all or list of summaries to
-            record, from the following labels
-            (<span style="color:#00C000"><b>default</b></span>: only "graph"):</li>
-            <li>"graph": graph summary</li>
-            <li>"parameters": parameter scalars</li>
-            </ul>
-        recorder (specification): Experience traces recorder configuration, currently not including
-            internal states, with the following attributes
+        recorder (path | specification): Traces recordings directory, or recorder configuration with
+            the following attributes (see
+            [record-and-pretrain script](https://github.com/tensorforce/tensorforce/blob/master/examples/record_and_pretrain.py)
+            for example application)
             (<span style="color:#00C000"><b>default</b></span>: no recorder):
             <ul>
             <li><b>directory</b> (<i>path</i>) &ndash; recorder directory
@@ -130,15 +110,15 @@ class ConstantAgent(Agent):
         self, states, actions, max_episode_timesteps=None,
         # Agent
         action_values=None,
-        # Config, summarizer, recorder
-        config=None, summarizer=None, recorder=None
+        # Config, recorder
+        config=None, recorder=None
     ):
         if not hasattr(self, 'spec'):
             self.spec = OrderedDict(
                 agent='constant',
                 states=states, actions=actions, max_episode_timesteps=max_episode_timesteps,
                 action_values=action_values,
-                config=config, summarizer=summarizer, recorder=recorder
+                config=config, recorder=recorder
             )
 
         super().__init__(
@@ -149,6 +129,6 @@ class ConstantAgent(Agent):
         self.model = ConstantModel(
             states=self.states_spec, actions=self.actions_spec,
             parallel_interactions=self.parallel_interactions,
-            config=self.config, summarizer=summarizer,
+            config=self.config, summarizer=None,
             action_values=action_values
         )

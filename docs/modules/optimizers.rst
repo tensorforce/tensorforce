@@ -9,7 +9,8 @@ Default optimizer: ``OptimizerWrapper`` which offers additional update modifier 
         ...
         optimizer=dict(
             optimizer='adam', learning_rate=1e-3, clipping_threshold=1e-2,
-            multi_step=10, linesearch_iterations=5, subsampling_fraction=64
+            multi_step=10, subsampling_fraction=64, linesearch_iterations=5,
+            doublecheck_update=True
         ),
         ...
     )
@@ -26,6 +27,8 @@ Default optimizer: ``OptimizerWrapper`` which offers additional update modifier 
 .. autoclass:: tensorforce.core.optimizers.ClippingStep
 
 .. autoclass:: tensorforce.core.optimizers.MultiStep
+
+.. autoclass:: tensorforce.core.optimizers.DoublecheckStep
 
 .. autoclass:: tensorforce.core.optimizers.LinesearchStep
 

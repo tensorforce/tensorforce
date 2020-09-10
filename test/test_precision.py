@@ -32,8 +32,12 @@ class TestPrecision(UnittestBase, unittest.TestCase):
             util.np_dtype_mapping = dict(bool=np.bool_, int=np.int32, float=np.float16)
             tf_util.DTYPE_MAPPING = dict(bool=tf.bool, int=tf.int32, float=tf.float16)
 
+            # TODO: TensorFlow optimizers seem incompatible with float16
+            optimizer = dict(optimizer='evolutionary', learning_rate=1e-3)
+            baseline_optimizer = dict(optimizer='evolutionary', learning_rate=1e-3)
             self.unittest(
-                config=dict(eager_mode=True, create_debug_assertions=False, tf_log_level=20)
+                optimizer=optimizer, baseline_optimizer=baseline_optimizer,
+                config=dict(eager_mode=True, create_debug_assertions=True, tf_log_level=20)
             )
 
             util.np_dtype_mapping = dict(bool=np.bool_, int=np.int64, float=np.float64)

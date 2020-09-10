@@ -20,6 +20,6 @@ if [ -z ${2+x} ]; then
 
 else
 
-    python run.py benchmarks/configs/$1.json benchmarks/configs/$2.json -e 300 -r 10 -p benchmarks/$2/$1
+    python run.py benchmarks/configs/$1.json benchmarks/configs/$2.json -e 300 -r 10 --path benchmarks/$2/$1
 
 fi

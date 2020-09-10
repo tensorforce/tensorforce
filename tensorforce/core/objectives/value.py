@@ -28,7 +28,7 @@ class Value(Objective):
     Args:
         value ("state" | "action"): Whether to approximate the state- or state-action-value
             (<span style="color:#C00000"><b>required</b></span>).
-        huber_loss (parameter, float >= 0.0): Huber loss threshold
+        huber_loss (parameter, float > 0.0): Huber loss threshold
             (<span style="color:#00C000"><b>default</b></span>: no huber loss).
         early_reduce (bool): Whether to compute objective for aggregated value instead of value per
             action (<span style="color:#00C000"><b>default</b></span>: true).
@@ -41,7 +41,7 @@ class Value(Objective):
     """
 
     def __init__(
-        self, *, value, huber_loss=0.0, early_reduce=True, name=None, states_spec=None,
+        self, *, value, huber_loss=None, early_reduce=True, name=None, states_spec=None,
         internals_spec=None, auxiliaries_spec=None, actions_spec=None, reward_spec=None
     ):
         super().__init__(
@@ -52,11 +52,13 @@ class Value(Objective):
         assert value in ('state', 'action')
         self.value = value
 
-        huber_loss = 0.0 if huber_loss is None else huber_loss
-        self.huber_loss = self.submodule(
-            name='huber_loss', module=huber_loss, modules=parameter_modules, dtype='float',
-            min_value=0.0
-        )
+        if huber_loss is None:
+            self.huber_loss = None
+        else:
+            self.huber_loss = self.submodule(
+                name='huber_loss', module=huber_loss, modules=parameter_modules, dtype='float',
+                min_value=0.0
+            )
 
         self.early_reduce = early_reduce
 
@@ -144,22 +146,17 @@ class Value(Objective):
 
         difference = value - reward
 
-        zero = tf_util.constant(value=0.0, dtype='float')
         half = tf_util.constant(value=0.5, dtype='float')
 
-        huber_loss = self.huber_loss.value()
-        skip_huber_loss = tf.math.equal(x=huber_loss, y=zero)
+        if self.huber_loss is None:
+            loss = half * tf.math.square(x=difference)
 
-        def no_huber_loss():
-            return half * tf.math.square(x=difference)
-
-        def apply_huber_loss():
+        else:
+            huber_loss = self.huber_loss.value()
             inside_huber_bounds = tf.math.less_equal(x=tf.math.abs(x=difference), y=huber_loss)
             quadratic = half * tf.math.square(x=difference)
             linear = huber_loss * (tf.math.abs(x=difference) - half * huber_loss)
-            return tf.where(condition=inside_huber_bounds, x=quadratic, y=linear)
-
-        loss = tf.cond(pred=skip_huber_loss, true_fn=no_huber_loss, false_fn=apply_huber_loss)
+            loss = tf.where(condition=inside_huber_bounds, x=quadratic, y=linear)
 
         if not self.early_reduce:
             loss = tf.math.reduce_sum(input_tensor=loss, axis=1)

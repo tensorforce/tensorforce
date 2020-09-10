@@ -65,7 +65,7 @@ class TestExamples(UnittestBase, unittest.TestCase):
                 # Save model every 10 updates and keep the 5 most recent checkpoints
                 saver=dict(directory=saver_directory, frequency=10, max_checkpoints=5),
                 # Log all available Tensorboard summaries
-                summarizer=dict(directory=summarizer_directory, labels='all'),
+                summarizer=dict(directory=summarizer_directory, summaries='all'),
                 # Do not record agent-environment interaction trace
                 recorder=None
             )
@@ -75,7 +75,7 @@ class TestExamples(UnittestBase, unittest.TestCase):
             # Initialize the runner
             runner = Runner(agent=agent, environment=environment, max_episode_timesteps=500)
 
-            # Start the runner
+            # Train for 200 episodes
             runner.run(num_episodes=20)
             runner.close()
 
@@ -207,6 +207,140 @@ class TestExamples(UnittestBase, unittest.TestCase):
 
         self.finished_test()
 
+    def test_export_saved_model(self):
+        self.start_tests(name='export-saved-model')
+
+        # ====================
+
+        # Batch inputs
+        def batch(x):
+            return np.expand_dims(x, axis=0)
+
+        # Unbatch outputs
+        def unbatch(x):
+            if isinstance(x, tf.Tensor):  # TF tensor to NumPy array
+                x = x.numpy()
+            if x.shape == (1,):  # Singleton array to Python value
+                return x.item()
+            else:
+                return np.squeeze(x, axis=0)
+
+        # Apply function to leaf values in nested dict
+        # (required for nested states/actions)
+        def recursive_map(function, dictionary):
+            mapped = dict()
+            for key, value in dictionary.items():
+                if isinstance(value, dict):
+                    mapped[key] = recursive_map(function, value)
+                else:
+                    mapped[key] = function(value)
+            return mapped
+
+        # ====================
+
+        with TemporaryDirectory() as directory:
+
+            # ====================
+
+            # Train agent
+            environment = Environment.create(environment='benchmarks/configs/cartpole.json')
+            runner = Runner(agent='benchmarks/configs/ppo.json', environment=environment)
+            runner.run(num_episodes=10)
+
+            # Save agent SavedModel
+            runner.agent.save(directory=directory, format='saved-model')
+            runner.close()
+
+            # Model serving, potentially using different programming language etc
+            # (For regular model saving and loading within Python, see save_load_agent.py example)
+
+            # Load agent SavedModel
+            agent = tf.saved_model.load(export_dir=directory)
+
+            # Evaluate for 100 episodes
+            sum_rewards = 0.0
+            for _ in range(10):
+                states = environment.reset()
+
+                # Required in case of internal states:
+                # internals = agent.initial_internals()
+                # internals = recursive_map(batch, internals)
+
+                terminal = False
+                while not terminal:
+
+                    states = batch(states)
+                    # Required in case of nested states:
+                    # states = recursive_map(batch, states)
+
+                    auxiliaries = dict(mask=np.ones(shape=(1, 2), dtype=bool))
+                    deterministic = True
+
+                    actions = agent.act(states, auxiliaries, deterministic)
+                    # Required in case of internal states:
+                    # actions_internals = agent.act(states, internals, auxiliaries, deterministic)
+                    # actions, internals = actions_internals['actions'], actions_internals['internals']
+
+                    actions = unbatch(actions)
+                    # Required in case of nested actions:
+                    # actions = recursive_map(unbatch, actions)
+
+                    states, terminal, reward = environment.execute(actions=actions)
+                    sum_rewards += reward
+
+            print('Mean evaluation return:', sum_rewards / 100.0)
+            environment.close()
+
+            # ====================
+
+        self.finished_test()
+
+    def test_parallelization(self):
+        self.start_tests(name='parallelization')
+
+        # ====================
+
+        agent = 'benchmarks/configs/ppo.json'
+        environment = 'benchmarks/configs/cartpole.json'
+        runner = Runner(agent=agent, environment=environment, num_parallel=4)
+        # Batch act/observe calls to agent (otherwise essentially equivalent to single environment)
+        runner.run(num_episodes=10, batch_agent_calls=True)
+        runner.close()
+
+        # ====================
+
+        agent = 'benchmarks/configs/ppo.json'
+        environment = 'benchmarks/configs/cartpole.json'
+        runner = Runner(agent=agent, environment=environment, num_parallel=4, remote='multiprocessing')
+        runner.run(num_episodes=10)  # optional: batch_agent_calls=True
+        runner.close()
+
+        # ====================
+
+        agent = 'benchmarks/configs/ppo.json'
+        environment = 'benchmarks/configs/cartpole.json'
+
+        def server(port):
+            Environment.create(environment=environment, remote='socket-server', port=port)
+
+        server1 = Thread(target=server, kwargs=dict(port=65432))
+        server2 = Thread(target=server, kwargs=dict(port=65433))
+        server1.start()
+        server2.start()
+
+        runner = Runner(
+            agent=agent, num_parallel=2, remote='socket-client', host='127.0.0.1', port=65432
+        )
+        runner.run(num_episodes=10)  # optional: batch_agent_calls=True
+        runner.close()
+
+        server1.join()
+        server2.join()
+
+        # ====================
+
+        self.finished_test()
+
     def test_record_and_pretrain(self):
         self.start_tests(name='record-and-pretrain')
 
@@ -320,136 +454,57 @@ class TestExamples(UnittestBase, unittest.TestCase):
 
         self.finished_test()
 
-    def test_parallelization(self):
-        self.start_tests(name='parallelization')
+    def test_save_load_agent(self):
+        self.start_tests(name='save-load-agent')
 
-        # ====================
-
-        agent = 'benchmarks/configs/ppo.json'
-        environment = 'benchmarks/configs/cartpole.json'
-        runner = Runner(agent=agent, environment=environment, num_parallel=4)
-        # Batch act/observe calls to agent (otherwise essentially equivalent to single environment)
-        runner.run(num_episodes=10, batch_agent_calls=True)
-        runner.close()
-
-        # ====================
-
-        agent = 'benchmarks/configs/ppo.json'
-        environment = 'benchmarks/configs/cartpole.json'
-        runner = Runner(agent=agent, environment=environment, num_parallel=4, remote='multiprocessing')
-        runner.run(num_episodes=10)  # optional: batch_agent_calls=True
-        runner.close()
-
-        # ====================
-
-        agent = 'benchmarks/configs/ppo.json'
-        environment = 'benchmarks/configs/cartpole.json'
-
-        def server(port):
-            Environment.create(environment=environment, remote='socket-server', port=port)
-
-        server1 = Thread(target=server, kwargs=dict(port=65432))
-        server2 = Thread(target=server, kwargs=dict(port=65433))
-        server1.start()
-        server2.start()
-
-        runner = Runner(
-            agent=agent, num_parallel=2, remote='socket-client', host='127.0.0.1', port=65432
-        )
-        runner.run(num_episodes=10)  # optional: batch_agent_calls=True
-        runner.close()
-
-        server1.join()
-        server2.join()
-
-        # ====================
-
-        self.finished_test()
-
-    def test_saved_model(self):
-        self.start_tests(name='saved-model')
-
-        # ====================
-
-        # Batch inputs
-        def batch(x):
-            return np.expand_dims(x, axis=0)
-
-        # Unbatch outputs
-        def unbatch(x):
-            if isinstance(x, tf.Tensor):  # TF tensor to NumPy array
-                x = x.numpy()
-            if x.shape == (1,):  # Singleton array to Python value
-                return x.item()
-            else:
-                return np.squeeze(x, axis=0)
-
-        # Apply function to leaf values in nested dict
-        # (required for nested states/actions)
-        def recursive_map(function, dictionary):
-            mapped = dict()
-            for key, value in dictionary.items():
-                if isinstance(value, dict):
-                    mapped[key] = recursive_map(function, value)
-                else:
-                    mapped[key] = function(value)
-            return mapped
-
-        # ====================
-
-        with TemporaryDirectory() as directory:
+        with TemporaryDirectory() as checkpoint_directory, TemporaryDirectory() as numpy_directory:
 
             # ====================
 
-            # Train agent
+            # OpenAI-Gym environment initialization
             environment = Environment.create(environment='benchmarks/configs/cartpole.json')
-            runner = Runner(agent='benchmarks/configs/ppo.json', environment=environment)
-            runner.run(num_episodes=10)
 
-            # Save agent SavedModel
-            runner.agent.save(directory=directory, format='saved-model')
+            # PPO agent initialization
+            agent = Agent.create(
+                agent='benchmarks/configs/ppo.json', environment=environment,
+                # Option 1: Saver - save agent periodically every 10 updates
+                # and keep the 5 most recent checkpoints
+                saver=dict(directory=checkpoint_directory, frequency=1, max_checkpoints=5),
+            )
+
+            # Runner initialization
+            runner = Runner(agent=agent, environment=environment)
+
+            # Training
+            runner.run(num_episodes=10)
             runner.close()
 
-            # Model serving, potentially using different programming language etc
+            # Option 2: Explicit save
+            # (format: 'numpy' or 'hdf5' store only weights, 'checkpoint' stores full TensorFlow model,
+            # agent argument saver, specified above, uses 'checkpoint')
+            agent.save(directory=numpy_directory, format='numpy', append='episodes')
 
-            # Load agent SavedModel
-            agent = tf.saved_model.load(export_dir=directory)
+            # Close agent separately, since created separately
+            agent.close()
 
-            # Evaluate for 100 episodes
-            sum_rewards = 0.0
-            for _ in range(10):
-                states = environment.reset()
+            # Load agent TensorFlow checkpoint
+            agent = Agent.load(directory=checkpoint_directory, format='checkpoint', environment=environment)
+            runner = Runner(agent=agent, environment=environment)
+            runner.run(num_episodes=10, evaluation=True)
+            runner.close()
+            agent.close()
 
-                # Required in case of internal states:
-                # internals = agent.initial_internals()
-                # internals = recursive_map(batch, internals)
+            # Load agent NumPy weights
+            agent = Agent.load(directory=numpy_directory, format='numpy', environment=environment)
+            runner = Runner(agent=agent, environment=environment)
+            runner.run(num_episodes=10, evaluation=True)
+            runner.close()
+            agent.close()
 
-                terminal = False
-                while not terminal:
-
-                    states = batch(states)
-                    # Required in case of nested states:
-                    # states = recursive_map(batch, states)
-
-                    auxiliaries = dict(mask=np.ones(shape=(1, 2), dtype=bool))
-                    deterministic = True
-
-                    actions = agent.act(states, auxiliaries, deterministic)
-                    # Required in case of internal states:
-                    # actions_internals = agent.act(states, internals, auxiliaries, deterministic)
-                    # actions, internals = actions_internals['actions'], actions_internals['internals']
-
-                    actions = unbatch(actions)
-                    # Required in case of nested actions:
-                    # actions = recursive_map(unbatch, actions)
-
-                    states, terminal, reward = environment.execute(actions=actions)
-                    sum_rewards += reward
-
-            print('Mean evaluation return:', sum_rewards / 100.0)
+            # Close environment separately, since created separately
             environment.close()
 
-            # ====================
+        # ====================
 
         self.finished_test()
 
@@ -527,7 +582,7 @@ class TestExamples(UnittestBase, unittest.TestCase):
                 super().__init__()
 
             def states(self):
-                return dict(type='float', shape=(1,))
+                return dict(type='float', shape=(1,), min_value=0.0, max_value=1.0)
 
             def actions(self):
                 """Action 0 means no heater, temperature approaches 0.0.  Action 1 means
@@ -603,7 +658,8 @@ class TestExamples(UnittestBase, unittest.TestCase):
 
         agent = Agent.create(
             agent='tensorforce', environment=environment, update=64,
-            objective='policy_gradient', reward_estimation=dict(horizon=1)
+            optimizer=dict(optimizer='adam', learning_rate=1e-3), objective='policy_gradient',
+            reward_estimation=dict(horizon=1)
         )
 
         # ====================
@@ -644,7 +700,7 @@ class TestExamples(UnittestBase, unittest.TestCase):
         plt.show()
 
         # Train for 200 episodes
-        for _ in range(50):
+        for _ in range(10):
             states = environment.reset()
             terminal = False
             while not terminal:

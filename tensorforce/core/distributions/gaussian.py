@@ -56,8 +56,13 @@ class Gaussian(Distribution):
             parameters_spec=parameters_spec, conditions_spec=conditions_spec
         )
 
-        self.global_stddev = global_stddev
+        if global_stddev is None:
+            self.global_stddev = False
+        else:
+            self.global_stddev = global_stddev
 
+        if bounded_transform is None:
+            bounded_transform = 'tanh'
         if bounded_transform not in ('clipping', 'tanh'):
             raise TensorforceError.value(
                 name='Gaussian', argument='bounded_transform', value=bounded_transform,

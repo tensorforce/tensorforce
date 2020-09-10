@@ -18,8 +18,7 @@ import functools
 import tensorflow as tf
 
 from tensorforce import util
-from tensorforce.core import parameter_modules, SignatureDict, TensorDict, TensorSpec, \
-    TensorsSpec, tf_function, tf_util
+from tensorforce.core import parameter_modules, TensorDict, tf_function, tf_util
 from tensorforce.core.optimizers import Optimizer
 from tensorforce.core.optimizers.solvers import solver_modules
 
@@ -29,32 +28,25 @@ class NaturalGradient(Optimizer):
     Natural gradient optimizer (specification key: `natural_gradient`).
 
     Args:
-        learning_rate (parameter, float >= 0.0): Learning rate as KL-divergence of distributions
+        learning_rate (parameter, float > 0.0): Learning rate as KL-divergence of distributions
             between optimization steps
-            (<span style="color:#00C000"><b>default</b></span>: 0.01).
-        cg_max_iterations (int >= 0): Maximum number of conjugate gradient iterations.
+            (<span style="color:#C00000"><b>required</b></span>).
+        cg_max_iterations (int >= 1): Maximum number of conjugate gradient iterations.
             (<span style="color:#00C000"><b>default</b></span>: 10).
         cg_damping (0.0 <= float <= 1.0): Conjugate gradient damping factor.
             (<span style="color:#00C000"><b>default</b></span>: 0.1).
-        only_positive_updates (bool): Only perform updates with positive improvement estimate
-            (<span style="color:#00C000"><b>default</b></span>: true, false if using line-search
-            option in OptimizerWrapper).
-        return_improvement_estimate (bool): Return improvement estimate
-            (<span style="color:#00C000"><b>default</b></span>: false, true if using line-search
-            option in OptimizerWrapper).
+        only_positive_updates (bool): Whether to only perform updates with positive improvement
+            estimate
+            (<span style="color:#00C000"><b>default</b></span>: true).
         name (string): (<span style="color:#0000C0"><b>internal use</b></span>).
         arguments_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
-        self, *, learning_rate=1e-2, cg_max_iterations=10, cg_damping=0.1,
-        only_positive_updates=True, return_improvement_estimate=False, name=None,
-        arguments_spec=None
+        self, *, learning_rate, cg_max_iterations=10, cg_damping=0.1, only_positive_updates=True,
+        name=None, arguments_spec=None
     ):
         super().__init__(name=name, arguments_spec=arguments_spec)
-
-        self.only_positive_updates = only_positive_updates
-        self.return_improvement_estimate = return_improvement_estimate
 
         self.learning_rate = self.submodule(
             name='learning_rate', module=learning_rate, modules=parameter_modules, dtype='float',
@@ -66,24 +58,14 @@ class NaturalGradient(Optimizer):
             max_iterations=cg_max_iterations, damping=cg_damping
         )
 
+        self.only_positive_updates = only_positive_updates
+
     def initialize_given_variables(self, *, variables):
         super().initialize_given_variables(variables=variables)
 
         self.conjugate_gradient.complete_initialize(
             arguments_spec=self.arguments_spec, values_spec=self.variables_spec
         )
-
-    def output_signature(self, *, function):
-        if self.return_improvement_estimate and  function == 'step':
-            return SignatureDict(
-                deltas=self.variables_spec.fmap(
-                    function=(lambda spec: spec.signature(batched=False)), cls=SignatureDict
-                ),
-                improvement_estimate=TensorSpec(type='float', shape=()).signature(batched=False)
-            )
-
-        else:
-            return super().output_signature(function=function)
 
     @tf_function(num_args=1)
     def step(self, *, arguments, variables, fn_loss, **kwargs):
@@ -177,11 +159,7 @@ class NaturalGradient(Optimizer):
 
         # Zero step if constant <= 0
         def no_step():
-            zero_deltas = deltas.fmap(function=tf.zeros_like)
-            if self.return_improvement_estimate:
-                return zero_deltas, tf_util.constant(value=0.0, dtype='float')
-            else:
-                return zero_deltas
+            return deltas.fmap(function=tf.zeros_like)
 
         # Natural gradient step if constant > 0
         def apply_step():
@@ -206,16 +184,12 @@ class NaturalGradient(Optimizer):
                 assignments.append(variable.assign_add(delta=delta, read_value=False))
 
             with tf.control_dependencies(control_inputs=assignments):
-                if self.return_improvement_estimate:
-                    # improvement = grad(loss) * delta  (= loss_new - loss_old)
-                    improvement_estimate = tf.math.add_n(inputs=[
-                        tf.math.reduce_sum(input_tensor=(loss_grad * delta))
-                        for loss_grad, delta in zip(loss_gradients, estimated_deltas.values())
-                    ])
-                    return estimated_deltas, improvement_estimate
-                else:
-                    # Trivial operation to enforce control dependency
-                    return estimated_deltas.fmap(function=tf_util.identity)
+                # # improvement = grad(loss) * delta  (= loss_new - loss_old)
+                # improvement_estimate = tf.math.add_n(inputs=[
+                #     tf.math.reduce_sum(input_tensor=(loss_grad * delta))
+                #     for loss_grad, delta in zip(loss_gradients, estimated_deltas.values())
+                # ])
+                return estimated_deltas.fmap(function=tf_util.identity)
 
         if self.only_positive_updates:
             # Natural gradient step only works if constant > 0 (epsilon to avoid zero division)

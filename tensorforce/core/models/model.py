@@ -22,7 +22,7 @@ import h5py
 import numpy as np
 import tensorflow as tf
 
-from tensorforce import TensorforceError, util
+from tensorforce import TensorforceError
 from tensorforce.core import ArrayDict, Module, SignatureDict, TensorDict, TensorSpec, \
     TensorsSpec, tf_function, tf_util, VariableDict
 from tensorforce.core.layers import Layer
@@ -141,6 +141,8 @@ class Model(Module):
         self.parallel_interactions = parallel_interactions
 
         # Saver
+        if isinstance(saver, str):
+            saver = dict(directory=saver)
         if saver is None:
             self.saver = None
         elif not all(key in (
@@ -154,21 +156,22 @@ class Model(Module):
             )
         elif 'directory' not in saver:
             raise TensorforceError.required(name='agent', argument='saver[directory]')
-        elif 'frequency' not in saver:
-            raise TensorforceError.required(name='agent', argument='saver[frequency]')
         else:
             self.saver = dict(saver)
 
         # Summarizer
+        if isinstance(summarizer, str):
+            summarizer = dict(directory=summarizer)
         if summarizer is None:
             self.summarizer = None
-            self.summary_labels = frozenset()
+            self.summaries = frozenset()
         elif not all(
-            key in ('directory', 'flush', 'labels', 'max_summaries') for key in summarizer
+            key in ('directory', 'filename', 'flush', 'max_summaries', 'summaries')
+            for key in summarizer
         ):
             raise TensorforceError.value(
                 name='agent', argument='summarizer', value=list(summarizer),
-                hint='not from {directory,flush,labels,max_summaries}'
+                hint='not from {directory,filename,flush,max_summaries,summaries}'
             )
         elif 'directory' not in summarizer:
             raise TensorforceError.required(name='agent', argument='summarizer[directory]')
@@ -176,15 +179,15 @@ class Model(Module):
             self.summarizer = dict(summarizer)
 
             # Summary labels
-            summary_labels = summarizer.get('labels', ('graph',))
-            if summary_labels == 'all':
-                self.summary_labels = 'all'
-            elif not all(isinstance(label, str) for label in summary_labels):
+            summaries = summarizer.get('summaries')
+            if summaries is None or summaries == 'all':
+                self.summaries = 'all'
+            elif not all(isinstance(label, str) for label in summaries):
                 raise TensorforceError.value(
-                    name='agent', argument='summarizer[labels]', value=summary_labels
+                    name='agent', argument='summarizer[summaries]', value=summaries
                 )
             else:
-                self.summary_labels = frozenset(summary_labels)
+                self.summaries = frozenset(summaries)
 
     @property
     def root(self):
@@ -243,15 +246,25 @@ class Model(Module):
                     os.makedirs(directory)
                     directories = list()
 
-                max_summaries = self.summarizer.get('max_summaries', 5)
-                if len(directories) > max_summaries - 1:
-                    for subdir in directories[:len(directories) - max_summaries + 1]:
-                        subdir = os.path.join(directory, subdir)
-                        os.remove(os.path.join(subdir, os.listdir(subdir)[0]))
-                        os.rmdir(subdir)
+                filename = self.summarizer.get('filename')
+                if filename is None:
+                    filename = time.strftime('summary-%Y%m%d-%H%M%S')
 
-                logdir = os.path.join(directory, time.strftime('summary-%Y%m%d-%H%M%S'))
-                flush_millis = (self.summarizer.get('flush', 10) * 1000)
+                    max_summaries = self.summarizer.get('max_summaries')
+                    if max_summaries is None:
+                        max_summaries = 7
+                    if len(directories) > max_summaries - 1:
+                        for subdir in directories[:len(directories) - max_summaries + 1]:
+                            subdir = os.path.join(directory, subdir)
+                            os.remove(os.path.join(subdir, os.listdir(subdir)[0]))
+                            os.rmdir(subdir)
+
+                logdir = os.path.join(directory, filename)
+                flush_millis = self.summarizer.get('flush')
+                if flush_millis is None:
+                    flush_millis = 10000
+                else:
+                    flush_millis *= 1000
                 # with tf.name_scope(name='summarizer'):
                 self.summarizer = tf.summary.create_file_writer(
                     logdir=logdir, max_queue=None, flush_millis=flush_millis, filename_suffix=None,
@@ -273,17 +286,27 @@ class Model(Module):
             # Checkpoint manager
             if self.saver is not None:
                 self.saver_directory = self.saver['directory']
-                self.saver_filename = self.saver.get('filename', self.name)
+                self.saver_filename = self.saver.get('filename')
+                if self.saver_filename is None:
+                    self.saver_filename = self.name
                 load = self.saver.get('load', False)
+                max_checkpoints = self.saver.get('max_checkpoints')
+                if max_checkpoints is None:
+                    max_checkpoints = 10
+                unit = self.saver.get('unit')
+                if unit is None:
+                    unit = 'updates'
+                frequency = self.saver.get('frequency')
+                if frequency is None:
+                    frequency = 10
                 # with tf.name_scope(name='saver'):
                 self.checkpoint = tf.train.Checkpoint(**{self.name: self})
                 self.saver = tf.train.CheckpointManager(
                     checkpoint=self.checkpoint, directory=self.saver_directory,
-                    max_to_keep=self.saver.get('max_checkpoints', 5),
+                    max_to_keep=max_checkpoints,
                     keep_checkpoint_every_n_hours=self.saver.get('max_hour_frequency'),
-                    checkpoint_name=self.saver_filename,
-                    step_counter=self.units[self.saver.get('unit', 'updates')],
-                    checkpoint_interval=self.saver['frequency'], init_fn=None
+                    checkpoint_name=self.saver_filename, step_counter=self.units[unit],
+                    checkpoint_interval=frequency, init_fn=None
                 )
 
         self.is_initialized = True
@@ -342,14 +365,14 @@ class Model(Module):
         )
 
     def initialize_api(self):
-        if self.summary_labels == 'all' or 'graph' in self.summary_labels:
+        if 'graph' in self.summaries:
             tf.summary.trace_on(graph=True, profiler=False)
         self.act(
             states=self.states_spec.empty(batched=True),
             auxiliaries=self.auxiliaries_spec.empty(batched=True),
             parallel=self.parallel_spec.empty(batched=True)
         )
-        if self.summary_labels == 'all' or 'graph' in self.summary_labels:
+        if 'graph' in self.summaries:
             tf.summary.trace_export(name='act', step=self.timesteps, profiler_outdir=None)
             tf.summary.trace_on(graph=True, profiler=False)
         kwargs = dict(states=self.states_spec.empty(batched=True))
@@ -359,7 +382,7 @@ class Model(Module):
             kwargs['auxiliaries'] = self.auxiliaries_spec.empty(batched=True)
         kwargs['deterministic'] = self.deterministic_spec.empty(batched=False)
         self.independent_act(**kwargs)
-        if self.summary_labels == 'all' or 'graph' in self.summary_labels:
+        if 'graph' in self.summaries:
             tf.summary.trace_export(
                 name='independent-act', step=self.timesteps, profiler_outdir=None
             )
@@ -369,7 +392,7 @@ class Model(Module):
             reward=self.reward_spec.empty(batched=True),
             parallel=self.parallel_spec.empty(batched=False)
         )
-        if self.summary_labels == 'all' or 'graph' in self.summary_labels:
+        if 'graph' in self.summaries:
             tf.summary.trace_export(name='observe', step=self.timesteps, profiler_outdir=None)
 
     def get_savedmodel_trackables(self):
@@ -639,7 +662,7 @@ class Model(Module):
             dependencies = list()
 
             # Reward summary
-            if self.summary_labels == 'all' or 'reward' in self.summary_labels:
+            if self.summaries == 'all' or 'reward' in self.summaries:
                 with self.summarizer.as_default():
                     x = tf.math.reduce_mean(input_tensor=reward)
                     dependencies.append(
@@ -674,7 +697,7 @@ class Model(Module):
 
                 # Episode reward summaries (before episode reward reset / episodes increment)
                 dependencies = list()
-                if self.summary_labels == 'all' or 'reward' in self.summary_labels:
+                if self.summaries == 'all' or 'reward' in self.summaries:
                     with self.summarizer.as_default():
                         x = tf.gather(params=self.episode_reward, indices=parallel)
                         dependencies.append(

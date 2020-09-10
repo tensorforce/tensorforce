@@ -59,6 +59,7 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
 
         agent = Agent.create(
             agent='tensorforce', environment=environment, update=64,
+            optimizer=dict(optimizer='adam', learning_rate=1e-3),
             objective='policy_gradient', reward_estimation=dict(horizon=20)
         )
         self.finished_test()
@@ -264,7 +265,8 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
         self.unittest(
             optimizer=dict(
                 optimizer='adam', learning_rate=1e-3, clipping_threshold=1e-2,
-                multi_step=3, linesearch_iterations=3, subsampling_fraction=8
+                multi_step=3, subsampling_fraction=8, linesearch_iterations=3,
+                doublecheck_update=True
             )
         )
 
@@ -281,7 +283,7 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
         self.unittest(
             reward_estimation=dict(horizon=dict(
                 type='linear', unit='episodes', num_steps=2,
-                initial_value=4, final_value=10
+                initial_value=2, final_value=6
             ))
         )
 
@@ -290,7 +292,7 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
             states=dict(type='float', shape=(8, 8, 3), min_value=-1.0, max_value=2.0),
             state_preprocessing=[
                 dict(type='image', height=4, width=4, grayscale=True),
-                dict(type='exponential_normalization')
+                dict(type='exponential_normalization', decay=0.999)
             ],
             reward_preprocessing=dict(type='clipping', lower=-1.0, upper=1.0)
         )

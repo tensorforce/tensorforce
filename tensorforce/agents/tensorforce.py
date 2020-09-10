@@ -72,10 +72,9 @@ class TensorforceAgent(Agent):
             [policies documentation](../modules/policies.html)
             (<span style="color:#00C000"><b>default</b></span>: action distributions or value
             functions parametrized by an automatically configured network).
-        memory (int | specification): Memory configuration, see the
+        memory (int | specification): Replay memory capacity, or memory configuration, see the
             [memories documentation](../modules/memories.html)
-            (<span style="color:#00C000"><b>default</b></span>: replay memory with either given or
-            minimum capacity).
+            (<span style="color:#00C000"><b>default</b></span>: minimum capacity recent memory).
         update (int | specification): Model update configuration with the following attributes
             (<span style="color:#C00000"><b>required</b>,
             <span style="color:#00C000"><b>default</b></span>: timesteps batch size</span>):
@@ -112,6 +111,11 @@ class TensorforceAgent(Agent):
             (<i><a href="../modules/parameters.html">parameter</a>, 0.0 <= float <= 1.0</i>) &ndash;
             Discount factor of future rewards for discounted-sum return estimation
             (<span style="color:#00C000"><b>default</b></span>: 1.0).</li>
+            <li><b>estimate_advantage</b> (<i>bool</i>) &ndash; Whether to use an estimate of the
+            advantage (return minus baseline value prediction) instead of the return as learning
+            signal
+            (<span style="color:#00C000"><b>default</b></span>: false, unless baseline_policy is
+            specified but baseline_objective/optimizer are not).</li>
             <li><b>predict_horizon_values</b> (<i>false | "early" | "late"</i>) &ndash; Whether to
             include a baseline prediction of the horizon value as part of the return estimation, and
             if so, whether to compute the horizon value prediction "early" when experiences are
@@ -124,11 +128,6 @@ class TensorforceAgent(Agent):
             <li><b>predict_terminal_values</b> (<i>bool</i>) &ndash; Whether to predict the value of
             terminal states
             (<span style="color:#00C000"><b>default</b></span>: false).</li>
-            <li><b>estimate_advantage</b> (<i>bool</i>) &ndash; Whether to use an estimate of the
-            advantage (return minus baseline value prediction) instead of the return as learning
-            signal
-            (<span style="color:#00C000"><b>default</b></span>: false, unless baseline_policy is
-            specified but baseline_objective/optimizer are not).</li>
             <li><b>return_processing</b> (<i>specification</i>) &ndash; Return processing as layer
             or list of layers, see the [preprocessing documentation](../modules/preprocessing.html)
             (<span style="color:#00C000"><b>default</b></span>: no return processing).</li>
@@ -213,35 +212,43 @@ class TensorforceAgent(Agent):
             before importing Tensorforce/TensorFlow
             (<span style="color:#00C000"><b>default</b></span>: 40, only error and critical).</li>
             </ul>
-        saver (specification): TensorFlow checkpoint manager configuration for periodic implicit
-            saving, as alternative to explicit saving via agent.save(), with the following
-            attributes (<span style="color:#00C000"><b>default</b></span>: no saver):
+        saver (path | specification): TensorFlow checkpoints directory, or checkpoint manager
+            configuration with the following attributes, for periodic implicit saving as alternative
+            to explicit saving via agent.save()
+            (<span style="color:#00C000"><b>default</b></span>: no saver):
             <ul>
-            <li><b>directory</b> (<i>path</i>) &ndash; saver directory
+            <li><b>directory</b> (<i>path</i>) &ndash; checkpoint directory
             (<span style="color:#C00000"><b>required</b></span>).</li>
-            <li><b>filename</b> (<i>string</i>) &ndash; model filename
+            <li><b>filename</b> (<i>string</i>) &ndash; checkpoint filename
             (<span style="color:#00C000"><b>default</b></span>: agent name).</li>
-            <li><b>frequency</b> (<i>int > 0</i>) &ndash; how frequently to save the model
+            <li><b>frequency</b> (<i>int > 0</i>) &ndash; how frequently to save a checkpoint
             (<span style="color:#C00000"><b>required</b></span>).</li>
             <li><b>unit</b> (<i>"timesteps" | "episodes" | "updates"</i>) &ndash; frequency unit
             (<span style="color:#00C000"><b>default</b></span>: updates).</li>
             <li><b>max_checkpoints</b> (<i>int > 0</i>) &ndash; maximum number of checkpoints to
-            keep (<span style="color:#00C000"><b>default</b></span>: 5).</li>
+            keep (<span style="color:#00C000"><b>default</b></span>: 10).</li>
             <li><b>max_hour_frequency</b> (<i>int > 0</i>) &ndash; ignoring max-checkpoints,
             definitely keep a checkpoint in given hour frequency
             (<span style="color:#00C000"><b>default</b></span>: none).</li>
             </ul>
-        summarizer (specification): TensorBoard summarizer configuration with the following
-            attributes (<span style="color:#00C000"><b>default</b></span>: no summarizer):
+        summarizer (path | specification): TensorBoard summaries directory, or summarizer
+            configuration with the following attributes
+            (<span style="color:#00C000"><b>default</b></span>: no summarizer):
             <ul>
             <li><b>directory</b> (<i>path</i>) &ndash; summarizer directory
             (<span style="color:#C00000"><b>required</b></span>).</li>
+            <li><b>filename</b> (<i>path</i>) &ndash; summarizer filename, max_summaries does not
+            apply if name specified
+            (<span style="color:#00C000"><b>default</b></span>: `summary-%Y%m%d-%H%M%S`).</li>
+            <li><b>max_summaries</b> (<i>int > 0</i>) &ndash; maximum number of (generically-named)
+            summaries to keep
+            (<span style="color:#00C000"><b>default</b></span>: 7, number of different colors in
+            Tensorboard).</li>
             <li><b>flush</b> (<i>int > 0</i>) &ndash; how frequently in seconds to flush the
             summary writer (<span style="color:#00C000"><b>default</b></span>: 10).</li>
-            <li><b>max_summaries</b> (<i>int > 0</i>) &ndash; maximum number of summaries to keep
-            (<span style="color:#00C000"><b>default</b></span>: 5).</li>
-            <li><b>labels</b> (<i>"all" | iter[string]</i>) &ndash; which summaries to record
-            (<span style="color:#00C000"><b>default</b></span>: only "graph"):</li>
+            <li><b>summaries</b> (<i>"all" | iter[string]</i>) &ndash; which summaries to record,
+            "all" implies all numerical summaries, so all summaries except "graph"
+            (<span style="color:#00C000"><b>default</b></span>: "all"):</li>
             <li>"action-value": value of each action (timestep-based)</li>
             <li>"distribution": distribution parameters like probabilities or mean and stddev
             (timestep-based)</li>
@@ -257,9 +264,10 @@ class TensorforceAgent(Agent):
             <li>"updates": mean and variance of update tensors per variable (update-based)</li>
             <li>"variables": mean of trainable variables tensors (update-based)</li>
             </ul>
-        recorder (specification): Experience traces recorder configuration (see
+        recorder (path | specification): Traces recordings directory, or recorder configuration with
+            the following attributes (see
             [record-and-pretrain script](https://github.com/tensorforce/tensorforce/blob/master/examples/record_and_pretrain.py)
-            for example application), with the following attributes
+            for example application)
             (<span style="color:#00C000"><b>default</b></span>: no recorder):
             <ul>
             <li><b>directory</b> (<i>path</i>) &ndash; recorder directory
@@ -274,11 +282,11 @@ class TensorforceAgent(Agent):
 
     def __init__(
         # Required
-        self, states, actions, update, objective, reward_estimation,
+        self, states, actions, update, optimizer, objective, reward_estimation,
         # Environment
         max_episode_timesteps=None,
         # Agent
-        policy='auto', memory='minimum', optimizer='adam',
+        policy='auto', memory=None,
         # Baseline
         baseline=None, baseline_optimizer=None, baseline_objective=None,
         # Regularization
@@ -348,8 +356,8 @@ class TensorforceAgent(Agent):
                 config=config, saver=saver, summarizer=summarizer, recorder=recorder
             )
 
-        if memory == 'minimum':
-            memory = None
+        if memory is None:
+            memory = dict(type='recent')
 
         if isinstance(update, int):
             update = dict(unit='timesteps', batch_size=update)

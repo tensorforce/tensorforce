@@ -54,11 +54,13 @@ class PolicyGradient(Objective):
 
         self.importance_sampling = importance_sampling
 
-        clipping_value = 0.0 if clipping_value is None else clipping_value
-        self.clipping_value = self.submodule(
-            name='clipping_value', module=clipping_value, modules=parameter_modules, dtype='float',
-            min_value=0.0
-        )
+        if clipping_value is None:
+            self.clipping_value = None
+        else:
+            self.clipping_value = self.submodule(
+                name='clipping_value', module=clipping_value, modules=parameter_modules, dtype='float',
+                min_value=0.0
+            )
 
         self.early_reduce = early_reduce
 
@@ -83,11 +85,18 @@ class PolicyGradient(Objective):
             )
 
         else:
-            log_probability = policy.log_probabilities(
+            log_probabilities = policy.log_probabilities(
                 states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
                 actions=actions
             )
-            log_probability = tf.concat(values=tuple(log_probability.values()), axis=1)
+
+            def function(value, spec):
+                return tf.reshape(tensor=value, shape=(-1, spec.size))
+
+            log_probabilities = log_probabilities.fmap(
+                function=function, zip_values=self.actions_spec
+            )
+            log_probability = tf.concat(values=tuple(log_probabilities.values()), axis=1)
 
         return log_probability
 
@@ -103,9 +112,6 @@ class PolicyGradient(Objective):
 
         reference = tf.stop_gradient(input=reference)
 
-        one = tf_util.constant(value=1.0, dtype='float')
-        clipping_value = one + self.clipping_value.value()
-
         if self.importance_sampling:
             log_ratio = log_probability - reference
             # Clip log_ratio for numerical stability (epsilon < 1.0, hence negative)
@@ -113,31 +119,32 @@ class PolicyGradient(Objective):
             log_ratio = tf.clip_by_value(
                 t=log_ratio, clip_value_min=log_epsilon, clip_value_max=-log_epsilon
             )
-            scaling = tf.math.exp(x=log_ratio)
-            min_value = tf.math.reciprocal(x=clipping_value)
-            max_value = clipping_value
-
+            target = tf.math.exp(x=log_ratio)
         else:
-            scaling = log_probability
-            min_value = reference - tf.math.log(x=clipping_value)
-            max_value = reference + tf.math.log(x=clipping_value)
+            target = log_probability
 
         if not self.early_reduce:
             reward = tf.expand_dims(input=reward, axis=1)
 
-        def no_clipping():
-            return scaling * reward
+        if self.clipping_value is None:
+            scaled_target = target * reward
 
-        def apply_clipping():
-            clipped_scaling = tf.clip_by_value(
-                t=scaling, clip_value_min=min_value, clip_value_max=max_value
+        else:
+            one = tf_util.constant(value=1.0, dtype='float')
+            clipping_value = one + self.clipping_value.value()
+            if self.importance_sampling:
+                min_value = tf.math.reciprocal(x=clipping_value)
+                max_value = clipping_value
+            else:
+                min_value = reference - tf.math.log(x=clipping_value)
+                max_value = reference + tf.math.log(x=clipping_value)
+
+            clipped_target = tf.clip_by_value(
+                t=target, clip_value_min=min_value, clip_value_max=max_value
             )
-            return tf.math.minimum(x=(scaling * reward), y=(clipped_scaling * reward))
+            scaled_target = tf.math.minimum(x=(target * reward), y=(clipped_target * reward))
 
-        skip_clipping = tf.math.equal(x=clipping_value, y=one)
-        scaled = tf.cond(pred=skip_clipping, true_fn=no_clipping, false_fn=apply_clipping)
-
-        loss = -scaled
+        loss = -scaled_target
 
         if not self.early_reduce:
             loss = tf.math.reduce_sum(input_tensor=loss, axis=1)

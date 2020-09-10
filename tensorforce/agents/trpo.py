@@ -210,8 +210,8 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
             update = dict(unit='episodes', batch_size=batch_size, frequency=update_frequency)
 
         optimizer = dict(
-            optimizer='natural_gradient', learning_rate=learning_rate,
-            linesearch_iterations=linesearch_iterations, subsampling_fraction=subsampling_fraction
+            optimizer='natural_gradient', learning_rate=learning_rate,only_positive_updates=True,
+            subsampling_fraction=subsampling_fraction, linesearch_iterations=linesearch_iterations
         )
         objective = dict(type='policy_gradient', importance_sampling=True)
 
@@ -232,7 +232,7 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
             )
             baseline = dict(type='parametrized_state_value', network=baseline)
             assert baseline_optimizer is not None
-            baseline_objective = dict(type='value', value='state')
+            baseline_objective = dict(type='state_value')
 
         super().__init__(
             # Agent

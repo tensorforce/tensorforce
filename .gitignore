@@ -5,13 +5,14 @@
 *.swp
 *.vscode
 
+*/.ipynb_checkpoints/
+
 /CONTRIBUTING.html
 /PROJECTS.html
 /README.html
 /UPDATE_NOTES.html
 
 /.eggs/
-/.ipynb_checkpoints/
 /.pytest_cache/
 /_vizdoom/
 /build/

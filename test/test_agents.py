@@ -88,7 +88,8 @@ class TestAgents(UnittestBase, unittest.TestCase):
         self.start_tests(name='PPO')
         self.unittest(
             agent='ppo', batch_size=2, network=dict(type='auto', size=8, depth=1, rnn=2),
-            baseline=dict(type='auto', size=7, depth=1, rnn=1), baseline_optimizer='adam'
+            baseline=dict(type='auto', size=7, depth=1, rnn=1),
+            baseline_optimizer=dict(optimizer='adam', learning_rate=1e-3)
         )
 
     def test_random(self):
@@ -112,12 +113,14 @@ class TestAgents(UnittestBase, unittest.TestCase):
         self.start_tests(name='TRPO')
         self.unittest(
             agent='trpo', batch_size=2, network=dict(type='auto', size=8, depth=1, rnn=2),
-            baseline=dict(type='auto', size=7, depth=1, rnn=1), baseline_optimizer='adam'
+            baseline=dict(type='auto', size=7, depth=1, rnn=1),
+            baseline_optimizer=dict(optimizer='adam', learning_rate=1e-3)
         )
 
     def test_vpg(self):
         self.start_tests(name='VPG')
         self.unittest(
             agent='vpg', batch_size=2, network=dict(type='auto', size=8, depth=1, rnn=2),
-            baseline=dict(type='auto', size=7, depth=1, rnn=1), baseline_optimizer='adam'
+            baseline=dict(type='auto', size=7, depth=1, rnn=1),
+            baseline_optimizer=dict(optimizer='adam', learning_rate=1e-3)
         )

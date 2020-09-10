@@ -641,7 +641,7 @@ class Module(tf.Module):
                 name='Module.summary', argument='name', hint='already exists'
             )
 
-        if self.root.summary_labels == 'all' or label in self.root.summary_labels:
+        if self.root.summaries == 'all' or label in self.root.summaries:
             self.summary_steps[name] = self.variable(
                 name=(name + '-summary'), spec=TensorSpec(type='int'), initializer=-1,
                 is_trainable=False, is_saved=False
@@ -665,7 +665,7 @@ class Module(tf.Module):
         if step not in self.root.units:
             raise TensorforceError.value(name='Module.summary', argument='step', value=step)
 
-        if self.root.summary_labels == 'all' or label in self.root.summary_labels:
+        if self.root.summaries == 'all' or label in self.root.summaries:
             if name[0] not in self.summary_steps:
                 raise TensorforceError.value(
                     name='Module.summary', argument='name', value=name, hint='is not registered'

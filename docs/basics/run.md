@@ -5,6 +5,9 @@ run.py -- Runner
 ###### Agent arguments
 
 **-\-[a]gent** (*string*, **required** *unless "socket-server" remote mode*) -- Agent (name, configuration JSON file, or library module)
+**-\-[c]heckpoints** (*string, default: not specified*) -- TensorFlow checkpoints directory
+**-\-[s]ummaries** (*string, default: not specified*) -- TensorBoard summaries directory
+**-\-recordings** (*string, default: not specified*) -- Traces recordings directory
 
 
 ###### Environment arguments

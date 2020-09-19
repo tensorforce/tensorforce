@@ -196,7 +196,7 @@ class LineSearch(Iterative):
 
             dependencies = [target_value]
             if self.config.create_debug_assertions:
-                epsilon = tf_util.constant(value=util.epsilon, dtype='float')
+                epsilon = tf_util.constant(value=1e-5, dtype='float')
                 epsilon = tf.math.maximum(x=epsilon, y=(epsilon * tf.math.abs(x=base_value)))
                 dependencies.append(tf.debugging.assert_less(
                     x=tf.math.abs(x=(base_value - target_value - last_improvement)), y=epsilon

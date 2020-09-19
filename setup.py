@@ -19,10 +19,10 @@ import sys
 
 
 """
-test: cd docs; make html; cd ..;
+cd docs; make html; cd ..;
 
 pip install --upgrade -r requirements-all.txt
-update requirements.txt and setup.py
+  ... update requirements.txt and setup.py ...
 
 rm -r build
 rm -r dist
@@ -30,12 +30,16 @@ rm -r docs/_*
 pip install --upgrade pip setuptools wheel twine
 python setup.py sdist bdist_wheel
 
-twine upload --repository-url https://test.pypi.org/legacy/ dist/Tensorforce-0.6.0*
-test: pip install --upgrade --index-url https://test.pypi.org/simple/ tensorforce
-test: python; import tensorforce;
-test: python tensorforce/examples/quickstart.py
+twine upload --repository-url https://test.pypi.org/legacy/ dist/Tensorforce-0.6.*
 
-twine upload dist/Tensorforce-0.6.0*
+pip install --upgrade --index-url https://test.pypi.org/simple/ tensorforce
+python
+  > import tensorforce
+  > print(tensorforce.__version__)
+python tensorforce/examples/quickstart.py
+
+twine upload dist/Tensorforce-0.6.*
+  ... commit and fix GitHub version ...
 """
 
 if sys.version_info.major != 3:
@@ -126,7 +130,7 @@ setup(
     ],
     install_requires=install_requires,
     extras_require=dict(
-        tfa=['tensorflow-addons >= 0.11.1'],
+        tfa=['tensorflow-addons >= 0.11.2'],
         tune=['hpbandster >= 0.7.4'],
         envs=[
             'ale-py', 'gym[atari,box2d,classic_control] >= 0.17.2', 'box2d >= 2.3.10',

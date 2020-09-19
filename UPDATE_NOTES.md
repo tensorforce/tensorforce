@@ -3,8 +3,7 @@
 This file records all major updates and new features, starting from version 0.5. As Tensorforce is still developing, updates and bug fixes for the internal architecture are continuously being implemented, which will not be tracked here in detail.
 
 
-
-### Latest changes
+### Version 0.6.1
 
 ##### Agents:
 - Removed default value `"adam"` for Tensorforce agent argument `optimizer` (since default optimizer argument `learning_rate` removed, see below)

@@ -27,7 +27,7 @@ If you want to use Tensorforce within a Docker container, the following is a min
 ```
 FROM python:3.8
 RUN \
-  pip install tensorforce
+  pip3 install tensorforce
 ```
 
 Or alternatively for the latest version:

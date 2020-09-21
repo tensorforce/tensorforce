@@ -239,7 +239,7 @@ class TensorforceAgent(Agent):
             (<span style="color:#C00000"><b>required</b></span>).</li>
             <li><b>filename</b> (<i>path</i>) &ndash; summarizer filename, max_summaries does not
             apply if name specified
-            (<span style="color:#00C000"><b>default</b></span>: `summary-%Y%m%d-%H%M%S`).</li>
+            (<span style="color:#00C000"><b>default</b></span>: "summary-%Y%m%d-%H%M%S").</li>
             <li><b>max_summaries</b> (<i>int > 0</i>) &ndash; maximum number of (generically-named)
             summaries to keep
             (<span style="color:#00C000"><b>default</b></span>: 7, number of different colors in

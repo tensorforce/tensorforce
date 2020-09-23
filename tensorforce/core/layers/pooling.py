@@ -16,7 +16,7 @@
 import numpy as np
 import tensorflow as tf
 
-from tensorforce import TensorforceError, util
+from tensorforce import TensorforceError
 from tensorforce.core import TensorSpec, tf_function, tf_util
 from tensorforce.core.layers import Layer
 

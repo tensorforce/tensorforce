@@ -47,7 +47,9 @@ class Layer(Module):
         if not isinstance(self.input_spec, TensorSpec):
             raise TensorforceError.unexpected()
 
-        self.input_spec = self.input_spec.unify(other=input_spec)
+        self.input_spec = self.input_spec.unify(
+            other=input_spec, name=(self.__class__.__name__ + ' input')
+        )
 
     def default_input_spec(self):
         return TensorSpec(type=None, shape=None, overwrite=True)

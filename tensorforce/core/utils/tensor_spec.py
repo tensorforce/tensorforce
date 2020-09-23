@@ -19,7 +19,7 @@ import numpy as np
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core.utils import NestedDict, tf_util
+from tensorforce.core.utils import tf_util
 
 
 def _normalize_type(*, dtype):
@@ -292,7 +292,7 @@ class TensorSpec(object):
 
         return assertions
 
-    def unify(self, *, other):
+    def unify(self, *, other, name='TensorSpec.unify'):
         # Unify type
         if self.type is None:
             dtype = other.type
@@ -306,27 +306,26 @@ class TensorSpec(object):
                     dtype = other.type
                 else:
                     raise TensorforceError.mismatch(
-                        name='TensorSpec.unify', argument='type', value1=self.type,
-                        value2=other.type
+                        name=name, argument='type', value1=self.type, value2=other.type
                     )
             elif other.type in self.type:
                 dtype = other.type
             else:
                 raise TensorforceError.mismatch(
-                    name='TensorSpec.unify', argument='type', value1=self.type, value2=other.type
+                    name=name, argument='type', value1=self.type, value2=other.type
                 )
         elif util.is_iterable(x=other.type):
             if self.type in other.type:
                 dtype = self.type
             else:
                 raise TensorforceError.mismatch(
-                    name='TensorSpec.unify', argument='type', value1=self.type, value2=other.type
+                    name=name, argument='type', value1=self.type, value2=other.type
                 )
         elif self.type == other.type:
             dtype = self.type
         else:
             raise TensorforceError.mismatch(
-                name='TensorSpec.unify', argument='type', value1=self.type, value2=other.type
+                name=name, argument='type', value1=self.type, value2=other.type
             )
 
         # Unify shape
@@ -336,27 +335,31 @@ class TensorSpec(object):
             shape = self.shape
         else:
             reverse_shape = list()
-            for n in range(1, max(len(self.shape), len(other.shape)) + 1):
-                if len(self.shape) < n:
-                    if other.shape[-n] is not None:
-                        reverse_shape.append(other.shape[-n])
-                elif len(other.shape) < n:
-                    if self.shape[-n] is not None:
-                        reverse_shape.append(self.shape[-n])
-                elif self.shape[-n] is None or self.shape[-n] == 0:
-                    reverse_shape.append(other.shape[-n])
-                elif other.shape[-n] is None or other.shape[-n] == 0:
-                    reverse_shape.append(self.shape[-n])
-                elif self.shape[-n] == -1 and other.shape[-n] > 0:
-                    reverse_shape.append(other.shape[-n])
-                elif other.shape[-n] == -1 and self.shape[-n] > 0:
-                    reverse_shape.append(self.shape[-n])
-                elif self.shape[-n] == other.shape[-n]:
-                    reverse_shape.append(self.shape[-n])
+            start = len(self.shape) - 1
+            if self.shape[-1] is None:
+                reverse_shape.extend(other.shape[len(self.shape) - 1:])
+                start = len(self.shape) - 2
+            elif other.shape[-1] is None:
+                reverse_shape.extend(self.shape[len(other.shape) - 1:])
+                start = len(other.shape) - 2
+            elif len(self.shape) != len(other.shape):
+                raise TensorforceError.mismatch(
+                    name=name, argument='rank', value1=self.rank, value2=other.rank
+                )
+            for n in range(start, -1, -1):
+                if self.shape[n] == 0:
+                    reverse_shape.append(other.shape[n])
+                elif other.shape[n] == 0:
+                    reverse_shape.append(self.shape[n])
+                elif self.shape[n] == -1 and other.shape[n] > 0:
+                    reverse_shape.append(other.shape[n])
+                elif other.shape[n] == -1 and self.shape[n] > 0:
+                    reverse_shape.append(self.shape[n])
+                elif self.shape[n] == other.shape[n]:
+                    reverse_shape.append(self.shape[n])
                 else:
                     raise TensorforceError.mismatch(
-                        name='TensorSpec.unify', argument='shape', value1=self.shape,
-                        value2=other.shape
+                        name=name, argument='shape', value1=self.shape, value2=other.shape
                     )
             shape = tuple(reversed(reverse_shape))
 
@@ -401,14 +404,12 @@ class TensorSpec(object):
             if isinstance(min_value, np.ndarray) or isinstance(max_value, np.ndarray):
                 if (min_value > max_value).any():
                     raise TensorforceError.mismatch(
-                        name='TensorSpec.unify', argument='min/max_value', value1=min_value,
-                        value2=max_value
+                        name=name, argument='min/max_value', value1=min_value, value2=max_value
                     )
             else:
                 if min_value > max_value:
                     raise TensorforceError.mismatch(
-                        name='TensorSpec.unify', argument='min/max_value', value1=min_value,
-                        value2=max_value
+                        name=name, argument='min/max_value', value1=min_value, value2=max_value
                     )
 
         # Unify num_values
@@ -424,7 +425,7 @@ class TensorSpec(object):
                     num_values = self.num_values
                 else:
                     raise TensorforceError.mismatch(
-                        name='TensorSpec.unify', argument='num_values', value1=self.num_values,
+                        name=name, argument='num_values', value1=self.num_values,
                         value2=other.num_values
                     )
             else:

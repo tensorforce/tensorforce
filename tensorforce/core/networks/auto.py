@@ -85,6 +85,16 @@ class AutoNetwork(LayeredNetwork):
 
             # Embed bool and int states
             requires_embedding = (spec.type == 'bool' or spec.type == 'int')
+            if spec.type == 'int' and spec.num_values is None:
+                if input_name is None:
+                    raise TensorforceError.required(
+                        name='state', argument='num_values', condition='state type is int'
+                    )
+                else:
+                    raise TensorforceError.required(
+                        name=(input_name + ' state'), argument='num_values',
+                        condition='state type is int'
+                    )
             if requires_embedding:
                 state_layers.append(dict(
                     type='embedding', name=(prefix + 'embedding'), size=size

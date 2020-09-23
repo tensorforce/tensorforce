@@ -42,8 +42,8 @@ class Environment(object):
         Args:
             environment (specification | Environment class/object): JSON file, specification key,
                 configuration dictionary, library module, `Environment` class/object, or gym.Env
-                (<span style="color:#C00000"><b>required</b>, invalid for "socket-client" remote
-                mode</span>).
+                (<span style="color:#C00000"><b>required</b></span>, invalid for "socket-client"
+                remote mode).
             max_episode_timesteps (int > 0): Maximum number of timesteps per episode, overwrites
                 the environment default if defined
                 (<span style="color:#00C000"><b>default</b></span>: environment default, invalid
@@ -220,7 +220,6 @@ class Environment(object):
     def __init__(self):
         # first two arguments, if applicable: level, visualize=False
         util.overwrite_staticmethod(obj=self, function='create')
-        self._max_episode_timesteps = None
         self._expect_receive = None
         self._actions = None
 
@@ -274,7 +273,7 @@ class Environment(object):
         Returns:
             int: Maximum number of timesteps per episode.
         """
-        return self._max_episode_timesteps
+        return None
 
     def close(self):
         """
@@ -347,9 +346,11 @@ class EnvironmentWrapper(Environment):
 
         self._environment = environment
         if max_episode_timesteps is None:
-            self._max_episode_timesteps = self._environment._max_episode_timesteps
+            self._max_episode_timesteps = self._environment.max_episode_timesteps()
         else:
             self._max_episode_timesteps = max_episode_timesteps
+            if self._environment.max_episode_timesteps() is None:
+                self._environment.max_episode_timesteps = (lambda self: max_episode_timesteps)
         self._timestep = None
 
     def __str__(self):
@@ -360,6 +361,9 @@ class EnvironmentWrapper(Environment):
 
     def actions(self):
         return self._environment.actions()
+
+    def max_episode_timesteps(self):
+        return self._max_episode_timesteps
 
     def close(self):
         return self._environment.close()
@@ -544,7 +548,7 @@ class RemoteEnvironment(Environment):
 
     _ATTRIBUTES = frozenset([
         '_actions', '_blocking', '_connection', 'create', '_episode_seconds', '_expect_receive',
-        '_max_episode_timesteps', '_observation', '_thread'
+        '_observation', '_thread'
     ])
 
     def __getattr__(self, name):

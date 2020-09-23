@@ -27,12 +27,14 @@ class Runner(object):
     Tensorforce runner utility.
 
     Args:
-        agent (specification | Agent object): Agent specification or object, the latter is not
-            closed automatically as part of `runner.close()`, parallel_interactions is implicitly
-            specified as / expected to be at least num_parallel, -1 if evaluation
+        agent (specification | Agent object): Agent specification or object, the latter is not (!)
+            closed automatically as part of `runner.close()`, argument `environment` is implicitly
+            specified as the following argument, argument `parallel_interactions` is either implicitly
+            specified as num_parallel or expected to be at least num_parallel
             (<span style="color:#C00000"><b>required</b></span>).
         environment (specification | Environment object): Environment specification or object, the
-            latter is not closed automatically as part of `runner.close()`
+            latter is not (!) closed automatically as part of `runner.close()`, argument
+            `max_episode_timesteps` is implicitly specified as the following argument
             (<span style="color:#C00000"><b>required</b></span>, or alternatively `environments`,
             invalid for "socket-client" remote mode).
         max_episode_timesteps (int > 0): Maximum number of timesteps per episode, overwrites the
@@ -223,7 +225,7 @@ class Runner(object):
                 (<span style="color:#00C000"><b>default</b></span>: one milliseconds).
             callback ((Runner, parallel) -> bool): Callback function taking the runner instance
                 plus parallel index and returning a boolean value indicating whether execution
-                should continue 
+                should continue
                 (<span style="color:#00C000"><b>default</b></span>: callback always true).
             callback_episode_frequency (int): Episode interval between callbacks
                 (<span style="color:#00C000"><b>default</b></span>: every episode).

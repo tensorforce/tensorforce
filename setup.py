@@ -32,12 +32,14 @@ python setup.py sdist bdist_wheel
 
 twine upload --repository-url https://test.pypi.org/legacy/ dist/Tensorforce-0.6.*
 
+cd ..
 pip install --upgrade --index-url https://test.pypi.org/simple/ tensorforce
 python
   > import tensorforce
   > print(tensorforce.__version__)
 python tensorforce/examples/quickstart.py
 
+cd tensorforce
 twine upload dist/Tensorforce-0.6.*
   ... commit and fix GitHub version ...
 """

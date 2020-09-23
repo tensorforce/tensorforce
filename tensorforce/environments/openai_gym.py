@@ -161,9 +161,11 @@ class OpenAIGym(Environment):
         if isinstance(level, gym.Env):
             self.environment = self.level
             self.level = self.level.__class__.__name__
+            self._max_episode_timesteps = None
         elif isinstance(level, type) and issubclass(level, gym.Env):
             self.environment = self.level(**kwargs)
             self.level = self.level.__class__.__name__
+            self._max_episode_timesteps = None
         else:
             self.environment, self._max_episode_timesteps = self.__class__.create_level(
                 level=self.level, max_episode_steps=None, reward_threshold=reward_threshold,
@@ -209,6 +211,9 @@ class OpenAIGym(Environment):
 
     def actions(self):
         return self.actions_spec
+
+    def max_episode_timesteps(self):
+        return self._max_episode_timesteps
 
     def close(self):
         self.environment.close()

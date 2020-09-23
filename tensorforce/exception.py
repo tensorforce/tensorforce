@@ -52,13 +52,13 @@ class TensorforceError(Exception):
     def mismatch(name, value1, value2, argument=None):
         if argument is None:
             return TensorforceError(
-                message="{name} mismatch: {value1} <-> {value2}.".format(
+                message="{name} mismatch: {value2} != {value1}.".format(
                     name=name, value1=value1, value2=value2
                 )
             )
         else:
             return TensorforceError(
-                message="{name} mismatch for argument {argument}: {value1} <-> {value2}.".format(
+                message="{name} mismatch for argument {argument}: {value2} != {value1}.".format(
                     name=name, argument=argument, value1=value1, value2=value2
                 )
             )

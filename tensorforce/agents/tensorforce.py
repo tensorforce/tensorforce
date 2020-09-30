@@ -462,7 +462,8 @@ class TensorforceAgent(Agent):
 
             # Internals
             if internals is None:
-                internals = ArrayDict()
+                internals = ArrayDict(self.initial_internals())
+                internals = internals.fmap(function=(lambda x: np.repeat(np.expand_dims(x, axis=0), repeats=num_instances, axis=0)))
             elif not isinstance(internals, (tuple, list)):
                 raise TensorforceError.type(
                     name='Agent.experience', argument='internals', dtype=type(internals),
@@ -495,7 +496,8 @@ class TensorforceAgent(Agent):
 
             # Internals
             if internals is None:
-                internals = ArrayDict()
+                internals = ArrayDict(self.initial_internals())
+                internals = internals.fmap(function=(lambda x: np.tile(np.expand_dims(x, axis=0), reps=(num_instances,))))
             elif not isinstance(internals, dict):
                 raise TensorforceError.type(
                     name='Agent.experience', argument='internals', dtype=type(internals),

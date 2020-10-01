@@ -276,8 +276,8 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
         )
         self.unittest(
             optimizer=dict(optimizer='adam', learning_rate=dict(
-                type='decaying', decay='exponential', unit='timesteps',
-                num_steps=2, initial_value=0.01, decay_rate=0.5
+                type='exponential', unit='timesteps', num_steps=2,
+                initial_value=0.01, decay_rate=0.5
             ))
         )
         self.unittest(

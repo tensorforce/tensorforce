@@ -22,7 +22,7 @@ from tensorforce.core.parameters import Parameter
 
 class Decaying(Parameter):
     """
-    Decaying hyperparameter (specification key: `decaying`, `exponential`, `polynomial`,
+    Decaying hyperparameter (specification key: `decaying`, `linear`, `exponential`, `polynomial`,
     `inverse_time`, `cosine`, `cosine_restarts`, `linear_cosine`, `linear_cosine_noisy`).
 
     Args:

@@ -78,17 +78,26 @@ class TestParameters(UnittestBase, unittest.TestCase):
     def test_decaying(self):
         self.start_tests(name='decaying')
 
+        exploration = dict(
+            type='decaying', decay='exponential', unit='timesteps', num_steps=5, initial_value=0.1,
+            decay_rate=0.5
+        )
+        self.float_unittest(exploration=exploration)
+
+        horizon = dict(
+            type='polynomial', unit='timesteps', num_steps=1, initial_value=2, final_value=4,
+            power=2
+        )
+        self.int_unittest(horizon=horizon)
+
+    def test_exponential(self):
+        self.start_tests(name='exponential')
+
         # SPECIFICATION.MD
         exploration = dict(
             type='exponential', unit='timesteps', num_steps=5, initial_value=0.1, decay_rate=0.5
         )
         self.float_unittest(exploration=exploration)
-
-        horizon = dict(
-            type='decaying', decay='polynomial', unit='timesteps', num_steps=1, initial_value=2,
-            final_value=4, power=2
-        )
-        self.int_unittest(horizon=horizon)
 
     def test_linear(self):
         self.start_tests(name='linear')

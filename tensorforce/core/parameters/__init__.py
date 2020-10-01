@@ -19,6 +19,7 @@ from tensorforce.core.parameters.parameter import Parameter
 
 from tensorforce.core.parameters.constant import Constant
 from tensorforce.core.parameters.decaying import Decaying
+from tensorforce.core.parameters.exponential import Exponential
 from tensorforce.core.parameters.linear import Linear
 from tensorforce.core.parameters.ornstein_uhlenbeck import OrnsteinUhlenbeck
 from tensorforce.core.parameters.piecewise_constant import PiecewiseConstant
@@ -26,13 +27,13 @@ from tensorforce.core.parameters.random import Random
 
 
 parameter_modules = dict(
-    constant=Constant, decaying=Decaying, default=Constant, linear=Linear,
+    constant=Constant, decaying=Decaying, default=Constant, exponential=Exponential, linear=Linear,
     ornstein_uhlenbeck=OrnsteinUhlenbeck, piecewise_constant=PiecewiseConstant, random=Random
 )
 
 
 for name in (
-    'exponential', 'polynomial', 'inverse_time', 'cosine', 'cosine_restarts', 'linear_cosine',
+    'polynomial', 'inverse_time', 'cosine', 'cosine_restarts', 'linear_cosine',
     'linear_cosine_noisy'
 ):
     assert name not in parameter_modules
@@ -40,6 +41,6 @@ for name in (
 
 
 __all__ = [
-    'Constant', 'Decaying', 'Linear', 'OrnsteinUhlenbeck', 'Parameter', 'parameter_modules',
-    'PiecewiseConstant', 'Random'
+    'Constant', 'Decaying', 'Exponential', 'Linear', 'OrnsteinUhlenbeck', 'Parameter',
+    'parameter_modules', 'PiecewiseConstant', 'Random'
 ]

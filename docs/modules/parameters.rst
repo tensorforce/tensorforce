@@ -20,8 +20,8 @@ Example of how to specify an exponentially decaying learning rate:
     Agent.create(
         ...
         optimizer=dict(optimizer='adam', learning_rate=dict(
-            type='decaying', decay='exponential', unit='timesteps',
-            num_steps=1000, initial_value=0.01, decay_rate=0.5
+            type='exponential', unit='timesteps', num_steps=1000,
+            initial_value=0.01, decay_rate=0.5
         )),
         ...
     )
@@ -45,6 +45,8 @@ Example of how to specify a linearly increasing reward horizon:
 .. autoclass:: tensorforce.core.parameters.Linear
 
 .. autoclass:: tensorforce.core.parameters.PiecewiseConstant
+
+.. autoclass:: tensorforce.core.parameters.Exponential
 
 .. autoclass:: tensorforce.core.parameters.Decaying
 

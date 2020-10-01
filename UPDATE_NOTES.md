@@ -5,6 +5,9 @@ This file records all major updates and new features, starting from version 0.5.
 
 ### Latest changes
 
+##### Buxfixes:
+- Critical bugfix for DQN variants and DPG agent
+
 
 ---
 
@@ -51,7 +54,7 @@ This file records all major updates and new features, starting from version 0.5.
 ##### Examples:
 - Added `save_load_agent.py` example script to illustrate regular agent saving and loading
 
-##### Buxfixes
+##### Buxfixes:
 - Fixed problem with optimizer argument `gradient_norm_clipping` not being applied correctly
 - Fixed problem with `exponential_normalization` layer not updating moving mean and variance correctly
 - Fixed problem with `recent` memory for timestep-based updates sometimes sampling invalid memory indices

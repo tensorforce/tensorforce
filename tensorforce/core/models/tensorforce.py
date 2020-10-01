@@ -2012,11 +2012,11 @@ class TensorforceModel(Model):
             discounts = tf.math.pow(x=discount, y=exponent)
             if not self.predict_terminal_values:
                 discounts = tf.where(
-                    condition=tf.math.greater(x=_terminal, y=one),
-                    x=discounts, y=tf.zeros_like(input=discounts)
+                    condition=tf.math.equal(x=_terminal, y=one),
+                    x=tf.zeros_like(input=discounts), y=discounts
                 )
 
-            reward += discounts * horizon_values
+            reward = reward + discounts * horizon_values
 
         dependencies = [reward]
         if self.summaries == 'all' or 'reward' in self.summaries:

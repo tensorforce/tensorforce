@@ -1321,58 +1321,62 @@ class TensorforceModel(Model):
 
                 if self.predict_horizon_values == 'early':
                     baseline_horizon = self.baseline.past_horizon(on_policy=True)
-                    dependencies.append(tf.debugging.assert_less_equal(
+                    assertions = list()
+                    assertions.append(tf.debugging.assert_less_equal(
                         x=baseline_horizon, y=reward_horizon,
                         message="Baseline horizon cannot be greater than reward estimation "
                                 "horizon if prediction_horizon_values=\"early\"."
                     ))
 
-                    horizons_start = tf.range(num_complete)
-                    horizons_length = tf.fill(dims=(num_complete,), value=(baseline_horizon + one))
-                    horizons = tf.stack(values=(horizons_start, horizons_length), axis=1)
+                    with tf.control_dependencies(control_inputs=assertions):
+                        horizons_start = tf.range(num_complete)
+                        horizons_length = tf.fill(
+                            dims=(num_complete,), value=(baseline_horizon + one)
+                        )
+                        horizons = tf.stack(values=(horizons_start, horizons_length), axis=1)
 
-                    indices = tf.range(
-                        start=(buffer_start + reward_horizon - baseline_horizon),
-                        limit=(buffer_start + reward_horizon + num_complete)
-                    )
-                    indices = tf.math.mod(x=indices, y=capacity)
-                    function = (lambda x: tf.gather(params=x[parallel], indices=indices))
-                    states = self.states_buffer.fmap(function=function, cls=TensorDict)
-                    function = (lambda x: tf.gather(
-                        params=x[parallel], indices=indices[:num_complete]
-                    ))
-                    if self.separate_baseline:
-                        if len(self.internals_spec['baseline']) > 0:
-                            internals = self.internals_buffer['baseline'].fmap(
-                                function=function, cls=TensorDict
+                        indices = tf.range(
+                            start=(buffer_start + reward_horizon - baseline_horizon),
+                            limit=(buffer_start + reward_horizon + num_complete)
+                        )
+                        indices = tf.math.mod(x=indices, y=capacity)
+                        function = (lambda x: tf.gather(params=x[parallel], indices=indices))
+                        states = self.states_buffer.fmap(function=function, cls=TensorDict)
+                        function = (lambda x: tf.gather(
+                            params=x[parallel], indices=indices[:num_complete]
+                        ))
+                        if self.separate_baseline:
+                            if len(self.internals_spec['baseline']) > 0:
+                                internals = self.internals_buffer['baseline'].fmap(
+                                    function=function, cls=TensorDict
+                                )
+                            else:
+                                internals = TensorDict()
+                        else:
+                            if len(self.internals_spec['policy']) > 0:
+                                internals = self.internals_buffer['policy'].fmap(
+                                    function=function, cls=TensorDict
+                                )
+                            else:
+                                internals = TensorDict()
+                        function = (lambda x: tf.gather(
+                            params=x[parallel], indices=indices[baseline_horizon:]
+                        ))
+                        auxiliaries = self.auxiliaries_buffer.fmap(
+                            function=function, cls=TensorDict
+                        )
+
+                        if self.predict_action_values:
+                            actions = self.actions_buffer.fmap(function=function, cls=TensorDict)
+                            horizon_values = self.baseline.action_value(
+                                states=states, horizons=horizons, internals=internals,
+                                auxiliaries=auxiliaries, actions=actions
                             )
                         else:
-                            internals = TensorDict()
-                    else:
-                        if len(self.internals_spec['policy']) > 0:
-                            internals = self.internals_buffer['policy'].fmap(
-                                function=function, cls=TensorDict
+                            horizon_values = self.baseline.state_value(
+                                states=states, horizons=horizons, internals=internals,
+                                auxiliaries=auxiliaries
                             )
-                        else:
-                            internals = TensorDict()
-                    function = (lambda x: tf.gather(
-                        params=x[parallel], indices=indices[baseline_horizon:]
-                    ))
-                    auxiliaries = self.auxiliaries_buffer.fmap(
-                        function=function, cls=TensorDict
-                    )
-
-                    if self.predict_action_values:
-                        actions = self.actions_buffer.fmap(function=function, cls=TensorDict)
-                        horizon_values = self.baseline.action_value(
-                            states=states, horizons=horizons, internals=internals,
-                            auxiliaries=auxiliaries, actions=actions
-                        )
-                    else:
-                        horizon_values = self.baseline.state_value(
-                            states=states, horizons=horizons, internals=internals,
-                            auxiliaries=auxiliaries
-                        )
 
                 else:
                     horizon_values = tf_util.zeros(shape=(num_complete,), dtype='float')
@@ -1788,7 +1792,8 @@ class TensorforceModel(Model):
             if self.config.create_tf_assertions:
                 assertions.append(tf.debugging.assert_equal(
                     x=policy_horizon, y=self.baseline.past_horizon(on_policy=True),
-                    message="Policy and baseline depend on a different number of previous states."
+                    message="Policy and baseline cannot depend on a different number of previous "
+                            "states if baseline_optimizer is None."
                 ))
             with tf.control_dependencies(control_inputs=assertions):
                 policy_horizons, sequence_values, initial_values = self.memory.predecessors(
@@ -1932,56 +1937,102 @@ class TensorforceModel(Model):
             else:
                 _baseline_horizon = self.baseline.past_horizon(on_policy=False)
                 assertions = list()
-                if self.config.create_tf_assertions:
+                if self.config.create_tf_assertions and self.predict_action_values:
+                    _policy_horizon = self.policy.past_horizon(on_policy=False)
                     # TODO: remove restriction
-                    assertions.append(tf.debugging.assert_less_equal(
-                        x=_baseline_horizon, y=reward_horizon,
-                        message="Baseline horizon cannot be greater than reward estimation horizon."
+                    assertions.append(tf.debugging.assert_equal(
+                        x=_policy_horizon, y=_baseline_horizon,
+                        message="Policy and baseline cannot depend on a different number of "
+                                "previous states if predict_action_values is True."
                     ))
-                    if self.predict_action_values:
-                        _policy_horizon = self.policy.past_horizon(on_policy=False)
-                        # TODO: remove restriction
-                        assertions.append(tf.debugging.assert_equal(
-                            x=_policy_horizon, y=_baseline_horizon,
-                            message="Policy and baseline horizon have to be equal."
-                        ))
 
                 with tf.control_dependencies(control_inputs=assertions):
-                    if self.predict_action_values and self.separate_baseline:
-                        _starts, _final_values = self.memory.successors(
-                            indices=indices, horizon=(reward_horizon - _baseline_horizon),
-                            sequence_values=(), final_values=('internals',)
-                        )
-                        _internals = _final_values['internals']
-                        _policy_internals = _internals['policy']
-                        _baseline_internals = _internals['baseline']
-                    elif self.separate_baseline:
-                        if len(self.internals_spec['baseline']) > 0:
+
+                    def reward_ge_baseline():
+                        if self.predict_action_values and self.separate_baseline:
                             _starts, _final_values = self.memory.successors(
                                 indices=indices, horizon=(reward_horizon - _baseline_horizon),
-                                sequence_values=(), final_values=('internals/baseline',)
+                                sequence_values=(), final_values=('internals',)
                             )
-                            _baseline_internals = _final_values['internals/baseline']
+                            _internals = _final_values['internals']
+                            _policy_internals = _internals['policy']
+                            _baseline_internals = _internals['baseline']
+                            return _starts, _policy_internals, _baseline_internals
+                        elif self.separate_baseline:
+                            if len(self.internals_spec['baseline']) > 0:
+                                _starts, _final_values = self.memory.successors(
+                                    indices=indices, horizon=(reward_horizon - _baseline_horizon),
+                                    sequence_values=(), final_values=('internals/baseline',)
+                                )
+                                _baseline_internals = _final_values['internals/baseline']
+                            else:
+                                _starts = self.memory.successors(
+                                    indices=indices, horizon=(reward_horizon - _baseline_horizon),
+                                    sequence_values=(), final_values=()
+                                )
+                                _baseline_internals = TensorDict()
+                            return _starts, None, _baseline_internals
                         else:
-                            _starts = self.memory.successors(
-                                indices=indices, horizon=(reward_horizon - _baseline_horizon),
-                                sequence_values=(), final_values=()
+                            if len(self.internals_spec['policy']) > 0:
+                                _starts, _final_values = self.memory.successors(
+                                    indices=indices, horizon=(reward_horizon - _baseline_horizon),
+                                    sequence_values=(), final_values=('internals/policy',)
+                                )
+                                _policy_internals = _final_values['internals/policy']
+                            else:
+                                _starts = self.memory.successors(
+                                    indices=indices, horizon=(reward_horizon - _baseline_horizon),
+                                    sequence_values=(), final_values=()
+                                )
+                                _policy_internals = TensorDict()
+                            _baseline_internals = _policy_internals
+                            return _starts, _policy_internals, _baseline_internals
+
+                    def reward_lt_baseline():
+                        if self.predict_action_values and self.separate_baseline:
+                            _starts, _initial_values = self.memory.predecessors(
+                                indices=indices, horizon=(_baseline_horizon - reward_horizon),
+                                sequence_values=(), initial_values=('internals',)
                             )
-                            _baseline_internals = TensorDict()
-                    else:
-                        if len(self.internals_spec['policy']) > 0:
-                            _starts, _final_values = self.memory.successors(
-                                indices=indices, horizon=(reward_horizon - _baseline_horizon),
-                                sequence_values=(), final_values=('internals/policy',)
-                            )
-                            _policy_internals = _final_values['internals/policy']
+                            _internals = _initial_values['internals']
+                            _policy_internals = _internals['policy']
+                            _baseline_internals = _internals['baseline']
+                            return _starts, _policy_internals, _baseline_internals
+                        elif self.separate_baseline:
+                            if len(self.internals_spec['baseline']) > 0:
+                                _starts, _initial_values = self.memory.predecessors(
+                                    indices=indices, horizon=(_baseline_horizon - reward_horizon),
+                                    sequence_values=(), initial_values=('internals/baseline',)
+                                )
+                                _baseline_internals = _initial_values['internals/baseline']
+                            else:
+                                _starts = self.memory.successors(
+                                    indices=indices, horizon=(_baseline_horizon - reward_horizon),
+                                    sequence_values=(), final_values=()
+                                )
+                                _baseline_internals = TensorDict()
+                            return _starts, None, _baseline_internals
                         else:
-                            _starts = self.memory.successors(
-                                indices=indices, horizon=(reward_horizon - _baseline_horizon),
-                                sequence_values=(), final_values=()
-                            )
-                            _policy_internals = TensorDict()
-                        _baseline_internals = _policy_internals
+                            if len(self.internals_spec['policy']) > 0:
+                                _starts, _initial_values = self.memory.predecessors(
+                                    indices=indices, horizon=(_baseline_horizon - reward_horizon),
+                                    sequence_values=(), initial_values=('internals/policy',)
+                                )
+                                _policy_internals = _initial_values['internals/policy']
+                            else:
+                                _starts = self.memory.predecessors(
+                                    indices=indices, horizon=(_baseline_horizon - reward_horizon),
+                                    sequence_values=(), initial_values=()
+                                )
+                                _policy_internals = TensorDict()
+                            _baseline_internals = _policy_internals
+                            return _starts, _policy_internals, _baseline_internals
+
+                    _starts, _policy_internals, _baseline_internals = tf.cond(
+                        pred=tf.math.greater_equal(x=reward_horizon, y=_baseline_horizon),
+                        true_fn=reward_ge_baseline, false_fn=reward_lt_baseline
+                    )
+
                     _horizons, _sequence_values, _final_values = self.memory.successors(
                         indices=_starts, horizon=_baseline_horizon, sequence_values=('states',),
                         final_values=('auxiliaries', 'terminal')

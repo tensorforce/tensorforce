@@ -69,7 +69,6 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
             gaussian_action1=dict(type='float', shape=(1, 2), min_value=1.0, max_value=2.0),
             gaussian_action2=dict(type='float', shape=(), min_value=-2.0, max_value=1.0)
         )
-        # policy = dict(network=dict(type='auto', size=8, depth=1, rnn=2))
         reward_estimation = dict(
             horizon='episode', predict_horizon_values='early', predict_action_values=True,
             return_processing='batch_normalization'

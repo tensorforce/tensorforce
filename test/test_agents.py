@@ -51,7 +51,7 @@ class TestAgents(UnittestBase, unittest.TestCase):
             # TODO: no-RNN restriction can be removed
             network=dict(type='auto', size=8, depth=1, rnn=False),
             # TODO: cannot use RNN since value function takes states and actions
-            horizon=2, critic=dict(type='auto', size=7, depth=1, rnn=False)
+            critic=dict(type='auto', size=7, depth=1, rnn=False)
         )
 
     def test_double_dqn(self):
@@ -59,9 +59,7 @@ class TestAgents(UnittestBase, unittest.TestCase):
         self.unittest(
             actions=dict(type='int', shape=(2,), num_values=4),
             agent='double_dqn', memory=100, batch_size=4,
-            network=dict(type='auto', size=8, depth=1, rnn=2),
-            # TODO: baseline horizon cannot be greater than reward horizon
-            horizon=2
+            network=dict(type='auto', size=8, depth=1, rnn=2)
         )
 
     def test_dqn(self):
@@ -69,9 +67,7 @@ class TestAgents(UnittestBase, unittest.TestCase):
         self.unittest(
             actions=dict(type='int', shape=(2,), num_values=4),
             agent='dqn', memory=100, batch_size=4,
-            network=dict(type='auto', size=8, depth=1, rnn=2),
-            # TODO: baseline horizon cannot be greater than reward horizon
-            horizon=2
+            network=dict(type='auto', size=8, depth=1, rnn=2)
         )
 
     def test_dueling_dqn(self):
@@ -79,9 +75,7 @@ class TestAgents(UnittestBase, unittest.TestCase):
         self.unittest(
             actions=dict(type='int', shape=(2,), num_values=4),
             agent='dueling_dqn', memory=100, batch_size=4,
-            network=dict(type='auto', size=8, depth=1, rnn=2),
-            # TODO: baseline horizon cannot be greater than reward horizon
-            horizon=2
+            network=dict(type='auto', size=8, depth=1, rnn=2)
         )
 
     def test_ppo(self):

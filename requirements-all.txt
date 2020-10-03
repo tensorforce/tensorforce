@@ -2,11 +2,11 @@ gym >= 0.17.2
 h5py >= 2.10.0
 matplotlib >= 3.3.1
 msgpack >= 1.0.0
-msgpack-numpy >= 0.4.6.1
+msgpack-numpy >= 0.4.7.1
 numpy == 1.18.5
 tensorflow == 2.3.1
 tqdm >= 4.48.2
-tensorflow-addons >= 0.11.1
+tensorflow-addons >= 0.11.2
 hpbandster >= 0.7.4
 ale-py
 gym[atari,box2d,classic_control] >= 0.17.2

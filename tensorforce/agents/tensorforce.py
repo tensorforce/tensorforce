@@ -312,6 +312,10 @@ class TensorforceAgent(Agent):
                 name='Agent', argument='reward_estimation[estimate_terminal]',
                 replacement='reward_estimation[estimate_terminals]'
             )
+        if summarizer is not None and 'labels' in summarizer:
+            raise TensorforceError.deprecated(
+                name='Agent', argument='summarizer[labels]', replacement='summarizer[summaries]'
+            )
         if baseline_policy is not None:
             raise TensorforceError.deprecated(
                 name='Agent', argument='baseline_policy', replacement='baseline'
@@ -592,16 +596,25 @@ class TensorforceAgent(Agent):
             last = index
 
             # Inputs to tensors
-            states_batch = self.states_spec.to_tensor(value=states_batch, batched=True)
+            states_batch = self.states_spec.to_tensor(
+                value=states_batch, batched=True, name='Agent.experience states'
+            )
             internals_batch = self.internals_spec.to_tensor(
-                value=internals_batch, batched=True, recover_empty=True
+                value=internals_batch, batched=True, recover_empty=True,
+                name='Agent.experience internals'
             )
             auxiliaries_batch = self.auxiliaries_spec.to_tensor(
-                value=auxiliaries_batch, batched=True
+                value=auxiliaries_batch, batched=True, name='Agent.experience auxiliaries'
             )
-            actions_batch = self.actions_spec.to_tensor(value=actions_batch, batched=True)
-            terminal_batch = self.terminal_spec.to_tensor(value=terminal_batch, batched=True)
-            reward_batch = self.reward_spec.to_tensor(value=reward_batch, batched=True)
+            actions_batch = self.actions_spec.to_tensor(
+                value=actions_batch, batched=True, name='Agent.experience actions'
+            )
+            terminal_batch = self.terminal_spec.to_tensor(
+                value=terminal_batch, batched=True, name='Agent.experience terminal'
+            )
+            reward_batch = self.reward_spec.to_tensor(
+                value=reward_batch, batched=True, name='Agent.experience reward'
+            )
 
             # Model.experience()
             timesteps, episodes = self.model.experience(

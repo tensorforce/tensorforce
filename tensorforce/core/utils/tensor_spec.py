@@ -136,7 +136,7 @@ class TensorSpec(object):
         else:
             return tf_util.zeros(shape=self.shape, dtype=self.type)
 
-    def to_tensor(self, *, value, batched, recover_empty=False):
+    def to_tensor(self, *, value, batched, recover_empty=False, name='TensorSpec.to_tensor'):
         # Check whether underspecified
         if self.is_underspecified():
             raise TensorforceError.unexpected()
@@ -146,61 +146,49 @@ class TensorSpec(object):
 
         # Check whether shape matches
         if value.shape[int(batched):] != self.shape:
-            raise TensorforceError.value(
-                name='TensorSpec.to_tensor', argument='value', value=value, hint='shape'
-            )
+            raise TensorforceError.value(name=name, argument='value', value=value, hint='shape')
 
         # Check for nan or inf
         if np.isnan(value).any() or np.isinf(value).any():
             raise TensorforceError.value(
-                name='TensorSpec.to_tensor', argument='value', value=value, hint='is nan/inf'
+                name=name, argument='value', value=value, hint='is nan/inf'
             )
 
         # Check num_values
         if self.type == 'int' and self.num_values is not None:
             if (value < 0).any() or (value >= self.num_values).any():
-                raise TensorforceError.value(
-                    name='TensorSpec.to_tensor', argument='value', value=value
-                )
+                raise TensorforceError.value(name=name, argument='value', value=value)
 
         # Check min/max_value
         elif self.type == 'int' or self.type == 'float':
             if self.min_value is not None:
                 if (value < self.min_value).any():
                     raise TensorforceError.value(
-                        name='TensorSpec.to_tensor', argument='value', value=value,
-                        hint='< min_value'
+                        name=name, argument='value', value=value, hint='< min_value'
                     )
             if self.max_value is not None:
                 if (value > self.max_value).any():
                     raise TensorforceError.value(
-                        name='TensorSpec.to_tensor', argument='value', value=value,
-                        hint='> max_value'
+                        name=name, argument='value', value=value, hint='> max_value'
                     )
 
         # Convert Numpy array to TensorFlow tensor
         return tf.convert_to_tensor(value=value, dtype=self.tf_type())
 
-    def from_tensor(self, *, tensor, batched):
+    def from_tensor(self, *, tensor, batched, name='TensorSpec.from_tensor'):
         # Check whether underspecified
         if self.is_underspecified():
             raise TensorforceError.unexpected()
 
         # Check whether TensorFlow tensor
         if not isinstance(tensor, tf.Tensor):
-            raise TensorforceError.type(
-                name='TensorSpec.from_tensor', argument='tensor', dtype=type(tensor)
-            )
+            raise TensorforceError.type(name=name, argument='tensor', dtype=type(tensor))
 
         # Check whether tensor type and shape match
         if tf_util.dtype(x=tensor) != self.type:
-            raise TensorforceError.value(
-                name='TensorSpec.from_tensor', argument='tensor.dtype', value=tensor
-            )
+            raise TensorforceError.value(name=name, argument='tensor.dtype', value=tensor)
         if tf_util.shape(x=tensor)[int(batched):] != self.shape:
-            raise TensorforceError.value(
-                name='TensorSpec.from_tensor', argument='tensor.shape', value=tensor
-            )
+            raise TensorforceError.value(name=name, argument='tensor.shape', value=tensor)
 
         # Convert tensor value to Numpy array
         value = tensor.numpy()
@@ -208,28 +196,22 @@ class TensorSpec(object):
         # Check for nan or inf
         if np.isnan(value).any() or np.isinf(value).any():
             raise TensorforceError.value(
-                name='TensorSpec.from_tensor', argument='tensor', value=value
+                name=name, argument='tensor', value=value
             )
 
         # Check num_values
         if self.type == 'int' and self.num_values is not None:
             if (value < 0).any() or (value >= self.num_values).any():
-                raise TensorforceError.value(
-                    name='TensorSpec.from_tensor', argument='tensor', value=value
-                )
+                raise TensorforceError.value(name=name, argument='tensor', value=value)
 
         # Check min/max_value
         elif self.type == 'int' or self.type == 'float':
             if self.min_value is not None:
                 if (value < self.min_value).any():
-                    raise TensorforceError.value(
-                        name='TensorSpec.from_tensor', argument='tensor', value=value
-                    )
+                    raise TensorforceError.value(name=name, argument='tensor', value=value)
             if self.max_value is not None:
                 if (value > self.max_value).any():
-                    raise TensorforceError.value(
-                        name='TensorSpec.from_tensor', argument='tensor', value=value
-                    )
+                    raise TensorforceError.value(name=name, argument='tensor', value=value)
 
         # If singleton shape, return Python object instead of Numpy array
         if self.shape == () and not batched:

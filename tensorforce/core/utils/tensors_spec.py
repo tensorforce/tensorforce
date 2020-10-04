@@ -37,17 +37,13 @@ class TensorsSpec(NestedDict):
                 tensor[name] = spec.empty(batched=batched)
             return tensor
 
-    def to_tensor(self, *, value, batched, recover_empty=False):
+    def to_tensor(self, *, value, batched, recover_empty=False, name='TensorSpec.to_tensor'):
         if not isinstance(value, ArrayDict):
-            raise TensorforceError.type(
-                name='TensorsSpec.to_tensor', argument='value', dtype=type(value)
-            )
+            raise TensorforceError.type(name=name, argument='value', dtype=type(value))
 
         # TODO: improve exception message to include invalid keys
         if set(value) != set(self):
-            raise TensorforceError.value(
-                name='TensorsSpec.to_tensor', argument='value', value=value
-            )
+            raise TensorforceError.value(name=name, argument='value', value=value)
 
         tensor = TensorDict()
         for name, spec in super(NestedDict, self).items():
@@ -62,21 +58,17 @@ class TensorsSpec(NestedDict):
                 )
         return tensor
 
-    def from_tensor(self, *, tensor, batched):
+    def from_tensor(self, *, tensor, batched, name='TensorSpec.from_tensor'):
         if not isinstance(tensor, TensorDict):
-            raise TensorforceError.type(
-                name='TensorsSpec.from_tensor', argument='tensor', dtype=type(tensor)
-            )
+            raise TensorforceError.type(name=name, argument='tensor', dtype=type(tensor))
 
         # TODO: improve exception message to include invalid keys
         if set(tensor) != set(self):
-            raise TensorforceError.value(
-                name='TensorsSpec.from_tensor', argument='tensor', value=tensor
-            )
+            raise TensorforceError.value(name=name, argument='tensor', value=tensor)
 
         value = ArrayDict()
         for name, spec in super(NestedDict, self).items():
-            value[name] = spec.from_tensor(tensor=tensor[name], batched=batched)
+            value[name] = spec.from_tensor(tensor=tensor[name], batched=batched, name=name)
         return value
 
     def tf_assert(self, *, x, batch_size=None, include_type_shape=False, message=None):

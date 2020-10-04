@@ -411,16 +411,25 @@ class Agent(Recorder):
             states[None] = states.pop('state')
 
         # Inputs to tensors
-        states = self.states_spec.to_tensor(value=states, batched=True)
+        states = self.states_spec.to_tensor(value=states, batched=True, name='Agent.act states')
         if independent and not is_internals_none:
-            internals = self.internals_spec.to_tensor(value=internals, batched=True)
-        auxiliaries = self.auxiliaries_spec.to_tensor(value=auxiliaries, batched=True)
+            internals = self.internals_spec.to_tensor(
+                value=internals, batched=True, name='Agent.act internals'
+            )
+        auxiliaries = self.auxiliaries_spec.to_tensor(
+            value=auxiliaries, batched=True, name='Agent.act auxiliaries'
+        )
         if independent:
-            deterministic = self.deterministic_spec.to_tensor(value=deterministic, batched=False)
+            deterministic = self.deterministic_spec.to_tensor(
+                value=deterministic, batched=False, name='Agent.act deterministic'
+            )
+        else:
+            parallel = self.parallel_spec.to_tensor(
+                value=parallel, batched=True, name='Agent.act parallel'
+            )
 
         # Model.act()
         if not independent:
-            parallel = self.parallel_spec.to_tensor(value=parallel, batched=True)
             actions, timesteps = self.model.act(
                 states=states, auxiliaries=auxiliaries, parallel=parallel
             )
@@ -448,9 +457,13 @@ class Agent(Recorder):
                 actions = self.model.independent_act(states=states, deterministic=deterministic)
 
         # Outputs from tensors
-        actions = self.actions_spec.from_tensor(tensor=actions, batched=True)
+        actions = self.actions_spec.from_tensor(
+            tensor=actions, batched=True, name='Agent.act output actions'
+        )
         if independent and len(self.internals_spec) > 0:
-            internals = self.internals_spec.from_tensor(tensor=internals, batched=True)
+            internals = self.internals_spec.from_tensor(
+                tensor=internals, batched=True, name='Agent.act output internals'
+            )
 
         if self.model.saver is not None:
             self.model.save()
@@ -502,9 +515,15 @@ class Agent(Recorder):
             self.reward_buffer[p].clear()
 
             # Inputs to tensors
-            terminal_tensor = self.terminal_spec.to_tensor(value=ts, batched=True)
-            reward_tensor = self.reward_spec.to_tensor(value=rs, batched=True)
-            parallel_tensor = self.parallel_spec.to_tensor(value=p, batched=False)
+            terminal_tensor = self.terminal_spec.to_tensor(
+                value=ts, batched=True, name='Agent.observe terminal'
+            )
+            reward_tensor = self.reward_spec.to_tensor(
+                value=rs, batched=True, name='Agent.observe reward'
+            )
+            parallel_tensor = self.parallel_spec.to_tensor(
+                value=p, batched=False, name='Agent.observe parallel'
+            )
 
             # Model.observe()
             updated, episodes, updates = self.model.observe(
@@ -546,7 +565,7 @@ class Agent(Recorder):
         # for parallel in range(self.parallel_interactions):
         #     if self.buffer_indices[parallel] > 0:
         #         self.model_observe(parallel=parallel)
-
+        os.makedirs(directory, exist_ok=True)
         path = self.model.save(directory=directory, filename=filename, format=format, append=append)
 
         if filename is None:

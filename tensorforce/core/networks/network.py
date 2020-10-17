@@ -178,11 +178,16 @@ class LayerbasedNetwork(Network):
             if issubclass(module_cls, MultiInputLayer):
                 if 'tensors' not in kwargs:
                     raise TensorforceError.required(name='MultiInputLayer', argument='tensors')
-                if tuple(kwargs['tensors']) not in self.registered_tensors_spec:
+                tensors = kwargs['tensors']
+                if isinstance(tensors, str):
+                    tensors = (tensors,)
+                else:
+                    tensors = tuple(tensors)
+                if tensors not in self.registered_tensors_spec:
                     raise TensorforceError.exists_not(
                         name='registered tensor', value=kwargs['tensors']
                     )
-                kwargs['input_spec'] = self.registered_tensors_spec[tuple(kwargs['tensors'])]
+                kwargs['input_spec'] = self.registered_tensors_spec[tensors]
 
             elif self._output_spec is None:
                 raise TensorforceError.required(

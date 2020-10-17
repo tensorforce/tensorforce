@@ -104,7 +104,9 @@ class MultiInputLayer(Layer):
 
         Layer._REGISTERED_LAYERS[self.name] = self
 
-        if not util.is_iterable(x=tensors):
+        if isinstance(tensors, str):
+            pass
+        elif not util.is_iterable(x=tensors):
             raise TensorforceError.type(
                 name='MultiInputLayer', argument='tensors', dtype=type(tensors)
             )
@@ -113,7 +115,10 @@ class MultiInputLayer(Layer):
                 name='MultiInputLayer', argument='tensors', value=tensors, hint='zero length'
             )
 
-        self.tensors = tuple(tensors)
+        if isinstance(tensors, str):
+            self.tensors = (tensors,)
+        else:
+            self.tensors = tuple(tensors)
 
         self.input_spec = self.default_input_spec()
         if not isinstance(self.input_spec, TensorsSpec):
@@ -191,8 +196,8 @@ class Retrieve(MultiInputLayer):
     (specification key: `retrieve`).
 
     Args:
-        tensors (iter[string]): Names of tensors to retrieve, either state names or previously
-            registered tensors
+        tensors (str | iter[string]): Name(s) of tensor(s) to retrieve, either state names or
+            previously registered tensors
             (<span style="color:#C00000"><b>required</b></span>).
         aggregation ('concat' | 'product' | 'stack' | 'sum'): Aggregation type in case of multiple
             tensors

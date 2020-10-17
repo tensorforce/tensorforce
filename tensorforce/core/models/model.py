@@ -355,9 +355,8 @@ class Model(Module):
             reps = (self.parallel_interactions,) + tuple(1 for _ in range(spec.rank))
             initializer = np.tile(np.expand_dims(initial, axis=0), reps=reps)
             return self.variable(
-                name=(name.replace('/', '_') + '-buffer'),
-                spec=TensorSpec(type=spec.type, shape=shape), initializer=initializer,
-                is_trainable=False, is_saved=False
+                name=(name + '-buffer'), spec=TensorSpec(type=spec.type, shape=shape),
+                initializer=initializer, is_trainable=False, is_saved=False
             )
 
         self.previous_internals = self.internals_spec.fmap(

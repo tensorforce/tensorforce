@@ -156,6 +156,7 @@ class Module(tf.Module):
     # _MODULE_STACK  # Initialized as part of model.__init__()
 
     def __init__(self, *, device=None, l2_regularization=None, name=None):
+        name = name.replace('/', '_')
         super().__init__(name=name)
 
         self.checkpoint = None
@@ -503,6 +504,7 @@ class Module(tf.Module):
         # name
         if not isinstance(name, str):
             raise TensorforceError.type(name='variable', argument='name', dtype=type(name))
+        name = name.replace('/', '_')
         # spec
         if not isinstance(spec, TensorSpec):
             raise TensorforceError.dtype(name='variable', argument='spec', dtype=type(spec))

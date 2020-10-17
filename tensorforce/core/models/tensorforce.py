@@ -560,8 +560,7 @@ class TensorforceModel(Model):
         def function(name, spec):
             shape = (self.parallel_interactions, capacity) + spec.shape
             return self.variable(
-                name=(name.replace('/', '_') + '-buffer'),
-                spec=TensorSpec(type=spec.type, shape=shape),
+                name=(name + '-buffer'), spec=TensorSpec(type=spec.type, shape=shape),
                 initializer='zeros', is_trainable=False, is_saved=False
             )
 

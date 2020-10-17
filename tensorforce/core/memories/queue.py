@@ -70,8 +70,8 @@ class Queue(Memory):
             else:
                 initializer = 'zeros'
             return self.variable(
-                name=(name.replace('/', '_') + '-buffer'), spec=spec, initializer=initializer,
-                is_trainable=False, is_saved=True
+                name=(name + '-buffer'), spec=spec, initializer=initializer, is_trainable=False,
+                is_saved=True
             )
 
         self.buffers = self.values_spec.fmap(function=function, cls=VariableDict, with_names=True)

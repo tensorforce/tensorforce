@@ -113,7 +113,7 @@ class TestLayers(UnittestBase, unittest.TestCase):
         states = dict(type='float', shape=(3,), min_value=1.0, max_value=2.0)
         network = [
             dict(type='register', tensor='test'),
-            dict(type='retrieve', tensors=('test',)),
+            dict(type='retrieve', tensors='test'),
             dict(type='retrieve', tensors=('state', 'test'), aggregation='product')
         ]
         self.unittest(states=states, policy=network)

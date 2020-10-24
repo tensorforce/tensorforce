@@ -121,9 +121,10 @@ class Categorical(Distribution):
         probabilities = tf.nn.softmax(logits=action_values, axis=-1)
 
         # "Normalized" logits
-        # logits = tf.math.log(x=tf.maximum(x=probabilities, y=epsilon))
+        epsilon = tf_util.constant(value=util.epsilon, dtype='float')
+        logits = tf.math.log(x=tf.maximum(x=probabilities, y=epsilon))
         # logits = tf.nn.log_softmax(logits=action_values, axis=-1)
-        logits = action_values - tf.expand_dims(input=state_value, axis=-1)
+        # logits = action_values - tf.expand_dims(input=state_value, axis=-1)
 
         return TensorDict(
             logits=logits, probabilities=probabilities, state_value=state_value,

@@ -81,10 +81,12 @@ class ProximalPolicyOptimization(TensorforceAgent):
             learning rate
             (<span style="color:#00C000"><b>default</b></span>: 1e-3).
         multi_step (<a href="../modules/parameters.html">parameter</a>, int >= 1): Number of
-            optimization steps
+            optimization steps, update_frequency * multi_step should be at least 1 if relative
+            subsampling_fraction
             (<span style="color:#00C000"><b>default</b></span>: 10).
         subsampling_fraction (<a href="../modules/parameters.html">parameter</a>, int > 0 | 0.0 < float <= 1.0):
-            Absolute/relative fraction of batch timesteps to subsample
+            Absolute/relative fraction of batch timesteps to subsample,
+            update_frequency * multi_step should be at least 1 if relative subsampling_fraction
             (<span style="color:#00C000"><b>default</b></span>: 0.33).
 
         likelihood_ratio_clipping (<a href="../modules/parameters.html">parameter</a>, float > 0.0):

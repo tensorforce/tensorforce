@@ -41,9 +41,7 @@ class Runner(object):
             environment default if defined
             (<span style="color:#00C000"><b>default</b></span>: environment default, invalid for
             "socket-client" remote mode).
-        evaluation (bool): Whether to run the (last if multiple) environment in evaluation mode
-            (<span style="color:#00C000"><b>default</b></span>: no evaluation).
-        num_parallel (int > 0): Number of environment instances to execute in parallel
+        num_parallel (int >= 2): Number of environment instances to execute in parallel
             (<span style="color:#00C000"><b>default</b></span>: no parallel execution, implicitly
             specified by `environments`).
         environments (list[specification | Environment object]): Environment specifications or
@@ -52,6 +50,9 @@ class Runner(object):
             (<span style="color:#00C000"><b>default</b></span>: no parallel execution,
             alternatively specified via `environment` and `num_parallel`, invalid for
             "socket-client" remote mode).
+        evaluation (bool): Whether to run the last of multiple parallel environments in evaluation
+            mode, only valid with `num_parallel` or `environments`
+            (<span style="color:#00C000"><b>default</b></span>: no evaluation).
         remote ("multiprocessing" | "socket-client"): Communication mode for remote environment
             execution of parallelized environment execution, not compatible with environment(s)
             given as Environment objects, "socket-client" mode requires a corresponding
@@ -71,8 +72,8 @@ class Runner(object):
     """
 
     def __init__(
-        self, agent, environment=None, max_episode_timesteps=None, evaluation=False,
-        num_parallel=None, environments=None, remote=None, blocking=False, host=None, port=None
+        self, agent, environment=None, max_episode_timesteps=None, num_parallel=None,
+        environments=None, evaluation=False, remote=None, blocking=False, host=None, port=None
     ):
         if environment is None and environments is None:
             if remote != 'socket-client':
@@ -94,9 +95,9 @@ class Runner(object):
                 raise TensorforceError.type(
                     name='Runner', argument='environments', value=environments
                 )
-            if len(environments) == 0:
+            if len(environments) <= 1:
                 raise TensorforceError.value(
-                    name='Runner', argument='environments', value=environments
+                    name='Runner', argument='len(environments)', value=len(environments)
                 )
             if num_parallel is not None and num_parallel != len(environments):
                 raise TensorforceError.value(
@@ -111,10 +112,22 @@ class Runner(object):
                 raise TensorforceError.invalid(
                     name='Runner', argument='environments', condition='environment is specified'
                 )
+            if evaluation:
+                raise TensorforceError.invalid(
+                    name='Runner', argument='evaluation', condition='single environment'
+                )
             num_parallel = 1
             environments = [environment]
 
         else:
+            if not isinstance(num_parallel, int):
+                raise TensorforceError.value(
+                    name='Runner', argument='num_parallel', dtype=type(num_parallel)
+                )
+            elif num_parallel < 2:
+                raise TensorforceError.value(
+                    name='Runner', argument='num_parallel', value=num_parallel, hint='< 2'
+                )
             if environments is not None:
                 raise TensorforceError.invalid(
                     name='Runner', argument='environments', condition='environment is specified'
@@ -245,8 +258,8 @@ class Runner(object):
                 </ul>
             mean_horizon (int): Number of episodes progress bar values and evaluation score are
                 averaged over (<span style="color:#00C000"><b>default</b></span>: not averaged).
-            evaluation (bool): Whether to run in evaluation mode, only valid if a single
-                environment (<span style="color:#00C000"><b>default</b></span>: no evaluation).
+            evaluation (bool): Whether to run in evaluation mode, only valid if single environment
+                (<span style="color:#00C000"><b>default</b></span>: no evaluation).
             save_best_agent (string): Directory to save the best version of the agent according to
                 the evaluation score
                 (<span style="color:#00C000"><b>default</b></span>: best agent is not saved).
@@ -270,6 +283,20 @@ class Runner(object):
             self.num_updates = num_updates
 
         # Parallel
+        if len(self.environments) > 1:
+            pass
+        elif batch_agent_calls:
+            raise TensorforceError.invalid(
+                name='Runner.run', argument='batch_agent_calls', condition='single environment'
+            )
+        elif sync_timesteps:
+            raise TensorforceError.invalid(
+                name='Runner.run', argument='sync_timesteps', condition='single environment'
+            )
+        elif sync_episodes:
+            raise TensorforceError.invalid(
+                name='Runner.run', argument='sync_episodes', condition='single environment'
+            )
         self.batch_agent_calls = batch_agent_calls
         self.sync_timesteps = sync_timesteps or self.batch_agent_calls
         self.sync_episodes = sync_episodes
@@ -415,8 +442,10 @@ class Runner(object):
             self.callback = tqdm_callback
 
         # Evaluation
-        if evaluation and (self.evaluation or len(self.environments) > 1):
-            raise TensorforceError.unexpected()
+        if evaluation and len(self.environments) > 1:
+            raise TensorforceError.invalid(
+                name='Runner.run', argument='evaluation', condition='multiple environments'
+            )
         self.evaluation_run = self.evaluation or evaluation
         self.save_best_agent = save_best_agent
         if evaluation_callback is None:

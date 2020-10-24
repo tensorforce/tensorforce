@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
+import logging
+
 from tensorforce import TensorforceError
 from tensorforce.core.networks import LayeredNetwork
 
@@ -63,6 +65,10 @@ class AutoNetwork(LayeredNetwork):
                 raise TensorforceError.invalid(
                     name='AutoNetwork', argument='final_depth', condition='input size = 1'
                 )
+
+        if len(inputs_spec) > 8:
+            logging.warning("Large number of state components {} which may cause poor performance, "
+                            "consider merging components where possible.".format(len(inputs_spec)))
 
         if final_size is None:
             final_size = size

@@ -361,18 +361,21 @@ class NestedDict(OrderedDict):
 
         elif '/' in key:
             key, subkey = key.split('/', 1)
-            value = super().__getitem__(key)
-            assert isinstance(value, self.__class__)
-            return value.pop(subkey, default)
+            if super().__contains__(key):
+                value = super().__getitem__(key)
+                assert isinstance(value, self.__class__)
+                return value.pop(subkey, default)
+            else:
+                return default
 
         else:
             # TODO: can't use pop since __delitem__ not implemented
             if super().__contains__(key):
                 value = super().__getitem__(key)
                 super().__delitem__(key)
+                return value
             else:
-                value = default
-            return value
+                return default
 
     __str__ = __repr__
 

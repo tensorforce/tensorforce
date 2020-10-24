@@ -50,11 +50,11 @@ class TensorsSpec(NestedDict):
             if recover_empty and name not in value:
                 assert not isinstance(spec, self.value_type) and len(spec) == 0
                 tensor[name] = spec.to_tensor(
-                    value=ArrayDict(), batched=batched, recover_empty=recover_empty
+                    value=value[name], batched=batched, recover_empty=recover_empty, name=name
                 )
             else:
                 tensor[name] = spec.to_tensor(
-                    value=value[name], batched=batched, recover_empty=recover_empty
+                    value=value[name], batched=batched, recover_empty=recover_empty, name=name
                 )
         return tensor
 

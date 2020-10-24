@@ -385,8 +385,8 @@ class TestSaving(UnittestBase, unittest.TestCase):
             directory='test/data', filename='ppo-checkpoint', format='checkpoint',
             environment=environment
         )
-        runner = Runner(agent=agent, environment=environment, evaluation=True)
-        runner.run(num_episodes=10, use_tqdm=False)
+        runner = Runner(agent=agent, environment=environment)
+        runner.run(num_episodes=10, use_tqdm=False, evaluation=True)
         self.assertTrue(all(episode_reward == 500.0 for episode_reward in runner.episode_rewards))
         runner.close()
         agent.close()
@@ -396,8 +396,8 @@ class TestSaving(UnittestBase, unittest.TestCase):
             directory='test/data', filename='ppo-checkpoint', format='numpy',
             environment=environment
         )
-        runner = Runner(agent=agent, environment=environment, evaluation=True)
-        runner.run(num_episodes=10, use_tqdm=False)
+        runner = Runner(agent=agent, environment=environment)
+        runner.run(num_episodes=10, use_tqdm=False, evaluation=True)
         self.assertTrue(all(episode_reward == 500.0 for episode_reward in runner.episode_rewards))
         runner.close()
         agent.close()
@@ -407,8 +407,8 @@ class TestSaving(UnittestBase, unittest.TestCase):
             directory='test/data', filename='ppo-checkpoint', format='hdf5',
             environment=environment
         )
-        runner = Runner(agent=agent, environment=environment, evaluation=True)
-        runner.run(num_episodes=10, use_tqdm=False)
+        runner = Runner(agent=agent, environment=environment)
+        runner.run(num_episodes=10, use_tqdm=False, evaluation=True)
         self.assertTrue(all(episode_reward == 500.0 for episode_reward in runner.episode_rewards))
         runner.close()
         agent.close()

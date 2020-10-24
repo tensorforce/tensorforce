@@ -16,8 +16,8 @@
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core import layer_modules, SignatureDict, TensorDict, TensorSpec, TensorsSpec, \
-    tf_function, tf_util
+from tensorforce.core import layer_modules, TensorDict, TensorSpec, TensorsSpec, tf_function, \
+    tf_util
 from tensorforce.core.distributions import Distribution
 
 

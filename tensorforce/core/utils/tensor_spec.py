@@ -146,30 +146,38 @@ class TensorSpec(object):
 
         # Check whether shape matches
         if value.shape[int(batched):] != self.shape:
-            raise TensorforceError.value(name=name, argument='value', value=value, hint='shape')
+            raise TensorforceError.value(
+                name=name, argument='value shape', value=value.shape[int(batched):],
+                hint='!= {}'.format(self.shape)
+            )
 
         # Check for nan or inf
         if np.isnan(value).any() or np.isinf(value).any():
             raise TensorforceError.value(
-                name=name, argument='value', value=value, hint='is nan/inf'
+                name=name, argument='value', value=value, hint='contains nan/inf'
             )
 
         # Check num_values
         if self.type == 'int' and self.num_values is not None:
             if (value < 0).any() or (value >= self.num_values).any():
-                raise TensorforceError.value(name=name, argument='value', value=value)
+                raise TensorforceError.value(
+                    name=name, argument='value', value=value,
+                    hint='not in [0, {}] (num_values)'.format(self.num_values - 1)
+                )
 
         # Check min/max_value
         elif self.type == 'int' or self.type == 'float':
             if self.min_value is not None:
                 if (value < self.min_value).any():
                     raise TensorforceError.value(
-                        name=name, argument='value', value=value, hint='< min_value'
+                        name=name, argument='value', value=value,
+                        hint='< {} (min_value)'.format(self.min_value)
                     )
             if self.max_value is not None:
                 if (value > self.max_value).any():
                     raise TensorforceError.value(
-                        name=name, argument='value', value=value, hint='> max_value'
+                        name=name, argument='value', value=value,
+                        hint='> {} (max_value)'.format(self.max_value)
                     )
 
         # Convert Numpy array to TensorFlow tensor

@@ -202,7 +202,8 @@ class Function(Layer):
     Custom TensorFlow function layer (specification key: `function`).
 
     Args:
-        function (lambda[x -> x]): TensorFlow function
+        function (lambda[x -> x] | str): TensorFlow function, or string expression with argument
+            "x", e.g. "(x+1.0)/2.0"
             (<span style="color:#C00000"><b>required</b></span>).
         output_spec (specification): Output tensor specification containing type and/or shape
             information (<span style="color:#00C000"><b>default</b></span>: same as input).
@@ -233,7 +234,10 @@ class Function(Layer):
 
     @tf_function(num_args=1)
     def apply(self, *, x):
-        x = self.function(x)
+        if isinstance(self.function, str):
+            x = eval(self.function, dict(), dict(x=x))
+        else:
+            x = self.function(x)
 
         return x
 

@@ -113,7 +113,7 @@ class TensorforceModel(Model):
             )
             if self.reward_preprocessing.output_spec() != self.reward_spec:
                 raise TensorforceError.mismatch(
-                    name='reward_estimation[reward_preprocessing]', argument='output spec',
+                    name='reward_preprocessing', argument='output spec',
                     value1=self.reward_preprocessing.output_spec(), value2=self.reward_spec
                 )
 
@@ -159,14 +159,14 @@ class TensorforceModel(Model):
 
         # Reward estimation argument check
         if not all(key in (
-            'advantage_processing', 'discount', 'estimate_advantage', 'horizon',
+            'advantage_processing', 'discount', 'estimate_advantage', 'gae_discount', 'horizon',
             'predict_action_values', 'predict_horizon_values', 'predict_terminal_values',
             'return_processing'
         ) for key in reward_estimation):
             raise TensorforceError.value(
                 name='agent', argument='reward_estimation', value=reward_estimation,
-                hint='not from {advantage_processing,discount,estimate_advantage,horizon,'
-                     'predict_action_values,predict_horizon_values,predict_terminal_values,'
+                hint='not from {advantage_processing,discount,estimate_advantage,gae_discount,'
+                     'horizon,predict_action_values,predict_horizon_values,predict_terminal_values,'
                      'return_processing}'
             )
 
@@ -188,13 +188,13 @@ class TensorforceModel(Model):
                 max_value=self.max_episode_timesteps
             )
 
-        # Discount
-        discount = reward_estimation.get('discount')
-        if discount is None:
-            discount = 1.0
+        # Reward discount
+        reward_discount = reward_estimation.get('discount')
+        if reward_discount is None:
+            reward_discount = 1.0
         self.reward_discount = self.submodule(
-            name='reward_discount', module=discount, modules=parameter_modules, dtype='float',
-            min_value=0.0, max_value=1.0
+            name='reward_discount', module=reward_discount, modules=parameter_modules,
+            dtype='float', min_value=0.0, max_value=1.0
         )
 
         # Entropy regularization
@@ -515,6 +515,32 @@ class TensorforceModel(Model):
         self.memory = self.submodule(
             name='memory', module=memory, modules=memory_modules, is_trainable=False,
             values_spec=values_spec, min_capacity=min_capacity
+        )
+
+        # GAE discount
+        gae_discount = reward_estimation.get('gae_discount')
+        if gae_discount is None:
+            gae_discount = 0.0
+        else:
+            from tensorforce.core.memories import Recent
+            if not isinstance(self.memory, Recent):
+                raise TensorforceError.invalid(
+                    name='agent', argument='reward_estimation[gae_discount]',
+                    condition='memory type is not Recent'
+                )
+            elif not self.estimate_advantage:
+                raise TensorforceError.invalid(
+                    name='agent', argument='reward_estimation[gae_discount]',
+                    condition='reward_estimation[estimate_advantage] is false'
+                )
+            elif self.advantage_in_loss:
+                raise TensorforceError.invalid(
+                    name='agent', argument='reward_estimation[gae_discount]',
+                    condition='advantage-in-loss mode'
+                )
+        self.gae_discount = self.submodule(
+            name='gae_discount', module=gae_discount, modules=parameter_modules, dtype='float',
+            min_value=0.0, max_value=1.0
         )
 
     def initialize(self):
@@ -1862,7 +1888,15 @@ class TensorforceModel(Model):
                     baseline_internals = TensorDict()
 
         # Retrieve auxiliaries, actions, reward
-        values = self.memory.retrieve(indices=indices, values=('auxiliaries', 'actions', 'reward'))
+        if self.gae_discount.is_constant(value=0.0):
+            values = self.memory.retrieve(
+                indices=indices, values=('auxiliaries', 'actions', 'reward')
+            )
+        else:
+            values = self.memory.retrieve(
+                indices=indices, values=('auxiliaries', 'actions', 'reward', 'terminal')
+            )
+            terminal = values['terminal']
         auxiliaries = values['auxiliaries']
         actions = values['actions']
         reward = values['reward']
@@ -2169,6 +2203,31 @@ class TensorforceModel(Model):
                                 x = tf.math.reduce_mean(input_tensor=reward, axis=0)
                                 dependencies.append(tf.summary.scalar(
                                     name='update-processed-advantage', data=x, step=self.updates
+                                ))
+
+                if not self.gae_discount.is_constant(value=0.0):
+                    with tf.control_dependencies(control_inputs=dependencies):
+                        # Requires consistent batch!!!
+                        zero_float = tf_util.constant(value=0.0, dtype='float')
+                        discount = self.reward_discount.value()
+                        gae_discount = self.gae_discount.value()
+
+                        def discounted_cumumlative_sum(previous_gae, advantage_terminal):
+                            advantage, _terminal = advantage_terminal
+                            next_gae = advantage + discount * gae_discount * previous_gae
+                            return tf.where(condition=(_terminal == zero), x=next_gae, y=advantage)
+
+                        reward = tf.scan(
+                            fn=discounted_cumumlative_sum, elems=(reward, terminal),
+                            initializer=zero_float, reverse=True
+                        )
+
+                        dependencies = [reward]
+                        if self.summaries == 'all' or 'reward' in self.summaries:
+                            with self.summarizer.as_default():
+                                x = tf.math.reduce_mean(input_tensor=reward, axis=0)
+                                dependencies.append(tf.summary.scalar(
+                                    name='update-gae', data=x, step=self.updates
                                 ))
 
         if self.baseline_optimizer is None:

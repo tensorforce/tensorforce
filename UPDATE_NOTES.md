@@ -5,6 +5,12 @@ This file records all major updates and new features, starting from version 0.5.
 
 ### Latest changes
 
+##### Agents:
+- Added experimental argument `gae_discount` to Tensorforce agent argument `reward_estimation`, soon for other agent types as well
+
+##### Layers:
+- Added option to `Function` layer argument `function` to pass string function expression with argument "x", like "(x+1.0)/2.0"
+
 
 ---
 

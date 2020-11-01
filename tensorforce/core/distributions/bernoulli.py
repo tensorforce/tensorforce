@@ -79,8 +79,8 @@ class Bernoulli(Distribution):
     def initialize(self):
         super().initialize()
 
-        name = 'distributions/' + self.name + '-probability'
-        self.register_summary(label='distribution', name=name)
+        spec = self.parameters_spec['probability']
+        self.register_summary_and_tracking(label='distribution', name='probability', spec=spec)
 
     @tf_function(num_args=2)
     def parametrize(self, *, x, conditions):
@@ -125,14 +125,17 @@ class Bernoulli(Distribution):
             ('true_logit', 'false_logit', 'probability')
         )
 
-        # Distribution parameter summaries
-        def fn_summary():
+        # Distribution parameter summaries and tracking
+        def fn_summary_tracking():
             axis = range(self.action_spec.rank + 1)
-            return tf.math.reduce_mean(input_tensor=probability, axis=axis)
+            summary = tf.math.reduce_mean(input_tensor=probability, axis=axis)
+            tracking = tf.math.reduce_mean(input_tensor=probability, axis=0)
+            return summary, tracking
 
-        name = 'distributions/' + self.name + '-probability'
-        dependencies = self.summary(
-            label='distribution', name=name, data=fn_summary, step='timesteps'
+        summary_name = 'distributions/' + self.name + '-probability'
+        dependencies = self.summary_and_track(
+            label='distribution', name='probability', summary_name=summary_name,
+            data=fn_summary_tracking, step='timesteps'
         )
 
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')

@@ -26,12 +26,12 @@ class ConstantModel(Model):
     """
 
     def __init__(
-        self, *, states, actions, parallel_interactions, summarizer, config, action_values
+        self, *, states, actions, parallel_interactions, config, summarizer, tracking, action_values
     ):
         super().__init__(
             states=states, actions=actions, l2_regularization=0.0,
-            parallel_interactions=parallel_interactions, saver=None, summarizer=summarizer,
-            config=config
+            parallel_interactions=parallel_interactions, config=config, saver=None,
+            summarizer=summarizer, tracking=tracking
         )
 
         self.action_values = dict()

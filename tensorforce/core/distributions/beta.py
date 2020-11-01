@@ -89,8 +89,10 @@ class Beta(Distribution):
     def initialize(self):
         super().initialize()
 
-        prefix = 'distributions/' + self.name
-        self.register_summary(label='distribution', name=(prefix + '-alpha', prefix + '-beta'))
+        spec = self.parameters_spec['alpha']
+        self.register_summary_and_tracking(
+            label='distribution', name='alpha-beta', spec=spec, tracking_names=('alpha', 'beta')
+        )
 
     @tf_function(num_args=2)
     def parametrize(self, *, x, conditions):
@@ -141,16 +143,26 @@ class Beta(Distribution):
             ('alpha', 'beta', 'alpha_beta', 'log_norm')
         )
 
-        # Distribution parameter summaries
-        def fn_summary():
-            return tf.math.reduce_mean(input_tensor=alpha, axis=range(self.action_spec.rank + 1)), \
+        # Distribution parameter summaries and tracking
+        def fn_summary_tracking():
+            summary = (
+                tf.math.reduce_mean(input_tensor=alpha, axis=range(self.action_spec.rank + 1)),
                 tf.math.reduce_mean(input_tensor=beta, axis=range(self.action_spec.rank + 1))
+            )
+            tracking = (
+                tf.math.reduce_mean(input_tensor=alpha, axis=0),
+                tf.math.reduce_mean(input_tensor=beta, axis=0)
+            )
+            return summary, tracking
 
         prefix = 'distributions/' + self.name
-        dependencies = self.summary(
-            label='distribution', name=(prefix + '-alpha', prefix + '-beta'), data=fn_summary,
-            step='timesteps'
+        summary_names = (prefix + '-alpha', prefix + '-beta')
+        tracking_names = ('alpha', 'beta')
+        dependencies = self.summary_and_track(
+            label='distribution', name='alpha-beta', summary_names=summary_names,
+            tracking_names=tracking_names, data=fn_summary_tracking, step='timesteps',
         )
+
 
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')
 

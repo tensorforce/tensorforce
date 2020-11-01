@@ -129,6 +129,6 @@ class ConstantAgent(Agent):
         self.model = ConstantModel(
             states=self.states_spec, actions=self.actions_spec,
             parallel_interactions=self.parallel_interactions,
-            config=self.config, summarizer=None,
+            config=self.config, summarizer=None, tracking=None,
             action_values=action_values
         )

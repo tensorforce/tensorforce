@@ -24,11 +24,11 @@ class RandomModel(Model):
     Utility class to return random actions of a desired shape and with given bounds.
     """
 
-    def __init__(self, *, states, actions, parallel_interactions, summarizer, config):
+    def __init__(self, *, states, actions, parallel_interactions, config, summarizer, tracking):
         super().__init__(
             states=states, actions=actions, l2_regularization=0.0,
-            parallel_interactions=parallel_interactions, saver=None, summarizer=summarizer,
-            config=config
+            parallel_interactions=parallel_interactions, config=config, saver=None,
+            summarizer=summarizer, tracking=tracking
         )
 
     @tf_function(num_args=5)

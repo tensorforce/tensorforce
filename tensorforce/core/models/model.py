@@ -32,7 +32,7 @@ class Model(Module):
 
     def __init__(
         self, *, states, actions, l2_regularization, parallel_interactions, config, saver,
-        summarizer
+        summarizer, tracking
     ):
         # Initialize global registries
         setattr(Module, '_MODULE_STACK', list())
@@ -188,6 +188,14 @@ class Model(Module):
                 )
             else:
                 self.summaries = frozenset(summaries)
+
+        # Tracking
+        if tracking is None:
+            self.tracking = frozenset()
+        elif tracking == 'all':
+            self.tracking = 'all'
+        else:
+            self.tracking = frozenset(tracking)
 
     @property
     def root(self):

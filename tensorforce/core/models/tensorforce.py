@@ -37,12 +37,12 @@ class TensorforceModel(Model):
         state_preprocessing, reward_preprocessing,
         exploration, variable_noise,
         parallel_interactions,
-        config, saver, summarizer
+        config, saver, summarizer, tracking
     ):
         super().__init__(
             states=states, actions=actions, l2_regularization=l2_regularization,
             parallel_interactions=parallel_interactions, config=config, saver=saver,
-            summarizer=summarizer
+            summarizer=summarizer, tracking=tracking
         )
 
         self.max_episode_timesteps = max_episode_timesteps

@@ -264,6 +264,12 @@ class TensorforceAgent(Agent):
             <li>"updates": mean and variance of update tensors per variable (update-based)</li>
             <li>"variables": mean of trainable variables tensors (update-based)</li>
             </ul>
+        tracking ("all" | iter[string]): Which tensors to track, available values are a subset of
+            the values of summarizer[summaries] above, so far only "distribution" and "action-value"
+            (<span style="color:#00C000"><b>default</b></span>: no tracking).
+            The current value of tracked tensors can be retrieved via tracked_tensors() at any time,
+            however, note that tensor values change at different timescales (timesteps, episodes,
+            updates).
         recorder (path | specification): Traces recordings directory, or recorder configuration with
             the following attributes (see
             [record-and-pretrain script](https://github.com/tensorforce/tensorforce/blob/master/examples/record_and_pretrain.py)
@@ -297,8 +303,8 @@ class TensorforceAgent(Agent):
         exploration=0.0, variable_noise=0.0,
         # Parallel interactions
         parallel_interactions=1,
-        # Config, saver, summarizer, recorder
-        config=None, saver=None, summarizer=None, recorder=None,
+        # Config, saver, summarizer, tracking, recorder
+        config=None, saver=None, summarizer=None, tracking=None, recorder=None,
         # Deprecated
         baseline_policy=None, name=None, buffer_observe=None, device=None, seed=None
     ):
@@ -357,7 +363,8 @@ class TensorforceAgent(Agent):
                 # Parallel interactions
                 parallel_interactions=parallel_interactions,
                 # Config, saver, summarizer, recorder
-                config=config, saver=saver, summarizer=summarizer, recorder=recorder
+                config=config, saver=saver, summarizer=summarizer, tracking=tracking,
+                recorder=recorder
             )
 
         if memory is None:
@@ -430,7 +437,7 @@ class TensorforceAgent(Agent):
             state_preprocessing=state_preprocessing, reward_preprocessing=reward_preprocessing,
             exploration=exploration, variable_noise=variable_noise,
             parallel_interactions=self.parallel_interactions,
-            config=self.config, saver=saver, summarizer=summarizer
+            config=self.config, saver=saver, summarizer=summarizer, tracking=tracking
         )
 
     def experience(self, states, actions, terminal, reward, internals=None):

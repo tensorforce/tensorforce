@@ -350,7 +350,7 @@ class EnvironmentWrapper(Environment):
         else:
             self._max_episode_timesteps = max_episode_timesteps
             if self._environment.max_episode_timesteps() is None:
-                self._environment.max_episode_timesteps = (lambda self: max_episode_timesteps)
+                self._environment.max_episode_timesteps = (lambda: max_episode_timesteps)
         self._timestep = None
 
     def __str__(self):

@@ -27,6 +27,7 @@ Experience - update interface
 
 Pretraining
 -----------
+
 .. automethod:: tensorforce.agents.TensorforceAgent.pretrain
 
 Loading and saving
@@ -35,3 +36,7 @@ Loading and saving
 .. automethod:: tensorforce.agents.TensorforceAgent.load
 .. automethod:: tensorforce.agents.TensorforceAgent.save
 
+Tracked tensors
+---------------
+
+.. automethod:: tensorforce.agents.TensorforceAgent.get_tracked_tensors

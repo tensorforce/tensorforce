@@ -155,8 +155,9 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
         l2_regularization=0.0, entropy_regularization=0.0,
         # Parallel interactions
         parallel_interactions=1,
-        # Config, saver, summarizer, recorder
-        config=None, saver=None, summarizer=None, recorder=None,
+
+        # Config, saver, summarizer, tracking, recorder
+        config=None, saver=None, summarizer=None, tracking=None, recorder=None,
         # Deprecated
         estimate_terminal=None, critic_network=None, baseline_network=None,
         critic_optimizer=None, **kwargs
@@ -246,5 +247,5 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
             l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
             state_preprocessing=state_preprocessing, reward_preprocessing=reward_preprocessing,
             exploration=exploration, variable_noise=variable_noise,
-            saver=saver, summarizer=summarizer, **kwargs
+            saver=saver, summarizer=summarizer, tracking=tracking, **kwargs
         )

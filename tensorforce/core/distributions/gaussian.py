@@ -127,8 +127,10 @@ class Gaussian(Distribution):
                 name='log_stddev', spec=spec, initializer='zeros', is_trainable=True, is_saved=True
             )
 
-        prefix = 'distributions/' + self.name
-        self.register_summary(label='distribution', name=(prefix + '-mean', prefix + '-stddev'))
+        spec = self.parameters_spec['mean']
+        self.register_summary_and_tracking(
+            label='distribution', name='mean-stddev', spec=spec, tracking_names=('mean', 'stddev')
+        )
 
     @tf_function(num_args=2)
     def parametrize(self, *, x, conditions):
@@ -193,15 +195,24 @@ class Gaussian(Distribution):
     def sample(self, *, parameters, temperature):
         mean, stddev, log_stddev = parameters.get(('mean', 'stddev', 'log_stddev'))
 
-        # Distribution parameter summaries
-        def fn_summary():
-            return tf.math.reduce_mean(input_tensor=mean, axis=range(self.action_spec.rank + 1)), \
+        # Distribution parameter summaries and tracking
+        def fn_summary_tracking():
+            summary = (
+                tf.math.reduce_mean(input_tensor=mean, axis=range(self.action_spec.rank + 1)),
                 tf.math.reduce_mean(input_tensor=stddev, axis=range(self.action_spec.rank + 1))
+            )
+            tracking = (
+                tf.math.reduce_mean(input_tensor=mean, axis=0),
+                tf.math.reduce_mean(input_tensor=stddev, axis=0)
+            )
+            return summary, tracking
 
         prefix = 'distributions/' + self.name
-        dependencies = self.summary(
-            label='distribution', name=(prefix + '-mean', prefix + '-stddev'), data=fn_summary,
-            step='timesteps'
+        summary_names = (prefix + '-mean', prefix + '-stddev')
+        tracking_names = ('mean', 'stddev')
+        dependencies = self.summary_and_track(
+            label='distribution', name='mean-stddev', summary_names=summary_names,
+            tracking_names=tracking_names, data=fn_summary_tracking, step='timesteps',
         )
 
         def fn_mode():

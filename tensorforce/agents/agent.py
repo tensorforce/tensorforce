@@ -344,6 +344,16 @@ class Agent(Recorder):
         """
         return self.model.initial_internals.to_dict()
 
+    def tracked_tensors(self):
+        """
+        Returns the current value of all tracked tensors (as specified by "tracking" agent
+        argument). Note that not all tensors change at every timestep.
+
+        Returns:
+            dict[values]: Dictionary containing the current value of all tracked tensors.
+        """
+        return self.model.tracked_tensors()
+
     def act(
         self, states, internals=None, parallel=0, independent=False, deterministic=False,
         # Deprecated

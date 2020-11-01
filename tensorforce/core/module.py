@@ -24,7 +24,7 @@ import tensorflow as tf
 
 from tensorforce import TensorforceError, util
 import tensorforce.core
-from tensorforce.core import SignatureDict, TensorSpec, tf_util
+from tensorforce.core import SignatureDict, TensorSpec, tf_util, VariableDict
 
 
 def make_key(*, x):
@@ -220,6 +220,11 @@ class Module(tf.Module):
         predicate = (lambda x: isinstance(x, tf.Variable) and getattr(x, 'trainable', False))
         return list(self._flatten(recursive=False, predicate=predicate))
 
+    @property
+    def this_tensorforce_submodules(self):
+        predicate = (lambda x: isinstance(x, Module))
+        return list(self._flatten(recursive=True, predicate=predicate))
+
     # @property
     # def trainable_variables(self):
     #     predicate = (lambda x: isinstance(x, tf.Variable) and getattr(x, 'trainable', False))
@@ -261,7 +266,8 @@ class Module(tf.Module):
         assert popped is self
 
     def initialize(self):
-        self.summary_steps = dict()
+        self.summary_tracking_steps = VariableDict()
+        self.tracking_variables = VariableDict()
         assert self.is_initialized is False
         for module in self.this_submodules:
             if isinstance(module, Module):
@@ -507,7 +513,7 @@ class Module(tf.Module):
         name = name.replace('/', '_')
         # spec
         if not isinstance(spec, TensorSpec):
-            raise TensorforceError.dtype(name='variable', argument='spec', dtype=type(spec))
+            raise TensorforceError.type(name='variable', argument='spec', dtype=type(spec))
         if spec.is_underspecified():
             raise TensorforceError.value(
                 name='variable', argument='spec', value=spec, hint='underspecified'
@@ -630,68 +636,348 @@ class Module(tf.Module):
     def register_summary(self, *, label, name):
         # label
         if not isinstance(label, str):
-            raise TensorforceError.type(name='Module.summary', argument='label', dtype=type(label))
+            raise TensorforceError.type(
+                name='Module.register_summary', argument='label', dtype=type(label)
+            )
         # name
         if not isinstance(name, (str, list, tuple)):
-            raise TensorforceError.type(name='Module.summary', argument='name', dtype=type(name))
+            raise TensorforceError.type(
+                name='Module.register_summary', argument='name', dtype=type(name)
+            )
         if len(name) == 0:
-            raise TensorforceError.required(name='Module.summary', argument='name')
-        if not isinstance(name, str):
-            name = name[0]
-        if name in self.summary_steps:
             raise TensorforceError.value(
-                name='Module.summary', argument='name', hint='already exists'
+                name='Module.register_summary', argument='name', value=name
+            )
+        if name in self.summary_tracking_steps:
+            raise TensorforceError.value(
+                name='Module.register_summary', argument='name', hint='already exists'
             )
 
         if self.root.summaries == 'all' or label in self.root.summaries:
-            self.summary_steps[name] = self.variable(
-                name=(name + '-summary'), spec=TensorSpec(type='int'), initializer=-1,
+            self.summary_tracking_steps[name] = self.variable(
+                name=(name + '-summary-step'), spec=TensorSpec(type='int'), initializer=-1,
                 is_trainable=False, is_saved=False
             )
 
-    def summary(self, *, label, name, data, step):
+    def register_tracking(self, *, label, name, spec, names=None):
+        # label
+        if not isinstance(label, str):
+            raise TensorforceError.type(
+                name='Module.register_tracking', argument='label', dtype=type(label)
+            )
+        # name
+        if not isinstance(name, str):
+            raise TensorforceError.type(
+                name='Module.register_tracking', argument='name', dtype=type(name)
+            )
+        if len(name) == 0:
+            raise TensorforceError.value(
+                name='Module.register_tracking', argument='name', value=name
+            )
+        if name in self.summary_tracking_steps:
+            raise TensorforceError.value(
+                name='Module.register_tracking', argument='name', hint='already exists'
+            )
+        # spec
+        if not isinstance(spec, TensorSpec):
+            raise TensorforceError.type(
+                name='Module.register_tracking', argument='spec', dtype=type(spec)
+            )
+        # names
+        if names is not None:
+            if not isinstance(names, (list, tuple)):
+                raise TensorforceError.type(
+                    name='Module.summary', argument='names', dtype=type(names)
+                )
+            if len(names) == 0:
+                raise TensorforceError.required(name='Module.summary', argument='names')
+
+        if self.root.tracking == 'all' or label in self.root.tracking:
+            self.summary_tracking_steps[name] = self.variable(
+                name=(name + '-tracking-step'), spec=TensorSpec(type='int'), initializer=-1,
+                is_trainable=False, is_saved=False
+            )
+            if names is None:
+                self.tracking_variables[name] = self.variable(
+                    name=(name + '-tracking'), spec=spec, initializer='zeros', is_trainable=False,
+                    is_saved=False
+                )
+            else:
+                for n in names:
+                    self.tracking_variables[n] = self.variable(
+                        name=(name + '-tracking'), spec=spec, initializer='zeros',
+                        is_trainable=False, is_saved=False
+                    )
+
+    def register_summary_and_tracking(self, *, label, name, spec, tracking_names=None):
+        # label
+        if not isinstance(label, str):
+            raise TensorforceError.type(
+                name='Module.register_summary_and_tracking', argument='label', dtype=type(label)
+            )
+        # name
+        if not isinstance(name, str):
+            raise TensorforceError.type(
+                name='Module.register_summary_and_tracking', argument='name', dtype=type(name)
+            )
+        if len(name) == 0:
+            raise TensorforceError.value(
+                name='Module.register_summary_and_tracking', argument='name', value=name
+            )
+        if name in self.summary_tracking_steps:
+            raise TensorforceError.value(
+                name='Module.register_summary_and_tracking', argument='name', hint='already exists'
+            )
+        # spec
+        if not isinstance(spec, TensorSpec):
+            raise TensorforceError.type(
+                name='Module.register_summary_and_tracking', argument='spec', dtype=type(spec)
+            )
+        # tracking_names
+        if tracking_names is not None:
+            if not isinstance(tracking_names, (list, tuple)):
+                raise TensorforceError.type(
+                    name='Module.summary_and_tracking', argument='tracking_names',
+                    dtype=type(tracking_names)
+                )
+            if len(tracking_names) == 0:
+                raise TensorforceError.required(
+                    name='Module.summary_and_tracking', argument='tracking_names'
+                )
+
+        if self.root.summaries == 'all' or label in self.root.summaries or \
+                self.root.tracking == 'all' or label in self.root.tracking:
+            self.summary_tracking_steps[name] = self.variable(
+                name=(name + '-summary-tracking-step'), spec=TensorSpec(type='int'), initializer=-1,
+                is_trainable=False, is_saved=False
+            )
+        if self.root.tracking == 'all' or label in self.root.tracking:
+            if tracking_names is None:
+                self.tracking_variables[name] = self.variable(
+                    name=(name + '-tracking'), spec=spec, initializer='zeros', is_trainable=False,
+                    is_saved=False
+                )
+            else:
+                for n in tracking_names:
+                    self.tracking_variables[n] = self.variable(
+                        name=(name + '-tracking'), spec=spec, initializer='zeros',
+                        is_trainable=False, is_saved=False
+                    )
+
+    def summary(self, *, label, name, data, step, names=None):
         # label
         if not isinstance(label, str):
             raise TensorforceError.type(name='Module.summary', argument='label', dtype=type(label))
         # name
-        if not isinstance(name, (str, list, tuple)):
+        if not isinstance(name, str):
             raise TensorforceError.type(name='Module.summary', argument='name', dtype=type(name))
-        if len(name) == 0:
-            raise TensorforceError.required(name='Module.summary', argument='name')
-        if isinstance(name, str):
-            name = (name,)
         # data
         if not tf_util.is_tensor(x=data) and not callable(data):
             raise TensorforceError.type(name='Module.summary', argument='data', dtype=type(data))
         # step
         if step not in self.root.units:
             raise TensorforceError.value(name='Module.summary', argument='step', value=step)
+        # names
+        if names is not None:
+            if not isinstance(names, (list, tuple)):
+                raise TensorforceError.type(
+                    name='Module.summary', argument='names', dtype=type(names)
+                )
+            if len(names) == 0:
+                raise TensorforceError.required(name='Module.summary', argument='names')
 
         if self.root.summaries == 'all' or label in self.root.summaries:
-            if name[0] not in self.summary_steps:
+            if name not in self.summary_tracking_steps:
                 raise TensorforceError.value(
                     name='Module.summary', argument='name', value=name, hint='is not registered'
                 )
 
             unit = self.root.units[step]
 
-            def write_summary():
+            def fn_summary():
                 if callable(data):
-                    d = data()
+                    value = data()
                 else:
-                    d = data
-                if tf_util.is_tensor(x=d):
-                    d = (d,)
+                    value = data
                 dependencies = list()
                 with self.root.summarizer.as_default():
-                    for n, d in zip(name, d):
-                        dependencies.append(tf.summary.scalar(name=n, data=d, step=unit))
-                previous = self.summary_steps[name[0]]
+                    if names is None:
+                        dependencies.append(tf.summary.scalar(name=name, data=value, step=unit))
+                    else:
+                        for n, x in zip(names, value):
+                            dependencies.append(tf.summary.scalar(name=n, data=x, step=unit))
+                previous = self.summary_tracking_steps[name]
                 dependencies.append(previous.assign(value=unit, read_value=False))
                 return tf.group(*dependencies)
 
-            pred = unit > self.summary_steps[name[0]]
-            return [tf.cond(pred=pred, true_fn=write_summary, false_fn=tf.no_op)]
+            pred = unit > self.summary_tracking_steps[name]
+            return [tf.cond(pred=pred, true_fn=fn_summary, false_fn=tf.no_op)]
 
         else:
             return list()
+
+    def track(self, *, label, name, data, step, names=None):
+        # label
+        if not isinstance(label, str):
+            raise TensorforceError.type(name='Module.track', argument='label', dtype=type(label))
+        # name
+        if not isinstance(name, str):
+            raise TensorforceError.type(name='Module.track', argument='name', dtype=type(name))
+        # data
+        if not tf_util.is_tensor(x=data) and not callable(data):
+            raise TensorforceError.type(name='Module.track', argument='data', dtype=type(data))
+        # step
+        if step not in self.root.units:
+            raise TensorforceError.value(name='Module.track', argument='step', value=step)
+        # names
+        if names is not None:
+            if not isinstance(names, (list, tuple)):
+                raise TensorforceError.type(
+                    name='Module.summary', argument='names', dtype=type(names)
+                )
+            if len(names) == 0:
+                raise TensorforceError.required(name='Module.summary', argument='names')
+
+        if self.root.summaries == 'all' or label in self.root.summaries:
+            if name not in self.summary_tracking_steps:
+                raise TensorforceError.value(
+                    name='Module.track', argument='name', value=name, hint='is not registered'
+                )
+            assert name in self.tracking_variables
+
+            unit = self.root.units[step]
+
+            def fn_tracking():
+                if callable(data):
+                    value = data()
+                else:
+                    value = data
+                dependencies = list()
+                if names is None:
+                    dependencies.append(self.tracking_variables[name].assign(value=value))
+                else:
+                    for n, x in zip(names, value):
+                        dependencies.append(self.tracking_variables[n].assign(value=x))
+                previous = self.summary_tracking_steps[name]
+                dependencies.append(previous.assign(value=unit, read_value=False))
+                return tf.group(*dependencies)
+
+            pred = unit > self.summary_tracking_steps[name]
+            return [tf.cond(pred=pred, true_fn=fn_tracking, false_fn=tf.no_op)]
+
+        else:
+            return list()
+
+    def summary_and_track(
+        self, *, label, name, data, step, summary_name=None, summary_names=None, tracking_names=None
+    ):
+        # label
+        if not isinstance(label, str):
+            raise TensorforceError.type(
+                name='Module.summary_and_track', argument='label', dtype=type(label)
+            )
+        # name
+        if not isinstance(name, str):
+            raise TensorforceError.type(
+                name='Module.summary_and_track', argument='name', dtype=type(name)
+            )
+        # data
+        if not tf_util.is_tensor(x=data) and not callable(data):
+            raise TensorforceError.type(
+                name='Module.summary_and_track', argument='data', dtype=type(data)
+            )
+        # step
+        if step not in self.root.units:
+            raise TensorforceError.value(
+                name='Module.summary_and_track', argument='step', value=step
+            )
+        # summary_name
+        assert summary_name is None or summary_names is None
+        if not isinstance(name, str):
+            raise TensorforceError.type(
+                name='Module.summary_and_track', argument='summary_name', dtype=type(summary_name)
+            )
+        # summary_names
+        if summary_names is not None:
+            if not isinstance(summary_names, (list, tuple)):
+                raise TensorforceError.type(
+                    name='Module.summary_and_track', argument='summary_names',
+                    dtype=type(summary_names)
+                )
+            if len(summary_names) == 0:
+                raise TensorforceError.required(
+                    name='Module.summary_and_track', argument='summary_names'
+                )
+        # tracking_names
+        if tracking_names is not None:
+            if not isinstance(tracking_names, (list, tuple)):
+                raise TensorforceError.type(
+                    name='Module.summary_and_track', argument='tracking_names',
+                    dtype=type(tracking_names)
+                )
+            if len(tracking_names) == 0:
+                raise TensorforceError.required(
+                    name='Module.summary_and_track', argument='tracking_names'
+                )
+
+        if self.root.summaries == 'all' or label in self.root.summaries or \
+                self.root.tracking == 'all' or label in self.root.tracking:
+            if name not in self.summary_tracking_steps:
+                raise TensorforceError.value(
+                    name='Module.summary_and_track', argument='name', value=name,
+                    hint='is not registered'
+                )
+
+            unit = self.root.units[step]
+
+            def fn_summary_tracking():
+                if callable(data):
+                    summary_value, tracking_value = data()
+                else:
+                    summary_value, tracking_value = data
+                dependencies = list()
+
+                if self.root.summaries == 'all' or label in self.root.summaries:
+                    with self.root.summarizer.as_default():
+                        if summary_name is not None:
+                            dependencies.append(
+                                tf.summary.scalar(name=summary_name, data=summary_value, step=unit)
+                            )
+                        elif summary_names is not None:
+                            for n, x in zip(summary_names, summary_value):
+                                dependencies.append(tf.summary.scalar(name=n, data=x, step=unit))
+                        else:
+                            dependencies.append(
+                                tf.summary.scalar(name=name, data=summary_value, step=unit)
+                            )
+
+                if self.root.tracking == 'all' or label in self.root.tracking:
+                    if tracking_names is None:
+                        dependencies.append(
+                            self.tracking_variables[name].assign(value=tracking_value)
+                        )
+                    else:
+                        for n, x in zip(tracking_names, tracking_value):
+                            dependencies.append(self.tracking_variables[n].assign(value=x))
+
+                previous = self.summary_tracking_steps[name]
+                dependencies.append(previous.assign(value=unit, read_value=False))
+                return tf.group(*dependencies)
+
+            pred = unit > self.summary_tracking_steps[name]
+            return [tf.cond(pred=pred, true_fn=fn_summary_tracking, false_fn=tf.no_op)]
+
+        else:
+            return list()
+
+    def tracked_tensors(self):
+        modules = [self]
+        modules.extend(self.tensorforce_submodules)
+        tracked_tensors = dict()
+        for module in modules:
+            for name, value in module.tracking_variables.items():
+                value = value.numpy()
+                if value.shape == ():
+                    value = value.item()
+                tracked_tensors[module.full_name + '/' + name] = value
+        return tracked_tensors

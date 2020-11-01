@@ -6,10 +6,11 @@ This file records all major updates and new features, starting from version 0.5.
 ### Latest changes
 
 ##### Agents:
-- Added experimental argument `gae_discount` to Tensorforce agent argument `reward_estimation`, soon for other agent types as well
+- New agent argument `tracking` and corresponding function `tracked_tensors()` to track and retrieve the current value of predefined tensors, similar to `summarizer` for TensorBoard summaries
+- New experimental value `gae_discount` for Tensorforce agent argument `reward_estimation`, soon for other agent types as well
 
 ##### Layers:
-- Added option to `Function` layer argument `function` to pass string function expression with argument "x", like "(x+1.0)/2.0"
+- Added option to `Function` layer argument `function` to pass string function expression with argument "x", e.g. "(x+1.0)/2.0"
 
 
 ---

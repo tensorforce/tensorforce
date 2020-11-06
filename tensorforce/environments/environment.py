@@ -650,9 +650,12 @@ class RemoteEnvironment(Environment):
     def receive_execute(self):
         if self._blocking:
             if self._expect_receive == 'reset':
-                return self.receive(function='reset'), -1, None
+                states, seconds = self.receive(function='reset')
+                self._episode_seconds += seconds
+                return states, -1, None
             else:
-                states, terminal, reward = self.receive(function='execute')
+                states, terminal, reward, seconds = self.receive(function='execute')
+                self._episode_seconds += seconds
                 return states, int(terminal), reward
         else:
             if self._thread is not None:

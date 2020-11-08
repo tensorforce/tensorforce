@@ -16,8 +16,8 @@
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core import layer_modules, SignatureDict, TensorDict, TensorSpec, TensorsSpec, \
-    tf_function, tf_util
+from tensorforce.core import layer_modules, TensorDict, TensorSpec, TensorsSpec, tf_function, \
+    tf_util
 from tensorforce.core.distributions import Distribution
 
 
@@ -79,8 +79,11 @@ class Bernoulli(Distribution):
     def initialize(self):
         super().initialize()
 
+        name = 'distributions/' + self.name + '-probability'
+        self.register_summary(label='distribution', name=name)
+
         spec = self.parameters_spec['probability']
-        self.register_summary_and_tracking(label='distribution', name='probability', spec=spec)
+        self.register_tracking(label='distribution', name='probability', spec=spec)
 
     @tf_function(num_args=2)
     def parametrize(self, *, x, conditions):
@@ -117,7 +120,14 @@ class Bernoulli(Distribution):
     def mode(self, *, parameters):
         probability = parameters['probability']
 
-        return tf.greater_equal(x=probability, y=tf_util.constant(value=0.5, dtype='float'))
+        # Distribution parameter tracking
+        def fn_tracking():
+            return tf.math.reduce_mean(input_tensor=probability, axis=0)
+
+        dependencies = self.track(label='distribution', name='probability', data=fn_tracking)
+
+        with tf.control_dependencies(control_inputs=dependencies):
+            return tf.greater_equal(x=probability, y=tf_util.constant(value=0.5, dtype='float'))
 
     @tf_function(num_args=2)
     def sample(self, *, parameters, temperature):
@@ -125,18 +135,21 @@ class Bernoulli(Distribution):
             ('true_logit', 'false_logit', 'probability')
         )
 
-        # Distribution parameter summaries and tracking
-        def fn_summary_tracking():
+        # Distribution parameter summaries
+        def fn_summary():
             axis = range(self.action_spec.rank + 1)
-            summary = tf.math.reduce_mean(input_tensor=probability, axis=axis)
-            tracking = tf.math.reduce_mean(input_tensor=probability, axis=0)
-            return summary, tracking
+            return tf.math.reduce_mean(input_tensor=probability, axis=axis)
 
-        summary_name = 'distributions/' + self.name + '-probability'
-        dependencies = self.summary_and_track(
-            label='distribution', name='probability', summary_name=summary_name,
-            data=fn_summary_tracking, step='timesteps'
+        name = 'distributions/' + self.name + '-probability'
+        dependencies = self.summary(
+            label='distribution', name=name, data=fn_summary, step='timesteps'
         )
+
+        # Distribution parameter tracking
+        def fn_tracking():
+            return tf.math.reduce_mean(input_tensor=probability, axis=0)
+
+        dependencies.extend(self.track(label='distribution', name='probability', data=fn_tracking))
 
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')
 

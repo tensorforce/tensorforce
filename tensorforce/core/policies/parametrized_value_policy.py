@@ -139,14 +139,27 @@ class ParametrizedValuePolicy(ValuePolicy):
 
         for name, spec in self.actions_spec.items():
             if spec.type == 'bool':
+                if name is None:
+                    names = ['action-values/true', 'action-values/false']
+                else:
+                    names = ['action-values/' + name + '-true', 'action-values/' + name + '-false']
                 spec = TensorSpec(type='float', shape=(spec.shape + (2,)))
             else:
+                if name is None:
+                    prefix = 'action-values/action'
+                else:
+                    prefix = 'action-values/' + name + '-action'
+                names = [prefix + str(n) for n in range(spec.num_values)]
                 spec = TensorSpec(type='float', shape=(spec.shape + (spec.num_values,)))
+
+            self.register_summary(label='action-value', name=names)
+
             if name is None:
                 name = 'action-values'
             else:
-                name += '-values'
-            self.register_summary_and_tracking(label='action-value', name=name, spec=spec)
+                name = name + '-values'
+
+            self.register_tracking(label='action-value', name=name, spec=spec)
 
     def get_savedmodel_trackables(self):
         trackables = dict()
@@ -241,49 +254,55 @@ class ParametrizedValuePolicy(ValuePolicy):
         def function(name, spec, action_value):
             if spec.type == 'bool':
 
-                def fn_summary_tracking():
+                def fn_summary():
                     axis = range(spec.rank + 1)
                     values = tf.math.reduce_mean(input_tensor=action_value, axis=axis)
-                    summary = [values[0], values[1]]
-                    tracking = tf.math.reduce_mean(input_tensor=action_value, axis=0)
-                    return summary, tracking
+                    return [values[0], values[1]]
 
                 if name is None:
-                    _name = 'action-values'
-                    summary_names = ['action-values/true', 'action-values/false']
+                    names = ['action-values/true', 'action-values/false']
                 else:
-                    _name = name + '-values'
-                    summary_names = [
-                        'action-values/' + name + '-true', 'action-values/' + name + '-false'
-                    ]
-                dependencies = self.summary_and_track(
-                    label='action-value', name=_name, summary_names=summary_names,
-                    data=fn_summary_tracking, step='timesteps'
+                    names = ['action-values/' + name + '-true', 'action-values/' + name + '-false']
+                dependencies = self.summary(
+                    label='action-value', name=names, data=fn_summary, step='timesteps'
                 )
+
+                def fn_tracking():
+                    return tf.math.reduce_mean(input_tensor=action_value, axis=0)
+
+                if name is None:
+                    n = 'action-values'
+                else:
+                    n = name + '-values'
+                dependencies = self.track(label='action-value', name=n, data=fn_tracking)
 
                 with tf.control_dependencies(control_inputs=dependencies):
                     return (action_value[..., 0] > action_value[..., 1])
 
             elif spec.type == 'int':
 
-                def fn_summary_tracking():
+                def fn_summary():
                     axis = range(spec.rank + 1)
                     values = tf.math.reduce_mean(input_tensor=action_value, axis=axis)
-                    summary = [values[n] for n in range(spec.num_values)]
-                    tracking = tf.math.reduce_mean(input_tensor=action_value, axis=0)
-                    return summary, tracking
+                    return [values[n] for n in range(spec.num_values)]
 
                 if name is None:
-                    _name = 'action-values'
                     prefix = 'action-values/action'
                 else:
-                    _name = name + '-values'
                     prefix = 'action-values/' + name + '-action'
-                summary_names = [prefix + str(n) for n in range(spec.num_values)]
-                dependencies = self.summary_and_track(
-                    label='action-value', name=_name, summary_names=summary_names,
-                    data=fn_summary_tracking, step='timesteps'
+                names = [prefix + str(n) for n in range(spec.num_values)]
+                dependencies = self.summary(
+                    label='action-value', name=names, data=fn_summary, step='timesteps'
                 )
+
+                def fn_tracking():
+                    return tf.math.reduce_mean(input_tensor=action_value, axis=0)
+
+                if name is None:
+                    n = 'action-values'
+                else:
+                    n = name + '-values'
+                dependencies = self.track(label='action-value', name=n, data=fn_tracking)
 
                 with tf.control_dependencies(control_inputs=dependencies):
                     mask = auxiliaries[name]['mask']

@@ -61,8 +61,8 @@ class CustomEnvironment(Environment):
         return dict(type='int', num_values=4)
 
     # Optional: should only be defined if environment has a natural fixed
-    # maximum episode length; restrict training timesteps via
-    #     Environment.create(..., max_episode_timesteps=???)
+    # maximum episode length; otherwise specify maximum number of training
+    # timesteps via Environment.create(..., max_episode_timesteps=???)
     def max_episode_timesteps(self):
         return super().max_episode_timesteps()
 

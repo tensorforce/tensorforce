@@ -89,10 +89,13 @@ class Beta(Distribution):
     def initialize(self):
         super().initialize()
 
+        prefix = 'distributions/' + self.name
+        names = (prefix + '-alpha', prefix + '-beta')
+        self.register_summary(label='distribution', name=names)
+
         spec = self.parameters_spec['alpha']
-        self.register_summary_and_tracking(
-            label='distribution', name='alpha-beta', spec=spec, tracking_names=('alpha', 'beta')
-        )
+        self.register_tracking(label='distribution', name='alpha', spec=spec)
+        self.register_tracking(label='distribution', name='beta', spec=spec)
 
     @tf_function(num_args=2)
     def parametrize(self, *, x, conditions):
@@ -128,14 +131,26 @@ class Beta(Distribution):
 
     @tf_function(num_args=1)
     def mode(self, *, parameters):
-        beta, alpha_beta = parameters.get(('beta', 'alpha_beta'))
+        alpha, beta, alpha_beta = parameters.get(('alpha', 'beta', 'alpha_beta'))
 
-        action = beta / alpha_beta
+        # Distribution parameter tracking
+        def fn_tracking():
+            return tf.math.reduce_mean(input_tensor=alpha, axis=0)
 
-        min_value = tf_util.constant(value=self.action_spec.min_value, dtype='float')
-        max_value = tf_util.constant(value=self.action_spec.max_value, dtype='float')
+        dependencies = self.track(label='distribution', name='alpha', data=fn_tracking)
 
-        return min_value + (max_value - min_value) * action
+        def fn_tracking():
+            return tf.math.reduce_mean(input_tensor=beta, axis=0)
+
+        dependencies.extend(self.track(label='distribution', name='beta', data=fn_tracking))
+
+        with tf.control_dependencies(control_inputs=dependencies):
+            action = beta / alpha_beta
+
+            min_value = tf_util.constant(value=self.action_spec.min_value, dtype='float')
+            max_value = tf_util.constant(value=self.action_spec.max_value, dtype='float')
+
+            return min_value + (max_value - min_value) * action
 
     @tf_function(num_args=2)
     def sample(self, *, parameters, temperature):
@@ -143,26 +158,27 @@ class Beta(Distribution):
             ('alpha', 'beta', 'alpha_beta', 'log_norm')
         )
 
-        # Distribution parameter summaries and tracking
-        def fn_summary_tracking():
-            summary = (
-                tf.math.reduce_mean(input_tensor=alpha, axis=range(self.action_spec.rank + 1)),
+        # Distribution parameter summaries
+        def fn_summary():
+            return tf.math.reduce_mean(input_tensor=alpha, axis=range(self.action_spec.rank + 1)), \
                 tf.math.reduce_mean(input_tensor=beta, axis=range(self.action_spec.rank + 1))
-            )
-            tracking = (
-                tf.math.reduce_mean(input_tensor=alpha, axis=0),
-                tf.math.reduce_mean(input_tensor=beta, axis=0)
-            )
-            return summary, tracking
 
         prefix = 'distributions/' + self.name
-        summary_names = (prefix + '-alpha', prefix + '-beta')
-        tracking_names = ('alpha', 'beta')
-        dependencies = self.summary_and_track(
-            label='distribution', name='alpha-beta', summary_names=summary_names,
-            tracking_names=tracking_names, data=fn_summary_tracking, step='timesteps',
+        names = (prefix + '-alpha', prefix + '-beta')
+        dependencies = self.summary(
+            label='distribution', name=names, data=fn_summary, step='timesteps'
         )
 
+        # Distribution parameter tracking
+        def fn_tracking():
+            return tf.math.reduce_mean(input_tensor=alpha, axis=0)
+
+        dependencies.extend(self.track(label='distribution', name='alpha', data=fn_tracking))
+
+        def fn_tracking():
+            return tf.math.reduce_mean(input_tensor=beta, axis=0)
+
+        dependencies.extend(self.track(label='distribution', name='beta', data=fn_tracking))
 
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')
 

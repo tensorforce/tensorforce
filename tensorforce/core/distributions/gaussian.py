@@ -127,10 +127,13 @@ class Gaussian(Distribution):
                 name='log_stddev', spec=spec, initializer='zeros', is_trainable=True, is_saved=True
             )
 
+        prefix = 'distributions/' + self.name
+        names = (prefix + '-mean', prefix + '-stddev')
+        self.register_summary(label='distribution', name=names)
+
         spec = self.parameters_spec['mean']
-        self.register_summary_and_tracking(
-            label='distribution', name='mean-stddev', spec=spec, tracking_names=('mean', 'stddev')
-        )
+        self.register_tracking(label='distribution', name='mean', spec=spec)
+        self.register_tracking(label='distribution', name='stddev', spec=spec)
 
     @tf_function(num_args=2)
     def parametrize(self, *, x, conditions):
@@ -167,27 +170,42 @@ class Gaussian(Distribution):
 
     @tf_function(num_args=1)
     def mode(self, *, parameters):
-        action = parameters['mean']
+        mean, stddev = parameters.get(('mean', 'stddev'))
 
-        # Bounded transformation
-        if self.bounded_transform is not None:
-            if self.bounded_transform == 'tanh':
-                action = tf.math.tanh(x=action)
+        # Distribution parameter tracking
+        def fn_tracking():
+            return tf.math.reduce_mean(input_tensor=mean, axis=0)
 
-            if self.action_spec.min_value is not None and self.action_spec.max_value is not None:
-                one = tf_util.constant(value=1.0, dtype='float')
-                half = tf_util.constant(value=0.5, dtype='float')
-                min_value = tf_util.constant(value=self.action_spec.min_value, dtype='float')
-                max_value = tf_util.constant(value=self.action_spec.max_value, dtype='float')
-                action = min_value + (max_value - min_value) * half * (action + one)
+        dependencies = self.track(label='distribution', name='mean', data=fn_tracking)
 
-            elif self.action_spec.min_value is not None:
-                min_value = tf_util.constant(value=self.action_spec.min_value, dtype='float')
-                action = tf.maximum(x=min_value, y=action)
-            else:
-                assert self.action_spec.max_value is not None
-                max_value = tf_util.constant(value=self.action_spec.max_value, dtype='float')
-                action = tf.minimum(x=max_value, y=action)
+        def fn_tracking():
+            return tf.math.reduce_mean(input_tensor=stddev, axis=0)
+
+        dependencies.extend(self.track(label='distribution', name='stddev', data=fn_tracking))
+
+        with tf.control_dependencies(control_inputs=dependencies):
+            action = mean
+
+            # Bounded transformation
+            if self.bounded_transform is not None:
+                if self.bounded_transform == 'tanh':
+                    action = tf.math.tanh(x=action)
+
+                if self.action_spec.min_value is not None and \
+                        self.action_spec.max_value is not None:
+                    one = tf_util.constant(value=1.0, dtype='float')
+                    half = tf_util.constant(value=0.5, dtype='float')
+                    min_value = tf_util.constant(value=self.action_spec.min_value, dtype='float')
+                    max_value = tf_util.constant(value=self.action_spec.max_value, dtype='float')
+                    action = min_value + (max_value - min_value) * half * (action + one)
+
+                elif self.action_spec.min_value is not None:
+                    min_value = tf_util.constant(value=self.action_spec.min_value, dtype='float')
+                    action = tf.maximum(x=min_value, y=action)
+                else:
+                    assert self.action_spec.max_value is not None
+                    max_value = tf_util.constant(value=self.action_spec.max_value, dtype='float')
+                    action = tf.minimum(x=max_value, y=action)
 
         return action
 
@@ -196,24 +214,26 @@ class Gaussian(Distribution):
         mean, stddev, log_stddev = parameters.get(('mean', 'stddev', 'log_stddev'))
 
         # Distribution parameter summaries and tracking
-        def fn_summary_tracking():
-            summary = (
-                tf.math.reduce_mean(input_tensor=mean, axis=range(self.action_spec.rank + 1)),
+        def fn_summary():
+            return tf.math.reduce_mean(input_tensor=mean, axis=range(self.action_spec.rank + 1)), \
                 tf.math.reduce_mean(input_tensor=stddev, axis=range(self.action_spec.rank + 1))
-            )
-            tracking = (
-                tf.math.reduce_mean(input_tensor=mean, axis=0),
-                tf.math.reduce_mean(input_tensor=stddev, axis=0)
-            )
-            return summary, tracking
 
         prefix = 'distributions/' + self.name
-        summary_names = (prefix + '-mean', prefix + '-stddev')
-        tracking_names = ('mean', 'stddev')
-        dependencies = self.summary_and_track(
-            label='distribution', name='mean-stddev', summary_names=summary_names,
-            tracking_names=tracking_names, data=fn_summary_tracking, step='timesteps',
+        names = (prefix + '-mean', prefix + '-stddev')
+        dependencies = self.summary(
+            label='distribution', name=names, data=fn_summary, step='timesteps'
         )
+
+        # Distribution parameter tracking
+        def fn_tracking():
+            return tf.math.reduce_mean(input_tensor=mean, axis=0)
+
+        dependencies.extend(self.track(label='distribution', name='mean', data=fn_tracking))
+
+        def fn_tracking():
+            return tf.math.reduce_mean(input_tensor=stddev, axis=0)
+
+        dependencies.extend(self.track(label='distribution', name='stddev', data=fn_tracking))
 
         def fn_mode():
             return mean

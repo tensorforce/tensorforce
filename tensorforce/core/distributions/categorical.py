@@ -89,8 +89,12 @@ class Categorical(Distribution):
     def initialize(self):
         super().initialize()
 
+        prefix = 'distributions/' + self.name + '-probability'
+        names = [prefix + str(n) for n in range(self.action_spec.num_values)]
+        self.register_summary(label='distribution', name=names)
+
         spec = self.parameters_spec['probabilities']
-        self.register_summary_and_tracking(label='distribution', name='probabilities', spec=spec)
+        self.register_tracking(label='distribution', name='probabilities', spec=spec)
 
     @tf_function(num_args=2)
     def parametrize(self, *, x, conditions):
@@ -132,10 +136,17 @@ class Categorical(Distribution):
 
     @tf_function(num_args=1)
     def mode(self, *, parameters):
-        action_values = parameters['action_values']
+        probabilities, action_values = parameters.get(('probabilities', 'action_values'))
 
-        action = tf.math.argmax(input=action_values, axis=-1)
-        return tf_util.cast(x=action, dtype='int')
+        # Distribution parameter tracking
+        def fn_tracking():
+            return tf.math.reduce_mean(input_tensor=probabilities, axis=0)
+
+        dependencies = self.track(label='distribution', name='probabilities', data=fn_tracking)
+
+        with tf.control_dependencies(control_inputs=dependencies):
+            action = tf.math.argmax(input=action_values, axis=-1)
+            return tf_util.cast(x=action, dtype='int')
 
     @tf_function(num_args=2)
     def sample(self, *, parameters, temperature):
@@ -143,19 +154,24 @@ class Categorical(Distribution):
             ('logits', 'probabilities', 'action_values')
         )
 
-        # Distribution parameter summaries and tracking
-        def fn_summary_tracking():
+        # Distribution parameter summaries
+        def fn_summary():
             axis = range(self.action_spec.rank + 1)
             probs = tf.math.reduce_mean(input_tensor=probabilities, axis=axis)
-            summary = [probs[n] for n in range(self.action_spec.num_values)]
-            tracking = tf.math.reduce_mean(input_tensor=probabilities, axis=0)
-            return summary, tracking
+            return [probs[n] for n in range(self.action_spec.num_values)]
 
         prefix = 'distributions/' + self.name + '-probability'
-        summary_names = [prefix + str(n) for n in range(self.action_spec.num_values)]
-        dependencies = self.summary_and_track(
-            label='distribution', name='probabilities', summary_names=summary_names,
-            data=fn_summary_tracking, step='timesteps',
+        names = [prefix + str(n) for n in range(self.action_spec.num_values)]
+        dependencies = self.summary(
+            label='distribution', name=names, data=fn_summary, step='timesteps'
+        )
+
+        # Distribution parameter tracking
+        def fn_tracking():
+            return tf.math.reduce_mean(input_tensor=probabilities, axis=0)
+
+        dependencies.extend(
+            self.track(label='distribution', name='probabilities', data=fn_tracking)
         )
 
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')

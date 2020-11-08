@@ -1246,7 +1246,9 @@ class TensorforceModel(Model):
 
         # Reward preprocessing
         if self.reward_preprocessing is not None:
-            reward = self.reward_preprocessing.apply(x=reward, deterministic=true, independent=False)
+            reward = self.reward_preprocessing.apply(
+                x=reward, deterministic=true, independent=False
+            )
 
             # Preprocessed reward summary
             if self.summaries == 'all' or 'reward' in self.summaries:

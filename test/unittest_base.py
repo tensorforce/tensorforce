@@ -62,7 +62,8 @@ class UnittestBase(object):
         # Config default changes need to be adapted everywhere (search "config=dict"):
         #   test_agents, test_environments, test_examples, test_layers, test_precision,
         #   test_reward_estimation, test_saving, test_seed, test_summaries
-        config=dict(eager_mode=True, create_debug_assertions=True, tf_log_level=20)
+        config=dict(eager_mode=True, create_debug_assertions=True, tf_log_level=20),
+        tracking='all'
     )
 
     def start_tests(self, name=None):

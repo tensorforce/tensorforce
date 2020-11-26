@@ -173,20 +173,28 @@ class TensorforceModel(Model):
         # Reward estimation
         self.estimate_advantage = reward_estimation.get('estimate_advantage', False)
         self.predict_horizon_values = reward_estimation.get('predict_horizon_values')
-        if self.predict_horizon_values is None:
-            self.predict_horizon_values = 'late'
         self.predict_action_values = reward_estimation.get('predict_action_values', False)
         self.predict_terminal_values = reward_estimation.get('predict_terminal_values', False)
 
         # Return horizon
         if reward_estimation['horizon'] == 'episode':
             self.reward_horizon = 'episode'
+            if self.predict_horizon_values is None:
+                self.predict_horizon_values = 'early'
+            elif self.predict_horizon_values == 'late':
+                raise TensorforceError.value(
+                    name='agent', argument='reward_estimation[predict_horizon_values]',
+                    value=self.predict_horizon_values,
+                    condition='reward_estimation[reward_horizon] is "episode"'
+                )
         else:
             self.reward_horizon = self.submodule(
                 name='reward_horizon', module=reward_estimation['horizon'],
                 modules=parameter_modules, dtype='int', min_value=1,
                 max_value=self.max_episode_timesteps
             )
+            if self.predict_horizon_values is None:
+                self.predict_horizon_values = 'late'
 
         # Reward discount
         reward_discount = reward_estimation.get('discount')
@@ -305,7 +313,7 @@ class TensorforceModel(Model):
         if advantage_processing is None:
             self.advantage_processing = None
         else:
-            if not self.estimate_advantage:
+            if self.estimate_advantage is False:
                 raise TensorforceError.invalid(
                     name='agent', argument='reward_estimation[advantage_processing]',
                     condition='reward_estimation[estimate_advantage] is false'
@@ -342,7 +350,7 @@ class TensorforceModel(Model):
         required_fns = {'policy'}
         required_fns.update(self.objective.required_policy_fns())
         if not self.separate_baseline:
-            if self.predict_horizon_values is not False or self.estimate_advantage:
+            if self.predict_horizon_values is not False or self.estimate_advantage is not False:
                 if self.predict_action_values:
                     required_fns.add('action_value')
                 else:
@@ -385,7 +393,7 @@ class TensorforceModel(Model):
 
         # Baseline
         if self.separate_baseline:
-            if self.predict_horizon_values is not False or self.estimate_advantage:
+            if self.predict_horizon_values is not False or self.estimate_advantage is not False:
                 if self.predict_action_values:
                     required_fns = {'action_value'}
                 else:
@@ -528,7 +536,7 @@ class TensorforceModel(Model):
                     name='agent', argument='reward_estimation[gae_discount]',
                     condition='memory type is not Recent'
                 )
-            elif not self.estimate_advantage:
+            elif self.estimate_advantage is False:
                 raise TensorforceError.invalid(
                     name='agent', argument='reward_estimation[gae_discount]',
                     condition='reward_estimation[estimate_advantage] is false'
@@ -1813,12 +1821,12 @@ class TensorforceModel(Model):
             indices = self.memory.retrieve_episodes(n=batch_size)
 
         # Retrieve states and internals
-        policy_horizon = self.policy.past_horizon(on_policy=True)
+        policy_horizon = self.policy.past_horizon(on_policy=False)
         if self.separate_baseline and self.baseline_optimizer is None:
             assertions = list()
             if self.config.create_tf_assertions:
                 assertions.append(tf.debugging.assert_equal(
-                    x=policy_horizon, y=self.baseline.past_horizon(on_policy=True),
+                    x=policy_horizon, y=self.baseline.past_horizon(on_policy=False),
                     message="Policy and baseline cannot depend on a different number of previous "
                             "states if baseline_optimizer is None."
                 ))
@@ -1857,7 +1865,7 @@ class TensorforceModel(Model):
                 policy_states = sequence_values['states']
                 policy_internals = TensorDict()
             # Optimize !!!!!
-            baseline_horizon = self.baseline.past_horizon(on_policy=True)
+            baseline_horizon = self.baseline.past_horizon(on_policy=False)
             if self.separate_baseline:
                 if len(self.internals_spec['baseline']) > 0:
                     baseline_horizons, sequence_values, initial_values = self.memory.predecessors(
@@ -1905,7 +1913,6 @@ class TensorforceModel(Model):
 
         # Return estimation
         if self.predict_horizon_values == 'late':
-            assert self.reward_horizon != 'episode'  # TODO: remove restriction
             discount = self.reward_discount.value()
             # TODO: no need for memory if update episode-based (or not random replay?)
 
@@ -2136,7 +2143,7 @@ class TensorforceModel(Model):
                 auxiliaries=auxiliaries, actions=actions, policy=self.baseline
             )
 
-        if self.baseline_optimizer is not None:
+        if self.baseline_optimizer is not None and self.estimate_advantage != 'early':
             def fn_kl_divergence(
                 *, states, horizons, internals, auxiliaries, actions, reward, reference
             ):
@@ -2171,7 +2178,7 @@ class TensorforceModel(Model):
                 dependencies = [optimized]
 
         with tf.control_dependencies(control_inputs=dependencies):
-            if self.estimate_advantage and not self.advantage_in_loss:
+            if self.estimate_advantage is not False and not self.advantage_in_loss:
                 if self.predict_action_values:
                     # Use past actions since advantage R(s,a) - Q(s,a)
                     baseline_prediction = self.baseline.action_value(
@@ -2249,7 +2256,7 @@ class TensorforceModel(Model):
             auxiliaries=auxiliaries, actions=actions, reward=reward, reference=reference
         )
 
-        if self.estimate_advantage and self.advantage_in_loss:
+        if self.estimate_advantage is not False and self.advantage_in_loss:
             variables = tuple(self.trainable_variables)
 
             def fn_loss(*, states, horizons, internals, auxiliaries, actions, reward, reference):
@@ -2258,7 +2265,7 @@ class TensorforceModel(Model):
                     past_horizon = self.baseline.past_horizon(on_policy=False)
                     # TODO: remove restriction
                     assertions.append(tf.debugging.assert_less_equal(
-                        x=horizons[:, 1], y=past_horizon,
+                        x=(horizons[:, 1] - one), y=past_horizon,
                         message="Baseline horizon cannot be greater than policy horizon."
                     ))
                 with tf.control_dependencies(control_inputs=assertions):
@@ -2313,7 +2320,7 @@ class TensorforceModel(Model):
                 internals = internals['policy']
             # TODO: Policy require
             reference = self.policy.kldiv_reference(
-                states=states, horizons=horizons, internals=internals,auxiliaries=auxiliaries
+                states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries
             )
             return self.policy.kl_divergence(
                 states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
@@ -2341,7 +2348,7 @@ class TensorforceModel(Model):
             self.summaries == 'all' or 'kl-divergence' in self.summaries
         ):
             kldiv_reference = self.policy.kldiv_reference(
-                states=policy_states, horizons=policy_horizons, internals=policy_internals,
+                states=policy_states, horizons=policy_horizons, internals=policy_only_internals,
                 auxiliaries=auxiliaries
             )
             dependencies += kldiv_reference.flatten()
@@ -2352,9 +2359,44 @@ class TensorforceModel(Model):
                 arguments=policy_arguments, variables=variables, fn_loss=fn_loss,
                 fn_kl_divergence=fn_kl_divergence, **kwargs
             )
+            dependencies = [optimized]
+
+        if self.baseline_optimizer is not None and self.estimate_advantage == 'early':
+            def fn_kl_divergence(
+                *, states, horizons, internals, auxiliaries, actions, reward, reference
+            ):
+                reference = self.baseline.kldiv_reference(
+                    states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries
+                )
+                return self.baseline.kl_divergence(
+                    states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
+                    reference=reference
+                )
+
+            variables = tuple(self.baseline.trainable_variables)
+
+            kwargs = dict()
+            try:
+                ordered_names = [variable.name for variable in variables]
+                kwargs['source_variables'] = tuple(sorted(
+                    self.policy.trainable_variables,
+                    key=(lambda x: ordered_names.index(x.name.replace('/policy/', '/baseline/')))
+                ))
+            except ValueError:
+                pass
+
+            dependencies += baseline_arguments.flatten()
+
+            # Optimization
+            with tf.control_dependencies(control_inputs=dependencies):
+                optimized = self.baseline_optimizer.update(
+                    arguments=baseline_arguments, variables=variables, fn_loss=self.baseline_loss,
+                    fn_kl_divergence=fn_kl_divergence, **kwargs
+                )
+                dependencies = [optimized]
 
         # Update summaries
-        with tf.control_dependencies(control_inputs=(optimized,)):
+        with tf.control_dependencies(control_inputs=dependencies):
             dependencies = list()
 
             # Entropy summaries
@@ -2365,7 +2407,7 @@ class TensorforceModel(Model):
                     if len(self.actions_spec) > 1:
                         entropies = self.policy.entropies(
                             states=policy_states, horizons=policy_horizons,
-                            internals=policy_internals, auxiliaries=auxiliaries
+                            internals=policy_only_internals, auxiliaries=auxiliaries
                         )
                         for name, spec in self.actions_spec.items():
                             entropies[name] = tf.reshape(tensor=entropies[name], shape=(-1,))
@@ -2377,7 +2419,7 @@ class TensorforceModel(Model):
                     else:
                         entropy = self.policy.entropy(
                             states=policy_states, horizons=policy_horizons,
-                            internals=policy_internals, auxiliaries=auxiliaries
+                            internals=policy_only_internals, auxiliaries=auxiliaries
                         )
                     x = tf.math.reduce_mean(input_tensor=entropy, axis=0)
                     dependencies.append(
@@ -2392,7 +2434,7 @@ class TensorforceModel(Model):
                     if len(self.actions_spec) > 1:
                         kl_divs = self.policy.kl_divergences(
                             states=policy_states, horizons=policy_horizons,
-                            internals=policy_internals, auxiliaries=auxiliaries,
+                            internals=policy_only_internals, auxiliaries=auxiliaries,
                             reference=kldiv_reference
                         )
                         for name, spec in self.actions_spec.items():
@@ -2405,7 +2447,7 @@ class TensorforceModel(Model):
                     else:
                         kl_divergence = self.policy.kl_divergence(
                             states=policy_states, horizons=policy_horizons,
-                            internals=policy_internals, auxiliaries=auxiliaries,
+                            internals=policy_only_internals, auxiliaries=auxiliaries,
                             reference=kldiv_reference
                         )
                     x = tf.math.reduce_mean(input_tensor=kl_divergence, axis=0)

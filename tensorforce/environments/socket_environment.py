@@ -37,7 +37,7 @@ class SocketEnvironment(RemoteEnvironment):
     MAX_BYTES = 4096
 
     @classmethod
-    def remote(cls, port, environment, max_episode_timesteps=None, **kwargs):
+    def remote(cls, port, environment, max_episode_timesteps=None, reward_shaping=None, **kwargs):
         socket = Socket()
         socket.bind(('', port))
         socket.listen(1)
@@ -45,7 +45,7 @@ class SocketEnvironment(RemoteEnvironment):
         socket.close()
         super().remote(
             connection=connection, environment=environment,
-            max_episode_timesteps=max_episode_timesteps, **kwargs
+            max_episode_timesteps=max_episode_timesteps, reward_shaping=reward_shaping, **kwargs
         )
 
     @classmethod

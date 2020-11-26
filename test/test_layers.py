@@ -185,8 +185,8 @@ class TestLayers(UnittestBase, unittest.TestCase):
         self.start_tests(name='rnn')
 
         states = dict(type='float', shape=(3,), min_value=1.0, max_value=2.0)
-        network = [
-            dict(type='rnn', cell='gru', size=8, horizon=2),
-            dict(type='lstm', size=7, horizon=1)
-        ]
+        network = [dict(type='rnn', cell='gru', size=8, horizon=2)]
+        self.unittest(states=states, policy=network)
+
+        network = [dict(type='lstm', size=7, horizon=1)]
         self.unittest(states=states, policy=network)

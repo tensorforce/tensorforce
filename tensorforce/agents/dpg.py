@@ -150,7 +150,6 @@ class DeterministicPolicyGradient(TensorforceAgent):
         l2_regularization=0.0, entropy_regularization=0.0,
         # Parallel interactions
         parallel_interactions=1,
-
         # Config, saver, summarizer, tracking, recorder
         config=None, saver=None, summarizer=None, tracking=None, recorder=None,
         # Deprecated

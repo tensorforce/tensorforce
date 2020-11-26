@@ -105,7 +105,8 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
             horizon='episode', predict_horizon_values='early', predict_terminal_values=True,
             return_processing='batch_normalization'
         )
-        baseline = dict(network=dict(type='auto', size=7, depth=1, rnn=1))
+        # TODO: baseline horizon has to be equal to policy horizon
+        baseline = dict(network=dict(type='auto', size=7, depth=1, rnn=2))
         # Implicit baseline_optimizer = 1.0
         baseline_objective = 'state_value'
         self.unittest(
@@ -212,7 +213,8 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
             return_processing=dict(type='clipping', lower=-1.0, upper=1.0),
             advantage_processing='batch_normalization'
         )
-        baseline = dict(network=dict(type='auto', size=7, depth=1, rnn=1))
+        # TODO: baseline horizon has to be equal to policy horizon
+        baseline = dict(network=dict(type='auto', size=7, depth=1, rnn=2))
         # Implicit advantage computation as part of loss
         self.unittest(reward_estimation=reward_estimation, baseline=baseline)
 

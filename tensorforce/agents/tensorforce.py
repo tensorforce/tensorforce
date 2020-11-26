@@ -111,9 +111,10 @@ class TensorforceAgent(Agent):
             (<i><a href="../modules/parameters.html">parameter</a>, 0.0 <= float <= 1.0</i>) &ndash;
             Discount factor of future rewards for discounted-sum return estimation
             (<span style="color:#00C000"><b>default</b></span>: 1.0).</li>
-            <li><b>estimate_advantage</b> (<i>bool</i>) &ndash; Whether to use an estimate of the
-            advantage (return minus baseline value prediction) instead of the return as learning
-            signal
+            <li><b>estimate_advantage</b> (<i>bool | "early" | "late"</i>) &ndash; Whether to use an
+            estimate of the advantage (return minus baseline value prediction) instead of the return
+            as learning signal, and whether to do so late after the baseline update (default) or
+            early before the baseline update
             (<span style="color:#00C000"><b>default</b></span>: false, unless baseline_policy is
             specified but baseline_objective/optimizer are not).</li>
             <li><b>predict_horizon_values</b> (<i>false | "early" | "late"</i>) &ndash; Whether to
@@ -258,7 +259,8 @@ class TensorforceAgent(Agent):
             distribution(s) (update-based)</li>
             <li>"loss": policy and baseline loss plus loss components (update-based)</li>
             <li>"parameters": parameter values (according to parameter unit)</li>
-            <li>"reward": timestep and episode reward, plus intermediate reward/return estimates
+            <li>"reward": reward per timestep, episode length and reward, plus intermediate
+            reward/return/advantage estimates and processed values
             (timestep/episode/update-based)</li>
             <li>"update-norm": global norm of update (update-based)</li>
             <li>"updates": mean and variance of update tensors per variable (update-based)</li>

@@ -8,9 +8,21 @@ This file records all major updates and new features, starting from version 0.5.
 ##### Agents:
 - New agent argument `tracking` and corresponding function `tracked_tensors()` to track and retrieve the current value of predefined tensors, similar to `summarizer` for TensorBoard summaries
 - New experimental value `gae_discount` for Tensorforce agent argument `reward_estimation`, soon for other agent types as well
+- New options `"early"` and `"late"` for value `estimate_advantage` of Tensorforce agent argument `reward_estimation`
+- Changed default value for `Agent.act()` argument `deterministic` from `False` to `True`
 
 ##### Layers:
-- Added option to `Function` layer argument `function` to pass string function expression with argument "x", e.g. "(x+1.0)/2.0"
+- New option for `Function` layer argument `function` to pass string function expression with argument "x", e.g. "(x+1.0)/2.0"
+
+##### Summarizer:
+- New summary `episode-length` recorded as part of summary label "reward"
+
+##### Environments:
+- New environment argument `reward_shaping` to provide a simple way to modify/shape rewards of an environment, can be specified either as callable or string function expression
+
+##### run.py script:
+- New option for command line arguments `--checkpoints` and `--summaries` to add comma-separated checkpoint/summary filename in addition to directory
+- Added episode lengths to logging plot besides episode returns
 
 
 ---

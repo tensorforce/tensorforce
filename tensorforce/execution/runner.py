@@ -95,7 +95,7 @@ class Runner(object):
                 raise TensorforceError.type(
                     name='Runner', argument='environments', value=environments
                 )
-            if len(environments) <= 1:
+            if len(environments) == 0:
                 raise TensorforceError.value(
                     name='Runner', argument='len(environments)', value=len(environments)
                 )
@@ -236,9 +236,9 @@ class Runner(object):
                 (<span style="color:#00C000"><b>default</b></span>: false).
             num_sleep_secs (float): Sleep duration if no environment is ready
                 (<span style="color:#00C000"><b>default</b></span>: one milliseconds).
-            callback ((Runner, parallel) -> bool): Callback function taking the runner instance
-                plus parallel index and returning a boolean value indicating whether execution
-                should continue
+            callback (callable[(Runner, parallel) -> bool]): Callback function taking the runner
+                instance plus parallel index and returning a boolean value indicating whether
+                execution should continue
                 (<span style="color:#00C000"><b>default</b></span>: callback always true).
             callback_episode_frequency (int): Episode interval between callbacks
                 (<span style="color:#00C000"><b>default</b></span>: every episode).
@@ -263,8 +263,8 @@ class Runner(object):
             save_best_agent (string): Directory to save the best version of the agent according to
                 the evaluation score
                 (<span style="color:#00C000"><b>default</b></span>: best agent is not saved).
-            evaluation_callback (int | Runner -> float): Callback function taking the runner
-                instance and returning an evaluation score
+            evaluation_callback (int | callable[Runner -> float]): Callback function taking the
+                runner instance and returning an evaluation score
                 (<span style="color:#00C000"><b>default</b></span>: cumulative evaluation reward
                 averaged over mean_horizon episodes).
         """

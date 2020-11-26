@@ -15,11 +15,14 @@
 
 import importlib
 import json
+import math
 import os
 import sys
 from threading import Thread
 import time
 from traceback import format_tb
+
+import numpy as np
 
 from tensorforce import TensorforceError, util
 import tensorforce.environments
@@ -32,8 +35,8 @@ class Environment(object):
 
     @staticmethod
     def create(
-        environment=None, max_episode_timesteps=None, remote=None, blocking=False, host=None,
-        port=None, **kwargs
+        environment=None, max_episode_timesteps=None, reward_shaping=None,
+        remote=None, blocking=False, host=None, port=None, **kwargs
     ):
         """
         Creates an environment from a specification. In case of "socket-server" remote mode, runs
@@ -48,6 +51,11 @@ class Environment(object):
                 the environment default if defined
                 (<span style="color:#00C000"><b>default</b></span>: environment default, invalid
                 for "socket-client" remote mode).
+            reward_shaping (callable[(s,a,t,r,s') -> r|(r,t)] | str): Reward shaping function
+                mapping state, action, terminal, reward and next state to shaped reward and
+                terminal, or a string expression with arguments "states", "actions", "terminal",
+                "reward" and "next_states", e.g. "-1.0 if terminal else max(reward, 0.0)"
+                (<span style="color:#00C000"><b>default</b></span>: no reward shaping).
             remote ("multiprocessing" | "socket-client" | "socket-server"): Communication mode for
                 remote environment execution of parallelized environment execution, "socket-client"
                 mode requires a corresponding "socket-server" running, and "socket-server" mode
@@ -84,7 +92,7 @@ class Environment(object):
             from tensorforce.environments import MultiprocessingEnvironment
             environment = MultiprocessingEnvironment(
                 blocking=blocking, environment=environment,
-                max_episode_timesteps=max_episode_timesteps, **kwargs
+                max_episode_timesteps=max_episode_timesteps, reward_shaping=reward_shaping, **kwargs
             )
             return environment
 
@@ -112,7 +120,7 @@ class Environment(object):
             from tensorforce.environments import SocketEnvironment
             SocketEnvironment.remote(
                 port=port, environment=environment, max_episode_timesteps=max_episode_timesteps,
-                **kwargs
+                reward_shaping=reward_shaping, **kwargs
             )
 
         elif isinstance(environment, (EnvironmentWrapper, RemoteEnvironment)):
@@ -136,14 +144,16 @@ class Environment(object):
 
         elif isinstance(environment, Environment):
             return EnvironmentWrapper(
-                environment=environment, max_episode_timesteps=max_episode_timesteps
+                environment=environment, max_episode_timesteps=max_episode_timesteps,
+                reward_shaping=reward_shaping
             )
 
         elif isinstance(environment, type) and issubclass(environment, Environment):
             environment = environment(**kwargs)
             assert isinstance(environment, Environment)
             return Environment.create(
-                environment=environment, max_episode_timesteps=max_episode_timesteps
+                environment=environment, max_episode_timesteps=max_episode_timesteps,
+                reward_shaping=reward_shaping
             )
 
         elif isinstance(environment, dict):
@@ -153,9 +163,12 @@ class Environment(object):
             assert environment is not None
             if max_episode_timesteps is None:
                 max_episode_timesteps = kwargs.pop('max_episode_timesteps', None)
+            if reward_shaping is None:
+                reward_shaping = kwargs.pop('reward_shaping', None)
 
             return Environment.create(
-                environment=environment, max_episode_timesteps=max_episode_timesteps, **kwargs
+                environment=environment, max_episode_timesteps=max_episode_timesteps,
+                reward_shaping=reward_shaping, **kwargs
             )
 
         elif isinstance(environment, str):
@@ -169,9 +182,12 @@ class Environment(object):
                 assert environment is not None
                 if max_episode_timesteps is None:
                     max_episode_timesteps = kwargs.pop('max_episode_timesteps', None)
+                if reward_shaping is None:
+                    reward_shaping = kwargs.pop('reward_shaping', None)
 
                 return Environment.create(
-                    environment=environment, max_episode_timesteps=max_episode_timesteps, **kwargs
+                    environment=environment, max_episode_timesteps=max_episode_timesteps,
+                    reward_shaping=reward_shaping, **kwargs
                 )
 
             elif '.' in environment:
@@ -180,14 +196,16 @@ class Environment(object):
                 library = importlib.import_module(name=library_name)
                 environment = getattr(library, module_name)
                 return Environment.create(
-                    environment=environment, max_episode_timesteps=max_episode_timesteps, **kwargs
+                    environment=environment, max_episode_timesteps=max_episode_timesteps,
+                    reward_shaping=reward_shaping, **kwargs
                 )
 
             elif environment in tensorforce.environments.environments:
                 # Keyword specification
                 environment = tensorforce.environments.environments[environment]
                 return Environment.create(
-                    environment=environment, max_episode_timesteps=max_episode_timesteps, **kwargs
+                    environment=environment, max_episode_timesteps=max_episode_timesteps,
+                    reward_shaping=reward_shaping, **kwargs
                 )
 
             else:
@@ -195,7 +213,8 @@ class Environment(object):
                 try:
                     return Environment.create(
                         environment='gym', level=environment,
-                        max_episode_timesteps=max_episode_timesteps, **kwargs
+                        max_episode_timesteps=max_episode_timesteps, reward_shaping=reward_shaping,
+                        **kwargs
                     )
                 except TensorforceError:
                     raise TensorforceError.value(
@@ -209,7 +228,8 @@ class Environment(object):
                     (isinstance(environment, type) and issubclass(environment, Env)):
                 return Environment.create(
                     environment='gym', level=environment,
-                    max_episode_timesteps=max_episode_timesteps, **kwargs
+                    max_episode_timesteps=max_episode_timesteps, reward_shaping=reward_shaping,
+                    **kwargs
                 )
 
             else:
@@ -334,7 +354,7 @@ class Environment(object):
 
 class EnvironmentWrapper(Environment):
 
-    def __init__(self, environment, max_episode_timesteps):
+    def __init__(self, environment, max_episode_timesteps=None, reward_shaping=None):
         super().__init__()
 
         if isinstance(environment, EnvironmentWrapper):
@@ -352,6 +372,8 @@ class EnvironmentWrapper(Environment):
             if self._environment.max_episode_timesteps() is None:
                 self._environment.max_episode_timesteps = (lambda: max_episode_timesteps)
         self._timestep = None
+        self._reward_shaping = reward_shaping
+        self._previous_states = None
 
     def __str__(self):
         return str(self._environment)
@@ -371,8 +393,8 @@ class EnvironmentWrapper(Environment):
     def reset(self):
         self._timestep = 0
         states = self._environment.reset()
-        if isinstance(states, dict):
-            states = states.copy()
+        if self._reward_shaping is not None:
+            self._previous_states = states
         return states
 
     def execute(self, actions):
@@ -382,8 +404,23 @@ class EnvironmentWrapper(Environment):
             )
         assert self._max_episode_timesteps is None or self._timestep < self._max_episode_timesteps
         states, terminal, reward = self._environment.execute(actions=actions)
-        if isinstance(states, dict):
-            states = states.copy()
+        if self._reward_shaping is not None:
+            if isinstance(self._reward_shaping, str):
+                reward = eval(self._reward_shaping, dict(), dict(
+                    states=self._previous_states, actions=actions, terminal=terminal, reward=reward,
+                    next_states=states, math=math, np=np
+                ))
+            else:
+                reward = self._reward_shaping(
+                    self._previous_states, actions, terminal, reward, states
+                )
+            if isinstance(reward, tuple):
+                reward, terminal = reward
+            if isinstance(reward, (np.generic, np.ndarray)):
+                reward = reward.item()
+            if isinstance(terminal, (np.generic, np.ndarray)):
+                terminal = terminal.item()
+            self._previous_states = states
         terminal = int(terminal)
         self._timestep += 1
         if terminal == 0 and self._max_episode_timesteps is not None and \
@@ -394,8 +431,8 @@ class EnvironmentWrapper(Environment):
         return states, terminal, reward
 
     _ATTRIBUTES = frozenset([
-        '_actions', 'create', '_environment', '_expect_receive', '_max_episode_timesteps',
-        '_timestep'
+        '_actions', 'create', '_environment', '_expect_receive', '_previous_states',
+        '_max_episode_timesteps', '_reward_shaping', '_timestep'
     ])
 
     def __getattr__(self, name):
@@ -438,11 +475,14 @@ class RemoteEnvironment(Environment):
         raise NotImplementedError
 
     @classmethod
-    def remote(cls, connection, environment, max_episode_timesteps=None, **kwargs):
+    def remote(
+        cls, connection, environment, max_episode_timesteps=None, reward_shaping=None, **kwargs
+    ):
         try:
             env = None
             env = Environment.create(
-                environment=environment, max_episode_timesteps=max_episode_timesteps, **kwargs
+                environment=environment, max_episode_timesteps=max_episode_timesteps,
+                reward_shaping=reward_shaping, **kwargs
             )
 
             while True:

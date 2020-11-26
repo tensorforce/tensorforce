@@ -39,7 +39,7 @@ class Agent(Recorder):
         Creates an agent from a specification.
 
         Args:
-            agent (specification | Agent class/object | lambda[states -> actions]): JSON file,
+            agent (specification | Agent class/object | callable[states -> actions]): JSON file,
                 specification key, configuration dictionary, library module, or `Agent`
                 class/object. Alternatively, an act-function mapping states to actions which is
                 supposed to be recorded.
@@ -355,7 +355,7 @@ class Agent(Recorder):
         return self.model.tracked_tensors()
 
     def act(
-        self, states, internals=None, parallel=0, independent=False, deterministic=False,
+        self, states, internals=None, parallel=0, independent=False, deterministic=True,
         # Deprecated
         evaluation=None
     ):
@@ -381,7 +381,7 @@ class Agent(Recorder):
                 (<span style="color:#00C000"><b>default</b></span>: false).
             deterministic (bool): Whether action should be chosen deterministically, so no
                 sampling and no exploration, only valid in independent mode
-                (<span style="color:#00C000"><b>default</b></span>: false).
+                (<span style="color:#00C000"><b>default</b></span>: true).
 
         Returns:
             dict[action] | iter[dict[action]], dict[internal] | iter[dict[internal]] if `internals`

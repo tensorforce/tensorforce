@@ -14,7 +14,9 @@
 # ==============================================================================
 
 from collections import Counter
+import math
 
+import numpy as np
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
@@ -202,7 +204,7 @@ class Function(Layer):
     Custom TensorFlow function layer (specification key: `function`).
 
     Args:
-        function (lambda[x -> x] | str): TensorFlow function, or string expression with argument
+        function (callable[x -> x] | str): TensorFlow function, or string expression with argument
             "x", e.g. "(x+1.0)/2.0"
             (<span style="color:#C00000"><b>required</b></span>).
         output_spec (specification): Output tensor specification containing type and/or shape
@@ -235,7 +237,7 @@ class Function(Layer):
     @tf_function(num_args=1)
     def apply(self, *, x):
         if isinstance(self.function, str):
-            x = eval(self.function, dict(), dict(x=x))
+            x = eval(self.function, dict(), dict(x=x, math=math, np=np, tf=tf))
         else:
             x = self.function(x)
 

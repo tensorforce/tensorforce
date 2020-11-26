@@ -48,12 +48,15 @@ class MultiprocessingEnvironment(RemoteEnvironment):
     def remote_close(cls, connection):
         connection.close()
 
-    def __init__(self, environment, blocking=False, max_episode_timesteps=None, **kwargs):
+    def __init__(
+        self, environment, blocking=False, max_episode_timesteps=None, reward_shaping=None,
+        **kwargs
+    ):
         proxy_connection, remote_connection = Pipe(duplex=True)
         process = Process(
             target=self.__class__.remote, kwargs=dict(
                 connection=remote_connection, environment=environment,
-                max_episode_timesteps=max_episode_timesteps, **kwargs
+                max_episode_timesteps=max_episode_timesteps, reward_shaping=reward_shaping, **kwargs
             )
         )
         process.start()

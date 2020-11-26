@@ -350,7 +350,11 @@ class Model(Module):
             is_saved=True
         )
 
-        # Episode reward
+        # Episode length/reward
+        self.episode_length = self.variable(
+            name='episode-length', spec=TensorSpec(type='int', shape=(self.parallel_interactions,)),
+            initializer='zeros', is_trainable=False, is_saved=False
+        )
         self.episode_reward = self.variable(
             name='episode-reward',
             spec=TensorSpec(type=self.reward_spec.type, shape=(self.parallel_interactions,)),
@@ -661,8 +665,8 @@ class Model(Module):
             ))
             # Assertion: if terminal, last timestep in batch
             assertions.append(tf.debugging.assert_equal(
-                x=tf.math.reduce_any(input_tensor=tf.math.greater(x=terminal, y=zero)), y=is_terminal,
-                message="Agent.observe: terminal is not the last input timestep."
+                x=tf.math.reduce_any(input_tensor=tf.math.greater(x=terminal, y=zero)),
+                y=is_terminal, message="Agent.observe: terminal is not the last input timestep."
             ))
 
         with tf.control_dependencies(control_inputs=assertions):
@@ -676,7 +680,9 @@ class Model(Module):
                         tf.summary.scalar(name='reward', data=x, step=self.timesteps)
                     )
 
-            # Update episode reward
+            # Update episode length/reward
+            sparse_delta = tf.IndexedSlices(values=batch_size, indices=parallel)
+            dependencies.append(self.episode_length.scatter_add(sparse_delta=sparse_delta))
             sum_reward = tf.math.reduce_sum(input_tensor=reward)
             sparse_delta = tf.IndexedSlices(values=sum_reward, indices=parallel)
             dependencies.append(self.episode_reward.scatter_add(sparse_delta=sparse_delta))
@@ -702,17 +708,23 @@ class Model(Module):
                     sparse_delta = tf.IndexedSlices(values=initial, indices=parallel)
                     operations.append(previous.scatter_update(sparse_delta=sparse_delta))
 
-                # Episode reward summaries (before episode reward reset / episodes increment)
+                # Episode length/reward summaries (before episode reward reset / episodes increment)
                 dependencies = list()
                 if self.summaries == 'all' or 'reward' in self.summaries:
                     with self.summarizer.as_default():
+                        x = tf.gather(params=self.episode_length, indices=parallel)
+                        dependencies.append(
+                            tf.summary.scalar(name='episode-length', data=x, step=self.episodes)
+                        )
                         x = tf.gather(params=self.episode_reward, indices=parallel)
                         dependencies.append(
                             tf.summary.scalar(name='episode-reward', data=x, step=self.episodes)
                         )
 
-                # Reset episode reward
+                # Reset episode length/reward
                 with tf.control_dependencies(control_inputs=dependencies):
+                    sparse_delta = tf.IndexedSlices(values=zero, indices=parallel)
+                    operations.append(self.episode_length.scatter_update(sparse_delta=sparse_delta))
                     zero_float = tf_util.constant(value=0.0, dtype='float')
                     sparse_delta = tf.IndexedSlices(values=zero_float, indices=parallel)
                     operations.append(self.episode_reward.scatter_update(sparse_delta=sparse_delta))

@@ -24,16 +24,18 @@ class TestAgents(UnittestBase, unittest.TestCase):
 
     def test_a2c(self):
         self.start_tests(name='A2C')
+        # TODO: baseline horizon has to be equal to policy horizon
         self.unittest(
             agent='a2c', batch_size=4, network=dict(type='auto', size=8, depth=1, rnn=2),
-            critic=dict(type='auto', size=7, depth=1, rnn=1)
+            critic=dict(type='auto', size=7, depth=1, rnn=2)
         )
 
     def test_ac(self):
         self.start_tests(name='AC')
+        # TODO: baseline horizon has to be equal to policy horizon
         self.unittest(
             agent='ac', batch_size=4, network=dict(type='auto', size=8, depth=1, rnn=2),
-            critic=dict(type='auto', size=7, depth=1, rnn=1)
+            critic=dict(type='auto', size=7, depth=1, rnn=2)
         )
 
     def test_constant(self):

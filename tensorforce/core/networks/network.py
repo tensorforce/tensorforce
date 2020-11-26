@@ -296,6 +296,7 @@ class LayeredNetwork(LayerbasedNetwork):
             registered_tensors = x.copy()
         x = x.value()
 
+        temporal_layer_check = False
         for layer in self.layers:
             if isinstance(layer, Register):
                 if layer.tensor in registered_tensors:
@@ -307,6 +308,7 @@ class LayeredNetwork(LayerbasedNetwork):
                 if layer.tensors not in registered_tensors:
                     raise TensorforceError.exists_not(name='registered tensor', value=layer.tensors)
                 x = layer.apply(x=registered_tensors[layer.tensors])
+                temporal_layer_check = False
 
             elif isinstance(layer, NondeterministicLayer):
                 x = layer.apply(x=x, deterministic=deterministic)
@@ -315,9 +317,14 @@ class LayeredNetwork(LayerbasedNetwork):
                 x = layer.apply(x=x, independent=independent)
 
             elif isinstance(layer, TemporalLayer):
+                if temporal_layer_check:
+                    raise TensorforceError(
+                        "Multiple successive temporal layers like RNNs are currently not supported."
+                    )
                 x, internals[layer.name] = layer.apply(
                     x=x, horizons=horizons, internals=internals[layer.name]
                 )
+                temporal_layer_check = True
 
             else:
                 x = layer.apply(x=x)

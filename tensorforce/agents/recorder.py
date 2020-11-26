@@ -27,8 +27,8 @@ class Recorder(object):
     Recorder wrapper (specification key: `recorder`).
 
     Args:
-        fn_act (lambda[states -> actions]): Act-function mapping states to actions which is supposed
-            to be recorded.
+        fn_act (callable[states -> actions]): Act-function mapping states to actions which is
+            supposed to be recorded.
     """
 
     def __init__(
@@ -149,7 +149,7 @@ class Recorder(object):
         return OrderedDict()
 
     def act(
-        self, states, internals=None, parallel=0, independent=False, deterministic=False, **kwargs
+        self, states, internals=None, parallel=0, independent=False, deterministic=True, **kwargs
     ):
         # Independent and internals
         is_internals_none = (internals is None)
@@ -167,12 +167,6 @@ class Recorder(object):
                 raise TensorforceError.invalid(
                     name='Agent.act', argument='internals', condition='independent is false'
                 )
-
-        # Independent and deterministic
-        if deterministic and not independent:
-            raise TensorforceError.invalid(
-                name='Agent.act', argument='deterministic', condition='independent is false'
-            )
 
         # Process states input and infer batching structure
         states, batched, num_parallel, is_iter_of_dicts, input_type = self._process_states_input(
@@ -248,7 +242,8 @@ class Recorder(object):
         if not independent:
             if not self.timestep_completed[parallel].all():
                 raise TensorforceError(
-                    message="Calling agent.act must be preceded by agent.observe."
+                    message="Calling agent.act must be preceded by agent.observe for training, or "
+                            "agent.act argument 'independent' must be passed as True."
                 )
             self.timestep_completed[parallel] = False
 

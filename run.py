@@ -36,10 +36,12 @@ def main():
         help='Agent (name, configuration JSON file, or library module)'
     )
     parser.add_argument(
-        '-c', '--checkpoints', type=str, default=None, help='TensorFlow checkpoints directory'
+        '-c', '--checkpoints', type=str, default=None,
+        help='TensorFlow checkpoints directory, plus optional comma-separated filename'
     )
     parser.add_argument(
-        '-s', '--summaries', type=str, default=None, help='TensorBoard summaries directory'
+        '-s', '--summaries', type=str, default=None,
+        help='TensorBoard summaries directory, plus optional comma-separated filename'
     )
     parser.add_argument(
         '--recordings', type=str, default=None, help='Traces recordings directory'
@@ -182,10 +184,18 @@ def main():
         agent = dict(agent=args.agent)
         if args.checkpoints is not None:
             assert 'saver' not in agent
-            agent['saver'] = args.checkpoints
+            if ',' in args.checkpoints:
+                directory, filename = args.checkpoints.split(',')
+                agent['saver'] = dict(directory=directory, filename=filename)
+            else:
+                agent['saver'] = args.checkpoints
         if args.summaries is not None:
             assert 'summarizer' not in agent
-            agent['summarizer'] = args.summaries
+            if ',' in args.summaries:
+                directory, filename = args.summaries.split(',')
+                agent['summarizer'] = dict(directory=directory, filename=filename)
+            else:
+                agent['summarizer'] = args.summaries
         if args.recordings is not None:
             assert 'recorder' not in agent
             agent['recorder'] = args.recordings

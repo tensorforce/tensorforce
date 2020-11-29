@@ -27,16 +27,6 @@ class TensorsSpec(NestedDict):
     def signature(self, *, batched):
         return self.fmap(function=(lambda spec: spec.signature(batched=batched)), cls=SignatureDict)
 
-    def empty(self, *, batched):
-        if self.is_singleton():
-            return self.singleton().empty(batched=batched)
-
-        else:
-            tensor = TensorDict()
-            for name, spec in super(NestedDict, self).items():
-                tensor[name] = spec.empty(batched=batched)
-            return tensor
-
     def to_tensor(self, *, value, batched, recover_empty=False, name='TensorSpec.to_tensor'):
         if not isinstance(value, ArrayDict):
             raise TensorforceError.type(name=name, argument='value', dtype=type(value))

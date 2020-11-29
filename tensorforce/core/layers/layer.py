@@ -524,9 +524,7 @@ class TemporalLayer(Layer):
     def apply(self, *, x, horizons, internals):
         zero = tf_util.constant(value=0, dtype='int')
         one = tf_util.constant(value=1, dtype='int')
-
         batch_size = tf_util.cast(x=tf.shape(input=horizons)[0], dtype='int')
-
         zeros = tf_util.zeros(shape=(batch_size,), dtype='int')
         ones = tf_util.ones(shape=(batch_size,), dtype='int')
 

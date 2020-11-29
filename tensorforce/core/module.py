@@ -45,12 +45,14 @@ def make_key(*, x):
 
 
 def tf_function(
-    *, num_args, optional=0, overwrites_signature=False, is_loop_body=False, dict_interface=False
+    *, num_args, optional=0, api_function=False, overwrites_signature=False, is_loop_body=False,
+    dict_interface=False
 ):
 
     def decorator(function):
 
-        def decorated(self, *args, **kwargs):
+        def decorated(self, *args, _initialize=False, **kwargs):
+            assert api_function or not _initialize
             assert len(args) == 0 or len(kwargs) == 0
             assert len(args) == 0 or len(args) == num_args
 
@@ -77,20 +79,13 @@ def tf_function(
 
             # Apply raw function if qualname mismatch, which indicates super() call
             if function.__qualname__ != qualname:
+                assert not _initialize
                 if not overwritten:
                     assert num_args - optional <= input_signature.num_args() <= num_args
                 return function(self, *args, **kwargs)
 
             # Check number of arguments
             assert num_args - optional <= input_signature.num_args() <= num_args
-
-            # Graph arguments
-            if len(kwargs) > 0:
-                graph_args = input_signature.kwargs_to_args(
-                    kwargs=kwargs, to_dict=dict_interface, outer_tuple=True
-                )
-            else:
-                graph_args = args
 
             # Graph parameters
             params_kwargs = {
@@ -104,6 +99,7 @@ def tf_function(
 
             # Function graph
             if str(graph_params) not in function_graphs:
+                assert not api_function or _initialize
 
                 def function_graph(*args):
                     with self:
@@ -123,6 +119,18 @@ def tf_function(
                     # experimental_implements=None, experimental_autograph_options=None,
                     # experimental_relax_shapes=False, experimental_compile=None
                 )
+
+            # Do not call function if initialization
+            if _initialize:
+                return
+
+            # Graph arguments
+            if len(kwargs) > 0:
+                graph_args = input_signature.kwargs_to_args(
+                    kwargs=kwargs, to_dict=dict_interface, outer_tuple=True
+                )
+            else:
+                graph_args = args
 
             # Apply function graph
             output_args = function_graphs[str(graph_params)](*graph_args)

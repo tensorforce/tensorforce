@@ -139,12 +139,6 @@ class TensorSpec(object):
         # TensorFlow TensorSpec
         return tf.TensorSpec(shape=tf.TensorShape(dims=shape), dtype=self.tf_type())
 
-    def empty(self, *, batched):
-        if batched:
-            return tf_util.zeros(shape=((0,) + self.shape), dtype=self.type)
-        else:
-            return tf_util.zeros(shape=self.shape, dtype=self.type)
-
     def to_tensor(self, *, value, batched, recover_empty=False, name='TensorSpec.to_tensor'):
         # Check whether underspecified
         if self.is_underspecified():

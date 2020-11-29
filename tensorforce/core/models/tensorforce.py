@@ -159,15 +159,15 @@ class TensorforceModel(Model):
 
         # Reward estimation argument check
         if not all(key in (
-            'advantage_processing', 'discount', 'estimate_advantage', 'gae_discount', 'horizon',
+            'advantage_processing', 'discount', 'estimate_advantage', 'gae_decay', 'horizon',
             'predict_action_values', 'predict_horizon_values', 'predict_terminal_values',
-            'return_processing'
+            'return_processing', 'trace_decay'
         ) for key in reward_estimation):
             raise TensorforceError.value(
                 name='agent', argument='reward_estimation', value=reward_estimation,
-                hint='not from {advantage_processing,discount,estimate_advantage,gae_discount,'
+                hint='not from {advantage_processing,discount,estimate_advantage,gae_decay,'
                      'horizon,predict_action_values,predict_horizon_values,predict_terminal_values,'
-                     'return_processing}'
+                     'return_processing,trace_decay}'
             )
 
         # Reward estimation
@@ -525,29 +525,41 @@ class TensorforceModel(Model):
             values_spec=values_spec, min_capacity=min_capacity
         )
 
-        # GAE discount
-        gae_discount = reward_estimation.get('gae_discount')
-        if gae_discount is None:
-            gae_discount = 0.0
+        # Trace decay
+        trace_decay = reward_estimation.get('trace_decay', 1.0)
+        if trace_decay != 1.0 and self.predict_horizon_values != 'early':
+            raise TensorforceError.invalid(
+                name='agent', argument='reward_estimation[trace_decay]',
+                condition='reward_estimation[predict_horizon_values] != "early"'
+            )
+        self.trace_decay = self.submodule(
+            name='trace_decay', module=trace_decay, modules=parameter_modules, dtype='float',
+            min_value=0.0, max_value=1.0
+        )
+
+        # GAE decay
+        gae_decay = reward_estimation.get('gae_decay')
+        if gae_decay is None:
+            gae_decay = 0.0
         else:
             from tensorforce.core.memories import Recent
             if not isinstance(self.memory, Recent):
                 raise TensorforceError.invalid(
-                    name='agent', argument='reward_estimation[gae_discount]',
+                    name='agent', argument='reward_estimation[gae_decay]',
                     condition='memory type is not Recent'
                 )
             elif self.estimate_advantage is False:
                 raise TensorforceError.invalid(
-                    name='agent', argument='reward_estimation[gae_discount]',
+                    name='agent', argument='reward_estimation[gae_decay]',
                     condition='reward_estimation[estimate_advantage] is false'
                 )
             elif self.advantage_in_loss:
                 raise TensorforceError.invalid(
-                    name='agent', argument='reward_estimation[gae_discount]',
+                    name='agent', argument='reward_estimation[gae_decay]',
                     condition='advantage-in-loss mode'
                 )
-        self.gae_discount = self.submodule(
-            name='gae_discount', module=gae_discount, modules=parameter_modules, dtype='float',
+        self.gae_decay = self.submodule(
+            name='gae_decay', module=gae_decay, modules=parameter_modules, dtype='float',
             min_value=0.0, max_value=1.0
         )
 
@@ -664,17 +676,16 @@ class TensorforceModel(Model):
         if 'graph' in self.summaries:
             tf.summary.trace_on(graph=True, profiler=False)
         self.experience(
-            states=self.states_spec.empty(batched=True),
-            internals=self.internals_spec.empty(batched=True),
-            auxiliaries=self.auxiliaries_spec.empty(batched=True),
-            actions=self.actions_spec.empty(batched=True),
-            terminal=self.terminal_spec.empty(batched=True),
-            reward=self.reward_spec.empty(batched=True)
+            states=self.states_spec, internals=self.internals_spec,
+            auxiliaries=self.auxiliaries_spec, actions=self.actions_spec,
+            terminal=self.terminal_spec, reward=self.reward_spec, _initialize=True
         )
         if 'graph' in self.summaries:
             tf.summary.trace_export(name='experience', step=self.timesteps, profiler_outdir=None)
-        # TODO: Not possible as it tries to retrieve experiences from memory
-        # self.update()
+            tf.summary.trace_on(graph=True, profiler=False)
+        self.update(_initialize=True)
+        if 'graph' in self.summaries:
+            tf.summary.trace_export(name='update', step=self.timesteps, profiler_outdir=None)
 
     def get_savedmodel_trackables(self):
         trackables = super().get_savedmodel_trackables()
@@ -824,7 +835,7 @@ class TensorforceModel(Model):
         else:
             return super().output_signature(function=function)
 
-    @tf_function(num_args=0)
+    @tf_function(num_args=0, api_function=True)
     def reset(self):
         operations = list()
         zeros = tf_util.zeros(shape=(self.parallel_interactions,), dtype='int')
@@ -838,16 +849,16 @@ class TensorforceModel(Model):
         with tf.control_dependencies(control_inputs=operations):
             return super().reset()
 
-    @tf_function(num_args=6)
+    @tf_function(num_args=6, api_function=True)
     def experience(self, *, states, internals, auxiliaries, actions, terminal, reward):
         true = tf_util.constant(value=True, dtype='bool')
-        zero = tf_util.constant(value=0, dtype='int')
         one = tf_util.constant(value=1, dtype='int')
         batch_size = tf_util.cast(x=tf.shape(input=terminal)[0], dtype='int')
 
         # Input assertions
         assertions = list()
         if self.config.create_tf_assertions:
+            zero = tf_util.constant(value=0, dtype='int')
             assertions.extend(self.states_spec.tf_assert(
                 x=states, batch_size=batch_size,
                 message='Agent.experience: invalid {issue} for {name} state input.'
@@ -890,14 +901,14 @@ class TensorforceModel(Model):
                 message="Agent.experience: cannot be called mid-episode."
             ))
             # Assertion: one terminal
+            num_terms = tf.math.count_nonzero(input=terminal, dtype=tf_util.get_dtype(type='int'))
             assertions.append(tf.debugging.assert_equal(
-                x=tf.math.count_nonzero(input=terminal, dtype=tf_util.get_dtype(type='int')),
-                y=tf.where(condition=(batch_size > 0), x=one, y=zero),
-                message="Agent.experience: input contains no or more than one terminal."
+                x=num_terms, y=one,
+                message="Agent.experience: input contains none or more than one terminal."
             ))
             # Assertion: terminal is last timestep in batch
             assertions.append(tf.debugging.assert_greater_equal(
-                x=tf.concat(values=([one], terminal), axis=0)[-1], y=one,
+                x=terminal[-1], y=one,
                 message="Agent.experience: terminal is not the last input timestep."
             ))
 
@@ -923,16 +934,14 @@ class TensorforceModel(Model):
         with tf.control_dependencies(control_inputs=(experienced,)):
             assignments = list()
             assignments.append(self.timesteps.assign_add(delta=batch_size, read_value=False))
-            assignments.append(self.episodes.assign_add(
-                delta=tf.math.minimum(x=one, y=batch_size), read_value=False
-            ))
+            assignments.append(self.episodes.assign_add(delta=one, read_value=False))
 
         with tf.control_dependencies(control_inputs=assignments):
             timestep = tf_util.identity(input=self.timesteps)
             episode = tf_util.identity(input=self.episodes)
             return timestep, episode
 
-    @tf_function(num_args=0)
+    @tf_function(num_args=0, api_function=True)
     def update(self):
         # Core update
         updated = self.core_update()
@@ -942,20 +951,26 @@ class TensorforceModel(Model):
 
     @tf_function(num_args=5)
     def core_act(self, *, states, internals, auxiliaries, parallel, deterministic, independent):
-        zero = tf_util.constant(value=0, dtype='int')
         zero_float = tf_util.constant(value=0.0, dtype='float')
 
         # On-policy policy/baseline horizon (TODO: retrieve from buffer!)
         assertions = list()
         if self.config.create_tf_assertions:
+            zero = tf_util.constant(value=0, dtype='int')
             past_horizon = tf.math.maximum(
                 x=self.policy.past_horizon(on_policy=True),
                 y=self.baseline.past_horizon(on_policy=True)
             )
-            assertions.append(tf.debugging.assert_equal(x=past_horizon, y=zero))
+            assertions.append(tf.debugging.assert_equal(
+                x=past_horizon, y=zero,
+                message="Policy/baseline on-policy horizon currently not supported."
+            ))
             if not independent:
                 false = tf_util.constant(value=False, dtype='bool')
-                assertions.append(tf.debugging.assert_equal(x=deterministic, y=false))
+                assertions.append(tf.debugging.assert_equal(
+                    x=deterministic, y=false,
+                    message="Invalid combination deterministic and not independent."
+                ))
 
         # Variable noise
         if len(self.policy.trainable_variables) > 0 and (
@@ -1223,82 +1238,53 @@ class TensorforceModel(Model):
 
     @tf_function(num_args=3)
     def core_observe(self, *, terminal, reward, parallel):
-        true = tf_util.constant(value=True, dtype='bool')
         zero = tf_util.constant(value=0, dtype='int')
         one = tf_util.constant(value=1, dtype='int')
         buffer_index = tf.gather(params=self.buffer_index, indices=parallel)
-        is_terminal = tf.concat(values=([one], terminal), axis=0)[-1] > zero
+        batch_size = tf_util.cast(x=tf.shape(input=terminal)[0], dtype='int')
+        if self.circular_buffer:
+            buffer_start = tf.gather(params=self.buffer_start, indices=parallel)
 
-        # # Assertion: size of terminal equals buffer index
-        # assertions = list()
+        # Assertion: size of terminal equals number of buffered timesteps
+        assertions = list()
         # if self.config.create_tf_assertions:
         #     if self.circular_buffer:
-        #         buffer_start = tf.gather(params=self.buffer_start, indices=parallel)
-        #         is_episode_start = tf.math.equal(x=buffer_start, y=zero)
-        #         length = buffer_index - buffer_start
-        #         horizon = tf.math.minimum(x=self.reward_horizon.value(), y=length)
-        #         length -= tf.where(condition=is_episode_start, x=zero, y=horizon)
-        #         assertions.append(tf.debugging.assert_less_equal(
-        #             x=tf_util.cast(x=tf.shape(input=terminal)[0], dtype='int'), y=length,
-        #             message="Agent.observe: number of observe-timesteps has to be equal to number of "
-        #                     "buffered act-timesteps."
+        #         maybe_one = tf.minimum(x=buffer_index, y=self.reward_horizon.value())
+        #         assertions.append(tf.debugging.assert_equal(
+        #             x=batch_size, y=(buffer_index - buffer_start - maybe_one),
+        #             message="Agent.observe: number of observe-timesteps has to be equal to number "
+        #                     "of buffered act-timesteps."
         #         ))
         #     else:
         #         assertions.append(tf.debugging.assert_equal(
-        #             x=tf_util.cast(x=tf.shape(input=terminal)[0], dtype='int'), y=buffer_index,
-        #             message="Agent.observe: number of observe-timesteps has to be equal to number of "
-        #                     "buffered act-timesteps."
+        #             x=batch_size, y=buffer_index,
+        #             message="Agent.observe: number of observe-timesteps has to be equal to number "
+        #                     "of buffered act-timesteps."
         #         ))
 
-        dependencies = list()
-
-        # Reward preprocessing
-        if self.reward_preprocessing is not None:
-            reward = self.reward_preprocessing.apply(
-                x=reward, deterministic=true, independent=False
-            )
-
-            # Preprocessed reward summary
-            if self.summaries == 'all' or 'reward' in self.summaries:
-                with self.summarizer.as_default():
-                    x = tf.math.reduce_mean(input_tensor=reward, axis=0)
-                    dependencies.append(
-                        tf.summary.scalar(name='preprocessed-reward', data=x, step=self.timesteps)
-                    )
-
-            # Update preprocessed episode reward
-            sum_reward = tf.math.reduce_sum(input_tensor=reward)
-            sparse_delta = tf.IndexedSlices(values=sum_reward, indices=parallel)
-            dependencies.append(
-                self.preprocessed_episode_reward.scatter_add(sparse_delta=sparse_delta)
-            )
-
         if self.config.buffer_observe == 'episode':
-            # Observe inputs are always buffered until episode is terminated
-            # Call core_experience, no need for terminal/reward buffers
+            # Observe inputs are always buffered in agent until episode is terminated
+            # --> Call core_experience directly, no need for terminal/reward buffers
 
             def fn_nonterminal():
-                # Should not be called (assert with terminal since otherwise analyzed as static)
-                return tf.debugging.assert_equal(x=terminal[0], y=(terminal[0] + one))
+                # Should not be called
+                return tf.debugging.assert_equal(x=batch_size, y=zero)
 
             def fn_terminal():
-                # Values from buffers
+                # Gather values from buffers, and episode experience
                 function = (lambda x: x[parallel, :buffer_index])
                 states = self.states_buffer.fmap(function=function, cls=TensorDict)
                 internals = self.internals_buffer.fmap(function=function, cls=TensorDict)
                 auxiliaries = self.auxiliaries_buffer.fmap(function=function, cls=TensorDict)
                 actions = self.actions_buffer.fmap(function=function, cls=TensorDict)
-
-                # Experience
                 return self.core_experience(
-                    states=states, internals=internals, auxiliaries=auxiliaries,
-                    actions=actions, terminal=terminal, reward=reward
+                    states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
+                    terminal=terminal, reward=reward
                 )
 
         elif self.reward_horizon == 'episode' or self.parallel_interactions > 1:
             # Observe inputs need to be buffered until episode is terminated
-            # Call core_experience if terminal, otherwise buffer terminal/reward
-            batch_size = tf_util.cast(x=tf.shape(input=terminal)[0], dtype='int')
+            # --> Call core_experience if terminal, otherwise buffer terminal/reward
             batch_parallel = tf.fill(dims=(batch_size,), value=parallel)
 
             def fn_nonterminal():
@@ -1306,146 +1292,39 @@ class TensorforceModel(Model):
                 assignments = list()
                 indices = tf.range(start=(buffer_index - batch_size), limit=buffer_index)
                 indices = tf.stack(values=(batch_parallel, indices), axis=1)
-
                 value = tf.tensor_scatter_nd_update(
                     tensor=self.terminal_buffer, indices=indices, updates=terminal
                 )
                 assignments.append(self.terminal_buffer.assign(value=value))
-                # assignments.append(
-                #     self.terminal_buffer.scatter_nd_update(indices=indices, updates=terminal)
-                # )
                 value = tf.tensor_scatter_nd_update(
                     tensor=self.reward_buffer, indices=indices, updates=reward
                 )
                 assignments.append(self.reward_buffer.assign(value=value))
-                # assignments.append(
-                #     self.reward_buffer.scatter_nd_update(indices=indices, updates=reward)
-                # )
                 return tf.group(assignments)
 
             def fn_terminal():
-                # Values from buffers
+                # Gather values from buffers, and episode experience
                 function = (lambda x: x[parallel, :buffer_index])
                 states = self.states_buffer.fmap(function=function, cls=TensorDict)
                 internals = self.internals_buffer.fmap(function=function, cls=TensorDict)
                 auxiliaries = self.auxiliaries_buffer.fmap(function=function, cls=TensorDict)
                 actions = self.actions_buffer.fmap(function=function, cls=TensorDict)
-                _terminal = self.terminal_buffer[parallel, :buffer_index - batch_size]
-                _reward = self.reward_buffer[parallel, :buffer_index - batch_size]
-                _terminal = tf.concat(values=(_terminal, terminal), axis=0)
-                _reward = tf.concat(values=(_reward, reward), axis=0)
-
-                # Experience
+                episode_terminal = self.terminal_buffer[parallel, :buffer_index - batch_size]
+                episode_reward = self.reward_buffer[parallel, :buffer_index - batch_size]
+                episode_terminal = tf.concat(values=(episode_terminal, terminal), axis=0)
+                episode_reward = tf.concat(values=(episode_reward, reward), axis=0)
                 return self.core_experience(
-                    states=states, internals=internals, auxiliaries=auxiliaries,
-                    actions=actions, terminal=_terminal, reward=_reward
+                    states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
+                    terminal=episode_terminal, reward=episode_reward
                 )
 
         else:
             # Observe inputs are buffered temporarily and return is computed as soon as possible
-            # Call core_experience if terminal, otherwise ???
+            # --> Call core_experience if terminal, otherwise ???
             capacity = tf_util.constant(value=self.buffer_capacity, dtype='int')
             reward_horizon = self.reward_horizon.value()
-            discount = self.reward_discount.value()
-            buffer_start = tf.gather(params=self.buffer_start, indices=parallel)
-            batch_size = tf_util.cast(x=tf.shape(input=terminal)[0], dtype='int')
+            reward_discount = self.reward_discount.value()
             batch_parallel = tf.fill(dims=(batch_size,), value=parallel)
-
-            def partial_experience():
-                num_complete = buffer_index - buffer_start - reward_horizon
-
-                if self.predict_horizon_values == 'early':
-                    baseline_horizon = self.baseline.past_horizon(on_policy=True)
-                    assertions = list()
-                    assertions.append(tf.debugging.assert_less_equal(
-                        x=baseline_horizon, y=reward_horizon,
-                        message="Baseline horizon cannot be greater than reward estimation "
-                                "horizon if prediction_horizon_values=\"early\"."
-                    ))
-
-                    with tf.control_dependencies(control_inputs=assertions):
-                        horizons_start = tf.range(num_complete)
-                        horizons_length = tf.fill(
-                            dims=(num_complete,), value=(baseline_horizon + one)
-                        )
-                        horizons = tf.stack(values=(horizons_start, horizons_length), axis=1)
-
-                        indices = tf.range(
-                            start=(buffer_start + reward_horizon - baseline_horizon),
-                            limit=(buffer_start + reward_horizon + num_complete)
-                        )
-                        indices = tf.math.mod(x=indices, y=capacity)
-                        function = (lambda x: tf.gather(params=x[parallel], indices=indices))
-                        states = self.states_buffer.fmap(function=function, cls=TensorDict)
-                        function = (lambda x: tf.gather(
-                            params=x[parallel], indices=indices[:num_complete]
-                        ))
-                        if self.separate_baseline:
-                            if len(self.internals_spec['baseline']) > 0:
-                                internals = self.internals_buffer['baseline'].fmap(
-                                    function=function, cls=TensorDict
-                                )
-                            else:
-                                internals = TensorDict()
-                        else:
-                            if len(self.internals_spec['policy']) > 0:
-                                internals = self.internals_buffer['policy'].fmap(
-                                    function=function, cls=TensorDict
-                                )
-                            else:
-                                internals = TensorDict()
-                        function = (lambda x: tf.gather(
-                            params=x[parallel], indices=indices[baseline_horizon:]
-                        ))
-                        auxiliaries = self.auxiliaries_buffer.fmap(
-                            function=function, cls=TensorDict
-                        )
-
-                        if self.predict_action_values:
-                            actions = self.actions_buffer.fmap(function=function, cls=TensorDict)
-                            horizon_values = self.baseline.action_value(
-                                states=states, horizons=horizons, internals=internals,
-                                auxiliaries=auxiliaries, actions=actions
-                            )
-                        else:
-                            horizon_values = self.baseline.state_value(
-                                states=states, horizons=horizons, internals=internals,
-                                auxiliaries=auxiliaries
-                            )
-
-                else:
-                    horizon_values = tf_util.zeros(shape=(num_complete,), dtype='float')
-
-                indices = tf.range(start=buffer_start, limit=(buffer_index - one))
-                indices = tf.math.mod(x=indices, y=capacity)
-                _reward = tf.gather(params=self.reward_buffer[parallel], indices=indices)
-
-                def discounted_cumumlative_sum(partial_reward, horizon):
-                    return _reward[horizon: horizon + num_complete] + discount * partial_reward
-
-                _reward = tf.foldr(
-                    fn=discounted_cumumlative_sum, elems=tf.range(reward_horizon),
-                    initializer=horizon_values
-                )
-
-                indices = tf.range(start=buffer_start, limit=(buffer_start + num_complete))
-                indices = tf.math.mod(x=indices, y=capacity)
-                function = (lambda x: tf.gather(params=x[parallel], indices=indices))
-                states = self.states_buffer.fmap(function=function, cls=TensorDict)
-                internals = self.internals_buffer.fmap(function=function, cls=TensorDict)
-                auxiliaries = self.auxiliaries_buffer.fmap(function=function, cls=TensorDict)
-                actions = self.actions_buffer.fmap(function=function, cls=TensorDict)
-                _terminal = function(self.terminal_buffer)
-
-                experienced = self.memory.enqueue(
-                    states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
-                    terminal=_terminal, reward=_reward
-                )
-
-                with tf.control_dependencies(control_inputs=(experienced,)):
-                    sparse_delta = tf.IndexedSlices(values=num_complete, indices=parallel)
-                    assignment = self.buffer_start.scatter_add(sparse_delta=sparse_delta)
-                    return tf.group([assignment])
 
             def fn_nonterminal():
                 # Update terminal/reward buffers
@@ -1457,26 +1336,25 @@ class TensorforceModel(Model):
                     tensor=self.terminal_buffer, indices=indices, updates=terminal
                 )
                 assignments.append(self.terminal_buffer.assign(value=value))
-                # assignments.append(
-                #     self.terminal_buffer.scatter_nd_update(indices=indices, updates=terminal)
-                # )
                 value = tf.tensor_scatter_nd_update(
                     tensor=self.reward_buffer, indices=indices, updates=reward
                 )
                 assignments.append(self.reward_buffer.assign(value=value))
-                # assignments.append(
-                #     self.reward_buffer.scatter_nd_update(indices=indices, updates=reward)
-                # )
-
                 with tf.control_dependencies(control_inputs=assignments):
-                    # (similar to partial_episode_horizon in core_experience)
+                    # Number of completed timesteps to process
                     num_complete = buffer_index - buffer_start - reward_horizon
-                    return tf.cond(
-                        pred=(num_complete > zero), true_fn=partial_experience, false_fn=tf.no_op
-                    )
+
+                    def true_fn():
+                        return self._nonterminal_experience(
+                            parallel=parallel, buffer_start=buffer_start, buffer_index=buffer_index,
+                            reward_horizon=reward_horizon, num_complete=num_complete,
+                            reward_discount=reward_discount
+                        )
+
+                    return tf.cond(pred=(num_complete > zero), true_fn=true_fn, false_fn=tf.no_op)
 
             def fn_terminal():
-                # Values from buffers
+                # Gather values from buffers
                 indices = tf.range(start=buffer_start, limit=buffer_index)
                 indices = tf.math.mod(x=indices, y=capacity)
                 function = (lambda x: tf.gather(params=x[parallel], indices=indices))
@@ -1484,72 +1362,99 @@ class TensorforceModel(Model):
                 internals = self.internals_buffer.fmap(function=function, cls=TensorDict)
                 auxiliaries = self.auxiliaries_buffer.fmap(function=function, cls=TensorDict)
                 actions = self.actions_buffer.fmap(function=function, cls=TensorDict)
-                indices = tf.math.mod(x=tf.range(buffer_start, buffer_index - batch_size), y=capacity)
-                _terminal = tf.gather(params=self.terminal_buffer[parallel], indices=indices)
-                _reward = tf.gather(params=self.reward_buffer[parallel], indices=indices)
-                _terminal = tf.concat(values=(_terminal, terminal), axis=0)
-                _reward = tf.concat(values=(_reward, reward), axis=0)
+                indices = tf.range(buffer_start, buffer_index - batch_size)
+                indices = tf.math.mod(x=indices, y=capacity)
+                episode_terminal = tf.gather(params=self.terminal_buffer[parallel], indices=indices)
+                episode_reward = tf.gather(params=self.reward_buffer[parallel], indices=indices)
+                episode_terminal = tf.concat(values=(episode_terminal, terminal), axis=0)
+                episode_reward = tf.concat(values=(episode_reward, reward), axis=0)
 
-                # Experience
+                # Episode experience
                 experienced = self.core_experience(
-                    states=states, internals=internals, auxiliaries=auxiliaries,
-                    actions=actions, terminal=_terminal, reward=_reward
+                    states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
+                    terminal=episode_terminal, reward=episode_reward
                 )
-                sparse_delta = tf.IndexedSlices(values=zero, indices=parallel)
-                assignment = self.buffer_start.scatter_update(sparse_delta=sparse_delta)
+
+                # Increment buffer start index
+                with tf.control_dependencies(control_inputs=(indices,)):
+                    sparse_delta = tf.IndexedSlices(values=zero, indices=parallel)
+                    assignment = self.buffer_start.scatter_update(sparse_delta=sparse_delta)
+
                 return tf.group((experienced, assignment))
+
+        def fn_terminal_continuation():
+            # Appropriate terminal function above
+            operations = [fn_terminal()]
+
+            # Reset buffer index
+            with tf.control_dependencies(control_inputs=operations):
+                sparse_delta = tf.IndexedSlices(values=zero, indices=parallel)
+                operations.append(self.buffer_index.scatter_update(sparse_delta=sparse_delta))
+
+            # Preprocessed episode reward summaries (before preprocessed episode reward reset)
+            if self.reward_preprocessing is not None:
+                dependencies = list()
+                if self.summaries == 'all' or 'reward' in self.summaries:
+                    with self.summarizer.as_default():
+                        x = tf.gather(params=self.preprocessed_episode_reward, indices=parallel)
+                        dependencies.append(tf.summary.scalar(
+                            name='preprocessed-episode-reward', data=x, step=self.episodes
+                        ))
+
+                # Reset preprocessed episode reward
+                with tf.control_dependencies(control_inputs=dependencies):
+                    zero_float = tf_util.constant(value=0.0, dtype='float')
+                    sparse_delta = tf.IndexedSlices(values=zero_float, indices=parallel)
+                    operations.append(
+                        self.preprocessed_episode_reward.scatter_update(sparse_delta=sparse_delta)
+                    )
+
+            # Reset preprocessors
+            for preprocessor in self.state_preprocessing.values():
+                operations.append(preprocessor.reset())
+            if self.reward_preprocessing is not None:
+                operations.append(self.reward_preprocessing.reset())
+
+            return tf.group(*operations)
+
+        # Reward preprocessing
+        dependencies = assertions
+        if self.reward_preprocessing is not None:
+            with tf.control_dependencies(control_inputs=dependencies):
+                dependencies = list()
+                true = tf_util.constant(value=True, dtype='bool')
+                reward = self.reward_preprocessing.apply(
+                    x=reward, deterministic=true, independent=False
+                )
+
+                # Preprocessed reward summary
+                if self.summaries == 'all' or 'reward' in self.summaries:
+                    with self.summarizer.as_default():
+                        x = tf.math.reduce_mean(input_tensor=reward, axis=0)
+                        dependencies.append(tf.summary.scalar(
+                            name='preprocessed-reward', data=x, step=self.timesteps
+                        ))
+
+                # Update preprocessed episode reward
+                sum_reward = tf.math.reduce_sum(input_tensor=reward)
+                sparse_delta = tf.IndexedSlices(values=sum_reward, indices=parallel)
+                dependencies.append(
+                    self.preprocessed_episode_reward.scatter_add(sparse_delta=sparse_delta)
+                )
 
         # Handle terminal vs non-terminal (after preprocessed episode reward)
         with tf.control_dependencies(control_inputs=dependencies):
+            is_terminal = tf.concat(values=([zero], terminal), axis=0)[-1] > zero
+            experienced = tf.cond(
+                pred=is_terminal, true_fn=fn_terminal_continuation, false_fn=fn_nonterminal
+            )
 
-            def fn_terminal2():
-                operations = list()
-
-                handle_terminal = fn_terminal()
-                operations.append(handle_terminal)
-
-                # Reset buffer index
-                with tf.control_dependencies(control_inputs=(handle_terminal,)):
-                    sparse_delta = tf.IndexedSlices(values=zero, indices=parallel)
-                    operations.append(self.buffer_index.scatter_update(sparse_delta=sparse_delta))
-
-                # Preprocessed episode reward summaries (before preprocessed episode reward reset)
-                dependencies = list()
-                if self.reward_preprocessing is not None:
-                    if self.summaries == 'all' or 'reward' in self.summaries:
-                        with self.summarizer.as_default():
-                            x = tf.gather(params=self.preprocessed_episode_reward, indices=parallel)
-                            dependencies.append(tf.summary.scalar(
-                                name='preprocessed-episode-reward', data=x, step=self.episodes
-                            ))
-
-                    # Reset preprocessed episode reward
-                    with tf.control_dependencies(control_inputs=dependencies):
-                        zero_float = tf_util.constant(value=0.0, dtype='float')
-                        sparse_delta = tf.IndexedSlices(values=zero_float, indices=parallel)
-                        operations.append(self.preprocessed_episode_reward.scatter_update(
-                            sparse_delta=sparse_delta
-                        ))
-
-                # Reset preprocessors
-                for preprocessor in self.state_preprocessing.values():
-                    operations.append(preprocessor.reset())
-                if self.reward_preprocessing is not None:
-                    operations.append(self.reward_preprocessing.reset())
-
-                return tf.group(*operations)
-
-            experienced = tf.cond(pred=is_terminal, true_fn=fn_terminal2, false_fn=fn_nonterminal)
-            # experienced = tf.cond(pred=is_terminal, true_fn=tf.no_op, false_fn=tf.no_op)
-
-        # Handle update
-        is_terminal = tf.concat(values=([zero], terminal), axis=0)[-1] > zero
+        # Handle periodic update
         with tf.control_dependencies(control_inputs=(experienced,)):
             if self.update_frequency is None:
                 updated = tf_util.constant(value=False, dtype='bool')
 
             else:
-                # Periodic update
                 frequency = self.update_frequency.value()
                 start = self.update_start.value()
 
@@ -1598,195 +1503,418 @@ class TensorforceModel(Model):
 
                 updated = tf.cond(pred=is_frequency, true_fn=perform_update, false_fn=no_update)
 
-            dependencies.append(updated)
-
-        with tf.control_dependencies(control_inputs=dependencies):
+        with tf.control_dependencies(control_inputs=(updated,)):
             return tf_util.identity(input=updated)
+
+    def _nonterminal_experience(
+        self, *, parallel, buffer_start, buffer_index, reward_horizon, num_complete, reward_discount
+    ):
+        # (similar to _terminal_experience_partial)
+        one = tf_util.constant(value=1, dtype='int')
+        capacity = tf_util.constant(value=self.buffer_capacity, dtype='int')
+
+        # Whether to predict horizon values now
+        if self.predict_horizon_values != 'early':
+            assert self.trace_decay.is_constant(value=1.0)
+            horizon_values = tf_util.zeros(shape=(num_complete,), dtype='float')
+
+        else:
+            # Baseline horizon
+            baseline_horizon = self.baseline.past_horizon(on_policy=True)
+            if self.trace_decay.is_constant(value=1.0):
+                assertion = tf.debugging.assert_less_equal(
+                    x=baseline_horizon, y=reward_horizon,
+                    message="Baseline on-policy horizon greater than reward estimation horizon "
+                            "currently not supported if prediction_horizon_values = \"early\"."
+                )
+            else:
+                zero = tf_util.constant(value=0, dtype='int')
+                assertion = tf.debugging.assert_less_equal(
+                    x=baseline_horizon, y=zero,
+                    message="Baseline on-policy horizon currently not supported if "
+                            "trace_decay != 1.0."
+                )
+
+            with tf.control_dependencies(control_inputs=(assertion,)):
+
+                # Index range to gather from buffers
+                if self.trace_decay.is_constant(value=1.0):
+                    # Only indices relevant for horizon values
+                    indices = tf.range(
+                        start=(buffer_start + reward_horizon - baseline_horizon), limit=buffer_index
+                    )
+                    ints_end = num_complete
+                    auxs_start = baseline_horizon
+                    horizons_start = tf.range(num_complete)
+                    horizons_length = tf.fill(dims=(num_complete,), value=(baseline_horizon + one))
+                else:
+                    # All indices
+                    indices = tf.range(start=(buffer_start + one), limit=buffer_index)
+                    ints_end = None
+                    auxs_start = None
+                    horizons_start = tf.range(buffer_index - buffer_start - one)
+                    horizons_length = tf.ones_like(input=horizons_start)
+                indices = tf.math.mod(x=indices, y=capacity)
+
+                # Return-sequence per timestep, as horizons indexing tensor
+                horizons = tf.stack(values=(horizons_start, horizons_length), axis=1)
+
+                # Gather states
+                function = (lambda x: tf.gather(params=x[parallel], indices=indices))
+                states = self.states_buffer.fmap(function=function, cls=TensorDict)
+
+                # Gather internals, only for return-sequence start
+                function = (lambda x: tf.gather(params=x[parallel], indices=indices[:ints_end]))
+                key = ('baseline' if self.separate_baseline else 'policy')
+                if len(self.internals_spec[key]) > 0:
+                    internals = self.internals_buffer[key].fmap(function=function, cls=TensorDict)
+                else:
+                    internals = TensorDict()
+
+                # Gather auxiliaries (and actions), only for return-sequence end
+                function = (lambda x: tf.gather(params=x[parallel], indices=indices[auxs_start:]))
+                auxiliaries = self.auxiliaries_buffer.fmap(function=function, cls=TensorDict)
+
+                # Predict values
+                if self.predict_action_values:
+                    # TODO: option to re-sample action deterministically?
+                    actions = self.actions_buffer.fmap(function=function, cls=TensorDict)
+                    values = self.baseline.action_value(
+                        states=states, horizons=horizons, internals=internals,
+                        auxiliaries=auxiliaries, actions=actions
+                    )
+                else:
+                    values = self.baseline.state_value(
+                        states=states, horizons=horizons, internals=internals,
+                        auxiliaries=auxiliaries
+                    )
+
+                # Horizon values
+                if self.trace_decay.is_constant(value=1.0):
+                    horizon_values = values
+                else:
+                    horizon_values = values[reward_horizon - one:]
+
+        # Gather all rewards (incl return-horizon) from buffer
+        indices = tf.range(start=buffer_start, limit=(buffer_index - one))
+        indices = tf.math.mod(x=indices, y=capacity)
+        reward = tf.gather(params=self.reward_buffer[parallel], indices=indices)
+
+        # Recursive return
+        if self.trace_decay.is_constant(value=1.0):
+            # Discounted cumulative sum
+            def recursive_return(next_return, index):
+                return reward[index: index + num_complete] + reward_discount * next_return
+
+        else:
+            # TD-lambda
+            one_float = tf_util.constant(value=1.0, dtype='float')
+            trace_decay = self.trace_decay.value()
+
+            def recursive_return(next_return, index):
+                next_value = values[index: index + num_complete]
+                next_return = (one_float - trace_decay) * next_value + trace_decay * next_return
+                return reward[index: index + num_complete] + reward_discount * next_return
+
+        reward = tf.foldr(
+            fn=recursive_return, elems=tf.range(reward_horizon), initializer=horizon_values
+        )
+
+        # Gather other values of completed timesteps from buffers
+        indices = tf.range(start=buffer_start, limit=(buffer_start + num_complete))
+        indices = tf.math.mod(x=indices, y=capacity)
+        function = (lambda x: tf.gather(params=x[parallel], indices=indices))
+        states = self.states_buffer.fmap(function=function, cls=TensorDict)
+        internals = self.internals_buffer.fmap(function=function, cls=TensorDict)
+        auxiliaries = self.auxiliaries_buffer.fmap(function=function, cls=TensorDict)
+        actions = self.actions_buffer.fmap(function=function, cls=TensorDict)
+        terminal = function(self.terminal_buffer)
+
+        # Store completed timesteps
+        experienced = self.memory.enqueue(
+            states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
+            terminal=terminal, reward=reward
+        )
+
+        # Increment buffer start index
+        with tf.control_dependencies(control_inputs=(indices,)):
+            sparse_delta = tf.IndexedSlices(values=num_complete, indices=parallel)
+            assignment = self.buffer_start.scatter_add(sparse_delta=sparse_delta)
+
+        return tf.group((experienced, assignment))
 
     @tf_function(num_args=6)
     def core_experience(self, *, states, internals, auxiliaries, actions, terminal, reward):
-        zero = tf_util.constant(value=0, dtype='int')
-        one = tf_util.constant(value=1, dtype='int')
-        discount = self.reward_discount.value()
         episode_length = tf_util.cast(x=tf.shape(input=terminal)[0], dtype='int')
-        maybe_one = tf.where(condition=(episode_length > zero), x=one, y=zero)
-        if self.reward_horizon != 'episode':
-            reward_horizon = self.reward_horizon.value()
-
-        def predict_terminal_value():
-            past_horizon = self.baseline.past_horizon(on_policy=True)
-            past_horizon = tf.math.minimum(x=past_horizon, y=episode_length)
-            terminal_index = episode_length - maybe_one
-            past_horizon_start = terminal_index - past_horizon
-
-            horizons = tf.expand_dims(
-                input=tf.stack(values=(zero, past_horizon + maybe_one)), axis=0
-            )
-            if self.separate_baseline:
-                _internals = internals['baseline']
-            else:
-                _internals = internals['policy']
-
-            if self.predict_action_values:
-                # Use given actions since early estimate
-                # if self.separate_baseline:
-                #     policy_horizon = self.policy.past_horizon(on_policy=True)
-                #     policy_horizon = tf.math.minimum(x=policy_horizon, y=episode_length)
-                #     policy_horizon_start = terminal_index - policy_horizon
-                # else:
-                #     policy_horizon_start = past_horizon_start
-                # deterministic = tf_util.constant(value=True, dtype='bool')
-                # _actions, _ = self.policy.act(
-                #     states=states[policy_horizon_start:], horizons=horizons[:maybe_one],
-                #     internals=internals['policy'][policy_horizon_start: policy_horizon_start + maybe_one],
-                #     auxiliaries=auxiliaries[terminal_index:], deterministic=deterministic,
-                #     independent=True
-                # )
-                terminal_values = self.baseline.action_value(
-                    states=states[past_horizon_start:], horizons=horizons[:maybe_one],
-                    internals=_internals[past_horizon_start: past_horizon_start + maybe_one],
-                    auxiliaries=auxiliaries[terminal_index:], actions=actions[terminal_index:]
-                )
-            else:
-                terminal_values = self.baseline.state_value(
-                    states=states[past_horizon_start:], horizons=horizons[:maybe_one],
-                    internals=_internals[past_horizon_start: past_horizon_start + maybe_one],
-                    auxiliaries=auxiliaries[terminal_index:]
-                )
-            return terminal_values
-
-        def full_episode_horizon():
-            if self.predict_horizon_values == 'early':
-                if self.predict_terminal_values:
-                    terminal_value = predict_terminal_value()
-                else:
-                    is_terminal = tf.concat(values=([one], terminal), axis=0)[-1]
-                    is_terminal = tf.math.equal(x=is_terminal, y=one)
-                    terminal_value = tf.cond(
-                        pred=is_terminal, true_fn=(lambda: tf.zeros_like(input=reward[:maybe_one])),
-                        false_fn=predict_terminal_value
-                    )
-                zero_float = tf_util.constant(value=0.0, dtype='float', shape=(1,))
-                terminal_value = tf.concat(values=(zero_float, terminal_value), axis=0)[-1]
-            else:
-                terminal_value = tf_util.constant(value=0.0, dtype='float')
-
-            def discounted_cumumlative_sum(subsequent_reward, reward):
-                return reward + discount * subsequent_reward
-
-            return tf.scan(
-                fn=discounted_cumumlative_sum, elems=reward, initializer=terminal_value,
-                reverse=True
-            )
-
-        # (similar to fn_nonterminal in else in core_observe)
-        def partial_episode_horizon():
-            zeros_reward_horizon = tf_util.zeros(shape=(reward_horizon,), dtype='float')
-
-            if self.predict_horizon_values == 'early':
-                past_horizon = self.baseline.past_horizon(on_policy=True)
-                reward_horizon_start = reward_horizon
-                past_horizon_start = tf.maximum(x=(reward_horizon_start - past_horizon), y=zero)
-                reward_horizon_end = episode_length
-                past_horizon_end = reward_horizon_end - past_horizon
-                past_horizon_end = tf.maximum(x=past_horizon_end, y=past_horizon_start)
-
-                horizons_start = tf.range(past_horizon_end - past_horizon_start)
-                horizons_length = reward_horizon_start + horizons_start
-                horizons_length = tf.math.minimum(x=horizons_length, y=(past_horizon + one))
-                horizons = tf.stack(values=(horizons_start, horizons_length), axis=1)
-
-                if self.separate_baseline:
-                    _internals = internals['baseline']
-                else:
-                    _internals = internals['policy']
-
-                if self.predict_action_values:
-                    # Use given actions since early estimate
-                    # if self.separate_baseline:
-                    #     policy_horizon = self.policy.past_horizon(on_policy=True)
-                    #     policy_horizon_start = tf.maximum(
-                    #         x=(reward_horizon_start - policy_horizon), y=zero
-                    #     )
-                    #     policy_horizon_end = reward_horizon_end - policy_horizon
-                    #     policy_horizon_end = tf.maximum(
-                    #         x=policy_horizon_end, y=policy_horizon_start
-                    #     )
-
-                    #     _horizons_start = tf.range(policy_horizon_end - policy_horizon_start)
-                    #     _horizons_length = reward_horizon_start + _horizons_start
-                    #     _horizons_length = tf.math.minimum(
-                    #         x=_horizons_length, y=(policy_horizon + one)
-                    #     )
-                    #     policy_horizons = tf.stack(
-                    #         values=(_horizons_start, _horizons_length), axis=1
-                    #     )
-                    # else:
-                    #     policy_horizon_start = past_horizon_start
-                    #     policy_horizon_end = past_horizon_end
-                    #     policy_horizons = horizons
-                    # deterministic = tf_util.constant(value=True, dtype='bool')
-                    # _actions, _ = self.policy.act(
-                    #     states=states[policy_horizon_start: reward_horizon_end],
-                    #     horizons=policy_horizons,
-                    #     internals=internals['policy'][policy_horizon_start: policy_horizon_end],
-                    #     auxiliaries=auxiliaries[reward_horizon_start: reward_horizon_end],
-                    #     deterministic=deterministic, independent=True
-                    # )
-                    horizon_values = self.baseline.action_value(
-                        states=states[past_horizon_start: reward_horizon_end],
-                        horizons=horizons,
-                        internals=_internals[past_horizon_start: past_horizon_end],
-                        auxiliaries=auxiliaries[reward_horizon_start: reward_horizon_end],
-                        actions=actions[reward_horizon_start: reward_horizon_end]
-                    )
-                else:
-                    horizon_values = self.baseline.state_value(
-                        states=states[past_horizon_start: reward_horizon_end],
-                        horizons=horizons,
-                        internals=_internals[past_horizon_start: past_horizon_end],
-                        auxiliaries=auxiliaries[reward_horizon_start: reward_horizon_end]
-                    )
-
-                horizon_values = tf.concat(values=(horizon_values, zeros_reward_horizon), axis=0)
-                terminal_value = horizon_values[-1:]
-                if not self.predict_terminal_values:
-                    zero_value = tf.zeros_like(input=terminal_value)
-                    is_terminal = tf.concat(values=([one], terminal), axis=0)[-1]
-                    is_terminal = tf.math.equal(x=is_terminal, y=one)
-                    terminal_value = tf.where(condition=is_terminal, x=zero_value, y=terminal_value)
-                _reward = tf.concat(
-                    values=(reward[:-1], terminal_value, zeros_reward_horizon), axis=0
-                )
-
-            else:
-                horizon_values = tf_util.zeros(shape=(episode_length,), dtype='float')
-                _reward = tf.concat(values=(reward, zeros_reward_horizon), axis=0)
-
-            def discounted_cumumlative_sum(partial_reward, horizon):
-                return _reward[horizon: horizon + episode_length] + discount * partial_reward
-
-            return tf.foldr(
-                fn=discounted_cumumlative_sum, elems=tf.range(reward_horizon),
-                initializer=horizon_values
-            )
+        reward_discount = self.reward_discount.value()
 
         if self.reward_horizon == 'episode':
-            reward = full_episode_horizon()
+            # Reward horizon is entire episode
+            reward = self._terminal_experience_full(
+                episode_length=episode_length, reward_discount=reward_discount, states=states,
+                internals=internals, auxiliaries=auxiliaries, actions=actions, reward=reward,
+                terminal=terminal
+            )
 
         else:
-            reward = tf.cond(
-                pred=(episode_length <= reward_horizon), true_fn=full_episode_horizon,
-                false_fn=partial_episode_horizon
-            )
-            # branch_index = tf.where(condition=(episode_length > zero), x=one, y=zero)
-            # branch_index += tf.where(condition=(episode_length > reward_horizon), x=one, y=zero)
-            # branch_fns = ((lambda: reward), full_episode_horizon, partial_episode_horizon)
-            # reward = tf.switch_case(branch_index=branch_index, branch_fns=branch_fns)
+            # Whether to process as episode horizon or partial episode completion
+            reward_horizon = self.reward_horizon.value()
 
+            def true_fn():
+                return self._terminal_experience_full(
+                    episode_length=episode_length,  reward_discount=reward_discount, states=states,
+                    internals=internals, auxiliaries=auxiliaries, actions=actions, reward=reward,
+                    terminal=terminal
+                )
+
+            def false_fn():
+                return self._terminal_experience_partial(
+                    episode_length=episode_length, reward_horizon=reward_horizon,
+                    reward_discount=reward_discount, states=states, internals=internals,
+                    auxiliaries=auxiliaries, actions=actions, reward=reward, terminal=terminal
+                )
+
+            reward = tf.cond(
+                pred=(episode_length <= reward_horizon), true_fn=true_fn, false_fn=false_fn
+            )
+
+        # Store episode
         return self.memory.enqueue(
             states=states, internals=internals, auxiliaries=auxiliaries, actions=actions,
             terminal=terminal, reward=reward
+        )
+
+    def _terminal_experience_full(
+        self, *, episode_length, reward_discount,
+        states, internals, auxiliaries, actions, reward, terminal
+    ):
+        zero = tf_util.constant(value=0, dtype='int')
+        one = tf_util.constant(value=1, dtype='int')
+        zero_float = tf_util.constant(value=0.0, dtype='float')
+        internals = (internals['baseline'] if self.separate_baseline else internals['policy'])
+
+        if self.trace_decay.is_constant(value=1.0):
+            # Whether to predict horizon/terminal values now
+            if self.predict_horizon_values != 'early':
+                terminal_value = zero_float
+            else:
+
+                def predict_terminal_value():
+                    # Baseline horizon
+                    baseline_horizon = self.baseline.past_horizon(on_policy=True)
+                    baseline_horizon = tf.math.minimum(x=baseline_horizon, y=episode_length)
+
+                    # Single-step horizon
+                    horizon_start = episode_length - one - baseline_horizon
+                    horizons = tf.expand_dims(
+                        input=tf.stack(values=(zero, baseline_horizon + one)), axis=0
+                    )
+
+                    # Predict values
+                    if self.predict_action_values:
+                        # TODO: option to re-sample action deterministically?
+                        # Use given actions since early estimate
+                        # if self.separate_baseline:
+                        #     policy_horizon = self.policy.past_horizon(on_policy=True)
+                        #     policy_horizon = tf.math.minimum(x=policy_horizon, y=episode_length)
+                        #     policy_horizon_start = terminal_index - policy_horizon
+                        # else:
+                        #     policy_horizon_start = past_horizon_start
+                        # deterministic = tf_util.constant(value=True, dtype='bool')
+                        # _actions, _ = self.policy.act(
+                        #     states=states[policy_horizon_start:], horizons=horizons[:maybe_one],
+                        #     internals=internals['policy'][policy_horizon_start: policy_horizon_start + maybe_one],
+                        #     auxiliaries=auxiliaries[terminal_index:], deterministic=deterministic,
+                        #     independent=True
+                        # )
+                        terminal_value = self.baseline.action_value(
+                            states=states[horizon_start:], horizons=horizons,
+                            internals=internals[horizon_start: horizon_start + one],
+                            auxiliaries=auxiliaries[-1:],
+                            actions=actions[-1:]
+                        )
+                    else:
+                        terminal_value = self.baseline.state_value(
+                            states=states[horizon_start:], horizons=horizons,
+                            internals=internals[horizon_start: horizon_start + one],
+                            auxiliaries=auxiliaries[-1:]
+                        )
+
+                    # Modification to correct for use as initializer in tf.scan
+                    return terminal_value[0] / reward_discount - reward[-1]
+
+                # Whether to predict all or only abort-terminals
+                if self.predict_terminal_values:
+                    terminal_value = predict_terminal_value()
+                else:
+                    is_terminal = tf.math.equal(x=terminal[-1], y=one)
+                    terminal_value = tf.cond(
+                        pred=is_terminal, true_fn=(lambda: zero_float),
+                        false_fn=predict_terminal_value
+                    )
+
+            # Discounted cumulative sum return
+            def recursive_return(next_return, current_reward):
+                return current_reward + reward_discount * next_return
+
+            return tf.scan(
+                fn=recursive_return, elems=reward, initializer=terminal_value, reverse=True
+            )
+
+        else:
+            # Baseline horizon
+            baseline_horizon = self.baseline.past_horizon(on_policy=True)
+            assertion = tf.debugging.assert_equal(
+                x=baseline_horizon, y=zero,
+                message="Baseline cannot have on-policy horizon if trace_decay != 1.0."
+            )
+
+            with tf.control_dependencies(control_inputs=(assertion,)):
+                # Baseline-horizon-sequence per timestep, as horizons indexing tensor
+                horizons_start = tf.range(episode_length - one)
+                horizons_length = tf.fill(dims=(episode_length - one,), value=one)
+                horizons = tf.stack(values=(horizons_start, horizons_length), axis=1)
+
+                if self.predict_action_values:
+                    # TODO: option to re-sample action deterministically?
+                    values = self.baseline.action_value(
+                        states=states[1:], horizons=horizons, internals=internals[1:],
+                        auxiliaries=auxiliaries[1:], actions=actions[1:]
+                    )
+                else:
+                    values = self.baseline.state_value(
+                        states=states[1:], horizons=horizons, internals=internals[1:],
+                        auxiliaries=auxiliaries[1:]
+                    )
+
+                # Modification to correct for use as initializer in tf.scan
+                terminal_value = values[-1] / reward_discount - reward[-1]
+
+                # Whether to predict all or only abort-terminals
+                if not self.predict_terminal_values:
+                    is_terminal = tf.math.equal(x=terminal[-1], y=one)
+                    terminal_value = tf.where(condition=is_terminal, x=zero_float, y=terminal_value)
+
+                values = tf.concat(values=(values, [terminal_value]), axis=0)
+
+                # TD-lambda return
+                one_float = tf_util.constant(value=1.0, dtype='float')
+                trace_decay = self.trace_decay.value()
+
+                def recursive_return(next_return, reward_value):
+                    current_reward, next_value = reward_value
+                    next_return = (one_float - trace_decay) * next_value + trace_decay * next_return
+                    return current_reward + reward_discount * next_return
+
+                return tf.scan(
+                    fn=recursive_return, elems=(reward, values), initializer=terminal_value,
+                    reverse=True
+                )
+
+    def _terminal_experience_partial(
+        self, *, episode_length, reward_horizon, reward_discount,
+        states, internals, auxiliaries, actions, reward, terminal
+    ):
+        # (similar to _nonterminal_experience)
+        one = tf_util.constant(value=1, dtype='int')
+        internals = (internals['baseline'] if self.separate_baseline else internals['policy'])
+
+        # Whether to predict horizon values now
+        if self.predict_horizon_values != 'early':
+            assert self.trace_decay.is_constant(value=1.0)
+            horizon_values = tf_util.zeros(shape=(episode_length,), dtype='float')
+            reward = tf.concat(values=(reward, horizon_values[:reward_horizon]), axis=0)
+
+        else:
+            # Baseline horizon
+            baseline_horizon = self.baseline.past_horizon(on_policy=True)
+            assertions = list()  # (control dependency below, before baseline call)
+            if not self.trace_decay.is_constant(value=1.0):
+                zero = tf_util.constant(value=0, dtype='int')
+                assertions.append(tf.debugging.assert_equal(
+                    x=baseline_horizon, y=zero,
+                    message="Baseline cannot have on-policy horizon if trace_decay != 1.0."
+                ))
+
+            # Index starts/ends
+            if self.trace_decay.is_constant(value=1.0):
+                # Only indices relevant for horizon values
+                reward_horizon_start = reward_horizon
+                zero = tf_util.constant(value=0, dtype='int')
+                baseline_horizon_start = tf.maximum(
+                    x=(reward_horizon_start - baseline_horizon), y=zero
+                )
+                baseline_horizon_end = episode_length - baseline_horizon
+                baseline_horizon_end = tf.maximum(x=baseline_horizon_end, y=baseline_horizon_start)
+                horizons_start = tf.range(baseline_horizon_end - baseline_horizon_start)
+                horizons_length = reward_horizon_start + horizons_start
+                horizons_length = tf.math.minimum(x=horizons_length, y=(baseline_horizon + one))
+            else:
+                # All indices
+                reward_horizon_start = 1
+                baseline_horizon_start = 1
+                baseline_horizon_end = None
+                horizons_start = tf.range(episode_length - one)
+                horizons_length = tf.ones_like(input=horizons_start)
+
+            # Baseline-horizon-sequence per timestep, as horizons indexing tensor
+            horizons = tf.stack(values=(horizons_start, horizons_length), axis=1)
+
+            # Predict values
+            with tf.control_dependencies(control_inputs=assertions):
+                if self.predict_action_values:
+                    # TODO: option to re-sample action deterministically?
+                    values = self.baseline.action_value(
+                        states=states[baseline_horizon_start:],
+                        horizons=horizons,
+                        internals=internals[baseline_horizon_start: baseline_horizon_end],
+                        auxiliaries=auxiliaries[reward_horizon_start:],
+                        actions=actions[reward_horizon_start:]
+                    )
+                else:
+                    values = self.baseline.state_value(
+                        states=states[baseline_horizon_start:],
+                        horizons=horizons,
+                        internals=internals[baseline_horizon_start: baseline_horizon_end],
+                        auxiliaries=auxiliaries[reward_horizon_start:]
+                    )
+
+            # Whether to predict all or only abort-terminals
+            terminal_value = values[-1]
+            if not self.predict_terminal_values:
+                is_terminal = tf.math.equal(x=terminal[-1], y=one)
+                terminal_value = tf.where(condition=is_terminal, x=reward[-1], y=terminal_value)
+
+            # Horizon-expanded rewards and values
+            zeros_reward_horizon = tf_util.zeros(shape=(reward_horizon - one,), dtype='float')
+            reward = tf.concat(values=(reward[:-1], [terminal_value], zeros_reward_horizon), axis=0)
+            zeros_reward_horizon = tf_util.zeros(shape=(reward_horizon,), dtype='float')
+            values = tf.concat(values=(values, zeros_reward_horizon), axis=0)
+
+            # Horizon values
+            if self.trace_decay.is_constant(value=1.0):
+                horizon_values = values
+            else:
+                horizon_values = values[reward_horizon - one:]
+
+        # Recursive return
+        if self.trace_decay.is_constant(value=1.0):
+            # Discounted cumulative sum
+            def recursive_return(next_return, index):
+                return reward[index: index + episode_length] + reward_discount * next_return
+
+        else:
+            # TD-lambda
+            one_float = tf_util.constant(value=1.0, dtype='float')
+            trace_decay = self.trace_decay.value()
+
+            def recursive_return(next_return, index):
+                next_value = values[index: index + episode_length]
+                next_return = (one_float - trace_decay) * next_value + trace_decay * next_return
+                return reward[index: index + episode_length] + reward_discount * next_return
+
+        return tf.foldr(
+            fn=recursive_return, elems=tf.range(reward_horizon), initializer=horizon_values
         )
 
     @tf_function(num_args=0)
@@ -1898,7 +2026,7 @@ class TensorforceModel(Model):
                     baseline_internals = TensorDict()
 
         # Retrieve auxiliaries, actions, reward
-        if self.gae_discount.is_constant(value=0.0):
+        if self.gae_decay.is_constant(value=0.0):
             values = self.memory.retrieve(
                 indices=indices, values=('auxiliaries', 'actions', 'reward')
             )
@@ -1913,7 +2041,7 @@ class TensorforceModel(Model):
 
         # Return estimation
         if self.predict_horizon_values == 'late':
-            discount = self.reward_discount.value()
+            reward_discount = self.reward_discount.value()
             # TODO: no need for memory if update episode-based (or not random replay?)
 
             if self.baseline.max_past_horizon(on_policy=False) == 0:
@@ -2102,7 +2230,7 @@ class TensorforceModel(Model):
 
             exponent = tf_util.cast(x=final_horizons, dtype='float')
             # Pow numerically stable since 0.0 <= discount <= 1.0
-            discounts = tf.math.pow(x=discount, y=exponent)
+            discounts = tf.math.pow(x=reward_discount, y=exponent)
             if not self.predict_terminal_values:
                 discounts = tf.where(
                     condition=tf.math.equal(x=_terminal, y=one),
@@ -2214,18 +2342,18 @@ class TensorforceModel(Model):
                                     name='update-processed-advantage', data=x, step=self.updates
                                 ))
 
-                if not self.gae_discount.is_constant(value=0.0):
+                if not self.gae_decay.is_constant(value=0.0):
                     with tf.control_dependencies(control_inputs=dependencies):
                         # Requires consistent batch!!!
-                        zero_float = tf_util.constant(value=0.0, dtype='float')
-                        discount = self.reward_discount.value()
-                        gae_discount = self.gae_discount.value()
+                        reward_discount = self.reward_discount.value()
+                        gae_decay = self.gae_decay.value()
 
                         def discounted_cumumlative_sum(previous_gae, advantage_terminal):
                             advantage, _terminal = advantage_terminal
-                            next_gae = advantage + discount * gae_discount * previous_gae
+                            next_gae = advantage + reward_discount * gae_decay * previous_gae
                             return tf.where(condition=(_terminal == zero), x=next_gae, y=advantage)
 
+                        zero_float = tf_util.constant(value=0.0, dtype='float')
                         reward = tf.scan(
                             fn=discounted_cumumlative_sum, elems=(reward, terminal),
                             initializer=zero_float, reverse=True

@@ -378,30 +378,32 @@ class Model(Module):
     def initialize_api(self):
         if 'graph' in self.summaries:
             tf.summary.trace_on(graph=True, profiler=False)
+        self.reset(_initialize=True)
+        if 'graph' in self.summaries:
+            tf.summary.trace_export(name='reset', step=self.timesteps, profiler_outdir=None)
+            tf.summary.trace_on(graph=True, profiler=False)
         self.act(
-            states=self.states_spec.empty(batched=True),
-            auxiliaries=self.auxiliaries_spec.empty(batched=True),
-            parallel=self.parallel_spec.empty(batched=True)
+            states=self.states_spec, auxiliaries=self.auxiliaries_spec, parallel=self.parallel_spec,
+            _initialize=True
         )
         if 'graph' in self.summaries:
             tf.summary.trace_export(name='act', step=self.timesteps, profiler_outdir=None)
             tf.summary.trace_on(graph=True, profiler=False)
-        kwargs = dict(states=self.states_spec.empty(batched=True))
+        kwargs = dict(states=self.states_spec)
         if len(self.internals_spec) > 0:
-            kwargs['internals'] = self.internals_spec.empty(batched=True)
+            kwargs['internals'] = self.internals_spec
         if len(self.auxiliaries_spec) > 0:
-            kwargs['auxiliaries'] = self.auxiliaries_spec.empty(batched=True)
-        kwargs['deterministic'] = self.deterministic_spec.empty(batched=False)
-        self.independent_act(**kwargs)
+            kwargs['auxiliaries'] = self.auxiliaries_spec
+        kwargs['deterministic'] = self.deterministic_spec
+        self.independent_act(**kwargs, _initialize=True)
         if 'graph' in self.summaries:
             tf.summary.trace_export(
                 name='independent-act', step=self.timesteps, profiler_outdir=None
             )
             tf.summary.trace_on(graph=True, profiler=False)
         self.observe(
-            terminal=self.terminal_spec.empty(batched=True),
-            reward=self.reward_spec.empty(batched=True),
-            parallel=self.parallel_spec.empty(batched=False)
+            terminal=self.terminal_spec, reward=self.reward_spec, parallel=self.parallel_spec,
+            _initialize=True
         )
         if 'graph' in self.summaries:
             tf.summary.trace_export(name='observe', step=self.timesteps, profiler_outdir=None)
@@ -499,14 +501,14 @@ class Model(Module):
         else:
             return super().output_signature(function=function)
 
-    @tf_function(num_args=0)
+    @tf_function(num_args=0, api_function=True)
     def reset(self):
         timestep = tf_util.identity(input=self.timesteps)
         episode = tf_util.identity(input=self.episodes)
         update = tf_util.identity(input=self.updates)
         return timestep, episode, update
 
-    @tf_function(num_args=4, optional=2, dict_interface=True)
+    @tf_function(num_args=4, optional=2, api_function=True, dict_interface=True)
     def independent_act(self, *, states, internals=None, auxiliaries=None, deterministic=None):
         if internals is None:
             assert len(self.internals_spec) == 0
@@ -515,12 +517,12 @@ class Model(Module):
             assert len(self.auxiliaries_spec) == 0
             auxiliaries = TensorDict()
         assert deterministic is not None
-        true = tf_util.constant(value=True, dtype='bool')
         batch_size = tf_util.cast(x=tf.shape(input=states.value())[0], dtype='int')
 
         # Input assertions
         assertions = list()
         if self.config.create_tf_assertions:
+            true = tf_util.constant(value=True, dtype='bool')
             assertions.extend(self.states_spec.tf_assert(
                 x=states, batch_size=batch_size,
                 message='Agent.independent_act: invalid {issue} for {name} state input.'
@@ -562,9 +564,8 @@ class Model(Module):
             else:
                 return actions
 
-    @tf_function(num_args=3)
+    @tf_function(num_args=3, api_function=True)
     def act(self, *, states, auxiliaries, parallel):
-        true = tf_util.constant(value=True, dtype='bool')
         batch_size = tf_util.cast(x=tf.shape(input=parallel)[0], dtype='int')
 
         # Input assertions
@@ -584,6 +585,7 @@ class Model(Module):
             ))
             # Mask assertions
             if self.config.enable_int_action_masking:
+                true = tf_util.constant(value=True, dtype='bool')
                 for name, spec in self.actions_spec.items():
                     if spec.type == 'int':
                         assertions.append(tf.debugging.assert_equal(
@@ -637,12 +639,12 @@ class Model(Module):
             timestep = tf_util.identity(input=self.timesteps)
             return actions, timestep
 
-    @tf_function(num_args=3)
+    @tf_function(num_args=3, api_function=True)
     def observe(self, *, terminal, reward, parallel):
         zero = tf_util.constant(value=0, dtype='int')
         one = tf_util.constant(value=1, dtype='int')
         batch_size = tf_util.cast(x=tf.shape(input=terminal)[0], dtype='int')
-        is_terminal = tf.concat(values=([zero], terminal), axis=0)[-1] > zero
+        is_terminal = tf.math.greater(x=terminal[-1], y=zero)
 
         # Input assertions
         assertions = list()
@@ -659,14 +661,14 @@ class Model(Module):
                 x=parallel, message='Agent.observe: invalid {issue} for parallel input.'
             ))
             # Assertion: at most one terminal
+            num_terms = tf.math.count_nonzero(input=terminal, dtype=tf_util.get_dtype(type='int'))
             assertions.append(tf.debugging.assert_less_equal(
-                x=tf_util.cast(x=tf.math.count_nonzero(input=terminal), dtype='int'), y=one,
-                message="Agent.observe: input contains more than one terminal."
+                x=num_terms, y=one, message="Agent.observe: input contains more than one terminal."
             ))
             # Assertion: if terminal, last timestep in batch
             assertions.append(tf.debugging.assert_equal(
-                x=tf.math.reduce_any(input_tensor=tf.math.greater(x=terminal, y=zero)),
-                y=is_terminal, message="Agent.observe: terminal is not the last input timestep."
+                x=tf.math.greater(x=num_terms, y=zero), y=is_terminal,
+                message="Agent.observe: terminal is not the last input timestep."
             ))
 
         with tf.control_dependencies(control_inputs=assertions):
@@ -748,76 +750,6 @@ class Model(Module):
     @tf_function(num_args=3)
     def core_observe(self, *, terminal, reward, parallel):
         return tf_util.constant(value=False, dtype='bool')
-
-    # def get_variable(self, *, variable):
-    #     assert False, 'Not updated yet!'
-    #     if not variable.startswith(self.name):
-    #         variable = util.join_scopes(self.name, variable)
-    #     fetches = variable + '-output:0'
-    #     return self.monitored_session.run(fetches=fetches)
-
-    # def assign_variable(self, *, variable, value):
-    #     if variable.startswith(self.name + '/'):
-    #         variable = variable[len(self.name) + 1:]
-    #     module = self
-    #     scope = variable.split('/')
-    #     for _ in range(len(scope) - 1):
-    #         module = module.modules[scope.pop(0)]
-    #     fetches = util.join_scopes(self.name, variable) + '-assign'
-    #     dtype = util.dtype(x=module.variables[scope[0]])
-    #     feed_dict = {util.join_scopes(self.name, 'assignment-') + dtype + '-input:0': value}
-    #     self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
-
-    # def summarize(self, *, summary, value, step=None):
-    #     fetches = util.join_scopes(self.name, summary, 'write_summary', 'Const:0')
-    #     feed_dict = {util.join_scopes(self.name, 'summarize-input:0'): value}
-    #     if step is not None:
-    #         feed_dict[util.join_scopes(self.name, 'summarize-step-input:0')] = step
-    #     self.monitored_session.run(fetches=fetches, feed_dict=feed_dict)
-
-        # if self.summarizer_spec is not None:
-        #     if len(self.summarizer_spec.get('custom', ())) > 0:
-        #         self.summarize_input = self.add_placeholder(
-        #             name='summarize', dtype='float', shape=None, batched=False
-        #         )
-        #         # self.summarize_step_input = self.add_placeholder(
-        #         #     name='summarize-step', dtype='int', shape=(), batched=False,
-        #         #     default=self.timesteps
-        #         # )
-        #         self.summarize_step_input = self.timesteps
-        #         self.custom_summaries = OrderedDict()
-        #         for name, summary in self.summarizer_spec['custom'].items():
-        #             if summary['type'] == 'audio':
-        #                 self.custom_summaries[name] = tf.summary.audio(
-        #                     name=name, data=self.summarize_input,
-        #                     sample_rate=summary['sample_rate'],
-        #                     step=self.summarize_step_input,
-        #                     max_outputs=summary.get('max_outputs', 3),
-        #                     encoding=summary.get('encoding')
-        #                 )
-        #             elif summary['type'] == 'histogram':
-        #                 self.custom_summaries[name] = tf.summary.histogram(
-        #                     name=name, data=self.summarize_input,
-        #                     step=self.summarize_step_input,
-        #                     buckets=summary.get('buckets')
-        #                 )
-        #             elif summary['type'] == 'image':
-        #                 self.custom_summaries[name] = tf.summary.image(
-        #                     name=name, data=self.summarize_input,
-        #                     step=self.summarize_step_input,
-        #                     max_outputs=summary.get('max_outputs', 3)
-        #                 )
-        #             elif summary['type'] == 'scalar':
-        #                 self.custom_summaries[name] = tf.summary.scalar(
-        #                     name=name,
-        #                     data=tf.reshape(tensor=self.summarize_input, shape=()),
-        #                     step=self.summarize_step_input
-        #                 )
-        #             else:
-        #                 raise TensorforceError.value(
-        #                     name='custom summary', argument='type', value=summary['type'],
-        #                     hint='not in {audio,histogram,image,scalar}'
-        #                 )
 
     def save(self, *, directory=None, filename=None, format='checkpoint', append=None):
         if directory is None and filename is None and format == 'checkpoint':

@@ -7,7 +7,7 @@ This file records all major updates and new features, starting from version 0.5.
 
 ##### Agents:
 - New agent argument `tracking` and corresponding function `tracked_tensors()` to track and retrieve the current value of predefined tensors, similar to `summarizer` for TensorBoard summaries
-- New experimental value `gae_discount` for Tensorforce agent argument `reward_estimation`, soon for other agent types as well
+- New experimental value `trace_decay` and `gae_decay` for Tensorforce agent argument `reward_estimation`, soon for other agent types as well
 - New options `"early"` and `"late"` for value `estimate_advantage` of Tensorforce agent argument `reward_estimation`
 - Changed default value for `Agent.act()` argument `deterministic` from `False` to `True`
 
@@ -23,6 +23,9 @@ This file records all major updates and new features, starting from version 0.5.
 ##### run.py script:
 - New option for command line arguments `--checkpoints` and `--summaries` to add comma-separated checkpoint/summary filename in addition to directory
 - Added episode lengths to logging plot besides episode returns
+
+##### Buxfixes:
+- Temporal horizon handling of RNN layers
 
 
 ---

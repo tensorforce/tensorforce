@@ -167,7 +167,6 @@ class Queue(Memory):
         corrected = tf.cond(pred=is_incorrect, true_fn=correct_terminal, false_fn=tf.no_op)
 
         # Assertions
-        last_terminal = tf.concat(values=([zero], terminal), axis=0)[-1]
         assertions = [corrected]
         if self.config.create_tf_assertions:
             with tf.control_dependencies(control_inputs=(corrected,)):
@@ -183,7 +182,7 @@ class Queue(Memory):
                 # if terminal, last timestep in batch
                 assertions.append(tf.debugging.assert_equal(
                     x=tf.math.reduce_any(input_tensor=tf.math.greater(x=terminal, y=zero)),
-                    y=tf.math.greater(x=last_terminal, y=zero),
+                    y=tf.math.greater(x=terminal[-1], y=zero),
                     message="Terminal is not the last timestep."
                 ))
                 # general check: all terminal indices true

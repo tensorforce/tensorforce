@@ -263,13 +263,13 @@ class Agent(Recorder):
         self.model.initialize()
 
         # Value space specifications
-        self.states_spec = self.model.states_spec
+        assert self.states_spec == self.model.states_spec
         self.internals_spec = self.model.internals_spec
         self.auxiliaries_spec = self.model.auxiliaries_spec
-        self.actions_spec = self.model.actions_spec
-        self.terminal_spec = self.model.terminal_spec
-        self.reward_spec = self.model.reward_spec
-        self.parallel_spec = self.model.parallel_spec
+        assert self.actions_spec == self.model.actions_spec
+        assert self.terminal_spec == self.model.terminal_spec
+        assert self.reward_spec == self.model.reward_spec
+        assert self.parallel_spec == self.model.parallel_spec
         self.deterministic_spec = self.model.deterministic_spec
 
         # Parallel observe buffers

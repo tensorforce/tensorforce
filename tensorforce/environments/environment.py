@@ -25,6 +25,7 @@ from traceback import format_tb
 import numpy as np
 
 from tensorforce import TensorforceError, util
+from tensorforce.core import TensorSpec, TensorsSpec
 import tensorforce.environments
 
 
@@ -242,6 +243,8 @@ class Environment(object):
         util.overwrite_staticmethod(obj=self, function='create')
         self._expect_receive = None
         self._actions = None
+        self._reset_output_check = True
+        self._execute_output_check = True
 
     def __str__(self):
         return self.__class__.__name__
@@ -339,17 +342,55 @@ class Environment(object):
     def receive_execute(self):
         if self._expect_receive == 'reset':
             self._expect_receive = None
-            return self.reset(), -1, None
+            states = self.reset()
+            if self._reset_output_check:
+                self._check_states_output(states=states, function='reset')
+                self._reset_output_check = False
+            return states, -1, None
 
         elif self._expect_receive == 'execute':
             self._expect_receive = None
             assert self._actions is not None
             states, terminal, reward = self.execute(actions=self._actions)
+            if self._execute_output_check:
+                self._check_states_output(states=states, function='execute')
+                if not isinstance(terminal, bool) and \
+                        (not isinstance(terminal, int) or terminal < 0 or terminal > 2):
+                    raise TensorforceError(
+                        'Environment.execute: invalid value {} for terminal.'.format(terminal)
+                    )
+                if not isinstance(reward, (float, int)):
+                    raise TensorforceError(
+                        'Environment.execute: invalid type {} for reward.'.format(type(reward))
+                    )
+                self._execute_output_check = False
             self._actions = None
             return states, int(terminal), reward
 
         else:
             raise TensorforceError.unexpected()
+
+    def _check_states_output(self, states, function):
+        function = 'Environment.' + function
+        states_spec = self.states()
+        if 'type' in states_spec or 'shape' in states_spec:
+            states_spec = TensorSpec(**states_spec)
+            if isinstance(states, dict):
+                for name in states:
+                    if name != 'state' and not name.endswith('_mask'):
+                        raise TensorforceError(function + ': invalid component {name} for state.')
+                _states = states['state']
+            else:
+                _states = states
+        else:
+            states_spec = TensorsSpec(self.states())
+            _states = dict()
+            for name, state in states.items():
+                if name in states_spec:
+                    _states[name] = state
+                elif not name.endswith('_mask'):
+                    raise TensorforceError(function + ': invalid component {name} for state.')
+        states_spec.np_assert(x=_states, message=(function + ': invalid {issue} for {name} state.'))
 
 
 class EnvironmentWrapper(Environment):
@@ -393,6 +434,9 @@ class EnvironmentWrapper(Environment):
     def reset(self):
         self._timestep = 0
         states = self._environment.reset()
+        if self._reset_output_check:
+            self._check_states_output(states=states, function='reset')
+            self._reset_output_check = False
         if self._reward_shaping is not None:
             self._previous_states = states
         return states
@@ -404,6 +448,22 @@ class EnvironmentWrapper(Environment):
             )
         assert self._max_episode_timesteps is None or self._timestep < self._max_episode_timesteps
         states, terminal, reward = self._environment.execute(actions=actions)
+        if self._execute_output_check:
+            self._check_states_output(states=states, function='execute')
+            if isinstance(reward, (np.generic, np.ndarray)):
+                reward = reward.item()
+            if isinstance(terminal, (np.generic, np.ndarray)):
+                terminal = terminal.item()
+            if not isinstance(terminal, bool) and \
+                    (not isinstance(terminal, int) or terminal < 0 or terminal > 2):
+                raise TensorforceError(
+                    'Environment.execute: invalid value {} for terminal.'.format(terminal)
+                )
+            if not isinstance(reward, (float, int)):
+                raise TensorforceError(
+                    'Environment.execute: invalid type {} for reward.'.format(type(reward))
+                )
+            self._execute_output_check = False
         if self._reward_shaping is not None:
             if isinstance(self._reward_shaping, str):
                 reward = eval(self._reward_shaping, dict(), dict(
@@ -431,8 +491,9 @@ class EnvironmentWrapper(Environment):
         return states, terminal, reward
 
     _ATTRIBUTES = frozenset([
-        '_actions', 'create', '_environment', '_expect_receive', '_previous_states',
-        '_max_episode_timesteps', '_reward_shaping', '_timestep'
+        '_actions', 'create', '_environment', '_execute_output_check', '_expect_receive',
+        '_previous_states', '_max_episode_timesteps', '_reset_output_check', '_reward_shaping',
+        '_timestep'
     ])
 
     def __getattr__(self, name):
@@ -587,8 +648,8 @@ class RemoteEnvironment(Environment):
             raise TensorforceError(message='\n{}\n{}: {}`'.format(''.join(traceback), etype, value))
 
     _ATTRIBUTES = frozenset([
-        '_actions', '_blocking', '_connection', 'create', '_episode_seconds', '_expect_receive',
-        '_observation', '_thread'
+        '_actions', '_blocking', '_connection', 'create', '_episode_seconds',
+        '_execute_output_check', '_expect_receive', '_observation', '_reset_output_check', '_thread'
     ])
 
     def __getattr__(self, name):

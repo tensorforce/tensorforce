@@ -23,12 +23,16 @@ from tensorforce.core.utils import tf_util
 
 
 def _normalize_type(*, dtype):
+    if isinstance(dtype, np.dtype):
+        dtype = dtype.type
     dtypes = {
-        'bool': 'bool', bool: 'bool', np.bool_: 'bool', tf.bool: 'bool',
-        'int': 'int', int: 'int', np.int16: 'int', np.int32: 'int', np.int64: 'int',
+        'bool': 'bool', bool: 'bool', np.bool8: 'bool', tf.bool: 'bool',
+        'int': 'int', int: 'int',
+        np.int8: 'int', np.int16: 'int', np.int32: 'int', np.int64: 'int',
+        np.uint8: 'int', np.uint16: 'int', np.uint32: 'int', np.uint64: 'int',
         tf.int16: 'int', tf.int32: 'int', tf.int64: 'int',
-        'float': 'float', float: 'float', np.float16: 'float', np.float32: 'float',
-        np.float64: 'float',
+        'float': 'float', float: 'float',
+        np.float16: 'float', np.float32: 'float', np.float64: 'float',
         tf.float16: 'float', tf.float32: 'float', tf.float64: 'float'
     }
     return dtypes.get(dtype, None)
@@ -58,6 +62,11 @@ class TensorSpec(object):
         if num_values is not None:
             self.num_values = num_values
         super().__setattr__('overwrite', overwrite)
+
+    def __eq__(self, other):
+        return type(other) is TensorSpec and self.type == other.type and \
+            self.shape == other.shape and self.min_value == other.min_value and \
+            self.max_value == other.max_value and self.num_values == other.num_values
 
     @property
     def rank(self):
@@ -226,6 +235,41 @@ class TensorSpec(object):
             value = value.item()
 
         return value
+
+    def np_assert(self, *, x, message):
+        if message is not None and '{name}' in message:
+            message = message.format(name='', issue='{issue}')
+
+        if isinstance(x, np.ndarray):
+            if _normalize_type(dtype=x.dtype) != self.type and \
+                    (self.type != 'float' or _normalize_type(dtype=x.dtype) != 'int'):
+                raise TensorforceError(
+                    message.format(issue=('type {} != {}'.format(x.dtype, self.type)))
+                )
+            elif x.shape != self.shape:
+                raise TensorforceError(
+                    message.format(issue=('shape {} != {}'.format(x.shape, self.shape)))
+                )
+        elif self.shape != ():
+            raise TensorforceError(
+                message.format(issue=('type {} != {}'.format(type(x), self.type)))
+            )
+        elif isinstance(x, np.generic):
+            if _normalize_type(dtype=x.dtype) != self.type and \
+                    (self.type != 'float' or _normalize_type(dtype=x.dtype) != 'int'):
+                raise TensorforceError(
+                    message.format(issue=('type {} != {}'.format(x.dtype, self.type)))
+                )
+        elif self.type == 'bool' and isinstance(x, bool):
+            pass
+        elif self.type == 'int' and isinstance(x, int):
+            pass
+        elif self.type == 'float' and isinstance(x, (int, float)):
+            pass
+        else:
+            raise TensorforceError(
+                message.format(issue=('type {} != {}'.format(type(x), self.type)))
+            )
 
     def tf_assert(self, *, x, batch_size=None, include_type_shape=False, message=None):
         if not isinstance(x, (tf.Tensor, tf.Variable)):

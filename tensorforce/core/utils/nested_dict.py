@@ -39,6 +39,10 @@ class NestedDict(OrderedDict):
         else:
             self.update(arg, **kwargs)
 
+    def __eq__(self, other):
+        return type(self) is type(other) and len(self) == len(other) and \
+            all(value == other.get(key) for key, value in super().items())
+
     def copy(self):
         if self.is_singleton():
             x = self.__class__()

@@ -71,12 +71,29 @@ class TensorsSpec(NestedDict):
             value[name] = spec.from_tensor(tensor=tensor[name], batched=batched, name=name)
         return value
 
+    def np_assert(self, *, x, message):
+        if not isinstance(x, dict):
+            raise TensorforceError(
+                message.format(name='', issue=('type {} != dict'.format(type(x))))
+            )
+
+        for name, spec, x in self.zip_items(x):
+            if name is None:
+                name = ''
+            spec.np_assert(x=x, message=(
+                None if message is None else message.format(name=name, issue='{issue}')
+            ))
+
     def tf_assert(self, *, x, batch_size=None, include_type_shape=False, message=None):
         if not isinstance(x, TensorDict):
-            raise TensorforceError.type(name='TensorsSpec.tf_assert', argument='x', dtype=type(x))
+            raise TensorforceError(
+                message.format(name='', issue=('type {} != TensorDict'.format(type(x))))
+            )
 
         assertions = list()
         for name, spec, x in self.zip_items(x):
+            if name is None:
+                name = ''
             assertions.extend(spec.tf_assert(
                 x=x, batch_size=batch_size, include_type_shape=include_type_shape,
                 message=(None if message is None else message.format(name=name, issue='{issue}'))

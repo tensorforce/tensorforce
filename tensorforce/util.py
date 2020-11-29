@@ -152,13 +152,13 @@ def py_dtype(dtype):
     # dtype == int or dtype == np.int32 or dtype == tf.int32 or
     # or dtype == np.int64 or dtype == tf.int64
         return int
-    elif dtype == 'bool':  # or dtype == bool or dtype == np.bool_ or dtype == tf.bool:
+    elif dtype == 'bool':  # or dtype == bool or dtype == np.bool8 or dtype == tf.bool:
         return bool
     else:
         raise TensorforceError.value(name='util.py_dtype', argument='dtype', value=dtype)
 
 
-np_dtype_mapping = dict(bool=np.bool_, int=np.int64, long=np.int64, float=np.float32)
+np_dtype_mapping = dict(bool=np.bool8, int=np.int64, long=np.int64, float=np.float32)
 
 
 def np_dtype(dtype):

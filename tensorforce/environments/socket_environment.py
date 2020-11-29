@@ -67,9 +67,9 @@ class SocketEnvironment(RemoteEnvironment):
     @classmethod
     def proxy_receive(cls, connection):
         str_success = connection.recv(1)
-        if len(str_success) != 1:
+        if len(str_success) != 1 or (str_success != b'0' and str_success != b'1'):
             raise TensorforceError.unexpected()
-        success = bool(str_success)
+        success = (str_success == b'1')
 
         str_num_bytes = connection.recv(8)
         if len(str_num_bytes) != 8:
@@ -94,7 +94,7 @@ class SocketEnvironment(RemoteEnvironment):
 
     @classmethod
     def remote_send(cls, connection, success, result):
-        str_success = str(int(success)).encode()
+        str_success = b'1' if success else b'0'
         bytes_sent = connection.send(str_success)
         if bytes_sent != 1:
             raise TensorforceError.unexpected()
@@ -103,7 +103,6 @@ class SocketEnvironment(RemoteEnvironment):
         num_bytes = len(str_result)
         str_num_bytes = '{:08d}'.format(num_bytes).encode()
         bytes_sent = connection.send(str_num_bytes + str_result)
-        assert bytes_sent == num_bytes + 8
         if bytes_sent != num_bytes + 8:
             raise TensorforceError.unexpected()
 

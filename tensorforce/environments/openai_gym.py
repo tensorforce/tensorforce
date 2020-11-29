@@ -203,6 +203,9 @@ class OpenAIGym(Environment):
 
         self.actions_spec = OpenAIGym.specs_from_gym_space(space=self.environment.action_space)
 
+        # self.mins = np.ones(shape=(24,)) * np.inf
+        # self.maxs = np.ones(shape=(24,)) * (-np.inf)
+
     def __str__(self):
         return super().__str__() + '({})'.format(self.level)
 
@@ -232,6 +235,12 @@ class OpenAIGym(Environment):
         if self.drop_states_indices is not None:
             for index in reversed(self.drop_states_indices):
                 states = np.concatenate([states[:index], states[index + 1:]])
+
+        # self.mins = np.minimum(self.mins, states)
+        # self.maxs = np.maximum(self.maxs, states)
+        # print(self.mins)
+        # print(self.maxs)
+
         return states
 
     def execute(self, actions):
@@ -239,6 +248,10 @@ class OpenAIGym(Environment):
             self.environment.render()
         actions = OpenAIGym.unflatten_action(action=actions)
         states, reward, terminal, _ = self.environment.step(actions)
+
+        # self.mins = np.minimum(self.mins, states)
+        # self.maxs = np.maximum(self.maxs, states)
+
         self.timestep += 1
         if self._max_episode_timesteps is not None and self.timestep == self._max_episode_timesteps:
             assert terminal

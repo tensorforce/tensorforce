@@ -26,6 +26,7 @@ This file records all major updates and new features, starting from version 0.5.
 
 ##### Buxfixes:
 - Temporal horizon handling of RNN layers
+- Critical bugfix for late horizon value prediction (including DQN variants and DPG agent) in combination with baseline RNN
 
 
 ---

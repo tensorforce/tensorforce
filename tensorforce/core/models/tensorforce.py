@@ -538,10 +538,8 @@ class TensorforceModel(Model):
         )
 
         # GAE decay
-        gae_decay = reward_estimation.get('gae_decay')
-        if gae_decay is None:
-            gae_decay = 0.0
-        else:
+        gae_decay = reward_estimation.get('gae_decay', 0.0)
+        if gae_decay != 0.0:
             from tensorforce.core.memories import Recent
             if not isinstance(self.memory, Recent):
                 raise TensorforceError.invalid(
@@ -1509,7 +1507,7 @@ class TensorforceModel(Model):
     def _nonterminal_experience(
         self, *, parallel, buffer_start, buffer_index, reward_horizon, num_complete, reward_discount
     ):
-        # (similar to _terminal_experience_partial)
+        # (similar to _terminal_experience_parallel)
         one = tf_util.constant(value=1, dtype='int')
         capacity = tf_util.constant(value=self.buffer_capacity, dtype='int')
 
@@ -1650,25 +1648,27 @@ class TensorforceModel(Model):
 
         if self.reward_horizon == 'episode':
             # Reward horizon is entire episode
-            reward = self._terminal_experience_full(
+            reward = self._terminal_experience_iterative(
                 episode_length=episode_length, reward_discount=reward_discount, states=states,
                 internals=internals, auxiliaries=auxiliaries, actions=actions, reward=reward,
                 terminal=terminal
             )
 
         else:
-            # Whether to process as episode horizon or partial episode completion
+            # Optimize required loop iterations, so whether to process remaining timesteps
+            #     - iteratively, if remaining episode length is at most reward horizon
+            #     - in parallel, if reward horizon is less than remaining episode length
             reward_horizon = self.reward_horizon.value()
 
             def true_fn():
-                return self._terminal_experience_full(
+                return self._terminal_experience_iterative(
                     episode_length=episode_length,  reward_discount=reward_discount, states=states,
                     internals=internals, auxiliaries=auxiliaries, actions=actions, reward=reward,
                     terminal=terminal
                 )
 
             def false_fn():
-                return self._terminal_experience_partial(
+                return self._terminal_experience_parallel(
                     episode_length=episode_length, reward_horizon=reward_horizon,
                     reward_discount=reward_discount, states=states, internals=internals,
                     auxiliaries=auxiliaries, actions=actions, reward=reward, terminal=terminal
@@ -1684,7 +1684,7 @@ class TensorforceModel(Model):
             terminal=terminal, reward=reward
         )
 
-    def _terminal_experience_full(
+    def _terminal_experience_iterative(
         self, *, episode_length, reward_discount,
         states, internals, auxiliaries, actions, reward, terminal
     ):
@@ -1696,7 +1696,14 @@ class TensorforceModel(Model):
         if self.trace_decay.is_constant(value=1.0):
             # Whether to predict horizon/terminal values now
             if self.predict_horizon_values != 'early':
-                terminal_value = zero_float
+
+                # Whether to predict all or only abort-terminals
+                # (-reward[-1] since terminal state value will be predicted)
+                terminal_value = -reward[-1] / reward_discount
+                if not self.predict_terminal_values:
+                    is_terminal = tf.math.equal(x=terminal[-1], y=one)
+                    terminal_value = tf.where(condition=is_terminal, x=zero_float, y=terminal_value)
+
             else:
 
                 def predict_terminal_value():
@@ -1741,7 +1748,8 @@ class TensorforceModel(Model):
                         )
 
                     # Modification to correct for use as initializer in tf.scan
-                    return terminal_value[0] / reward_discount - reward[-1]
+                    # (-reward[-1] since terminal state value will be predicted)
+                    return (terminal_value[0] - reward[-1]) / reward_discount
 
                 # Whether to predict all or only abort-terminals
                 if self.predict_terminal_values:
@@ -1788,7 +1796,8 @@ class TensorforceModel(Model):
                     )
 
                 # Modification to correct for use as initializer in tf.scan
-                terminal_value = values[-1] / reward_discount - reward[-1]
+                # (-reward[-1] since terminal state value will be predicted)
+                terminal_value = (values[-1] - reward[-1]) / reward_discount
 
                 # Whether to predict all or only abort-terminals
                 if not self.predict_terminal_values:
@@ -1811,7 +1820,7 @@ class TensorforceModel(Model):
                     reverse=True
                 )
 
-    def _terminal_experience_partial(
+    def _terminal_experience_parallel(
         self, *, episode_length, reward_horizon, reward_discount,
         states, internals, auxiliaries, actions, reward, terminal
     ):
@@ -1822,8 +1831,18 @@ class TensorforceModel(Model):
         # Whether to predict horizon values now
         if self.predict_horizon_values != 'early':
             assert self.trace_decay.is_constant(value=1.0)
+
+            # Whether to predict all or only abort-terminals
+            terminal_value = tf_util.constant(value=0.0, dtype='float')
+            if not self.predict_terminal_values:
+                is_terminal = tf.math.equal(x=terminal[-1], y=one)
+                terminal_value = tf.where(condition=is_terminal, x=reward[-1], y=terminal_value)
+
+            # Horizon-expanded rewards and values
             horizon_values = tf_util.zeros(shape=(episode_length,), dtype='float')
-            reward = tf.concat(values=(reward, horizon_values[:reward_horizon]), axis=0)
+            reward = tf.concat(
+                values=(reward[:-1], [terminal_value], horizon_values[:reward_horizon]), axis=0
+            )
 
         else:
             # Baseline horizon
@@ -1923,9 +1942,6 @@ class TensorforceModel(Model):
         one = tf_util.constant(value=1, dtype='int')
         true = tf_util.constant(value=True, dtype='bool')
 
-        if self.reward_horizon != 'episode':
-            reward_horizon = self.reward_horizon.value()
-
         # Retrieve batch
         batch_size = self.update_batch_size.value()
         if self.update_unit == 'timesteps':
@@ -1940,7 +1956,7 @@ class TensorforceModel(Model):
             elif self.reward_horizon == 'episode':
                 future_horizon = tf_util.constant(value=self.max_episode_timesteps, dtype='int')
             else:
-                future_horizon = reward_horizon
+                future_horizon = self.reward_horizon.value()
             indices = self.memory.retrieve_timesteps(
                 n=batch_size, past_horizon=past_horizon, future_horizon=future_horizon
             )
@@ -1965,7 +1981,7 @@ class TensorforceModel(Model):
                 )
                 baseline_horizons = policy_horizons
                 baseline_states = policy_states = sequence_values['states']
-                policy_internals = initial_values['internals']
+                internals = policy_internals = initial_values['internals']
                 if self.separate_baseline:
                     baseline_internals = policy_internals['baseline']
                 else:
@@ -1977,13 +1993,14 @@ class TensorforceModel(Model):
                     initial_values=('internals',)
                 )
                 policy_states = sequence_values['states']
-                policy_internals = initial_values['internals']
+                internals = policy_internals = initial_values['internals']
             elif len(self.internals_spec['policy']) > 0:
                 policy_horizons, sequence_values, initial_values = self.memory.predecessors(
                     indices=indices, horizon=policy_horizon, sequence_values=('states',),
                     initial_values=('internals/policy',)
                 )
                 policy_states = sequence_values['states']
+                internals = initial_values['internals']
                 policy_internals = initial_values['internals/policy']
             else:
                 policy_horizons, sequence_values = self.memory.predecessors(
@@ -1991,7 +2008,7 @@ class TensorforceModel(Model):
                     initial_values=()
                 )
                 policy_states = sequence_values['states']
-                policy_internals = TensorDict()
+                internals = policy_internals = TensorDict()
             # Optimize !!!!!
             baseline_horizon = self.baseline.past_horizon(on_policy=False)
             if self.separate_baseline:
@@ -2001,6 +2018,7 @@ class TensorforceModel(Model):
                         initial_values=('internals/baseline',)
                     )
                     baseline_states = sequence_values['states']
+                    internals = initial_values['internals']
                     baseline_internals = initial_values['internals/baseline']
                 else:
                     baseline_horizons, sequence_values = self.memory.predecessors(
@@ -2008,7 +2026,7 @@ class TensorforceModel(Model):
                         initial_values=()
                     )
                     baseline_states = sequence_values['states']
-                    baseline_internals = TensorDict()
+                    internals = baseline_internals = TensorDict()
             else:
                 if len(self.internals_spec['policy']) > 0:
                     baseline_horizons, sequence_values, initial_values = self.memory.predecessors(
@@ -2016,6 +2034,7 @@ class TensorforceModel(Model):
                         initial_values=('internals/policy',)
                     )
                     baseline_states = sequence_values['states']
+                    internals = initial_values['internals']
                     baseline_internals = initial_values['internals/policy']
                 else:
                     baseline_horizons, sequence_values = self.memory.predecessors(
@@ -2023,7 +2042,7 @@ class TensorforceModel(Model):
                         initial_values=()
                     )
                     baseline_states = sequence_values['states']
-                    baseline_internals = TensorDict()
+                    internals = baseline_internals = TensorDict()
 
         # Retrieve auxiliaries, actions, reward
         if self.gae_decay.is_constant(value=0.0):
@@ -2041,203 +2060,9 @@ class TensorforceModel(Model):
 
         # Return estimation
         if self.predict_horizon_values == 'late':
-            reward_discount = self.reward_discount.value()
-            # TODO: no need for memory if update episode-based (or not random replay?)
-
-            if self.baseline.max_past_horizon(on_policy=False) == 0:
-
-                _batch_size = tf_util.cast(x=tf.shape(input=reward)[0], dtype='int')
-                _starts = tf.range(_batch_size)
-                _lengths = tf_util.ones(shape=(_batch_size,), dtype='int')
-                _horizons = tf.stack(values=(_starts, _lengths), axis=1)
-
-                if self.predict_action_values and self.separate_baseline:
-                    # TODO: remove restriction
-                    assert self.policy.max_past_horizon(on_policy=False) == 0
-                    final_horizons, _final_values = self.memory.successors(
-                        indices=indices, horizon=reward_horizon, sequence_values=(),
-                        final_values=('states', 'internals', 'auxiliaries', 'terminal')
-                    )
-                    _states = _final_values['states']
-                    _internals = _final_values['internals']
-                    _auxiliaries = _final_values['auxiliaries']
-                    _terminal = _final_values['terminal']
-                    _policy_internals = _internals['policy']
-                    _baseline_internals = _internals['baseline']
-                elif self.separate_baseline:
-                    if len(self.internals_spec['baseline']) > 0:
-                        final_horizons, _final_values = self.memory.successors(
-                            indices=indices, horizon=reward_horizon, sequence_values=(),
-                            final_values=('states', 'internals/baseline', 'auxiliaries', 'terminal')
-                        )
-                        _states = _final_values['states']
-                        _baseline_internals = _final_values['internals/baseline']
-                        _auxiliaries = _final_values['auxiliaries']
-                        _terminal = _final_values['terminal']
-                    else:
-                        final_horizons, _final_values = self.memory.successors(
-                            indices=indices, horizon=reward_horizon, sequence_values=(),
-                            final_values=('states', 'auxiliaries', 'terminal')
-                        )
-                        _states = _final_values['states']
-                        _auxiliaries = _final_values['auxiliaries']
-                        _terminal = _final_values['terminal']
-                        _baseline_internals = TensorDict()
-                else:
-                    if len(self.internals_spec['policy']) > 0:
-                        final_horizons, _final_values = self.memory.successors(
-                            indices=indices, horizon=reward_horizon, sequence_values=(),
-                            final_values=('states', 'internals/policy', 'auxiliaries', 'terminal')
-                        )
-                        _states = _final_values['states']
-                        _policy_internals = _final_values['internals/policy']
-                        _auxiliaries = _final_values['auxiliaries']
-                        _terminal = _final_values['terminal']
-                    else:
-                        final_horizons, _final_values = self.memory.successors(
-                            indices=indices, horizon=reward_horizon, sequence_values=(),
-                            final_values=('states', 'auxiliaries', 'terminal')
-                        )
-                        _states = _final_values['states']
-                        _auxiliaries = _final_values['auxiliaries']
-                        _terminal = _final_values['terminal']
-                        _policy_internals = TensorDict()
-                    _baseline_internals = _policy_internals
-
-            else:
-                _baseline_horizon = self.baseline.past_horizon(on_policy=False)
-                assertions = list()
-                if self.config.create_tf_assertions and self.predict_action_values:
-                    _policy_horizon = self.policy.past_horizon(on_policy=False)
-                    # TODO: remove restriction
-                    assertions.append(tf.debugging.assert_equal(
-                        x=_policy_horizon, y=_baseline_horizon,
-                        message="Policy and baseline cannot depend on a different number of "
-                                "previous states if predict_action_values is True."
-                    ))
-
-                with tf.control_dependencies(control_inputs=assertions):
-
-                    def reward_ge_baseline():
-                        if self.predict_action_values and self.separate_baseline:
-                            _starts, _final_values = self.memory.successors(
-                                indices=indices, horizon=(reward_horizon - _baseline_horizon),
-                                sequence_values=(), final_values=('internals',)
-                            )
-                            _internals = _final_values['internals']
-                            _policy_internals = _internals['policy']
-                            _baseline_internals = _internals['baseline']
-                            return _starts, _policy_internals, _baseline_internals
-                        elif self.separate_baseline:
-                            if len(self.internals_spec['baseline']) > 0:
-                                _starts, _final_values = self.memory.successors(
-                                    indices=indices, horizon=(reward_horizon - _baseline_horizon),
-                                    sequence_values=(), final_values=('internals/baseline',)
-                                )
-                                _baseline_internals = _final_values['internals/baseline']
-                            else:
-                                _starts = self.memory.successors(
-                                    indices=indices, horizon=(reward_horizon - _baseline_horizon),
-                                    sequence_values=(), final_values=()
-                                )
-                                _baseline_internals = TensorDict()
-                            return _starts, None, _baseline_internals
-                        else:
-                            if len(self.internals_spec['policy']) > 0:
-                                _starts, _final_values = self.memory.successors(
-                                    indices=indices, horizon=(reward_horizon - _baseline_horizon),
-                                    sequence_values=(), final_values=('internals/policy',)
-                                )
-                                _policy_internals = _final_values['internals/policy']
-                            else:
-                                _starts = self.memory.successors(
-                                    indices=indices, horizon=(reward_horizon - _baseline_horizon),
-                                    sequence_values=(), final_values=()
-                                )
-                                _policy_internals = TensorDict()
-                            _baseline_internals = _policy_internals
-                            return _starts, _policy_internals, _baseline_internals
-
-                    def reward_lt_baseline():
-                        if self.predict_action_values and self.separate_baseline:
-                            _starts, _initial_values = self.memory.predecessors(
-                                indices=indices, horizon=(_baseline_horizon - reward_horizon),
-                                sequence_values=(), initial_values=('internals',)
-                            )
-                            _internals = _initial_values['internals']
-                            _policy_internals = _internals['policy']
-                            _baseline_internals = _internals['baseline']
-                            return _starts, _policy_internals, _baseline_internals
-                        elif self.separate_baseline:
-                            if len(self.internals_spec['baseline']) > 0:
-                                _starts, _initial_values = self.memory.predecessors(
-                                    indices=indices, horizon=(_baseline_horizon - reward_horizon),
-                                    sequence_values=(), initial_values=('internals/baseline',)
-                                )
-                                _baseline_internals = _initial_values['internals/baseline']
-                            else:
-                                _starts = self.memory.successors(
-                                    indices=indices, horizon=(_baseline_horizon - reward_horizon),
-                                    sequence_values=(), final_values=()
-                                )
-                                _baseline_internals = TensorDict()
-                            return _starts, None, _baseline_internals
-                        else:
-                            if len(self.internals_spec['policy']) > 0:
-                                _starts, _initial_values = self.memory.predecessors(
-                                    indices=indices, horizon=(_baseline_horizon - reward_horizon),
-                                    sequence_values=(), initial_values=('internals/policy',)
-                                )
-                                _policy_internals = _initial_values['internals/policy']
-                            else:
-                                _starts = self.memory.predecessors(
-                                    indices=indices, horizon=(_baseline_horizon - reward_horizon),
-                                    sequence_values=(), initial_values=()
-                                )
-                                _policy_internals = TensorDict()
-                            _baseline_internals = _policy_internals
-                            return _starts, _policy_internals, _baseline_internals
-
-                    _starts, _policy_internals, _baseline_internals = tf.cond(
-                        pred=tf.math.greater_equal(x=reward_horizon, y=_baseline_horizon),
-                        true_fn=reward_ge_baseline, false_fn=reward_lt_baseline
-                    )
-
-                    _horizons, _sequence_values, _final_values = self.memory.successors(
-                        indices=_starts, horizon=_baseline_horizon, sequence_values=('states',),
-                        final_values=('auxiliaries', 'terminal')
-                    )
-                    _states = _sequence_values['states']
-                    _auxiliaries = _final_values['auxiliaries']
-                    _terminal = _final_values['terminal']
-                    final_horizons = _starts + _horizons[:, 1]
-
-            if self.predict_action_values:
-                _actions, _ = self.policy.act(
-                    states=_states, horizons=_horizons, internals=_policy_internals,
-                    auxiliaries=_auxiliaries, deterministic=true, independent=True
-                )
-                horizon_values = self.baseline.action_value(
-                    states=_states, horizons=_horizons, internals=_baseline_internals,
-                    auxiliaries=_auxiliaries, actions=_actions
-                )
-
-            else:
-                horizon_values = self.baseline.state_value(
-                    states=_states, horizons=_horizons, internals=_baseline_internals,
-                    auxiliaries=_auxiliaries
-                )
-
-            exponent = tf_util.cast(x=final_horizons, dtype='float')
-            # Pow numerically stable since 0.0 <= discount <= 1.0
-            discounts = tf.math.pow(x=reward_discount, y=exponent)
-            if not self.predict_terminal_values:
-                discounts = tf.where(
-                    condition=tf.math.equal(x=_terminal, y=one),
-                    x=tf.zeros_like(input=discounts), y=discounts
-                )
-
-            reward = reward + discounts * horizon_values
+            reward = self._complete_horizon_values(
+                indices=indices, internals=internals, reward=reward
+            )
 
         dependencies = [reward]
         if self.summaries == 'all' or 'reward' in self.summaries:
@@ -2345,18 +2170,21 @@ class TensorforceModel(Model):
                 if not self.gae_decay.is_constant(value=0.0):
                     with tf.control_dependencies(control_inputs=dependencies):
                         # Requires consistent batch!!!
+                        zero_float = tf_util.constant(value=0.0, dtype='float')
                         reward_discount = self.reward_discount.value()
                         gae_decay = self.gae_decay.value()
 
-                        def discounted_cumumlative_sum(previous_gae, advantage_terminal):
-                            advantage, _terminal = advantage_terminal
-                            next_gae = advantage + reward_discount * gae_decay * previous_gae
-                            return tf.where(condition=(_terminal == zero), x=next_gae, y=advantage)
+                        # Discounted cumulative sum
+                        def recursive_gae(next_gae, advantage_terminal):
+                            current_advantage, current_terminal = advantage_terminal
+                            next_gae = tf.where(
+                                condition=(current_terminal == zero), x=next_gae, y=zero_float
+                            )
+                            return current_advantage + reward_discount * gae_decay * next_gae
 
-                        zero_float = tf_util.constant(value=0.0, dtype='float')
                         reward = tf.scan(
-                            fn=discounted_cumumlative_sum, elems=(reward, terminal),
-                            initializer=zero_float, reverse=True
+                            fn=recursive_gae, elems=(reward, terminal), initializer=zero_float,
+                            reverse=True
                         )
 
                         dependencies = [reward]
@@ -2602,6 +2430,138 @@ class TensorforceModel(Model):
 
         with tf.control_dependencies(control_inputs=dependencies):
             return tf_util.identity(input=optimized)
+
+    def _complete_horizon_values(self, indices, internals, reward):
+        zero = tf_util.constant(value=0, dtype='int')
+        one = tf_util.constant(value=1, dtype='int')
+        true = tf_util.constant(value=True, dtype='bool')
+        reward_horizon = self.reward_horizon.value()
+        reward_discount = self.reward_discount.value()
+
+        # TODO: no need for memory if update episode-based (or not random replay?)
+
+        # Internal values to retrieve, depending on different internals configurations
+        baseline_internals_values = 'internals/baseline'
+        if self.predict_action_values and self.separate_baseline:
+            internals_values = 'internals'
+        elif self.separate_baseline:
+            if len(self.internals_spec['baseline']) > 0:
+                internals_values = 'internals/baseline'
+            else:
+                internals_values = None
+        else:
+            if len(self.internals_spec['policy']) > 0:
+                internals_values = 'internals/policy'
+                baseline_internals_values = 'internals/policy'
+            else:
+                internals_values = None
+
+        if self.baseline.max_past_horizon(on_policy=False) == 0:
+            # Horizons indexing tensor
+            batch_size = tf_util.cast(x=tf.shape(input=indices)[0], dtype='int')
+            starts = tf.range(batch_size)
+            lengths = tf.ones_like(input=indices)
+            horizons = tf.stack(values=(starts, lengths), axis=1)
+
+            # TODO: remove restriction
+            if self.predict_action_values and self.separate_baseline:
+                assert self.policy.max_past_horizon(on_policy=False) == 0
+
+            # Retrieve horizon values from memory
+            values = ('states', 'auxiliaries', 'terminal')
+            if internals_values is not None:
+                values += (internals_values,)
+            offsets, values = self.memory.successors(
+                indices=indices, horizon=reward_horizon, sequence_values=(), final_values=values
+            )
+            states = values['states']
+            policy_internals = values.get('internals/policy')
+            baseline_internals = values.get(baseline_internals_values, TensorDict())
+            auxiliaries = values['auxiliaries']
+            terminal = values['terminal']
+
+            # -1 since successors length >= 1
+            offsets = offsets - one
+
+        else:
+            baseline_horizon = self.baseline.past_horizon(on_policy=False)
+            assertions = list()
+            if self.config.create_tf_assertions and self.predict_action_values:
+                policy_horizon = self.policy.past_horizon(on_policy=False)
+                # TODO: remove restriction
+                assertions.append(tf.debugging.assert_equal(
+                    x=policy_horizon, y=baseline_horizon,
+                    message="Policy and baseline cannot depend on a different number of "
+                            "previous states if predict_action_values is True."
+                ))
+
+            with tf.control_dependencies(control_inputs=assertions):
+                # (Tried to do this more efficiently by differentiating between
+                # reward horizon >/=/< baseline horizon, but gets too complex since
+                # it needs to take into account episode start/end edge cases.)
+
+                # Retrieve horizon values from memory
+                offsets, values = self.memory.successors(
+                    indices=indices, horizon=reward_horizon, sequence_values=(),
+                    final_values=('auxiliaries', 'terminal')
+                )
+                auxiliaries = values['auxiliaries']
+                terminal = values['terminal']
+
+                # -1 since successors length >= 1
+                offsets = offsets - one
+
+                # Retrieve baseline states sequence and initial internals from memory
+                if internals_values is None:
+                    horizons, sequence_values = self.memory.predecessors(
+                        indices=(indices + offsets), horizon=baseline_horizon,
+                        sequence_values=('states',), initial_values=()
+                    )
+                    policy_internals = None
+                    baseline_internals = TensorDict()
+                else:
+                    horizons, sequence_values, initial_values = self.memory.predecessors(
+                        indices=indices, horizon=(baseline_horizon - reward_horizon),
+                        sequence_values=('states',), initial_values=(internals_values,)
+                    )
+                    policy_internals = initial_values.get('internals/policy')
+                    baseline_internals = initial_values.get(baseline_internals_values, TensorDict())
+                states = sequence_values['states']
+
+        # Predict horizon values
+        if self.predict_action_values:
+            actions, _ = self.policy.act(
+                states=states, horizons=horizons, internals=policy_internals,
+                auxiliaries=auxiliaries, deterministic=true, independent=True
+            )
+            horizon_values = self.baseline.action_value(
+                states=states, horizons=horizons, internals=baseline_internals,
+                auxiliaries=auxiliaries, actions=actions
+            )
+        else:
+            horizon_values = self.baseline.state_value(
+                states=states, horizons=horizons, internals=baseline_internals,
+                auxiliaries=auxiliaries
+            )
+
+        # Value horizon assertions
+        assertions = list()
+        if self.config.create_tf_assertions:
+            assertions.append(tf.debugging.assert_greater_equal(x=offsets, y=zero))
+            if self.baseline.max_past_horizon(on_policy=False) == 0:
+                baseline_horizon = self.baseline.past_horizon(on_policy=False)
+            assertions.append(tf.debugging.assert_less_equal(x=offsets, y=reward_horizon))
+
+        # Add appropriately discounted horizon values to reward
+        with tf.control_dependencies(control_inputs=assertions):
+            # Pow numerically stable since 0.0 <= discount <= 1.0
+            discounts = tf.math.pow(x=reward_discount, y=tf_util.cast(x=offsets, dtype='float'))
+            if not self.predict_terminal_values:
+                is_terminal = tf.math.equal(x=terminal, y=one)
+                zeros = tf.zeros_like(input=discounts)
+                discounts = tf.where(condition=is_terminal, x=zeros, y=discounts)
+
+        return reward + discounts * horizon_values
 
     @tf_function(num_args=7)
     def loss(self, *, states, horizons, internals, auxiliaries, actions, reward, reference):

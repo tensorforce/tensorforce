@@ -313,7 +313,7 @@ class Queue(Memory):
             return lengths, predecessor_indices, mask
 
         lengths = tf.ones_like(input=indices, dtype=tf_util.get_dtype(type='int'))
-        predecessor_indices = tf.expand_dims(input=indices, axis=1)
+        predecessor_indices = tf.math.mod(x=tf.expand_dims(input=indices, axis=1), y=capacity)
         mask = tf.ones_like(input=predecessor_indices, dtype=tf_util.get_dtype(type='bool'))
         shape = tf.TensorShape(dims=((None, None)))
 
@@ -381,7 +381,7 @@ class Queue(Memory):
             return lengths, successor_indices, mask
 
         lengths = tf.ones_like(input=indices, dtype=tf_util.get_dtype(type='int'))
-        successor_indices = tf.expand_dims(input=indices, axis=1)
+        successor_indices = tf.math.mod(x=tf.expand_dims(input=indices, axis=1), y=capacity)
         mask = tf.ones_like(input=successor_indices, dtype=tf_util.get_dtype(type='bool'))
         shape = tf.TensorShape(dims=((None, None)))
 

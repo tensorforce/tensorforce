@@ -108,11 +108,24 @@ class Queue(Memory):
         def correct_terminal():
             # Replace last observation terminal marker with abort terminal
             dependencies = list()
-            two = tf_util.constant(value=2, dtype='int')
-            sparse_delta = tf.IndexedSlices(values=two, indices=last_index)
-            dependencies.append(self.buffers['terminal'].scatter_update(sparse_delta=sparse_delta))
-            sparse_delta = tf.IndexedSlices(values=last_index, indices=(self.episode_count + one))
-            dependencies.append(self.terminal_indices.scatter_update(sparse_delta=sparse_delta))
+            two = tf_util.constant(value=2, dtype='int', shape=(1,))
+            updates = tf.expand_dims(input=last_index, axis=0)  # updates for below
+            indices = tf.expand_dims(input=updates, axis=1)
+            value = tf.tensor_scatter_nd_update(
+                tensor=self.buffers['terminal'], indices=indices, updates=two
+            )
+            dependencies.append(self.buffers['terminal'].assign(value=value))
+            # sparse_delta = tf.IndexedSlices(values=two, indices=last_index)
+            # dependencies.append(self.buffers['terminal'].scatter_update(sparse_delta=sparse_delta))
+            indices = tf.expand_dims(
+                input=tf.expand_dims(input=(self.episode_count + one), axis=0), axis=1
+            )
+            value = tf.tensor_scatter_nd_update(
+                tensor=self.terminal_indices, indices=indices, updates=updates
+            )
+            dependencies.append(self.terminal_indices.assign(value=value))
+            # sparse_delta = tf.IndexedSlices(values=last_index, indices=(self.episode_count + one))
+            # dependencies.append(self.terminal_indices.scatter_update(sparse_delta=sparse_delta))
             with tf.control_dependencies(control_inputs=dependencies):
                 return self.episode_count.assign_add(delta=one, read_value=False)
 
@@ -157,8 +170,14 @@ class Queue(Memory):
 
         def correct_terminal():
             # Remove last observation terminal marker
-            sparse_delta = tf.IndexedSlices(values=zero, indices=last_index)
-            assignment = self.buffers['terminal'].scatter_update(sparse_delta=sparse_delta)
+            updates = tf_util.constant(value=0, dtype='int', shape=(1,))
+            indices = tf.expand_dims(input=tf.expand_dims(input=last_index, axis=0), axis=1)
+            value = tf.tensor_scatter_nd_update(
+                tensor=self.buffers['terminal'], indices=indices, updates=updates
+            )
+            assignment = self.buffers['terminal'].assign(value=value)
+            # sparse_delta = tf.IndexedSlices(values=zero, indices=last_index)
+            # assignment = self.buffers['terminal'].scatter_update(sparse_delta=sparse_delta)
             with tf.control_dependencies(control_inputs=(assignment,)):
                 return last_index < zero
 
@@ -226,11 +245,17 @@ class Queue(Memory):
                 ))
 
         with tf.control_dependencies(control_inputs=assertions):
-            sparse_delta = tf.IndexedSlices(
-                values=self.terminal_indices[num_episodes: index],
-                indices=tf.range(index - num_episodes)
+            updates = self.terminal_indices[num_episodes: index]
+            indices = tf.expand_dims(input=tf.range(index - num_episodes), axis=1)
+            value = tf.tensor_scatter_nd_update(
+                tensor=self.terminal_indices, indices=indices, updates=updates
             )
-            assignment = self.terminal_indices.scatter_update(sparse_delta=sparse_delta)
+            assignment = self.terminal_indices.assign(value=value)
+            # sparse_delta = tf.IndexedSlices(
+            #     values=self.terminal_indices[num_episodes: index],
+            #     indices=tf.range(index - num_episodes)
+            # )
+            # assignment = self.terminal_indices.scatter_update(sparse_delta=sparse_delta)
 
         # Decrement episode count accordingly
         with tf.control_dependencies(control_inputs=(assignment,)):
@@ -249,10 +274,13 @@ class Queue(Memory):
             )
             indices = tf.range(start=self.buffer_index, limit=(self.buffer_index + num_timesteps))
             indices = tf.math.mod(x=indices, y=capacity)
+            indices = tf.expand_dims(input=indices, axis=1)
 
             def function(buffer, value):
-                sparse_delta = tf.IndexedSlices(values=value, indices=indices)
-                return buffer.scatter_update(sparse_delta=sparse_delta)
+                value = tf.tensor_scatter_nd_update(tensor=buffer, indices=indices, updates=value)
+                return buffer.assign(value=value)
+                # sparse_delta = tf.IndexedSlices(values=value, indices=indices)
+                # return buffer.scatter_update(sparse_delta=sparse_delta)
 
             assignments = self.buffers.fmap(function=function, cls=list, zip_values=values)
 
@@ -271,11 +299,18 @@ class Queue(Memory):
                 tensor=overwritten_indices, mask=tf.math.greater(x=terminal, y=zero)
             )
             start = self.episode_count + one
-            sparse_delta = tf.IndexedSlices(
-                values=new_terminal_indices,
-                indices=tf.range(start=start, limit=(start + num_new_episodes))
+            indices = tf.expand_dims(
+                input=tf.range(start=start, limit=(start + num_new_episodes)), axis=1
             )
-            assignment = self.terminal_indices.scatter_update(sparse_delta=sparse_delta)
+            value = tf.tensor_scatter_nd_update(
+                tensor=self.terminal_indices, indices=indices, updates=new_terminal_indices
+            )
+            assignment = self.terminal_indices.assign(value=value)
+            # sparse_delta = tf.IndexedSlices(
+            #     values=new_terminal_indices,
+            #     indices=tf.range(start=start, limit=(start + num_new_episodes))
+            # )
+            # assignment = self.terminal_indices.scatter_update(sparse_delta=sparse_delta)
 
         # Increment episode count accordingly
         with tf.control_dependencies(control_inputs=(assignment,)):

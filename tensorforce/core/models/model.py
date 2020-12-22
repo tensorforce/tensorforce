@@ -627,8 +627,11 @@ class Model(Module):
         # Remember internals
         dependencies = list()
         for name, previous, internal in self.previous_internals.zip_items(internals):
-            sparse_delta = tf.IndexedSlices(values=internal, indices=parallel)
-            dependencies.append(previous.scatter_update(sparse_delta=sparse_delta))
+            indices = tf.expand_dims(input=parallel, axis=1)
+            value = tf.tensor_scatter_nd_update(tensor=previous, indices=indices, updates=internal)
+            dependencies.append(previous.assign(value=value))
+            # sparse_delta = tf.IndexedSlices(values=internal, indices=parallel)
+            # dependencies.append(previous.scatter_update(sparse_delta=sparse_delta))
 
         # Increment timestep (after core act)
         with tf.control_dependencies(control_inputs=(actions.flatten() + internals.flatten())):
@@ -644,6 +647,7 @@ class Model(Module):
         zero = tf_util.constant(value=0, dtype='int')
         one = tf_util.constant(value=1, dtype='int')
         batch_size = tf_util.cast(x=tf.shape(input=terminal)[0], dtype='int')
+        expanded_parallel = tf.expand_dims(input=tf.expand_dims(input=parallel, axis=0), axis=1)
         is_terminal = tf.math.greater(x=terminal[-1], y=zero)
 
         # Input assertions
@@ -683,11 +687,21 @@ class Model(Module):
                     )
 
             # Update episode length/reward
-            sparse_delta = tf.IndexedSlices(values=batch_size, indices=parallel)
-            dependencies.append(self.episode_length.scatter_add(sparse_delta=sparse_delta))
-            sum_reward = tf.math.reduce_sum(input_tensor=reward)
-            sparse_delta = tf.IndexedSlices(values=sum_reward, indices=parallel)
-            dependencies.append(self.episode_reward.scatter_add(sparse_delta=sparse_delta))
+            updates = tf.expand_dims(input=batch_size, axis=0)
+            value = tf.tensor_scatter_nd_add(
+                tensor=self.episode_length, indices=expanded_parallel, updates=updates
+            )
+            dependencies.append(self.episode_length.assign(value=value))
+            # sparse_delta = tf.IndexedSlices(values=batch_size, indices=parallel)
+            # dependencies.append(self.episode_length.scatter_add(sparse_delta=sparse_delta))
+            sum_reward = tf.math.reduce_sum(input_tensor=reward, keepdims=True)
+            value = tf.tensor_scatter_nd_add(
+                tensor=self.episode_reward, indices=expanded_parallel, updates=sum_reward
+            )
+            dependencies.append(self.episode_reward.assign(value=value))
+            # sum_reward = tf.math.reduce_sum(input_tensor=reward)
+            # sparse_delta = tf.IndexedSlices(values=sum_reward, indices=parallel)
+            # dependencies.append(self.episode_reward.scatter_add(sparse_delta=sparse_delta))
 
             # Core observe (before terminal handling)
             updated = self.core_observe(terminal=terminal, reward=reward, parallel=parallel)
@@ -707,8 +721,13 @@ class Model(Module):
                     function=function, cls=TensorDict, zip_values=self.initial_internals
                 )
                 for name, previous, initial in self.previous_internals.zip_items(initials):
-                    sparse_delta = tf.IndexedSlices(values=initial, indices=parallel)
-                    operations.append(previous.scatter_update(sparse_delta=sparse_delta))
+                    updates = tf.expand_dims(input=initial, axis=0)
+                    value = tf.tensor_scatter_nd_update(
+                        tensor=previous, indices=expanded_parallel, updates=updates
+                    )
+                    operations.append(previous.assign(value=value))
+                    # sparse_delta = tf.IndexedSlices(values=initial, indices=parallel)
+                    # operations.append(previous.scatter_update(sparse_delta=sparse_delta))
 
                 # Episode length/reward summaries (before episode reward reset / episodes increment)
                 dependencies = list()
@@ -725,11 +744,21 @@ class Model(Module):
 
                 # Reset episode length/reward
                 with tf.control_dependencies(control_inputs=dependencies):
-                    sparse_delta = tf.IndexedSlices(values=zero, indices=parallel)
-                    operations.append(self.episode_length.scatter_update(sparse_delta=sparse_delta))
-                    zero_float = tf_util.constant(value=0.0, dtype='float')
-                    sparse_delta = tf.IndexedSlices(values=zero_float, indices=parallel)
-                    operations.append(self.episode_reward.scatter_update(sparse_delta=sparse_delta))
+                    zeros = tf_util.zeros(shape=(1,), dtype='int')
+                    value = tf.tensor_scatter_nd_update(
+                        tensor=self.episode_length, indices=expanded_parallel, updates=zeros
+                    )
+                    operations.append(self.episode_length.assign(value=value))
+                    # sparse_delta = tf.IndexedSlices(values=zero, indices=parallel)
+                    # operations.append(self.episode_length.scatter_update(sparse_delta=sparse_delta))
+                    zeros = tf_util.zeros(shape=(1,), dtype='float')
+                    value = tf.tensor_scatter_nd_update(
+                        tensor=self.episode_reward, indices=expanded_parallel, updates=zeros
+                    )
+                    operations.append(self.episode_reward.assign(value=value))
+                    # zero_float = tf_util.constant(value=0.0, dtype='float')
+                    # sparse_delta = tf.IndexedSlices(values=zero_float, indices=parallel)
+                    # operations.append(self.episode_reward.scatter_update(sparse_delta=sparse_delta))
 
                 # Increment episodes counter
                 operations.append(self.episodes.assign_add(delta=one, read_value=False))

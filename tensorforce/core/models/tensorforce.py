@@ -1221,9 +1221,14 @@ class TensorforceModel(Model):
 
             # Increment buffer index (after buffer assignments)
             with tf.control_dependencies(control_inputs=assignments):
-                ones = tf.ones_like(input=parallel)
-                sparse_delta = tf.IndexedSlices(values=ones, indices=parallel)
-                dependencies.append(self.buffer_index.scatter_add(sparse_delta=sparse_delta))
+                ones = tf_util.ones(shape=(batch_size,), dtype='int')
+                indices = tf.expand_dims(input=parallel, axis=1)
+                value = tf.tensor_scatter_nd_add(
+                    tensor=self.buffer_index, indices=indices, updates=ones
+                )
+                dependencies.append(self.buffer_index.assign(value=value))
+                # sparse_delta = tf.IndexedSlices(values=ones, indices=parallel)
+                # dependencies.append(self.buffer_index.scatter_add(sparse_delta=sparse_delta))
 
         with tf.control_dependencies(control_inputs=dependencies):
             actions = actions.fmap(
@@ -1240,6 +1245,7 @@ class TensorforceModel(Model):
         one = tf_util.constant(value=1, dtype='int')
         buffer_index = tf.gather(params=self.buffer_index, indices=parallel)
         batch_size = tf_util.cast(x=tf.shape(input=terminal)[0], dtype='int')
+        expanded_parallel = tf.expand_dims(input=tf.expand_dims(input=parallel, axis=0), axis=1)
         if self.circular_buffer:
             buffer_start = tf.gather(params=self.buffer_start, indices=parallel)
 
@@ -1375,8 +1381,13 @@ class TensorforceModel(Model):
 
                 # Increment buffer start index
                 with tf.control_dependencies(control_inputs=(indices,)):
-                    sparse_delta = tf.IndexedSlices(values=zero, indices=parallel)
-                    assignment = self.buffer_start.scatter_update(sparse_delta=sparse_delta)
+                    zeros = tf_util.zeros(shape=(1,), dtype='int')
+                    value = tf.tensor_scatter_nd_update(
+                        tensor=self.buffer_start, indices=expanded_parallel, updates=zeros
+                    )
+                    assignment = self.buffer_start.assign(value=value)
+                    # sparse_delta = tf.IndexedSlices(values=zero, indices=parallel)
+                    # assignment = self.buffer_start.scatter_update(sparse_delta=sparse_delta)
 
                 return tf.group((experienced, assignment))
 
@@ -1386,8 +1397,14 @@ class TensorforceModel(Model):
 
             # Reset buffer index
             with tf.control_dependencies(control_inputs=operations):
-                sparse_delta = tf.IndexedSlices(values=zero, indices=parallel)
-                operations.append(self.buffer_index.scatter_update(sparse_delta=sparse_delta))
+                updates = tf_util.zeros(shape=(1,), dtype='int')
+                indices = tf.expand_dims(input=tf.expand_dims(input=parallel, axis=0), axis=1)
+                value = tf.tensor_scatter_nd_update(
+                    tensor=self.buffer_index, indices=indices, updates=updates
+                )
+                operations.append(self.buffer_index.assign(value=value))
+                # sparse_delta = tf.IndexedSlices(values=zero, indices=parallel)
+                # operations.append(self.buffer_index.scatter_update(sparse_delta=sparse_delta))
 
             # Preprocessed episode reward summaries (before preprocessed episode reward reset)
             if self.reward_preprocessing is not None:
@@ -1401,11 +1418,17 @@ class TensorforceModel(Model):
 
                 # Reset preprocessed episode reward
                 with tf.control_dependencies(control_inputs=dependencies):
-                    zero_float = tf_util.constant(value=0.0, dtype='float')
-                    sparse_delta = tf.IndexedSlices(values=zero_float, indices=parallel)
-                    operations.append(
-                        self.preprocessed_episode_reward.scatter_update(sparse_delta=sparse_delta)
+                    zeros = tf_util.zeros(shape=(1,), dtype='float')
+                    value = tf.tensor_scatter_nd_update(
+                        tensor=self.preprocessed_episode_reward, indices=expanded_parallel,
+                        updates=zeros
                     )
+                    operations.append(self.preprocessed_episode_reward.assign(value=value))
+                    # zero_float = tf_util.constant(value=0.0, dtype='float')
+                    # sparse_delta = tf.IndexedSlices(values=zero_float, indices=parallel)
+                    # operations.append(
+                    #     self.preprocessed_episode_reward.scatter_update(sparse_delta=sparse_delta)
+                    # )
 
             # Reset preprocessors
             for preprocessor in self.state_preprocessing.values():
@@ -1434,11 +1457,17 @@ class TensorforceModel(Model):
                         ))
 
                 # Update preprocessed episode reward
-                sum_reward = tf.math.reduce_sum(input_tensor=reward)
-                sparse_delta = tf.IndexedSlices(values=sum_reward, indices=parallel)
-                dependencies.append(
-                    self.preprocessed_episode_reward.scatter_add(sparse_delta=sparse_delta)
+                sum_reward = tf.math.reduce_sum(input_tensor=reward, keepdims=True)
+                value = tf.tensor_scatter_nd_add(
+                    tensor=self.preprocessed_episode_reward, indices=expanded_parallel,
+                    updates=sum_reward
                 )
+                dependencies.append(self.preprocessed_episode_reward.assign(value=value))
+                # sum_reward = tf.math.reduce_sum(input_tensor=reward)
+                # sparse_delta = tf.IndexedSlices(values=sum_reward, indices=parallel)
+                # dependencies.append(
+                #     self.preprocessed_episode_reward.scatter_add(sparse_delta=sparse_delta)
+                # )
 
         # Handle terminal vs non-terminal (after preprocessed episode reward)
         with tf.control_dependencies(control_inputs=dependencies):
@@ -1636,8 +1665,14 @@ class TensorforceModel(Model):
 
         # Increment buffer start index
         with tf.control_dependencies(control_inputs=(indices,)):
-            sparse_delta = tf.IndexedSlices(values=num_complete, indices=parallel)
-            assignment = self.buffer_start.scatter_add(sparse_delta=sparse_delta)
+            updates = tf.expand_dims(input=num_complete, axis=0)
+            indices = tf.expand_dims(input=tf.expand_dims(input=parallel, axis=0), axis=1)
+            value = tf.tensor_scatter_nd_add(
+                tensor=self.buffer_start, indices=indices, updates=updates
+            )
+            assignment = self.buffer_start.assign(value=value)
+            # sparse_delta = tf.IndexedSlices(values=num_complete, indices=parallel)
+            # assignment = self.buffer_start.scatter_add(sparse_delta=sparse_delta)
 
         return tf.group((experienced, assignment))
 

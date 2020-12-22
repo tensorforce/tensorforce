@@ -287,7 +287,7 @@ class Gaussian(Distribution):
             if self.bounded_transform == 'tanh':
                 clip = tf_util.constant(value=(1.0 - util.epsilon), dtype='float')
                 action = tf.clip_by_value(t=action, clip_value_min=-clip, clip_value_max=clip)
-                action = tf.math.atanh(x=action)
+                action = tf_util.cast(x=tf.math.atanh(x=tf_util.float32(x=action)), dtype='float')
 
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')
         half = tf_util.constant(value=0.5, dtype='float')

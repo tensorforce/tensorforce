@@ -26,10 +26,13 @@ from tensorforce.environments.pygame_learning_environment import PyGameLearningE
 from tensorforce.environments.vizdoom import ViZDoom
 from tensorforce.environments.carla_environment import CARLAEnvironment
 
+from tensorforce.environments.cartpole import CartPole
+
 
 environments = dict(
     default=OpenAIGym,
     ale=ArcadeLearningEnvironment, arcade_learning_environment=ArcadeLearningEnvironment,
+    custom_cartpole=CartPole,
     gym=OpenAIGym, openai_gym=OpenAIGym,
     retro=OpenAIRetro, openai_retro=OpenAIRetro,
     osim=OpenSim, open_sim=OpenSim,

@@ -466,7 +466,7 @@ class TensorforceAgent(Agent):
             raise TensorforceError(message="Calling agent.experience is not possible mid-episode.")
 
         # Process states input and infer batching structure
-        states, batched, num_instances, is_iter_of_dicts, input_type = self._process_states_input(
+        states, batched, num_instances, is_iter_of_dicts = self._process_states_input(
             states=states, function_name='Agent.experience'
         )
 

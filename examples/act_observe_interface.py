@@ -26,14 +26,14 @@ def main():
         # Episode using act and observe
         states = environment.reset()
         terminal = False
-        sum_reward = 0.0
+        sum_rewards = 0.0
         num_updates = 0
         while not terminal:
             actions = agent.act(states=states)
             states, terminal, reward = environment.execute(actions=actions)
             num_updates += agent.observe(terminal=terminal, reward=reward)
-            sum_reward += reward
-        print('Episode {}: return={} updates={}'.format(episode, sum_reward, num_updates))
+            sum_rewards += reward
+        print('Episode {}: return={} updates={}'.format(episode, sum_rewards, num_updates))
 
     # Evaluate for 100 episodes
     sum_rewards = 0.0

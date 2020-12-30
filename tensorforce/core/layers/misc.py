@@ -15,6 +15,7 @@
 
 from collections import Counter
 import math
+import random
 
 import numpy as np
 import tensorflow as tf
@@ -237,7 +238,7 @@ class Function(Layer):
     @tf_function(num_args=1)
     def apply(self, *, x):
         if isinstance(self.function, str):
-            x = eval(self.function, dict(), dict(x=x, math=math, np=np, tf=tf))
+            x = eval(self.function, dict(), dict(x=x, math=math, np=np, random=random, tf=tf))
         else:
             x = self.function(x)
 

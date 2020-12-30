@@ -28,11 +28,11 @@ class TensorsSpec(NestedDict):
         return self.fmap(function=(lambda spec: spec.signature(batched=batched)), cls=SignatureDict)
 
     def to_tensor(self, *, value, batched, recover_empty=False, name='TensorSpec.to_tensor'):
-        if not isinstance(value, ArrayDict):
+        if value is not None and not isinstance(value, ArrayDict):
             raise TensorforceError.type(name=name, argument='value', dtype=type(value))
 
         # TODO: improve exception message to include invalid keys
-        if set(value) != set(self):
+        if not recover_empty and set(value) != set(self):
             raise TensorforceError.value(name=name, argument='value', value=value)
 
         tensor = TensorDict()
@@ -40,7 +40,7 @@ class TensorsSpec(NestedDict):
             if recover_empty and name not in value:
                 assert not isinstance(spec, self.value_type) and len(spec) == 0
                 tensor[name] = spec.to_tensor(
-                    value=value[name], batched=batched, recover_empty=recover_empty, name=name
+                    value=None, batched=batched, recover_empty=recover_empty, name=name
                 )
             else:
                 tensor[name] = spec.to_tensor(
@@ -61,7 +61,7 @@ class TensorsSpec(NestedDict):
             value[name] = spec.from_tensor(tensor=tensor[name], batched=batched, name=name)
         return value
 
-    def np_assert(self, *, x, message):
+    def np_assert(self, *, x, message, batched=False):
         if not isinstance(x, dict):
             raise TensorforceError(
                 message.format(name='', issue=('type {} != dict'.format(type(x))))

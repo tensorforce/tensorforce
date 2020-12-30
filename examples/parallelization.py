@@ -20,6 +20,7 @@ from tensorforce import Environment, Runner
 
 def main():
     local()
+    local_vectorized()
     multiprocessing()
     socket()
 
@@ -34,8 +35,23 @@ def local():
     agent = 'benchmarks/configs/ppo.json'
     environment = 'benchmarks/configs/cartpole.json'
     runner = Runner(agent=agent, environment=environment, num_parallel=4)
-    # Batch act/observe calls to agent (otherwise essentially equivalent to single environment)
+    # Batch act/observe calls to agent, unless environment.is_vectorizable()
+    # (otherwise essentially equivalent to single environment)
     runner.run(num_episodes=100, batch_agent_calls=True)
+    runner.close()
+
+
+def local_vectorized():
+    """
+    Train agent on experience collected in parallel from one vectorized CartPole environment.
+
+    Typical use case:
+        time for vectorized environment < time for sequential execution
+    """
+    agent = 'benchmarks/configs/ppo.json'
+    environment = 'custom_cartpole'
+    runner = Runner(agent=agent, environment=environment, max_episode_timesteps=500, num_parallel=4)
+    runner.run(num_episodes=100)
     runner.close()
 
 
@@ -54,7 +70,7 @@ def multiprocessing():
     agent = 'benchmarks/configs/ppo.json'
     environment = 'benchmarks/configs/cartpole.json'
     runner = Runner(agent=agent, environment=environment, num_parallel=4, remote='multiprocessing')
-    runner.run(num_episodes=100)  # optional: batch_agent_calls=True
+    runner.run(num_episodes=100, batch_agent_calls=True)  # optional: batch_agent_calls=True
     runner.close()
 
 

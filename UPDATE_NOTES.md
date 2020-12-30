@@ -18,6 +18,11 @@ This file records all major updates and new features, starting from version 0.5.
 - New summary `episode-length` recorded as part of summary label "reward"
 
 ##### Environments:
+- Support for vectorized parallel environments via new function `Environment.is_vectorizable()` and new argument `num_parallel` for `Environment.reset()`
+    - See `tensorforce/environments.cartpole.py` for a vectorizable environment example
+    - `Runner` uses vectorized parallelism by default if `num_parallel > 1`, `remote=None` and environment supports vectorization
+    - See `examples/act_observe_vectorized.py` for more details on act-observe interaction
+- New extended and vectorizable custom CartPole environment via key `custom_cartpole` (work in progress)
 - New environment argument `reward_shaping` to provide a simple way to modify/shape rewards of an environment, can be specified either as callable or string function expression
 
 ##### run.py script:

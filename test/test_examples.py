@@ -142,6 +142,62 @@ class TestExamples(UnittestBase, unittest.TestCase):
 
         self.finished_test()
 
+    def test_act_observe_vectorized(self):
+        self.start_tests(name='act-observe-vectorized')
+
+        # ====================
+
+        num_parallel = 8
+        environment = Environment.create(environment='custom_cartpole', max_episode_timesteps=500)
+        agent = Agent.create(
+            agent='benchmarks/configs/ppo.json', environment=environment,
+            parallel_interactions=num_parallel
+        )
+
+        # Train for 100 episodes
+        for episode in range(0, 10, num_parallel):
+
+            # Episode using act and observe
+            parallel, states = environment.reset(num_parallel=num_parallel)
+            terminal = (parallel < 0)  # all false
+            sum_rewards = 0.0
+            num_updates = 0
+            while not terminal.all():
+                actions = agent.act(states=states, parallel=parallel)
+                next_parallel, states, terminal, reward = environment.execute(actions=actions)
+                num_updates += agent.observe(terminal=terminal, reward=reward, parallel=parallel)
+                parallel = next_parallel
+                sum_rewards += reward.sum()
+            print('Episode {}: return={} updates={}'.format(
+                episode, sum_rewards / num_parallel, num_updates
+            ))
+
+        # Evaluate for 100 episodes
+        num_parallel = 4
+        num_episodes = 10
+        sum_rewards = 0.0
+        for _ in range(0, num_episodes, num_parallel):
+            parallel, states = environment.reset(num_parallel=num_parallel)
+            internals = agent.initial_internals()
+            internals = [internals for _ in range(num_parallel)]
+            terminal = (parallel < 0)  # all false
+            while not terminal.all():
+                actions, internals = agent.act(
+                    states=states, internals=internals, independent=True, deterministic=True
+                )
+                _, states, terminal, reward = environment.execute(actions=actions)
+                internals = [internal for internal, term in zip(internals, terminal) if not term]
+                sum_rewards += reward.sum()
+        print('Mean evaluation return:', sum_rewards / num_episodes)
+
+        # Close agent and environment
+        agent.close()
+        environment.close()
+
+        # ====================
+
+        self.finished_test()
+
     def test_act_experience_update(self):
         self.start_tests(name='act-experience-update')
 
@@ -303,8 +359,17 @@ class TestExamples(UnittestBase, unittest.TestCase):
         agent = 'benchmarks/configs/ppo.json'
         environment = 'benchmarks/configs/cartpole.json'
         runner = Runner(agent=agent, environment=environment, num_parallel=4)
-        # Batch act/observe calls to agent (otherwise essentially equivalent to single environment)
+        # Batch act/observe calls to agent, unless environment.is_vectorizable()
+        # (otherwise essentially equivalent to single environment)
         runner.run(num_episodes=10, batch_agent_calls=True)
+        runner.close()
+
+        # ====================
+
+        agent = 'benchmarks/configs/ppo.json'
+        environment = 'custom_cartpole'
+        runner = Runner(agent=agent, environment=environment, max_episode_timesteps=500, num_parallel=4)
+        runner.run(num_episodes=10)
         runner.close()
 
         # ====================
@@ -312,7 +377,7 @@ class TestExamples(UnittestBase, unittest.TestCase):
         agent = 'benchmarks/configs/ppo.json'
         environment = 'benchmarks/configs/cartpole.json'
         runner = Runner(agent=agent, environment=environment, num_parallel=4, remote='multiprocessing')
-        runner.run(num_episodes=10)  # optional: batch_agent_calls=True
+        runner.run(num_episodes=10, batch_agent_calls=True)  # optional: batch_agent_calls=True
         runner.close()
 
         # ====================

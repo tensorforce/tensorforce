@@ -18,6 +18,7 @@
 /build/
 /dist/
 /docs/_*
+/examples/vizdoom/
 /tensorforce.egg-info/
 
 /_old*

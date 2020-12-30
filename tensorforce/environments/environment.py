@@ -17,6 +17,7 @@ import importlib
 import json
 import math
 import os
+import random
 import sys
 from threading import Thread
 import time
@@ -123,6 +124,9 @@ class Environment(object):
                 port=port, environment=environment, max_episode_timesteps=max_episode_timesteps,
                 reward_shaping=reward_shaping, **kwargs
             )
+
+        elif remote is not None:
+            raise TensorforceError.value(name='Environment.create', argument='remote', value=remote)
 
         elif isinstance(environment, (EnvironmentWrapper, RemoteEnvironment)):
             if max_episode_timesteps is not None:
@@ -243,6 +247,7 @@ class Environment(object):
         util.overwrite_staticmethod(obj=self, function='create')
         self._expect_receive = None
         self._actions = None
+        self._num_parallel = None
         self._reset_output_check = True
         self._execute_output_check = True
 
@@ -298,18 +303,33 @@ class Environment(object):
         """
         return None
 
+    def is_vectorizable(self):
+        """
+        Returns true if the environment is vectorizable.
+
+        Returns:
+            bool: True if the environment is vectorizable.
+        """
+        return False
+
     def close(self):
         """
         Closes the environment.
         """
         pass
 
-    def reset(self):
+    def reset(self, num_parallel=None):
         """
         Resets the environment to start a new episode.
 
+        Args:
+            num_parallel (int >= 1): Number of environment instances executed in parallel, only
+                valid if environment is vectorizable
+                (<span style="color:#00C000"><b>no vectorization</b></span>).
+
         Returns:
-            dict[state]: Dictionary containing initial state(s) and auxiliary information.
+            (parallel,) dict[state]: Dictionary containing initial state(s) and auxiliary
+            information, and parallel index vector in case of vectorized execution.
         """
         raise NotImplementedError
 
@@ -322,15 +342,18 @@ class Environment(object):
                 (<span style="color:#C00000"><b>required</b></span>).
 
         Returns:
-            dict[state], bool | 0 | 1 | 2, float: Dictionary containing next state(s), whether
-            a terminal state is reached or 2 if the episode was aborted, and observed reward.
+            (parallel,) dict[state], bool | 0 | 1 | 2, float: Dictionary containing next state(s)
+            and auxiliary information, whether a terminal state is reached or 2 if the episode was
+            aborted, observed reward, and parallel index vector in case of vectorized execution.
         """
         raise NotImplementedError
 
-    def start_reset(self):
+    def start_reset(self, num_parallel=None):
         if self._expect_receive is not None:
             raise TensorforceError.unexpected()
         self._expect_receive = 'reset'
+        assert num_parallel is None or self.is_vectorizable()
+        self._num_parallel = num_parallel
 
     def start_execute(self, actions):
         if self._expect_receive is not None:
@@ -342,30 +365,65 @@ class Environment(object):
     def receive_execute(self):
         if self._expect_receive == 'reset':
             self._expect_receive = None
-            states = self.reset()
+            if self._num_parallel is None:
+                states = self.reset()
+            else:
+                parallel, states = self.reset(num_parallel=num_parallel)
             if self._reset_output_check:
                 self._check_states_output(states=states, function='reset')
+                if self._num_parallel is not None:
+                    TensorSpec(type='int', shape=(), num_values=self._num_parallel).np_assert(
+                        x=parallel, batched=True,
+                        message=(function + ': invalid {issue} for parallel.')
+                    )
                 self._reset_output_check = False
-            return states, -1, None
+            if self._num_parallel is None:
+                return states, -1, None
+            else:
+                return parallel, states, -1, None
 
         elif self._expect_receive == 'execute':
             self._expect_receive = None
             assert self._actions is not None
-            states, terminal, reward = self.execute(actions=self._actions)
+            if self._num_parallel is None:
+                states, terminal, reward = self.execute(actions=self._actions)
+            else:
+                parallel, states, terminal, reward = self.execute(actions=self._actions)
             if self._execute_output_check:
                 self._check_states_output(states=states, function='execute')
-                if not isinstance(terminal, bool) and \
-                        (not isinstance(terminal, int) or terminal < 0 or terminal > 2):
-                    raise TensorforceError(
-                        'Environment.execute: invalid value {} for terminal.'.format(terminal)
+                if self._num_parallel is None:
+                    if isinstance(reward, (np.generic, np.ndarray)):
+                        reward = reward.item()
+                    if isinstance(terminal, (np.generic, np.ndarray)):
+                        terminal = terminal.item()
+                    if not isinstance(terminal, bool) and \
+                            (not isinstance(terminal, int) or terminal < 0 or terminal > 2):
+                        raise TensorforceError(
+                            'Environment.execute: invalid value {} for terminal.'.format(terminal)
+                        )
+                    if not isinstance(reward, (float, int)):
+                        raise TensorforceError(
+                            'Environment.execute: invalid type {} for reward.'.format(type(reward))
+                        )
+                else:
+                    TensorSpec(type='int', shape=(), num_values=self._num_parallel).np_assert(
+                        x=parallel, batched=True,
+                        message=(function + ': invalid {issue} for parallel.')
                     )
-                if not isinstance(reward, (float, int)):
-                    raise TensorforceError(
-                        'Environment.execute: invalid type {} for reward.'.format(type(reward))
+                    TensorSpec(type='bool', shape=()).np_assert(
+                        x=terminal, batched=True,
+                        message=(function + ': invalid {issue} for terminal.')
+                    )
+                    TensorSpec(type='float', shape=()).np_assert(
+                        x=reward, batched=True,
+                        message=(function + ': invalid {issue} for reward.')
                     )
                 self._execute_output_check = False
             self._actions = None
-            return states, int(terminal), reward
+            if self._num_parallel is None:
+                return states, int(terminal), reward
+            else:
+                return parallel, states, terminal, reward
 
         else:
             raise TensorforceError.unexpected()
@@ -390,8 +448,10 @@ class Environment(object):
                     _states[name] = state
                 elif not name.endswith('_mask'):
                     raise TensorforceError(function + ': invalid component {name} for state.')
-        states_spec.np_assert(x=_states, message=(function + ': invalid {issue} for {name} state.'))
-
+        states_spec.np_assert(
+            x=_states, batched=(self._num_parallel is not None),
+            message=(function + ': invalid {issue} for {name} state.')
+        )
 
 class EnvironmentWrapper(Environment):
 
@@ -413,8 +473,8 @@ class EnvironmentWrapper(Environment):
             if self._environment.max_episode_timesteps() is None:
                 self._environment.max_episode_timesteps = (lambda: max_episode_timesteps)
         self._timestep = None
-        self._reward_shaping = reward_shaping
         self._previous_states = None
+        self._reward_shaping = reward_shaping
 
     def __str__(self):
         return str(self._environment)
@@ -428,18 +488,34 @@ class EnvironmentWrapper(Environment):
     def max_episode_timesteps(self):
         return self._max_episode_timesteps
 
+    def is_vectorizable(self):
+        return self._environment.is_vectorizable()
+
     def close(self):
         return self._environment.close()
 
-    def reset(self):
+    def reset(self, num_parallel=None):
         self._timestep = 0
-        states = self._environment.reset()
+        assert num_parallel is None or self.is_vectorizable()
+        self._num_parallel = num_parallel
+        if self._num_parallel is None:
+            states = self._environment.reset()
+        else:
+            parallel, states = self._environment.reset(num_parallel=self._num_parallel)
         if self._reset_output_check:
             self._check_states_output(states=states, function='reset')
+            if self._num_parallel is not None:
+                TensorSpec(type='int', shape=(), num_values=self._num_parallel).np_assert(
+                    x=parallel, batched=True,
+                    message=('Environment.reset: invalid {issue} for parallel.')
+                )
             self._reset_output_check = False
         if self._reward_shaping is not None:
             self._previous_states = states
-        return states
+        if self._num_parallel is None:
+            return states
+        else:
+            return parallel, states
 
     def execute(self, actions):
         if self._timestep is None:
@@ -447,28 +523,45 @@ class EnvironmentWrapper(Environment):
                 message="An environment episode has to be initialized by calling reset() first."
             )
         assert self._max_episode_timesteps is None or self._timestep < self._max_episode_timesteps
-        states, terminal, reward = self._environment.execute(actions=actions)
+        if self._num_parallel is None:
+            states, terminal, reward = self._environment.execute(actions=actions)
+        else:
+            parallel, states, terminal, reward = self._environment.execute(actions=actions)
         if self._execute_output_check:
             self._check_states_output(states=states, function='execute')
-            if isinstance(reward, (np.generic, np.ndarray)):
-                reward = reward.item()
-            if isinstance(terminal, (np.generic, np.ndarray)):
-                terminal = terminal.item()
-            if not isinstance(terminal, bool) and \
-                    (not isinstance(terminal, int) or terminal < 0 or terminal > 2):
-                raise TensorforceError(
-                    'Environment.execute: invalid value {} for terminal.'.format(terminal)
+            if self._num_parallel is None:
+                if isinstance(reward, (np.generic, np.ndarray)):
+                    reward = reward.item()
+                if isinstance(terminal, (np.generic, np.ndarray)):
+                    terminal = terminal.item()
+                if not isinstance(terminal, bool) and \
+                        (not isinstance(terminal, int) or terminal < 0 or terminal > 2):
+                    raise TensorforceError(
+                        'Environment.execute: invalid value {} for terminal.'.format(terminal)
+                    )
+                if not isinstance(reward, (float, int)):
+                    raise TensorforceError(
+                        'Environment.execute: invalid type {} for reward.'.format(type(reward))
+                    )
+            else:
+                TensorSpec(type='int', shape=(), num_values=self._num_parallel).np_assert(
+                    x=parallel, batched=True,
+                    message='Environment.execute: invalid {issue} for parallel.'
                 )
-            if not isinstance(reward, (float, int)):
-                raise TensorforceError(
-                    'Environment.execute: invalid type {} for reward.'.format(type(reward))
+                TensorSpec(type='bool', shape=()).np_assert(
+                    x=terminal, batched=True,
+                    message='Environment.execute: invalid {issue} for terminal.'
+                )
+                TensorSpec(type='float', shape=()).np_assert(
+                    x=reward, batched=True,
+                    message='Environment.execute: invalid {issue} for reward.'
                 )
             self._execute_output_check = False
         if self._reward_shaping is not None:
             if isinstance(self._reward_shaping, str):
                 reward = eval(self._reward_shaping, dict(), dict(
                     states=self._previous_states, actions=actions, terminal=terminal, reward=reward,
-                    next_states=states, math=math, np=np
+                    next_states=states, math=math, np=np, random=random
                 ))
             else:
                 reward = self._reward_shaping(
@@ -481,19 +574,30 @@ class EnvironmentWrapper(Environment):
             if isinstance(terminal, (np.generic, np.ndarray)):
                 terminal = terminal.item()
             self._previous_states = states
-        terminal = int(terminal)
         self._timestep += 1
-        if terminal == 0 and self._max_episode_timesteps is not None and \
-                self._timestep >= self._max_episode_timesteps:
-            terminal = 2
-        if terminal > 0:
-            self._timestep = None
-        return states, terminal, reward
+        if self._num_parallel is None:
+            terminal = int(terminal)
+            if terminal == 0 and self._max_episode_timesteps is not None and \
+                    self._timestep >= self._max_episode_timesteps:
+                terminal = 2
+            if terminal > 0:
+                self._timestep = None
+            return states, terminal, reward
+        else:
+            terminal = terminal.astype(util.np_dtype('int'))
+            if (terminal == 0).any() and self._max_episode_timesteps is not None and \
+                    self._timestep >= self._max_episode_timesteps:
+                terminal = np.where(terminal == 0, 2, terminal)
+                parallel = parallel[:0]
+                states = None
+            if (terminal > 0).all():
+                self._timestep = None
+            return parallel, states, terminal, reward
 
     _ATTRIBUTES = frozenset([
         '_actions', 'create', '_environment', '_execute_output_check', '_expect_receive',
-        '_previous_states', '_max_episode_timesteps', '_reset_output_check', '_reward_shaping',
-        '_timestep'
+        '_previous_states', '_max_episode_timesteps', '_num_parallel', '_reset_output_check',
+        '_reward_shaping', '_timestep'
     ])
 
     def __getattr__(self, name):
@@ -649,7 +753,8 @@ class RemoteEnvironment(Environment):
 
     _ATTRIBUTES = frozenset([
         '_actions', '_blocking', '_connection', 'create', '_episode_seconds',
-        '_execute_output_check', '_expect_receive', '_observation', '_reset_output_check', '_thread'
+        '_execute_output_check', '_expect_receive', '_num_parallel', '_observation',
+        '_reset_output_check', '_thread'
     ])
 
     def __getattr__(self, name):

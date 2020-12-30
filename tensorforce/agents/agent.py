@@ -424,7 +424,7 @@ class Agent(Recorder):
         states = self.states_spec.to_tensor(value=states, batched=True, name='Agent.act states')
         if independent and not is_internals_none:
             internals = self.internals_spec.to_tensor(
-                value=internals, batched=True, name='Agent.act internals'
+                value=internals, batched=True, recover_empty=True, name='Agent.act internals'
             )
         auxiliaries = self.auxiliaries_spec.to_tensor(
             value=auxiliaries, batched=True, name='Agent.act auxiliaries'

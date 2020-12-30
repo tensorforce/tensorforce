@@ -34,7 +34,7 @@ def main():
         states = environment.reset()
         internals = agent.initial_internals()
         terminal = False
-        sum_reward = 0.0
+        sum_rewards = 0.0
         while not terminal:
             episode_states.append(states)
             episode_internals.append(internals)
@@ -43,8 +43,8 @@ def main():
             states, terminal, reward = environment.execute(actions=actions)
             episode_terminal.append(terminal)
             episode_reward.append(reward)
-            sum_reward += reward
-        print('Episode {}: {}'.format(episode, sum_reward))
+            sum_rewards += reward
+        print('Episode {}: {}'.format(episode, sum_rewards))
 
         # Feed recorded experience to agent
         agent.experience(

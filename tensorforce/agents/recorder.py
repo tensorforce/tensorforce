@@ -169,7 +169,7 @@ class Recorder(object):
                 )
 
         # Process states input and infer batching structure
-        states, batched, num_parallel, is_iter_of_dicts, input_type = self._process_states_input(
+        states, batched, num_parallel, is_iter_of_dicts = self._process_states_input(
             states=states, function_name='Agent.act'
         )
 
@@ -179,7 +179,7 @@ class Recorder(object):
                 # Default input internals=None
                 pass
 
-            elif is_iter_of_dicts:
+            elif is_iter_of_dicts or isinstance(internals, (tuple, list)):
                 # Input structure iter[dict[internal]]
                 if not isinstance(internals, (tuple, list)):
                     raise TensorforceError.type(
@@ -215,17 +215,17 @@ class Recorder(object):
 
         else:
             # Non-independent mode: handle parallel input
-            if parallel == 0:
+            if batched:
+                # Batched input
+                parallel = np.asarray(parallel)
+
+            elif parallel == 0:
                 # Default input parallel=0
                 if batched:
                     assert num_parallel == self.parallel_interactions
                     parallel = np.asarray(list(range(num_parallel)))
                 else:
                     parallel = np.asarray([parallel])
-
-            elif batched:
-                # Batched input
-                parallel = np.asarray(parallel)
 
             else:
                 # Expand input if not batched
@@ -282,24 +282,31 @@ class Recorder(object):
 
         # Unbatch actions
         if batched:
-            # If inputs were batched, turn list of dicts into dict of lists
+            # If inputs were batched, turn dict of lists into list of dicts
             function = (lambda x: x.item() if x.shape == () else x)
             # TODO: recursive
             if self.actions_spec.is_singleton():
                 actions = actions.singleton()
-                actions = input_type(function(actions[n]) for n in range(num_parallel))
+                if is_iter_of_dicts:
+                    actions = [function(actions[n]) for n in range(num_parallel)]
             else:
-                actions = input_type(
-                    OrderedDict(((name, function(x[n])) for name, x in actions.items()))
-                    for n in range(num_parallel)
-                )
+                if is_iter_of_dicts:
+                    actions = [
+                        OrderedDict(((name, function(x[n])) for name, x in actions.items()))
+                        for n in range(num_parallel)
+                    ]
+                else:
+                    actions = OrderedDict(actions.items())
 
-            if independent and not is_internals_none and is_iter_of_dicts:
-                # TODO: recursive
-                internals = input_type(
-                    OrderedDict(((name, function(x[n])) for name, x in internals.items()))
-                    for n in range(num_parallel)
-                )
+            if independent and not is_internals_none:
+                if is_iter_of_dicts:
+                    # TODO: recursive
+                    internals = [
+                        OrderedDict(((name, function(x[n])) for name, x in internals.items()))
+                        for n in range(num_parallel)
+                    ]
+                else:
+                    internals = OrderedDict(internals.items())
 
         else:
             # If inputs were not batched, unbatch outputs
@@ -318,40 +325,42 @@ class Recorder(object):
 
     def observe(self, reward=0.0, terminal=False, parallel=0):
         # Check whether inputs are batched
-        if util.is_iterable(x=reward):
+        if util.is_iterable(x=reward) or (isinstance(reward, np.ndarray) and reward.ndim > 0):
             reward = np.asarray(reward)
             num_parallel = reward.shape[0]
-            if terminal is False:
+            if not isinstance(terminal, np.ndarray) and terminal is False:
                 terminal = np.asarray([0 for _ in range(num_parallel)])
             else:
                 terminal = np.asarray(terminal)
-            if parallel == 0:
+            if not isinstance(parallel, np.ndarray) and parallel == 0:
                 assert num_parallel == self.parallel_interactions
                 parallel = np.asarray(list(range(num_parallel)))
             else:
                 parallel = np.asarray(parallel)
 
-        elif util.is_iterable(x=terminal):
-            terminal = np.asarray([int(t) for t in terminal])
+        elif util.is_iterable(x=terminal) or \
+                (isinstance(terminal, np.ndarray) and terminal.ndim > 0):
+            terminal = np.asarray(terminal, dtype=util.np_dtype(dtype='int'))
             num_parallel = terminal.shape[0]
-            if reward == 0.0:
+            if not isinstance(reward, np.ndarray) and reward == 0.0:
                 reward = np.asarray([0.0 for _ in range(num_parallel)])
             else:
                 reward = np.asarray(reward)
-            if parallel == 0:
+            if not isinstance(parallel, np.ndarray) and parallel == 0:
                 assert num_parallel == self.parallel_interactions
                 parallel = np.asarray(list(range(num_parallel)))
             else:
                 parallel = np.asarray(parallel)
 
-        elif util.is_iterable(x=parallel):
+        elif util.is_iterable(x=parallel) or \
+                (isinstance(parallel, np.ndarray) and parallel.ndim > 0):
             parallel = np.asarray(parallel)
             num_parallel = parallel.shape[0]
-            if reward == 0.0:
+            if not isinstance(reward, np.ndarray) and reward == 0.0:
                 reward = np.asarray([0.0 for _ in range(num_parallel)])
             else:
                 reward = np.asarray(reward)
-            if terminal is False:
+            if not isinstance(terminal, np.ndarray) and terminal is False:
                 terminal = np.asarray([0 for _ in range(num_parallel)])
             else:
                 terminal = np.asarray(terminal)
@@ -481,21 +490,18 @@ class Recorder(object):
             util.is_iterable(x=states) and isinstance(states[0], dict)
         ):
             # Single state
-            input_type = type(states)
             states = np.asarray(states)
-
             if states.shape == self.states_spec.value().shape:
                 # Single state is not batched
                 states = ArrayDict(singleton=np.expand_dims(states, axis=0))
                 batched = False
                 num_instances = 1
                 is_iter_of_dicts = None
-                input_type = None
 
             else:
                 # Single state is batched, iter[state]
                 assert states.shape[1:] == self.states_spec.value().shape
-                assert input_type in (tuple, list, np.ndarray)
+                assert type(states) in (tuple, list, np.ndarray)
                 num_instances = states.shape[0]
                 states = ArrayDict(singleton=states)
                 batched = True
@@ -506,8 +512,7 @@ class Recorder(object):
             batched = True
             num_instances = len(states)
             is_iter_of_dicts = True
-            input_type = type(states)
-            assert input_type in (tuple, list)
+            assert type(states) in (tuple, list)
             if num_instances == 0:
                 raise TensorforceError.value(
                     name=function_name, argument='len(states)', value=num_instances, hint='= 0'
@@ -527,11 +532,7 @@ class Recorder(object):
 
         elif isinstance(states, dict):
             # States is dict, turn into arrays
-            some_state = next(iter(states.values()))
-            input_type = type(some_state)
-
             states = ArrayDict(states)
-
             name, spec = self.states_spec.item()
             if name is None:
                 name = 'state'
@@ -542,12 +543,11 @@ class Recorder(object):
                 batched = False
                 num_instances = 1
                 is_iter_of_dicts = None
-                input_type = None
 
             else:
                 # States is batched, dict[iter[state]]
                 assert states[name].shape[1:] == spec.shape
-                assert input_type in (tuple, list, np.ndarray)
+                assert type(states[name]) in (tuple, list, np.ndarray)
                 batched = True
                 num_instances = states[name].shape[0]
                 is_iter_of_dicts = False
@@ -569,4 +569,4 @@ class Recorder(object):
                 value=[state.shape[0] for state in states.values()], hint='inconsistent'
             )
 
-        return states, batched, num_instances, is_iter_of_dicts, input_type
+        return states, batched, num_instances, is_iter_of_dicts

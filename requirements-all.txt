@@ -4,7 +4,7 @@ matplotlib >= 3.3.1
 msgpack >= 1.0.0
 msgpack-numpy >= 0.4.7.1
 numpy == 1.18.5
-tensorflow == 2.3.1
+tensorflow == 2.4.0
 tqdm >= 4.48.2
 tensorflow-addons >= 0.11.2
 hpbandster >= 0.7.4

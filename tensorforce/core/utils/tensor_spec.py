@@ -230,7 +230,7 @@ class TensorSpec(object):
 
         return value
 
-    def np_assert(self, *, x, message):
+    def np_assert(self, *, x, message, batched=False):
         if message is not None and '{name}' in message:
             message = message.format(name='', issue='{issue}')
 
@@ -240,11 +240,11 @@ class TensorSpec(object):
                 raise TensorforceError(
                     message.format(issue=('type {} != {}'.format(x.dtype, self.type)))
                 )
-            elif x.shape != self.shape:
+            elif x.shape[int(batched):] != self.shape:
                 raise TensorforceError(
                     message.format(issue=('shape {} != {}'.format(x.shape, self.shape)))
                 )
-        elif self.shape != ():
+        elif batched or self.shape != ():
             raise TensorforceError(
                 message.format(issue=('type {} != {}'.format(type(x), self.type)))
             )

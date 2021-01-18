@@ -1,0 +1,18 @@
+{
+    "agent": "tensorforce",
+    "policy": {"type": "parametrized_distributions", "network": {"type": "auto", "rnn": false}, "temperature": 1.0, "use_beta_distribution": false},
+    "memory": {"type": "recent", "capacity": null},
+    "update": {"unit": "episodes", "batch_size": 12, "frequency": 1},
+    "optimizer": {"optimizer": "adam", "learning_rate": 0.001813150053725916, "multi_step": 5, "subsampling_fraction": 0.9131375430837279},
+    "objective": {"type": "policy_gradient", "importance_sampling": true, "clipping_value": 0.09955676846552193},
+    "reward_estimation": {"horizon": "episode", "discount": 0.9985351346308641, "predict_horizon_values": "early", "estimate_advantage": true, "predict_action_values": false, "predict_terminal_values": false},
+    "baseline": {"type": "parametrized_state_value", "network": {"type": "auto", "rnn": false}},
+    "baseline_optimizer": {"optimizer": "adam", "learning_rate": 0.003670157218888348, "multi_step": 10},
+    "baseline_objective": {"type": "state_value"},
+    "l2_regularization": 0.0,
+    "entropy_regularization": 0.0011393096635237982,
+    "state_preprocessing": "linear_normalization",
+    "reward_preprocessing": null,
+    "exploration": 0.0,
+    "variable_noise": 0.0
+}

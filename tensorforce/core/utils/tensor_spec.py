@@ -234,6 +234,8 @@ class TensorSpec(object):
         if message is not None and '{name}' in message:
             message = message.format(name='', issue='{issue}')
 
+        if batched or self.shape != ():
+            x = np.asarray(x)
         if isinstance(x, np.ndarray):
             if _normalize_type(dtype=x.dtype) != self.type and \
                     (self.type != 'float' or _normalize_type(dtype=x.dtype) != 'int'):
@@ -245,9 +247,14 @@ class TensorSpec(object):
                     message.format(issue=('shape {} != {}'.format(x.shape, self.shape)))
                 )
         elif batched or self.shape != ():
-            raise TensorforceError(
-                message.format(issue=('type {} != {}'.format(type(x), self.type)))
-            )
+            if x.ndim >= 1 and batched:
+                raise TensorforceError(
+                    message.format(issue=('shape {} != {}'.format(x.shape[1:], self.shape)))
+                )
+            else:
+                raise TensorforceError(
+                    message.format(issue=('shape {} != {}'.format(x.shape, self.shape)))
+                )
         elif isinstance(x, np.generic):
             if _normalize_type(dtype=x.dtype) != self.type and \
                     (self.type != 'float' or _normalize_type(dtype=x.dtype) != 'int'):

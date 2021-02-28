@@ -44,10 +44,6 @@ class TensorSpec(object):
     def __init__(
         self, *, type, shape=(), min_value=None, max_value=None, num_values=None, overwrite=False
     ):
-        if num_values is not None and (min_value is not None or max_value is not None):
-            raise TensorforceError.invalid(
-                name='TensorSpec', argument='min/max_value', condition='num_values specified'
-            )
         super().__setattr__('overwrite', True)
         super().__setattr__('type', None)
         if isinstance(type, tf.dtypes.DType):
@@ -55,6 +51,17 @@ class TensorSpec(object):
             assert not overwrite
         self.type = type
         self.shape = shape
+        if num_values is not None and (min_value is not None or max_value is not None):
+            if self.type == 'int':
+                raise TensorforceError.invalid(
+                    name='TensorSpec', argument='min/max_value',
+                    condition='type is int and num_values specified'
+                )
+            elif self.type == 'float':
+                raise TensorforceError.invalid(
+                    name='TensorSpec', argument='num_values',
+                    condition='type is float and min/max_value specified'
+                )
         if min_value is not None:
             self.min_value = min_value
         if max_value is not None:

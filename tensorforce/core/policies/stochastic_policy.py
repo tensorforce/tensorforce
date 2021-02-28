@@ -74,7 +74,16 @@ class StochasticPolicy(Policy):
             )
 
     def input_signature(self, *, function):
-        if function == 'entropy':
+        if function == 'act_entropy':
+            return SignatureDict(
+                states=self.states_spec.signature(batched=True),
+                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
+                internals=self.internals_spec.signature(batched=True),
+                auxiliaries=self.auxiliaries_spec.signature(batched=True),
+                deterministic=TensorSpec(type='bool', shape=()).signature(batched=False)
+            )
+
+        elif function == 'entropy':
             return SignatureDict(
                 states=self.states_spec.signature(batched=True),
                 horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
@@ -138,26 +147,18 @@ class StochasticPolicy(Policy):
                 actions=self.actions_spec.signature(batched=True)
             )
 
-        elif function == 'sample':
-            if isinstance(self.temperature, dict):
-                temperature_spec = self.actions_spec.fmap(
-                    function=(lambda _: TensorSpec(type='float', shape=()))
-                )
-            else:
-                temperature_spec = TensorSpec(type='float', shape=())
-            return SignatureDict(
-                states=self.states_spec.signature(batched=True),
-                horizons=TensorSpec(type='int', shape=(2,)).signature(batched=True),
-                internals=self.internals_spec.signature(batched=True),
-                auxiliaries=self.auxiliaries_spec.signature(batched=True),
-                temperature=temperature_spec.signature(batched=False)
-            )
-
         else:
             return super().input_signature(function=function)
 
     def output_signature(self, *, function):
-        if function == 'entropy':
+        if function == 'act_entropy':
+            return SignatureDict(
+                actions=self.actions_spec.signature(batched=True),
+                internals=self.internals_spec.signature(batched=True),
+                entropy=TensorSpec(type='float', shape=()).signature(batched=True)
+            )
+
+        elif function == 'entropy':
             return SignatureDict(
                 singleton=TensorSpec(type='float', shape=()).signature(batched=True)
             )
@@ -198,55 +199,8 @@ class StochasticPolicy(Policy):
                 ), cls=SignatureDict)
             )
 
-        elif function == 'sample':
-            return SignatureDict(
-                actions=self.actions_spec.signature(batched=True),
-                internals=self.internals_spec.signature(batched=True)
-            )
-
         else:
             return super().output_signature(function=function)
-
-    @tf_function(num_args=5)
-    def act(self, *, states, horizons, internals, auxiliaries, deterministic, independent):
-        assertions = list()
-        if self.config.create_tf_assertions:
-            if not independent:
-                false = tf_util.constant(value=False, dtype='bool')
-                assertions.append(tf.debugging.assert_equal(x=deterministic, y=false))
-
-        def fn_deterministic():
-            embedding, next_internals = self.network.apply(
-                x=states, horizons=horizons, internals=internals, deterministic=deterministic,
-                independent=independent
-            )
-
-            def function(name, distribution):
-                conditions = auxiliaries.get(name, default=TensorDict())
-                parameters = distribution.parametrize(x=embedding, conditions=conditions)
-                return distribution.mode(parameters=parameters)
-
-            actions = self.distributions.fmap(function=function, cls=TensorDict, with_names=True)
-
-            return actions, next_internals
-
-        def fn_sample():
-            if isinstance(self.temperature, dict):
-                temperature = self.temperature.fmap(function=(lambda x: x.value()), cls=TensorDict)
-            else:
-                temperature = self.temperature.value()
-
-            return self.sample(
-                states=states, horizons=horizons, internals=internals, auxiliaries=auxiliaries,
-                temperature=temperature, independent=independent
-            )
-
-        with tf.control_dependencies(control_inputs=assertions):
-            if independent:
-                return tf.cond(pred=deterministic, true_fn=fn_deterministic, false_fn=fn_sample)
-            else:
-                # Always sample to record summaries
-                return fn_sample()
 
     @tf_function(num_args=5)
     def log_probability(self, *, states, horizons, internals, auxiliaries, actions):
@@ -272,6 +226,7 @@ class StochasticPolicy(Policy):
         def function(value, spec):
             return tf.reshape(tensor=value, shape=(-1, spec.size))
 
+        # See also implementation of ParametrizedDistributions.act_entropy()
         entropies = entropies.fmap(function=function, zip_values=self.actions_spec)
         entropies = tf.concat(values=tuple(entropies.values()), axis=1)
 
@@ -293,7 +248,11 @@ class StochasticPolicy(Policy):
         return tf.math.reduce_mean(input_tensor=kl_divergences, axis=1)
 
     @tf_function(num_args=5)
-    def sample(self, *, states, horizons, internals, auxiliaries, temperature, independent):
+    def act(self, *, states, horizons, internals, auxiliaries, deterministic, independent):
+        raise NotImplementedError
+
+    @tf_function(num_args=5)
+    def act_entropy(self, *, states, horizons, internals, auxiliaries, deterministic, independent):
         raise NotImplementedError
 
     @tf_function(num_args=4)

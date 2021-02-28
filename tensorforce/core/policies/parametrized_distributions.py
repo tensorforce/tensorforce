@@ -80,6 +80,7 @@ class ParametrizedDistributions(StochasticPolicy, ValuePolicy):
 
         self.distributions = ModuleDict()
         for name, spec in self.actions_spec.items():
+
             if spec.type == 'bool':
                 default_module = 'bernoulli'
             elif spec.type == 'int':
@@ -173,34 +174,124 @@ class ParametrizedDistributions(StochasticPolicy, ValuePolicy):
 
     @tf_function(num_args=5)
     def act(self, *, states, horizons, internals, auxiliaries, deterministic, independent):
-        return StochasticPolicy.act(
-            self=self, states=states, horizons=horizons, internals=internals,
-            auxiliaries=auxiliaries, deterministic=deterministic, independent=independent
-        )
+        assertions = list()
+        if self.config.create_tf_assertions:
+            if not independent:
+                false = tf_util.constant(value=False, dtype='bool')
+                assertions.append(tf.debugging.assert_equal(x=deterministic, y=false))
 
-    @tf_function(num_args=5)
-    def sample(self, *, states, horizons, internals, auxiliaries, temperature, independent):
-        deterministic = tf_util.constant(value=False, dtype='bool')
         embedding, internals = self.network.apply(
             x=states, horizons=horizons, internals=internals, deterministic=deterministic,
             independent=independent
         )
 
-        def function(name, distribution, temp):
-            conditions = auxiliaries.get(name, default=TensorDict())
-            parameters = distribution.parametrize(x=embedding, conditions=conditions)
-            return distribution.sample(parameters=parameters, temperature=temp)
+        def fn_mode():
 
-        if isinstance(self.temperature, dict):
-            actions = self.distributions.fmap(
-                function=function, cls=TensorDict, with_names=True, zip_values=(temperature,)
-            )
-        else:
-            actions = self.distributions.fmap(
-                function=partial(function, temp=temperature), cls=TensorDict, with_names=True
-            )
+            def function(name, distribution):
+                conditions = auxiliaries.get(name, default=TensorDict())
+                parameters = distribution.parametrize(x=embedding, conditions=conditions)
+                return distribution.mode(parameters=parameters, independent=independent)
 
-        return actions, internals
+            return self.distributions.fmap(function=function, cls=TensorDict, with_names=True)
+
+        def fn_sample():
+            if isinstance(self.temperature, dict):
+
+                def function(name, distribution, temp):
+                    conditions = auxiliaries.get(name, default=TensorDict())
+                    parameters = distribution.parametrize(x=embedding, conditions=conditions)
+                    return distribution.sample(
+                        parameters=parameters, temperature=temp, independent=independent
+                    )
+
+                temperature = self.temperature.fmap(function=(lambda x: x.value()), cls=TensorDict)
+                return self.distributions.fmap(
+                    function=function, cls=TensorDict, with_names=True, zip_values=(temperature,)
+                )
+
+            else:
+                temperature = self.temperature.value()
+
+                def function(name, distribution):
+                    conditions = auxiliaries.get(name, default=TensorDict())
+                    parameters = distribution.parametrize(x=embedding, conditions=conditions)
+                    return distribution.sample(
+                        parameters=parameters, temperature=temperature, independent=independent
+                    )
+
+                return self.distributions.fmap(function=function, cls=TensorDict, with_names=True)
+
+        with tf.control_dependencies(control_inputs=assertions):
+            actions = tf.cond(pred=deterministic, true_fn=fn_mode, false_fn=fn_sample)
+            return actions, internals
+
+    @tf_function(num_args=5)
+    def act_entropy(self, *, states, horizons, internals, auxiliaries, deterministic, independent):
+        assertions = list()
+        if self.config.create_tf_assertions:
+            if not independent:
+                false = tf_util.constant(value=False, dtype='bool')
+                assertions.append(tf.debugging.assert_equal(x=deterministic, y=false))
+
+        embedding, internals = self.network.apply(
+            x=states, horizons=horizons, internals=internals, deterministic=deterministic,
+            independent=independent
+        )
+
+        def fn_mode():
+
+            def function(name, distribution):
+                conditions = auxiliaries.get(name, default=TensorDict())
+                parameters = distribution.parametrize(x=embedding, conditions=conditions)
+                mode = distribution.mode(parameters=parameters, independent=independent)
+                entropy = distribution.entropy(parameters=parameters)
+                return mode, entropy
+
+            return self.distributions.fmap(function=function, cls=TensorDict, with_names=True)
+
+        def fn_sample():
+            if isinstance(self.temperature, dict):
+
+                def function(name, distribution, temp):
+                    conditions = auxiliaries.get(name, default=TensorDict())
+                    parameters = distribution.parametrize(x=embedding, conditions=conditions)
+                    sample = distribution.sample(
+                        parameters=parameters, temperature=temp, independent=independent
+                    )
+                    entropy = distribution.entropy(parameters=parameters)
+                    return sample, entropy
+
+                temperature = self.temperature.fmap(function=(lambda x: x.value()), cls=TensorDict)
+                return self.distributions.fmap(
+                    function=function, cls=TensorDict, with_names=True, zip_values=(temperature,)
+                )
+
+            else:
+                temperature = self.temperature.value()
+
+                def function(name, distribution):
+                    conditions = auxiliaries.get(name, default=TensorDict())
+                    parameters = distribution.parametrize(x=embedding, conditions=conditions)
+                    sample = distribution.sample(
+                        parameters=parameters, temperature=temperature, independent=independent
+                    )
+                    entropy = distribution.entropy(parameters=parameters)
+                    return sample, entropy
+
+                return self.distributions.fmap(function=function, cls=TensorDict, with_names=True)
+
+        with tf.control_dependencies(control_inputs=assertions):
+            actions, entropies = tf.cond(pred=deterministic, true_fn=fn_mode, false_fn=fn_sample)
+
+            def function(value, spec):
+                return tf.reshape(tensor=value, shape=(-1, spec.size))
+
+            # See also implementation of StochasticPolicy.entropy()
+            entropies = entropies.fmap(function=function, zip_values=self.actions_spec)
+            entropies = tf.concat(values=tuple(entropies.values()), axis=1)
+            entropy = tf.math.reduce_mean(input_tensor=entropies, axis=1)
+
+            return actions, internals, entropy
 
     @tf_function(num_args=5)
     def log_probabilities(self, *, states, horizons, internals, auxiliaries, actions):

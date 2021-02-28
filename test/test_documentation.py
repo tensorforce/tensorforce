@@ -205,7 +205,7 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
         # distributions
         self.unittest(
             policy=dict(distributions=dict(
-                float=dict(type='gaussian', global_stddev=True),
+                float=dict(type='gaussian', stddev_mode='global'),
                 bounded_action=dict(type='beta')
             ))
         )
@@ -318,7 +318,7 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
                     dict(type='dense', size=8, activation='tanh')
                 ],
                 distributions=dict(
-                    float=dict(type='gaussian', global_stddev=True),
+                    float=dict(type='gaussian', stddev_mode='global'),
                     bounded_action=dict(type='beta')
                 ),
                 temperature=dict(

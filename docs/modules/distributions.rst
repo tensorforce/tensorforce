@@ -8,7 +8,7 @@ Distributions are customized via the ``distributions`` argument of ``policy``, f
     Agent.create(
         ...
         policy=dict(distributions=dict(
-            float=dict(type='gaussian', global_stddev=True),
+            float=dict(type='gaussian', stddev_mode='global'),
             bounded_action=dict(type='beta')
         ))
         ...

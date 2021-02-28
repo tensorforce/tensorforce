@@ -25,7 +25,7 @@ import tensorflow as tf
 from tensorforce import util, TensorforceError
 from tensorforce.agents import Recorder
 import tensorforce.agents
-from tensorforce.core import ArrayDict, TensorDict, TensorSpec, TensorforceConfig
+from tensorforce.core import ArrayDict, TensorSpec, TensorforceConfig
 
 
 class Agent(Recorder):
@@ -36,7 +36,7 @@ class Agent(Recorder):
     @staticmethod
     def create(agent='tensorforce', environment=None, **kwargs):
         """
-        Creates an agent from a specification.
+        Create an agent from a specification.
 
         Args:
             agent (specification | Agent class/object | callable[states -> actions]): JSON file,

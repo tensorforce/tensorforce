@@ -469,9 +469,9 @@ class EnvironmentWrapper(Environment):
         if max_episode_timesteps is None:
             self._max_episode_timesteps = self._environment.max_episode_timesteps()
         else:
-            self._max_episode_timesteps = max_episode_timesteps
+            self._max_episode_timesteps = int(max_episode_timesteps)
             if self._environment.max_episode_timesteps() is None:
-                self._environment.max_episode_timesteps = (lambda: max_episode_timesteps)
+                self._environment.max_episode_timesteps = (lambda: int(max_episode_timesteps))
         self._timestep = None
         self._previous_states = None
         self._reward_shaping = reward_shaping

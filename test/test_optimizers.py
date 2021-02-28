@@ -58,14 +58,22 @@ class TestOptimizers(UnittestBase, unittest.TestCase):
 
         actions = dict(
             bool_action=dict(type='bool', shape=(1,)),
-            int_action=dict(type='int', shape=(2,), num_values=4),
+            int_action1=dict(type='int', shape=(), num_values=4),
+            int_action2=dict(type='int', shape=(2,), num_values=3),
+            int_action3=dict(type='int', shape=(2, 1), num_values=2),
             gaussian_action1=dict(type='float', shape=(1, 2), min_value=1.0, max_value=2.0),
-            gaussian_action2=dict(type='float', shape=(), min_value=-2.0, max_value=1.0)
+            gaussian_action2=dict(type='float', shape=(1,), min_value=-2.0, max_value=1.0)
         )
         # Requires same size, but can still vary RNN horizon
         baseline = dict(
             type='parametrized_distributions', network=dict(type='auto', size=8, depth=1, rnn=1),
-            distributions=dict(gaussian_action2=dict(type='gaussian', global_stddev=True))
+            distributions=dict(
+                int_action2=dict(type='categorical', temperature_mode='predicted'),
+                int_action3=dict(type='categorical', temperature_mode='global'),
+                gaussian_action2=dict(
+                    type='gaussian', stddev_mode='global', bounded_transform='clipping'
+                )
+            )
         )
         # Using policy_gradient here, since action_value is covered by DQN
         baseline_objective = 'policy_gradient'

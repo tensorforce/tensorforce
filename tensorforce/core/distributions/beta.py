@@ -49,7 +49,7 @@ class Beta(Distribution):
             parameters_spec=parameters_spec, conditions_spec=conditions_spec
         )
 
-        if len(self.input_spec.shape) == 1:
+        if self.input_spec.rank == 1:
             # Single embedding
             action_size = util.product(xs=self.action_spec.shape, empty=0)
             self.alpha = self.submodule(
@@ -63,7 +63,7 @@ class Beta(Distribution):
 
         else:
             # Embedding per action
-            if len(self.input_spec.shape) < 1 or len(self.input_spec.shape) > 3:
+            if self.input_spec.rank < 1 or self.input_spec.rank > 3:
                 raise TensorforceError.value(
                     name=name, argument='input_spec.shape', value=self.input_spec.shape,
                     hint='invalid rank'
@@ -110,7 +110,7 @@ class Beta(Distribution):
         # epsilon < 1.0, hence negative
         alpha = tf.clip_by_value(t=alpha, clip_value_min=log_epsilon, clip_value_max=-log_epsilon)
         alpha = tf.math.exp(x=alpha) + one  # tf.math.softplus(features=beta) ???
-        if len(self.input_spec.shape) == 1:
+        if self.input_spec.rank == 1:
             alpha = tf.reshape(tensor=alpha, shape=shape)
 
         # Beta
@@ -118,7 +118,7 @@ class Beta(Distribution):
         # epsilon < 1.0, hence negative
         beta = tf.clip_by_value(t=beta, clip_value_min=log_epsilon, clip_value_max=-log_epsilon)
         beta = tf.math.exp(x=beta) + one  # tf.math.softplus(features=beta) ???
-        if len(self.input_spec.shape) == 1:
+        if self.input_spec.rank == 1:
             beta = tf.reshape(tensor=beta, shape=shape)
 
         # Alpha + Beta
@@ -130,14 +130,28 @@ class Beta(Distribution):
         return TensorDict(alpha=alpha, beta=beta, alpha_beta=alpha_beta, log_norm=log_norm)
 
     @tf_function(num_args=1)
-    def mode(self, *, parameters):
+    def mode(self, *, parameters, independent):
         alpha, beta, alpha_beta = parameters.get(('alpha', 'beta', 'alpha_beta'))
+
+        # Distribution parameter summaries
+        dependencies = list()
+        if not independent:
+            def fn_summary():
+                a = tf.math.reduce_mean(input_tensor=alpha, axis=range(self.action_spec.rank + 1))
+                b = tf.math.reduce_mean(input_tensor=beta, axis=range(self.action_spec.rank + 1))
+                return a, b
+
+            prefix = 'distributions/' + self.name
+            names = (prefix + '-alpha', prefix + '-beta')
+            dependencies.extend(self.summary(
+                label='distribution', name=names, data=fn_summary, step='timesteps'
+            ))
 
         # Distribution parameter tracking
         def fn_tracking():
             return tf.math.reduce_mean(input_tensor=alpha, axis=0)
 
-        dependencies = self.track(label='distribution', name='alpha', data=fn_tracking)
+        dependencies.extend(self.track(label='distribution', name='alpha', data=fn_tracking))
 
         def fn_tracking():
             return tf.math.reduce_mean(input_tensor=beta, axis=0)
@@ -153,21 +167,24 @@ class Beta(Distribution):
             return min_value + (max_value - min_value) * action
 
     @tf_function(num_args=2)
-    def sample(self, *, parameters, temperature):
+    def sample(self, *, parameters, temperature, independent):
         alpha, beta, alpha_beta, log_norm = parameters.get(
             ('alpha', 'beta', 'alpha_beta', 'log_norm')
         )
 
         # Distribution parameter summaries
-        def fn_summary():
-            return tf.math.reduce_mean(input_tensor=alpha, axis=range(self.action_spec.rank + 1)), \
-                tf.math.reduce_mean(input_tensor=beta, axis=range(self.action_spec.rank + 1))
+        dependencies = list()
+        if not independent:
+            def fn_summary():
+                a = tf.math.reduce_mean(input_tensor=alpha, axis=range(self.action_spec.rank + 1))
+                b = tf.math.reduce_mean(input_tensor=beta, axis=range(self.action_spec.rank + 1))
+                return a, b
 
-        prefix = 'distributions/' + self.name
-        names = (prefix + '-alpha', prefix + '-beta')
-        dependencies = self.summary(
-            label='distribution', name=names, data=fn_summary, step='timesteps'
-        )
+            prefix = 'distributions/' + self.name
+            names = (prefix + '-alpha', prefix + '-beta')
+            dependencies.extend(self.summary(
+                label='distribution', name=names, data=fn_summary, step='timesteps'
+            ))
 
         # Distribution parameter tracking
         def fn_tracking():

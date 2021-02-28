@@ -22,7 +22,12 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
 
     agent = dict(
         policy=dict(network=dict(type='auto', size=8, depth=1, rnn=2), distributions=dict(
-            gaussian_action2=dict(type='gaussian', global_stddev=True), beta_action='beta'
+            int_action2=dict(type='categorical', temperature_mode='predicted'),
+            int_action3=dict(type='categorical', temperature_mode='global'),
+            gaussian_action2=dict(type='gaussian', stddev_mode='global'),
+            gaussian_action3=dict(
+                type='gaussian', stddev_mode='global', bounded_transform='clipping'
+            ), beta_action='beta'
         )), update=4, optimizer=dict(optimizer='adam', learning_rate=1e-3),
         objective='policy_gradient', reward_estimation=dict(
             horizon=3, estimate_advantage=True, predict_horizon_values='late',
@@ -32,7 +37,8 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         state_preprocessing='linear_normalization',
         reward_preprocessing=dict(type='clipping', lower=-1.0, upper=1.0),
         exploration=0.01, variable_noise=0.01,
-        config=dict(eager_mode=True, create_debug_assertions=True, tf_log_level=20)
+        config=dict(eager_mode=True, create_debug_assertions=True, tf_log_level=20),
+        tracking='all'
     )
 
     def test_no_horizon_estimate(self):
@@ -65,9 +71,11 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         # TODO: action value doesn't exist for Beta
         actions = dict(
             bool_action=dict(type='bool', shape=(1,)),
-            int_action=dict(type='int', shape=(2,), num_values=4),
+            int_action1=dict(type='int', shape=(), num_values=4),
+            int_action2=dict(type='int', shape=(2,), num_values=3),
+            int_action3=dict(type='int', shape=(2, 1), num_values=2),
             gaussian_action1=dict(type='float', shape=(1, 2), min_value=1.0, max_value=2.0),
-            gaussian_action2=dict(type='float', shape=(), min_value=-2.0, max_value=1.0)
+            gaussian_action2=dict(type='float', shape=(1,), min_value=-2.0, max_value=1.0)
         )
         reward_estimation = dict(
             horizon='episode', predict_horizon_values='early', predict_action_values=True,
@@ -81,9 +89,11 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         # TODO: action value doesn't exist for Beta
         actions = dict(
             bool_action=dict(type='bool', shape=(1,)),
-            int_action=dict(type='int', shape=(2,), num_values=4),
+            int_action1=dict(type='int', shape=(), num_values=4),
+            int_action2=dict(type='int', shape=(2,), num_values=3),
+            int_action3=dict(type='int', shape=(2, 1), num_values=2),
             gaussian_action1=dict(type='float', shape=(1, 2), min_value=1.0, max_value=2.0),
-            gaussian_action2=dict(type='float', shape=(), min_value=-2.0, max_value=1.0)
+            gaussian_action2=dict(type='float', shape=(1,), min_value=-2.0, max_value=1.0)
         )
         update = dict(unit='episodes', batch_size=1)
         reward_estimation = dict(
@@ -117,7 +127,9 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         # Action-value baseline compatible with discrete actions
         actions = dict(
             bool_action=dict(type='bool', shape=(1,)),
-            int_action=dict(type='int', shape=(2,), num_values=4)
+            int_action1=dict(type='int', shape=(), num_values=4),
+            int_action2=dict(type='int', shape=(2,), num_values=3),
+            int_action3=dict(type='int', shape=(2, 1), num_values=2)
         )
         reward_estimation = dict(
             horizon=3, predict_horizon_values='early', predict_action_values=True,
@@ -137,9 +149,11 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         # TODO: action value doesn't exist for Beta
         actions = dict(
             bool_action=dict(type='bool', shape=(1,)),
-            int_action=dict(type='int', shape=(2,), num_values=4),
+            int_action1=dict(type='int', shape=(), num_values=4),
+            int_action2=dict(type='int', shape=(2,), num_values=3),
+            int_action3=dict(type='int', shape=(2, 1), num_values=2),
             gaussian_action1=dict(type='float', shape=(1, 2), min_value=1.0, max_value=2.0),
-            gaussian_action2=dict(type='float', shape=(), min_value=-2.0, max_value=1.0)
+            gaussian_action2=dict(type='float', shape=(1,), min_value=-2.0, max_value=1.0)
         )
         reward_estimation = dict(
             horizon=3, predict_horizon_values='late', return_processing='batch_normalization'
@@ -155,7 +169,9 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         # Action-value baseline compatible with discrete actions
         actions = dict(
             bool_action=dict(type='bool', shape=(1,)),
-            int_action=dict(type='int', shape=(2,), num_values=4)
+            int_action1=dict(type='int', shape=(), num_values=4),
+            int_action2=dict(type='int', shape=(2,), num_values=3),
+            int_action3=dict(type='int', shape=(2, 1), num_values=2)
         )
         reward_estimation = dict(
             horizon=3, predict_horizon_values='late', predict_action_values=True,
@@ -173,9 +189,11 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         # TODO: state value doesn't exist for Beta
         actions = dict(
             bool_action=dict(type='bool', shape=(1,)),
-            int_action=dict(type='int', shape=(2,), num_values=4),
+            int_action1=dict(type='int', shape=(), num_values=4),
+            int_action2=dict(type='int', shape=(2,), num_values=3),
+            int_action3=dict(type='int', shape=(2, 1), num_values=2),
             gaussian_action1=dict(type='float', shape=(1, 2), min_value=1.0, max_value=2.0),
-            gaussian_action2=dict(type='float', shape=(), min_value=-2.0, max_value=1.0)
+            gaussian_action2=dict(type='float', shape=(1,), min_value=-2.0, max_value=1.0)
         )
         reward_estimation = dict(
             horizon=3, predict_horizon_values='late', predict_terminal_values=True,
@@ -221,9 +239,11 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         # TODO: action value doesn't exist for Beta
         actions = dict(
             bool_action=dict(type='bool', shape=(1,)),
-            int_action=dict(type='int', shape=(2,), num_values=4),
+            int_action1=dict(type='int', shape=(), num_values=4),
+            int_action2=dict(type='int', shape=(2,), num_values=3),
+            int_action3=dict(type='int', shape=(2, 1), num_values=2),
             gaussian_action1=dict(type='float', shape=(1, 2), min_value=1.0, max_value=2.0),
-            gaussian_action2=dict(type='float', shape=(), min_value=-2.0, max_value=1.0)
+            gaussian_action2=dict(type='float', shape=(1,), min_value=-2.0, max_value=1.0)
         )
         reward_estimation = dict(
             horizon='episode', estimate_advantage=True, predict_horizon_values='early',

@@ -45,7 +45,10 @@ class TensorforceModel(Model):
             summarizer=summarizer, tracking=tracking
         )
 
-        self.max_episode_timesteps = max_episode_timesteps
+        if max_episode_timesteps is None:
+            self.max_episode_timesteps = None
+        else:
+            self.max_episode_timesteps = int(max_episode_timesteps)
 
         # State preprocessing
         self.processed_states_spec = TensorsSpec()

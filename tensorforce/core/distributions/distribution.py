@@ -128,11 +128,11 @@ class Distribution(Module):
         raise NotImplementedError
 
     @tf_function(num_args=1)
-    def mode(self, *, parameters):
+    def mode(self, *, parameters, independent):
         raise NotImplementedError
 
     @tf_function(num_args=2)
-    def sample(self, *, parameters, temperature):
+    def sample(self, *, parameters, temperature, independent):
         raise NotImplementedError
 
     @tf_function(num_args=2)

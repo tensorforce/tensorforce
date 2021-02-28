@@ -27,9 +27,10 @@ class Gaussian(Distribution):
     Gaussian distribution, for continuous actions (specification key: `gaussian`).
 
     Args:
-        global_stddev (bool): Whether to use a separate set of trainable weights to parametrize
-            standard deviation, instead of a state-dependent linear transformation
-            (<span style="color:#00C000"><b>default</b></span>: false).
+        stddev_mode ("predicted" | "global"): Whether to predict the standard deviation via a linear
+            transformation of the state embedding, or to parametrize the standard deviation by a
+            separate set of trainable weights
+            (<span style="color:#00C000"><b>default</b></span>: "predicted").
         bounded_transform ("clipping" | "tanh"): Transformation to adjust sampled actions in case of
             bounded action space
             (<span style="color:#00C000"><b>default</b></span>: tanh).
@@ -39,7 +40,7 @@ class Gaussian(Distribution):
     """
 
     def __init__(
-        self, *, global_stddev=False, bounded_transform='tanh', name=None, action_spec=None,
+        self, *, stddev_mode='predicted', bounded_transform='tanh', name=None, action_spec=None,
         input_spec=None
     ):
         assert action_spec.type == 'float'
@@ -56,10 +57,7 @@ class Gaussian(Distribution):
             parameters_spec=parameters_spec, conditions_spec=conditions_spec
         )
 
-        if global_stddev is None:
-            self.global_stddev = False
-        else:
-            self.global_stddev = global_stddev
+        self.stddev_mode = stddev_mode
 
         if bounded_transform is None:
             bounded_transform = 'tanh'
@@ -79,22 +77,22 @@ class Gaussian(Distribution):
             bounded_transform = None
         self.bounded_transform = bounded_transform
 
-        if len(self.input_spec.shape) == 1:
+        if self.input_spec.rank == 1:
             # Single embedding
-            action_size = util.product(xs=self.action_spec.shape, empty=0)
             self.mean = self.submodule(
-                name='mean', module='linear', modules=layer_modules, size=action_size,
+                name='mean', module='linear', modules=layer_modules, size=self.action_spec.size,
                 initialization_scale=0.01, input_spec=self.input_spec
             )
-            if not self.global_stddev:
-                self.log_stddev = self.submodule(
-                    name='log_stddev', module='linear', modules=layer_modules, size=action_size,
-                    initialization_scale=0.01, input_spec=self.input_spec
+            if self.stddev_mode == 'predicted':
+                self.softplus_stddev = self.submodule(
+                    name='softplus_stddev', module='linear', modules=layer_modules,
+                    size=self.action_spec.size, initialization_scale=0.01,
+                    input_spec=self.input_spec
                 )
 
         else:
             # Embedding per action
-            if len(self.input_spec.shape) < 1 or len(self.input_spec.shape) > 3:
+            if self.input_spec.rank < 1 or self.input_spec.rank > 3:
                 raise TensorforceError.value(
                     name=name, argument='input_spec.shape', value=self.embedding_shape,
                     hint='invalid rank'
@@ -112,19 +110,20 @@ class Gaussian(Distribution):
                 name='mean', module='linear', modules=layer_modules, size=size,
                 initialization_scale=0.01, input_spec=self.input_spec
             )
-            if not self.global_stddev:
-                self.log_stddev = self.submodule(
-                    name='log_stddev', module='linear', modules=layer_modules, size=size,
+            if self.stddev_mode == 'predicted':
+                self.softplus_stddev = self.submodule(
+                    name='softplus_stddev', module='linear', modules=layer_modules, size=size,
                     initialization_scale=0.01, input_spec=self.input_spec
                 )
 
     def initialize(self):
         super().initialize()
 
-        if self.global_stddev:
+        if self.stddev_mode == 'global':
             spec = TensorSpec(type='float', shape=((1,) + self.action_spec.shape))
-            self.log_stddev = self.variable(
-                name='log_stddev', spec=spec, initializer='zeros', is_trainable=True, is_saved=True
+            self.softplus_stddev = self.variable(
+                name='softplus_stddev', spec=spec, initializer='zeros', is_trainable=True,
+                is_saved=True
             )
 
         prefix = 'distributions/' + self.name
@@ -137,46 +136,71 @@ class Gaussian(Distribution):
 
     @tf_function(num_args=2)
     def parametrize(self, *, x, conditions):
+        epsilon = tf_util.constant(value=util.epsilon, dtype='float')
         log_epsilon = tf_util.constant(value=np.log(util.epsilon), dtype='float')
-        shape = (-1,) + self.action_spec.shape
 
         # Mean
         mean = self.mean.apply(x=x)
-        if len(self.input_spec.shape) == 1:
+        if self.input_spec.rank == 1:
+            shape = (-1,) + self.action_spec.shape
             mean = tf.reshape(tensor=mean, shape=shape)
 
-        # Log standard deviation
-        if self.global_stddev:
+        # Softplus standard deviation
+        if self.stddev_mode == 'global':
             multiples = (tf.shape(input=x)[0],) + tuple(1 for _ in range(self.action_spec.rank))
-            log_stddev = tf.tile(input=self.log_stddev, multiples=multiples)
+            softplus_stddev = tf.tile(input=self.softplus_stddev, multiples=multiples)
         else:
-            log_stddev = self.log_stddev.apply(x=x)
-            if len(self.input_spec.shape) == 1:
-                log_stddev = tf.reshape(tensor=log_stddev, shape=shape)
+            softplus_stddev = self.softplus_stddev.apply(x=x)
+            if self.input_spec.rank == 1:
+                softplus_stddev = tf.reshape(tensor=softplus_stddev, shape=shape)
 
-        # Shift log stddev to reduce zero value (TODO: 0.1 random choice)
-        if self.action_spec.min_value is not None and self.action_spec.max_value is not None:
-            log_stddev += tf_util.constant(value=np.log(0.1), dtype='float')
+        # # Shift softplus_stddev to reduce zero value to 0.25 (TODO: 0.25 random choice)
+        # if self.action_spec.min_value is not None and self.action_spec.max_value is not None:
+        #     softplus_stddev += tf_util.constant(value=np.log(0.25), dtype='float')
 
-        # Clip log_stddev for numerical stability (epsilon < 1.0, hence negative)
-        log_stddev = tf.clip_by_value(
-            t=log_stddev, clip_value_min=log_epsilon, clip_value_max=-log_epsilon
+        # Clip softplus_stddev for numerical stability (epsilon < 1.0, hence negative)
+        softplus_stddev = tf.clip_by_value(
+            t=softplus_stddev, clip_value_min=log_epsilon, clip_value_max=-log_epsilon
         )
 
-        # Standard deviation
-        stddev = tf.math.exp(x=log_stddev)
+        # Softplus transformation (based on https://arxiv.org/abs/2007.06059)
+        softplus_shift = tf_util.constant(value=0.2, dtype='float')
+        log_two = tf_util.constant(value=np.log(2.0), dtype='float')
+        stddev = (tf.nn.softplus(features=softplus_stddev) + softplus_shift) / \
+            (log_two + softplus_shift)
+
+        # Divide stddev to reduce zero value to 0.25 (TODO: 0.25 random choice)
+        if self.action_spec.min_value is not None and self.action_spec.max_value is not None:
+            stddev *= tf_util.constant(value=0.25, dtype='float')
+
+        # Log stddev
+        log_stddev = tf.math.log(x=tf.maximum(x=stddev, y=epsilon))
 
         return TensorDict(mean=mean, stddev=stddev, log_stddev=log_stddev)
 
     @tf_function(num_args=1)
-    def mode(self, *, parameters):
+    def mode(self, *, parameters, independent):
         mean, stddev = parameters.get(('mean', 'stddev'))
+
+        # Distribution parameter summaries and tracking
+        dependencies = list()
+        if not independent:
+            def fn_summary():
+                m = tf.math.reduce_mean(input_tensor=mean, axis=range(self.action_spec.rank + 1))
+                s = tf.math.reduce_mean(input_tensor=stddev, axis=range(self.action_spec.rank + 1))
+                return m, s
+
+            prefix = 'distributions/' + self.name
+            names = (prefix + '-mean', prefix + '-stddev')
+            dependencies.extend(self.summary(
+                label='distribution', name=names, data=fn_summary, step='timesteps'
+            ))
 
         # Distribution parameter tracking
         def fn_tracking():
             return tf.math.reduce_mean(input_tensor=mean, axis=0)
 
-        dependencies = self.track(label='distribution', name='mean', data=fn_tracking)
+        dependencies.extend(self.track(label='distribution', name='mean', data=fn_tracking))
 
         def fn_tracking():
             return tf.math.reduce_mean(input_tensor=stddev, axis=0)
@@ -210,19 +234,22 @@ class Gaussian(Distribution):
         return action
 
     @tf_function(num_args=2)
-    def sample(self, *, parameters, temperature):
-        mean, stddev, log_stddev = parameters.get(('mean', 'stddev', 'log_stddev'))
+    def sample(self, *, parameters, temperature, independent):
+        mean, stddev = parameters.get(('mean', 'stddev'))
 
         # Distribution parameter summaries and tracking
-        def fn_summary():
-            return tf.math.reduce_mean(input_tensor=mean, axis=range(self.action_spec.rank + 1)), \
-                tf.math.reduce_mean(input_tensor=stddev, axis=range(self.action_spec.rank + 1))
+        dependencies = list()
+        if not independent:
+            def fn_summary():
+                m = tf.math.reduce_mean(input_tensor=mean, axis=range(self.action_spec.rank + 1))
+                s = tf.math.reduce_mean(input_tensor=stddev, axis=range(self.action_spec.rank + 1))
+                return m, s
 
-        prefix = 'distributions/' + self.name
-        names = (prefix + '-mean', prefix + '-stddev')
-        dependencies = self.summary(
-            label='distribution', name=names, data=fn_summary, step='timesteps'
-        )
+            prefix = 'distributions/' + self.name
+            names = (prefix + '-mean', prefix + '-stddev')
+            dependencies.extend(self.summary(
+                label='distribution', name=names, data=fn_summary, step='timesteps'
+            ))
 
         # Distribution parameter tracking
         def fn_tracking():

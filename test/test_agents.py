@@ -20,7 +20,7 @@ from test.unittest_base import UnittestBase
 
 class TestAgents(UnittestBase, unittest.TestCase):
 
-    agent = dict(config=dict(eager_mode=True, create_debug_assertions=True, tf_log_level=20))
+    agent = dict(config=dict(eager_mode=False, create_debug_assertions=True, tf_log_level=20))
 
     def test_a2c(self):
         self.start_tests(name='A2C')
@@ -46,7 +46,7 @@ class TestAgents(UnittestBase, unittest.TestCase):
         self.start_tests(name='DPG')
         actions = dict(
             gaussian_action1=dict(type='float', shape=(1, 2), min_value=1.0, max_value=2.0),
-            gaussian_action2=dict(type='float', shape=(), min_value=-2.0, max_value=1.0)
+            gaussian_action2=dict(type='float', shape=(1,), min_value=-2.0, max_value=1.0)
         )
         self.unittest(
             actions=actions, agent='dpg', memory=100, batch_size=4,

@@ -47,7 +47,7 @@ class Bernoulli(Distribution):
             parameters_spec=parameters_spec, conditions_spec=conditions_spec
         )
 
-        if len(self.input_spec.shape) == 1:
+        if self.input_spec.rank == 1:
             # Single embedding
             action_size = util.product(xs=self.action_spec.shape, empty=0)
             self.logit = self.submodule(
@@ -57,7 +57,7 @@ class Bernoulli(Distribution):
 
         else:
             # Embedding per action
-            if len(self.input_spec.shape) < 1 or len(self.input_spec.shape) > 3:
+            if self.input_spec.rank < 1 or self.input_spec.rank > 3:
                 raise TensorforceError.value(
                     name=name, argument='input_spec.shape', value=self.input_spec.shape,
                     hint='invalid rank'
@@ -93,7 +93,7 @@ class Bernoulli(Distribution):
 
         # Logit
         logit = self.logit.apply(x=x)
-        if len(self.input_spec.shape) == 1:
+        if self.input_spec.rank == 1:
             logit = tf.reshape(tensor=logit, shape=shape)
 
         # States value
@@ -117,33 +117,47 @@ class Bernoulli(Distribution):
         )
 
     @tf_function(num_args=1)
-    def mode(self, *, parameters):
+    def mode(self, *, parameters, independent):
         probability = parameters['probability']
+
+        # Distribution parameter summaries
+        dependencies = list()
+        if not independent:
+            def fn_summary():
+                axis = range(self.action_spec.rank + 1)
+                return tf.math.reduce_mean(input_tensor=probability, axis=axis)
+
+            name = 'distributions/' + self.name + '-probability'
+            dependencies.extend(self.summary(
+                label='distribution', name=name, data=fn_summary, step='timesteps'
+            ))
 
         # Distribution parameter tracking
         def fn_tracking():
             return tf.math.reduce_mean(input_tensor=probability, axis=0)
 
-        dependencies = self.track(label='distribution', name='probability', data=fn_tracking)
+        dependencies.extend(self.track(label='distribution', name='probability', data=fn_tracking))
 
         with tf.control_dependencies(control_inputs=dependencies):
             return tf.greater_equal(x=probability, y=tf_util.constant(value=0.5, dtype='float'))
 
     @tf_function(num_args=2)
-    def sample(self, *, parameters, temperature):
+    def sample(self, *, parameters, temperature, independent):
         true_logit, false_logit, probability = parameters.get(
             ('true_logit', 'false_logit', 'probability')
         )
 
         # Distribution parameter summaries
-        def fn_summary():
-            axis = range(self.action_spec.rank + 1)
-            return tf.math.reduce_mean(input_tensor=probability, axis=axis)
+        dependencies = list()
+        if not independent:
+            def fn_summary():
+                axis = range(self.action_spec.rank + 1)
+                return tf.math.reduce_mean(input_tensor=probability, axis=axis)
 
-        name = 'distributions/' + self.name + '-probability'
-        dependencies = self.summary(
-            label='distribution', name=name, data=fn_summary, step='timesteps'
-        )
+            name = 'distributions/' + self.name + '-probability'
+            dependencies.extend(self.summary(
+                label='distribution', name=name, data=fn_summary, step='timesteps'
+            ))
 
         # Distribution parameter tracking
         def fn_tracking():

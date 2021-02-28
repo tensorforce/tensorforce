@@ -301,38 +301,38 @@ class OpenAIGym(Environment):
 
             if (space.low == space.low.item(0)).all():
                 _min_value = float(space.low.item(0))
-                if _min_value > -10e7:
+                if _min_value > -1e6:
                     spec['min_value'] = _min_value
                 else:
                     spec['min_value'] = min_value
             elif allow_infinite_box_bounds:
-                _min_value = np.where(space.low <= -10e7, -np.inf, space.low)
+                _min_value = np.where(space.low <= -1e6, -np.inf, space.low)
                 spec['min_value'] = _min_value.astype(util.np_dtype(dtype='float'))
-            elif (space.low > -10e7).all():
+            elif (space.low > -1e6).all():
                 spec['min_value'] = space.low.astype(util.np_dtype(dtype='float'))
             elif min_value is None:
                 raise TensorforceError("Invalid infinite box bounds")
             else:
-                _min_value = np.where(space.low <= -10e7, min_value, space.low)
+                _min_value = np.where(space.low <= -1e6, min_value, space.low)
                 spec['min_value'] = _min_value.astype(util.np_dtype(dtype='float'))
 
             if spec is None:
                 pass
             elif (space.high == space.high.item(0)).all():
                 _max_value = float(space.high.item(0))
-                if _max_value < 10e7:
+                if _max_value < 1e6:
                     spec['max_value'] = _max_value
                 else:
                     spec['max_value'] = max_value
             elif allow_infinite_box_bounds:
-                _max_value = np.where(space.high >= 10e7, np.inf, space.high)
+                _max_value = np.where(space.high >= 1e6, np.inf, space.high)
                 spec['max_value'] = _max_value.astype(util.np_dtype(dtype='float'))
-            elif (space.high < 10e7).all():
+            elif (space.high < 1e6).all():
                 spec['max_value'] = space.high.astype(util.np_dtype(dtype='float'))
             elif max_value is None:
                 raise TensorforceError("OpenAIGym: Invalid infinite box bounds")
             else:
-                _max_value = np.where(space.high >= 10e7, max_value, space.high)
+                _max_value = np.where(space.high >= 1e6, max_value, space.high)
                 spec['max_value'] = _max_value.astype(util.np_dtype(dtype='float'))
 
             if spec is None:
@@ -342,9 +342,9 @@ class OpenAIGym(Environment):
                 shape = '_'.join(str(x) for x in space.low.shape)
                 for n in range(low.shape[0]):
                     spec = dict(type='float', shape=())
-                    if low[n] > -10e7:
+                    if low[n] > -1e6:
                         spec['min_value'] = float(low[n])
-                    if high[n] < 10e7:
+                    if high[n] < 1e6:
                         spec['max_value'] = float(high[n])
                     specs['gymbox{}_{}'.format(n, shape)] = spec
                 return specs

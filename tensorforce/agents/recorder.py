@@ -57,7 +57,10 @@ class Recorder(object):
             self.actions_spec = TensorsSpec(actions)
 
         # Max episode timesteps
-        self.max_episode_timesteps = max_episode_timesteps
+        if max_episode_timesteps is None:
+            self.max_episode_timesteps = None
+        else:
+            self.max_episode_timesteps = int(max_episode_timesteps)
 
         # Parallel interactions
         if isinstance(parallel_interactions, int):

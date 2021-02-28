@@ -39,7 +39,7 @@ Example of a full parametrized-distributions policy specification with customize
                 dict(type='dense', size=64, activation='tanh')
             ],
             distributions=dict(
-                float=dict(type='gaussian', global_stddev=True),
+                float=dict(type='gaussian', stddev_mode='global'),
                 bounded_action=dict(type='beta')
             ),
             temperature=dict(

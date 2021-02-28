@@ -33,10 +33,14 @@ class UnittestBase(object):
         float_state=dict(type='float', shape=(), min_value=1.0, max_value=2.0)
     )
     actions = dict(
+        # Also in: test_agents, test_layers, test_objectives, test_optimizers,
+        # test_reward_estimation, test_seed
         bool_action=dict(type='bool', shape=(1,)),
-        int_action=dict(type='int', shape=(2,), num_values=4),
+        int_action1=dict(type='int', shape=(), num_values=4),
+        int_action2=dict(type='int', shape=(2,), num_values=3),
+        int_action3=dict(type='int', shape=(2, 1), num_values=3),
         gaussian_action1=dict(type='float', shape=(1, 2), min_value=1.0, max_value=2.0),
-        gaussian_action2=dict(type='float', shape=(), min_value=-2.0, max_value=1.0),
+        gaussian_action2=dict(type='float', shape=(1,), min_value=-2.0, max_value=1.0),
         beta_action=dict(type='float', shape=(), min_value=1.0, max_value=2.0)
     )
     min_timesteps = 5
@@ -45,9 +49,14 @@ class UnittestBase(object):
 
     # Agent
     agent = dict(
-        # Also used in: text_reward_estimation
+        # Also in: test_reward_estimation
         policy=dict(network=dict(type='auto', size=8, depth=1, rnn=2), distributions=dict(
-            gaussian_action2=dict(type='gaussian', global_stddev=True), beta_action='beta'
+            # As part of baseline also in: test_optimizers
+            int_action2=dict(type='categorical', temperature_mode='predicted'),
+            int_action3=dict(type='categorical', temperature_mode='global'),
+            gaussian_action2=dict(
+                type='gaussian', stddev_mode='global', bounded_transform='clipping'
+            ), beta_action='beta'
         )), update=4, optimizer=dict(optimizer='adam', learning_rate=1e-3),
         objective='policy_gradient', reward_estimation=dict(
             horizon=3, estimate_advantage=True, predict_horizon_values='late',

@@ -48,6 +48,20 @@ class Optimizer(Module):
 
         self.is_initialized_given_variables = True
 
+        if self.config.create_debug_assertions:
+            self.is_initialized = False
+            for variable in variables:
+                self.zero_check_history = self.variable(
+                    name='zero_check_history',
+                    spec=TensorSpec(type='bool', shape=(3, len(variables))),
+                    initializer='zeros', is_trainable=False, is_saved=False
+                )
+                self.zero_check_index = self.variable(
+                    name='zero_check_index', spec=TensorSpec(type='int', shape=()),
+                    initializer='zeros', is_trainable=False, is_saved=False
+                )
+            self.is_initialized = True
+
     def input_signature(self, *, function):
         if function == 'step' or function == 'update':
             return SignatureDict(arguments=self.arguments_spec.signature(batched=True))
@@ -80,7 +94,7 @@ class Optimizer(Module):
 
         deltas = self.step(arguments=arguments, variables=variables, **kwargs)
 
-        assertions = list(deltas)
+        operations = list(deltas)
         if self.config.create_debug_assertions:
             from tensorforce.core.optimizers import DoublecheckStep, NaturalGradient, \
                 Synchronization, UpdateModifier
@@ -92,24 +106,40 @@ class Optimizer(Module):
             if not isinstance(optimizer, DoublecheckStep) and (
                 not isinstance(optimizer, NaturalGradient) or not optimizer.only_positive_updates
             ) and (not isinstance(self, Synchronization) or self.sync_frequency is None):
-                for delta, variable in zip(deltas, variables):
+                false = tf_util.constant(value=False, dtype='bool')
+                zero = tf_util.constant(value=0, dtype='int')
+                one = tf_util.constant(value=1, dtype='int')
+                zero_float = tf_util.constant(value=0.0, dtype='float')
+                for index, (delta, variable) in enumerate(zip(deltas, variables)):
                     if '_distribution/mean/linear/' in variable.name:
                         # Gaussian.state_value does not use mean
                         continue
-                    # if variable.name.endswith('/bias:0') and isinstance(self, Synchronization) \
-                    #         and self.root.updates.numpy() == 0:
-                    #     # Initialization values are equivalent for bias
-                    #     continue
-                    assertions.append(tf.debugging.assert_equal(x=tf.math.logical_or(
-                        x=tf.math.reduce_all(input_tensor=tf.math.greater(
-                            x=tf.math.count_nonzero(input=delta, dtype=tf_util.get_dtype(type='int')),
-                            y=tf_util.constant(value=0, dtype='int')
-                        )), y=tf.reduce_all(input_tensor=tf.math.equal(
-                            x=arguments['reward'], y=tf_util.constant(value=0.0, dtype='float')
-                        ))), y=tf_util.constant(value=True, dtype='bool'), message=variable.name
+                    is_zero = tf.math.logical_and(
+                        x=tf.math.equal(x=tf.math.count_nonzero(
+                            input=delta, dtype=tf_util.get_dtype(type='int')
+                        ), y=zero),
+                        y=tf.reduce_any(input_tensor=tf.math.not_equal(
+                            x=arguments['reward'], y=zero_float
+                        ))
+                    )
+                    index = tf_util.constant(value=index, dtype='int', shape=(1,))
+                    index = tf.stack(values=(
+                        tf.expand_dims(input=self.zero_check_index, axis=0), index
+                    ), axis=1)
+                    operations.append(tf.tensor_scatter_nd_update(
+                        tensor=self.zero_check_history, indices=index,
+                        updates=tf.expand_dims(input=is_zero, axis=0)
                     ))
 
-        with tf.control_dependencies(control_inputs=assertions):
+                operations.append(tf.debugging.assert_equal(
+                    x=tf.math.reduce_any(input_tensor=tf.math.reduce_all(
+                        input_tensor=self.zero_check_history, axis=1
+                    ), axis=0), y=false
+                ))
+                with tf.control_dependencies(control_inputs=operations):
+                    operations = [self.zero_check_index.assign(value=tf.math.mod(x=one, y=3))]
+
+        with tf.control_dependencies(control_inputs=operations):
             dependencies = list()
 
             if self.root.summaries == 'all' or 'update-norm' in self.root.summaries:

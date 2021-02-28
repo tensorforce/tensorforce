@@ -11,6 +11,10 @@ This file records all major updates and new features, starting from version 0.5.
 - New options `"early"` and `"late"` for value `estimate_advantage` of Tensorforce agent argument `reward_estimation`
 - Changed default value for `Agent.act()` argument `deterministic` from `False` to `True`
 
+##### Distributions:
+- Changed `Gaussian` distribution argument `global_stddev=False` to `stddev_mode='predicted'`
+- New `Categorical` distribution argument `temperature_mode=None`
+
 ##### Layers:
 - New option for `Function` layer argument `function` to pass string function expression with argument "x", e.g. "(x+1.0)/2.0"
 

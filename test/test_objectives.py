@@ -25,12 +25,12 @@ class TestObjectives(UnittestBase, unittest.TestCase):
 
         actions = dict(
             gaussian_action1=dict(type='float', shape=(1, 2), min_value=1.0, max_value=2.0),
-            gaussian_action2=dict(type='float', shape=(), min_value=-2.0, max_value=1.0),
+            gaussian_action2=dict(type='float', shape=(1,), min_value=-2.0, max_value=1.0),
             beta_action=dict(type='float', shape=(), min_value=1.0, max_value=2.0)
         )
         # TODO: no-RNN restriction can be removed
         policy = dict(network=dict(type='auto', size=8, depth=1, rnn=False), distributions=dict(
-            gaussian_action2=dict(type='gaussian', global_stddev=True), beta_action='beta'
+            gaussian_action2=dict(type='gaussian', stddev_mode='global'), beta_action='beta'
         ))
         objective = 'deterministic_policy_gradient'
         reward_estimation = dict(
@@ -52,9 +52,11 @@ class TestObjectives(UnittestBase, unittest.TestCase):
 
         actions = dict(
             bool_action=dict(type='bool', shape=(1,)),
-            int_action=dict(type='int', shape=(2,), num_values=4),
+            int_action1=dict(type='int', shape=(), num_values=4),
+            int_action2=dict(type='int', shape=(2,), num_values=3),
+            int_action3=dict(type='int', shape=(2, 1), num_values=2),
             gaussian_action1=dict(type='float', shape=(1, 2), min_value=1.0, max_value=2.0),
-            gaussian_action2=dict(type='float', shape=(), min_value=-2.0, max_value=1.0)
+            gaussian_action2=dict(type='float', shape=(1,), min_value=-2.0, max_value=1.0)
         )
         objective = dict(type='plus', objective1='policy_gradient', objective2='action_value')
         self.unittest(actions=actions, objective=objective)
@@ -82,7 +84,9 @@ class TestObjectives(UnittestBase, unittest.TestCase):
 
         actions = dict(
             bool_action=dict(type='bool', shape=(1,)),
-            int_action=dict(type='int', shape=(2,), num_values=4)
+            int_action1=dict(type='int', shape=(), num_values=4),
+            int_action2=dict(type='int', shape=(2,), num_values=3),
+            int_action3=dict(type='int', shape=(2, 1), num_values=2)
         )
 
         # State value does not affect advantage variables of main policy

@@ -23,15 +23,21 @@ from test.unittest_base import UnittestBase
 class TestSummaries(UnittestBase, unittest.TestCase):
 
     tracked_tensors = frozenset([
+        'agent/policy/bool_action_distribution/probability',
+        'agent/policy/int_action1_distribution/probabilities',
+        'agent/policy/int_action2_distribution/probabilities',
+        'agent/policy/int_action2_distribution/temperature',
+        'agent/policy/int_action3_distribution/probabilities',
+        'agent/policy/int_action3_distribution/temperature',
         'agent/policy/gaussian_action1_distribution/mean',
         'agent/policy/gaussian_action1_distribution/stddev',
         'agent/policy/gaussian_action2_distribution/mean',
-        'agent/policy/int_action_distribution/probabilities',
-        'agent/policy/bool_action_distribution/probability',
         'agent/policy/gaussian_action2_distribution/stddev',
-        'agent/policy/beta_action_distribution/beta',
-        'agent/policy/beta_action_distribution/alpha'
+        'agent/policy/beta_action_distribution/alpha',
+        'agent/policy/beta_action_distribution/beta'
     ])
+
+
 
     def test_summaries(self):
         # FEATURES.MD

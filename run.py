@@ -232,13 +232,25 @@ def main():
             sns.set()
 
         xs = np.arange(len(rewards))
+        figure, axis1 = plt.subplots()
+        axis1.set_xlabel('episodes')
+        axis2 = axis1.twinx()
+
+        min_timesteps = np.amin(timesteps, axis=1)
+        max_timesteps = np.amax(timesteps, axis=1)
+        median_timesteps = np.median(timesteps, axis=1)
+        axis2.plot(xs, median_timesteps, color='blue', linewidth=2.0)
+        axis2.fill_between(xs, min_timesteps, max_timesteps, color='blue', alpha=0.4)
+        axis2.set_ylabel('episode length', color='blue')
+
         min_rewards = np.amin(rewards, axis=1)
         max_rewards = np.amax(rewards, axis=1)
         median_rewards = np.median(rewards, axis=1)
-        plt.plot(xs, median_rewards, color='green', linewidth=2.0)
-        plt.fill_between(xs, min_rewards, max_rewards, color='green', alpha=0.4)
-        plt.xlabel('episodes')
-        plt.ylabel('reward')
+        axis1.plot(xs, median_rewards, color='green', linewidth=2.0)
+        axis1.fill_between(xs, min_rewards, max_rewards, color='green', alpha=0.4)
+        axis1.set_ylabel('episode return', color='green')
+
+        figure.tight_layout()
         plt.savefig(fname=(args.path + '.png'))
 
 

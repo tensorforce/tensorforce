@@ -236,7 +236,11 @@ class TestSaving(UnittestBase, unittest.TestCase):
             terminal = False
             while not terminal:
                 states = dict(states)
-                auxiliaries = dict(int_action=dict(mask=batch(states.pop('int_action_mask'))))
+                auxiliaries = dict(
+                    int_action1=dict(mask=batch(states.pop('int_action1_mask'))),
+                    int_action2=dict(mask=batch(states.pop('int_action2_mask'))),
+                    int_action3=dict(mask=batch(states.pop('int_action3_mask')))
+                )
                 states = recursive_map(batch, states)
                 actions_internals = agent.act(states, internals, auxiliaries, False)
                 actions = actions_internals['actions']

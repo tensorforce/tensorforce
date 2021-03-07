@@ -4,7 +4,7 @@ matplotlib >= 3.3.4
 msgpack >= 1.0.2
 msgpack-numpy >= 0.4.7.1
 numpy == 1.19.5
-pytest >= 6.2.2
+Pillow == 7.2.0
 tensorflow == 2.4.1
 tqdm >= 4.56.0
 tensorflow-addons >= 0.12.1
@@ -18,3 +18,4 @@ m2r >= 0.2.1
 recommonmark >= 0.6.0
 sphinx >= 3.4.3
 sphinx-rtd-theme >= 0.5.1
+pytest >= 6.2.2

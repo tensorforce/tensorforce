@@ -41,7 +41,8 @@ class Runner(object):
             environment default if defined
             (<span style="color:#00C000"><b>default</b></span>: environment default, invalid for
             "socket-client" remote mode).
-        num_parallel (int >= 2): Number of environment instances to execute in parallel
+        num_parallel (int >= 2): Number of environment instances to execute in parallel, usually
+            requires argument `remote` to be specified for proper parallel execution
             (<span style="color:#00C000"><b>default</b></span>: no parallel execution, implicitly
             specified by `environments`).
         environments (list[specification | Environment object]): Environment specifications or

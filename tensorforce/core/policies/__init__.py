@@ -14,6 +14,7 @@
 # ==============================================================================
 
 from tensorforce.core.policies.base_policy import BasePolicy
+from tensorforce.core.policies.parametrized_policy import ParametrizedPolicy
 
 from tensorforce.core.policies.action_value import ActionValue
 from tensorforce.core.policies.policy import Policy
@@ -37,7 +38,7 @@ policy_modules = dict(
 
 
 __all__ = [
-    'ActionValue', 'BasePolicy', 'ParametrizedActionValue', 'ParametrizedDistributions',
+    'ActionValue', 'BasePolicy', 'ParametrizedActionValue', 'ParametrizedDistributions', 'ParametrizedPolicy',
     'ParametrizedStateValue', 'ParametrizedValuePolicy', 'Policy', 'StateValue', 'StochasticPolicy',
     'ValuePolicy'
 ]

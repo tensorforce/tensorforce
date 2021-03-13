@@ -37,7 +37,9 @@ class TestPrecision(UnittestBase, unittest.TestCase):
             baseline_optimizer = dict(optimizer='evolutionary', learning_rate=1e-3)
             self.unittest(
                 optimizer=optimizer, baseline_optimizer=baseline_optimizer,
-                config=dict(eager_mode=True, create_debug_assertions=True, tf_log_level=20)
+                config=dict(
+                    device='CPU', eager_mode=True, create_debug_assertions=True, tf_log_level=20
+                )
             )
 
             util.np_dtype_mapping = dict(bool=np.bool_, int=np.int64, float=np.float64)

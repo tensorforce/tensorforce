@@ -16,12 +16,12 @@
 import tensorflow as tf
 
 from tensorforce import TensorforceError
-from tensorforce.core import layer_modules, ModuleDict, network_modules, TensorDict, TensorSpec, \
-    tf_function, tf_util
-from tensorforce.core.policies import ValuePolicy
+from tensorforce.core import layer_modules, ModuleDict, TensorDict, TensorSpec, tf_function, \
+    tf_util
+from tensorforce.core.policies import ParametrizedPolicy, ValuePolicy
 
 
-class ParametrizedValuePolicy(ValuePolicy):
+class ParametrizedValuePolicy(ValuePolicy, ParametrizedPolicy):
     """
     Policy which parametrizes independent action-/advantage-/state-value functions per action and
     optionally a state-value function, conditioned on the output of a central neural network
@@ -64,15 +64,8 @@ class ParametrizedValuePolicy(ValuePolicy):
                 hint='types not bool/int'
             )
 
-        # Network
-        self.network = self.submodule(
-            name='network', module=network, modules=network_modules, inputs_spec=self.states_spec
-        )
+        ParametrizedPolicy.__init__(self=self, network=network, inputs_spec=self.states_spec)
         output_spec = self.network.output_spec()
-        if output_spec.type != 'float':
-            raise TensorforceError.type(
-                name='ParametrizedValuePolicy', argument='network output', dtype=output_spec.type
-            )
 
         # Action values
         def function(name, spec):
@@ -124,16 +117,6 @@ class ParametrizedValuePolicy(ValuePolicy):
                 function=function, cls=ModuleDict, with_names=True
             )
 
-    @property
-    def internals_spec(self):
-        return self.network.internals_spec
-
-    def internals_init(self):
-        return self.network.internals_init()
-
-    def max_past_horizon(self, *, on_policy):
-        return self.network.max_past_horizon(on_policy=on_policy)
-
     def initialize(self):
         super().initialize()
 
@@ -162,10 +145,7 @@ class ParametrizedValuePolicy(ValuePolicy):
             self.register_tracking(label='action-value', name=name, spec=spec)
 
     def get_savedmodel_trackables(self):
-        trackables = dict()
-        for variable in self.network.variables:
-            assert variable.name not in trackables
-            trackables[variable.name] = variable
+        trackables = super().get_savedmodel_trackables()
         for a_value in self.a_values.values():
             for variable in a_value.variables:
                 assert variable.name not in trackables
@@ -180,19 +160,6 @@ class ParametrizedValuePolicy(ValuePolicy):
                     assert variable.name not in trackables
                     trackables[variable.name] = variable
         return trackables
-
-    @tf_function(num_args=0)
-    def past_horizon(self, *, on_policy):
-        return self.network.past_horizon(on_policy=on_policy)
-
-    @tf_function(num_args=5)
-    def next_internals(self, *, states, horizons, internals, actions, deterministic, independent):
-        _, internals = self.network.apply(
-            x=states, horizons=horizons, internals=internals, deterministic=deterministic,
-            independent=independent
-        )
-
-        return internals
 
     @tf_function(num_args=5)
     def act(self, *, states, horizons, internals, auxiliaries, deterministic, independent):

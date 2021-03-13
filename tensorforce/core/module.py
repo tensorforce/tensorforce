@@ -448,7 +448,9 @@ class Module(tf.Module):
                     name='Module.add_module', argument='module', value=module
                 )
 
-        elif not callable(module) and ('default' in modules or default_module is not None):
+        elif (not callable(module) or isinstance(module, tf.keras.Model) or (
+            isinstance(module, type) and issubclass(module, tf.keras.Model)
+        )) and ('default' in modules or default_module is not None):
             # Default module specification
             if '_first_arg' in kwargs:
                 raise TensorforceError.invalid(name='Module.add_module', argument='_first_arg')

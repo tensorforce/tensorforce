@@ -57,8 +57,9 @@ class TestSummaries(UnittestBase, unittest.TestCase):
                 reward_estimation=dict(
                     horizon=horizon, return_processing=dict(type='clipping', lower=-1.0, upper=1.0)
                 ), exploration=exploration,
-                config=dict(eager_mode=False, create_debug_assertions=True, tf_log_level=20),
-                summarizer=dict(directory=directory, summaries='all'), tracking='all'
+                config=dict(
+                    device='CPU', eager_mode=False, create_debug_assertions=True, tf_log_level=20
+                ), summarizer=dict(directory=directory, summaries='all'), tracking='all'
             )
 
             updates = 0

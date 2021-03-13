@@ -13,13 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce import TensorforceError
-from tensorforce.core import layer_modules, network_modules, TensorDict, TensorsSpec, tf_function, \
-    tf_util
-from tensorforce.core.policies import ActionValue
+from tensorforce.core import layer_modules, TensorDict, TensorsSpec, tf_function, tf_util
+from tensorforce.core.policies import ActionValue, ParametrizedPolicy
 
 
-class ParametrizedActionValue(ActionValue):
+class ParametrizedActionValue(ActionValue, ParametrizedPolicy):
     """
     Policy which parametrizes an action-value function, conditioned on the output of a neural
     network processing the input state (specification key: `parametrized_action_value`).
@@ -50,7 +48,6 @@ class ParametrizedActionValue(ActionValue):
             auxiliaries_spec=auxiliaries_spec, actions_spec=actions_spec
         )
 
-        # Network
         inputs_spec = TensorsSpec()
         if self.states_spec.is_singleton():
             inputs_spec['states'] = self.states_spec.singleton()
@@ -60,40 +57,13 @@ class ParametrizedActionValue(ActionValue):
             inputs_spec['actions'] = self.actions_spec.singleton()
         else:
             inputs_spec['actions'] = self.actions_spec
-        self.network = self.submodule(
-            name='network', module=network, modules=network_modules, inputs_spec=inputs_spec
-        )
+        ParametrizedPolicy.__init__(self=self, network=network, inputs_spec=inputs_spec)
         output_spec = self.network.output_spec()
-        if output_spec.type != 'float':
-            raise TensorforceError.type(
-                name='ParametrizedActionValue', argument='network output', dtype=output_spec.type
-            )
 
         # Action value
         self.value = self.submodule(
             name='value', module='linear', modules=layer_modules, size=0, input_spec=output_spec
         )
-
-    @property
-    def internals_spec(self):
-        return self.network.internals_spec
-
-    def internals_init(self):
-        return self.network.internals_init()
-
-    def max_past_horizon(self, *, on_policy):
-        return self.network.max_past_horizon(on_policy=on_policy)
-
-    def get_savedmodel_trackables(self):
-        trackables = dict()
-        for variable in self.network.variables:
-            assert variable.name not in trackables
-            trackables[variable.name] = variable
-        return trackables
-
-    @tf_function(num_args=0)
-    def past_horizon(self, *, on_policy):
-        return self.network.past_horizon(on_policy=on_policy)
 
     @tf_function(num_args=5)
     def next_internals(self, *, states, horizons, internals, actions, deterministic, independent):
@@ -107,12 +77,10 @@ class ParametrizedActionValue(ActionValue):
         else:
             inputs['actions'] = actions
 
-        _, internals = self.network.apply(
-            x=inputs, horizons=horizons, internals=internals, deterministic=deterministic,
+        return super().next_internals(
+            states=inputs, horizons=horizons, internals=internals, deterministic=deterministic,
             independent=independent
         )
-
-        return internals
 
     @tf_function(num_args=5)
     def action_value(self, *, states, horizons, internals, auxiliaries, actions):

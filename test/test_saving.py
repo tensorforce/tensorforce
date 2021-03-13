@@ -30,9 +30,9 @@ class TestSaving(UnittestBase, unittest.TestCase):
         self.start_tests(name='modules')
 
         with TemporaryDirectory() as directory:
-            agent, environment = self.prepare(
-                config=dict(eager_mode=False, create_debug_assertions=True, tf_log_level=20)
-            )
+            agent, environment = self.prepare(config=dict(
+                device='CPU', eager_mode=False, create_debug_assertions=True, tf_log_level=20
+            ))
             states = environment.reset()
             actions = agent.act(states=states)
             states, terminal, reward = environment.execute(actions=actions)
@@ -44,9 +44,9 @@ class TestSaving(UnittestBase, unittest.TestCase):
             agent.close()
             environment.close()
 
-            agent, environment = self.prepare(
-                config=dict(eager_mode=False, create_debug_assertions=True, tf_log_level=20)
-            )
+            agent, environment = self.prepare(config=dict(
+                device='CPU', eager_mode=False, create_debug_assertions=True, tf_log_level=20
+            ))
             states = environment.reset()
             actions = agent.act(states=states)
             states, terminal, reward = environment.execute(actions=actions)
@@ -78,8 +78,9 @@ class TestSaving(UnittestBase, unittest.TestCase):
         with TemporaryDirectory() as directory:
             update = dict(unit='episodes', batch_size=1)
             agent, environment = self.prepare(
-                memory=50, update=update,
-                config=dict(eager_mode=False, create_debug_assertions=True, tf_log_level=20)
+                memory=50, update=update, config=dict(
+                    device='CPU', eager_mode=False, create_debug_assertions=True, tf_log_level=20
+                )
             )
             states = environment.reset()
 
@@ -257,8 +258,9 @@ class TestSaving(UnittestBase, unittest.TestCase):
             agent, environment = self.prepare(
                 states=dict(type='float', shape=(), min_value=1.0, max_value=2.0),
                 actions=dict(type='float', shape=(), min_value=1.0, max_value=2.0),
-                policy=policy, update=update, baseline=baseline,
-                config=dict(eager_mode=False, create_debug_assertions=True, tf_log_level=20)
+                policy=policy, update=update, baseline=baseline, config=dict(
+                    device='CPU', eager_mode=False, create_debug_assertions=True, tf_log_level=20
+                )
             )
 
             # one episode
@@ -309,8 +311,9 @@ class TestSaving(UnittestBase, unittest.TestCase):
             update = dict(unit='episodes', batch_size=1)
             saver = dict(directory=directory, frequency=1)
             agent, environment = self.prepare(
-                update=update, saver=saver,
-                config=dict(eager_mode=False, create_debug_assertions=True, tf_log_level=20)
+                update=update, saver=saver, config=dict(
+                    device='CPU', eager_mode=False, create_debug_assertions=True, tf_log_level=20
+                )
             )
             weights0 = agent.model.policy.network.layers[1].weights.numpy()
             states = environment.reset()
@@ -347,8 +350,9 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
             # create, not load
             agent, environment = self.prepare(
-                update=update, saver=saver,
-                config=dict(eager_mode=False, create_debug_assertions=True, tf_log_level=20)
+                update=update, saver=saver, config=dict(
+                    device='CPU', eager_mode=False, create_debug_assertions=True, tf_log_level=20
+                )
             )
             x = agent.model.policy.network.layers[1].weights.numpy()
             self.assertTrue(not np.allclose(x, weights0))

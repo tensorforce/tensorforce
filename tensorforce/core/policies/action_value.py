@@ -32,6 +32,15 @@ class ActionValue(BasePolicy):
         actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
+    def __init__(
+        self, *, device=None, l2_regularization=None, name=None, states_spec=None,
+        auxiliaries_spec=None, actions_spec=None
+    ):
+        BasePolicy.__init__(
+            self=self, device=device, l2_regularization=l2_regularization, name=name,
+            states_spec=states_spec, auxiliaries_spec=auxiliaries_spec, actions_spec=actions_spec
+        )
+
     def input_signature(self, *, function):
         if function == 'action_value':
             return SignatureDict(

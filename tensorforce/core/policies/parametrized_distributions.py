@@ -13,17 +13,14 @@
 # limitations under the License.
 # ==============================================================================
 
-from functools import partial
-
 import tensorflow as tf
 
-from tensorforce import TensorforceError
-from tensorforce.core import distribution_modules, ModuleDict, network_modules, TensorDict, \
-    TensorsSpec, tf_function, tf_util
-from tensorforce.core.policies import StochasticPolicy, ValuePolicy
+from tensorforce.core import distribution_modules, ModuleDict, TensorDict, TensorsSpec, \
+    tf_function, tf_util
+from tensorforce.core.policies import ParametrizedPolicy, StochasticPolicy, ValuePolicy
 
 
-class ParametrizedDistributions(StochasticPolicy, ValuePolicy):
+class ParametrizedDistributions(StochasticPolicy, ValuePolicy, ParametrizedPolicy):
     """
     Policy which parametrizes independent distributions per action, conditioned on the output of a
     central neural network processing the input state, supporting both a stochastic and value-based
@@ -68,16 +65,10 @@ class ParametrizedDistributions(StochasticPolicy, ValuePolicy):
             states_spec=states_spec, auxiliaries_spec=auxiliaries_spec, actions_spec=actions_spec
         )
 
-        # Network
-        self.network = self.submodule(
-            name='network', module=network, modules=network_modules, inputs_spec=self.states_spec
-        )
+        ParametrizedPolicy.__init__(self=self, network=network, inputs_spec=self.states_spec)
         output_spec = self.network.output_spec()
-        if output_spec.type != 'float':
-            raise TensorforceError.type(
-                name='ParametrizedDistributions', argument='network output', dtype=output_spec.type
-            )
 
+        # Distributions
         self.distributions = ModuleDict()
         for name, spec in self.actions_spec.items():
 
@@ -126,16 +117,6 @@ class ParametrizedDistributions(StochasticPolicy, ValuePolicy):
             function=(lambda x: x.parameters_spec), cls=TensorsSpec
         )
 
-    @property
-    def internals_spec(self):
-        return self.network.internals_spec
-
-    def internals_init(self):
-        return self.network.internals_init()
-
-    def max_past_horizon(self, *, on_policy):
-        return self.network.max_past_horizon(on_policy=on_policy)
-
     def input_signature(self, *, function):
         try:
             return StochasticPolicy.input_signature(self=self, function=function)
@@ -149,28 +130,12 @@ class ParametrizedDistributions(StochasticPolicy, ValuePolicy):
             return ValuePolicy.output_signature(self=self, function=function)
 
     def get_savedmodel_trackables(self):
-        trackables = dict()
-        for variable in self.network.variables:
-            assert variable.name not in trackables
-            trackables[variable.name] = variable
+        trackables = super().get_savedmodel_trackables()
         for distribution in self.distributions.values():
             for variable in distribution.variables:
                 assert variable.name not in trackables
                 trackables[variable.name] = variable
         return trackables
-
-    @tf_function(num_args=0)
-    def past_horizon(self, *, on_policy):
-        return self.network.past_horizon(on_policy=on_policy)
-
-    @tf_function(num_args=5)
-    def next_internals(self, *, states, horizons, internals, actions, deterministic, independent):
-        _, internals = self.network.apply(
-            x=states, horizons=horizons, internals=internals, deterministic=deterministic,
-            independent=independent
-        )
-
-        return internals
 
     @tf_function(num_args=5)
     def act(self, *, states, horizons, internals, auxiliaries, deterministic, independent):

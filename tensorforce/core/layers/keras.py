@@ -19,7 +19,7 @@ from tensorforce.core import tf_function, tf_util
 from tensorforce.core.layers import Layer
 
 
-class Keras(Layer):
+class KerasLayer(Layer):
     """
     Keras layer (specification key: `keras`).
 

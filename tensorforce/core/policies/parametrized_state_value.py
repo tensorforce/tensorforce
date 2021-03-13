@@ -13,12 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce import TensorforceError
-from tensorforce.core import layer_modules, network_modules, tf_function, tf_util
-from tensorforce.core.policies import StateValue
+from tensorforce.core import layer_modules, tf_function, tf_util
+from tensorforce.core.policies import ParametrizedPolicy, StateValue
 
 
-class ParametrizedStateValue(StateValue):
+class ParametrizedStateValue(StateValue, ParametrizedPolicy):
     """
     Policy which parametrizes a state-value function, conditioned on the output of a neural network
     processing the input state (specification key: `parametrized_state_value`).
@@ -49,50 +48,13 @@ class ParametrizedStateValue(StateValue):
             auxiliaries_spec=auxiliaries_spec, actions_spec=actions_spec
         )
 
-        # Network
-        self.network = self.submodule(
-            name='network', module=network, modules=network_modules, inputs_spec=self.states_spec
-        )
+        ParametrizedPolicy.__init__(self=self, network=network, inputs_spec=self.states_spec)
         output_spec = self.network.output_spec()
-        if output_spec.type != 'float':
-            raise TensorforceError.type(
-                name='ParametrizedStateValue', argument='network output', dtype=output_spec.type
-            )
 
         # State value
         self.value = self.submodule(
             name='value', module='linear', modules=layer_modules, size=0, input_spec=output_spec
         )
-
-    @property
-    def internals_spec(self):
-        return self.network.internals_spec
-
-    def internals_init(self):
-        return self.network.internals_init()
-
-    def max_past_horizon(self, *, on_policy):
-        return self.network.max_past_horizon(on_policy=on_policy)
-
-    def get_savedmodel_trackables(self):
-        trackables = dict()
-        for variable in self.network.variables:
-            assert variable.name not in trackables
-            trackables[variable.name] = variable
-        return trackables
-
-    @tf_function(num_args=0)
-    def past_horizon(self, *, on_policy):
-        return self.network.past_horizon(on_policy=on_policy)
-
-    @tf_function(num_args=5)
-    def next_internals(self, *, states, horizons, internals, actions, deterministic, independent):
-        _, internals = self.network.apply(
-            x=states, horizons=horizons, internals=internals, deterministic=deterministic,
-            independent=independent
-        )
-
-        return internals
 
     @tf_function(num_args=4)
     def state_value(self, *, states, horizons, internals, auxiliaries):

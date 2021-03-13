@@ -37,7 +37,7 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         state_preprocessing='linear_normalization',
         reward_preprocessing=dict(type='clipping', lower=-1.0, upper=1.0),
         exploration=0.01, variable_noise=0.01,
-        config=dict(eager_mode=True, create_debug_assertions=True, tf_log_level=20),
+        config=dict(device='CPU', eager_mode=True, create_debug_assertions=True, tf_log_level=20),
         tracking='all'
     )
 
@@ -83,7 +83,8 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         )
         # Implicit baseline = policy
         self.unittest(actions=actions, reward_estimation=reward_estimation, config=dict(
-            buffer_observe=3, eager_mode=True, create_debug_assertions=True, tf_log_level=20
+            buffer_observe=3, device='CPU', eager_mode=True, create_debug_assertions=True,
+            tf_log_level=20
         ))
 
         # TODO: action value doesn't exist for Beta
@@ -106,8 +107,8 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
             actions=actions, update=update, reward_estimation=reward_estimation,
             baseline_optimizer=baseline_optimizer, baseline_objective=baseline_objective,
             config=dict(
-                buffer_observe='episode', eager_mode=True, create_debug_assertions=True,
-                tf_log_level=20
+                buffer_observe='episode', device='CPU', eager_mode=True,
+                create_debug_assertions=True, tf_log_level=20
             )  # or 1?
         )
 

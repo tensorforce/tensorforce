@@ -177,7 +177,8 @@ class TestLayers(UnittestBase, unittest.TestCase):
             states=states, experience_update=False, policy=network,
             state_preprocessing=state_preprocessing, reward_preprocessing=reward_preprocessing,
             config=dict(
-                buffer_observe=1, eager_mode=True, create_debug_assertions=True, tf_log_level=20
+                buffer_observe=1, device='CPU', eager_mode=True, create_debug_assertions=True,
+                tf_log_level=20
             )
         )
 
@@ -190,3 +191,39 @@ class TestLayers(UnittestBase, unittest.TestCase):
 
         network = [dict(type='lstm', size=7, horizon=1)]
         self.unittest(states=states, policy=network)
+
+    def test_keras_network(self):
+        import tensorflow as tf
+
+        class Model(tf.keras.Model):
+
+            def __init__(self):
+                super().__init__()
+                self.layer1 = tf.keras.layers.Dense(4, activation=tf.nn.relu)
+                self.layer2 = tf.keras.layers.Dense(5, activation=tf.nn.softmax)
+
+            def call(self, inputs):
+                x = self.layer1(inputs)
+                return self.layer2(x)
+
+        states = dict(type='float', shape=(3,), min_value=1.0, max_value=2.0)
+        self.unittest(states=states, policy=Model)
+
+        class Model(tf.keras.Model):
+
+            def __init__(self):
+                super().__init__()
+                self.layer1 = tf.keras.layers.Dense(4, activation=tf.nn.relu)
+                self.layer2 = tf.keras.layers.Embedding(4, 4)
+                self.layer3 = tf.keras.layers.Dense(5, activation=tf.nn.softmax)
+
+            def call(self, inputs):
+                y = self.layer1(inputs[0])
+                x = self.layer2(inputs[1])
+                return self.layer3(tf.concat(values=[x, y], axis=1))
+
+        states = dict(
+            int_state=dict(type='int', shape=(), num_values=4),
+            float_state=dict(type='float', shape=(3,), min_value=1.0, max_value=2.0)
+        )
+        self.unittest(states=states, policy=Model)

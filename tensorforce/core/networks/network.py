@@ -39,7 +39,7 @@ class Network(Module):
     """
 
     def __init__(self, *, device=None, l2_regularization=None, name=None, inputs_spec=None):
-        super().__init__(name=name, device=device,  l2_regularization=l2_regularization)
+        super().__init__(name=name, device=device, l2_regularization=l2_regularization)
 
         self.inputs_spec = inputs_spec
 
@@ -90,8 +90,8 @@ class Network(Module):
     def past_horizon(self, *, on_policy):
         return tf_util.constant(value=0, dtype='int')
 
-    @tf_function(num_args=3)
-    def apply(self, *, x, horizons, internals, independent):
+    @tf_function(num_args=4)
+    def apply(self, *, x, horizons, internals, deterministic, independent):
         raise NotImplementedError
 
 

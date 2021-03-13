@@ -11,6 +11,10 @@ This file records all major updates and new features, starting from version 0.5.
 - New options `"early"` and `"late"` for value `estimate_advantage` of Tensorforce agent argument `reward_estimation`
 - Changed default value for `Agent.act()` argument `deterministic` from `False` to `True`
 
+##### Networks:
+- New network type `KerasNetwork` (specification key: `keras`) as wrapper for networks specified as Keras model
+- Passing a Keras model class/object as policy/network argument is automatically interpreted as `KerasNetwork`
+
 ##### Distributions:
 - Changed `Gaussian` distribution argument `global_stddev=False` to `stddev_mode='predicted'`
 - New `Categorical` distribution argument `temperature_mode=None`

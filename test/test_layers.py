@@ -200,7 +200,7 @@ class TestLayers(UnittestBase, unittest.TestCase):
             def __init__(self):
                 super().__init__()
                 self.layer1 = tf.keras.layers.Dense(4, activation=tf.nn.relu)
-                self.layer2 = tf.keras.layers.Dense(5, activation=tf.nn.softmax)
+                self.layer2 = tf.keras.layers.Dense(5, activation=tf.nn.relu)
 
             def call(self, inputs):
                 x = self.layer1(inputs)
@@ -215,7 +215,7 @@ class TestLayers(UnittestBase, unittest.TestCase):
                 super().__init__()
                 self.layer1 = tf.keras.layers.Dense(4, activation=tf.nn.relu)
                 self.layer2 = tf.keras.layers.Embedding(4, 4)
-                self.layer3 = tf.keras.layers.Dense(5, activation=tf.nn.softmax)
+                self.layer3 = tf.keras.layers.Dense(5, activation=tf.nn.relu)
 
             def call(self, inputs):
                 y = self.layer1(inputs[0])

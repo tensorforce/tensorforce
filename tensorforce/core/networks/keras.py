@@ -35,9 +35,12 @@ class KerasNetwork(Network):
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
         inputs_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        kwargs: Arguments for the Keras model.
     """
 
-    def __init__(self, *, model, device=None, l2_regularization=None, name=None, inputs_spec=None):
+    def __init__(
+        self, *, model, device=None, l2_regularization=None, name=None, inputs_spec=None, **kwargs
+    ):
         super().__init__(
             device=device, l2_regularization=l2_regularization, name=name, inputs_spec=inputs_spec
         )
@@ -45,7 +48,7 @@ class KerasNetwork(Network):
         if isinstance(model, tf.keras.Model):
             self.keras_model = model
         elif isinstance(model, type) and issubclass(model, tf.keras.Model):
-            self.keras_model = model()
+            self.keras_model = model(**kwargs)
         else:
             raise TensorforceError.value(name='KerasNetwork', argument='model', value=model)
 

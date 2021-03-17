@@ -129,10 +129,13 @@ class Environment(object):
             raise TensorforceError.value(name='Environment.create', argument='remote', value=remote)
 
         elif isinstance(environment, (EnvironmentWrapper, RemoteEnvironment)):
-            if max_episode_timesteps is not None:
-                raise TensorforceError.invalid(
-                    name='Environment.create', argument='max_episode_timesteps',
-                    condition='EnvironmentWrapper instance'
+            if max_episode_timesteps is not None and \
+                    max_episode_timesteps != environment.max_episode_timesteps():
+                raise TensorforceError(
+                    message='Environment argument max_episode_timesteps has been specified twice '
+                    'with different values: {} != {}.'.format(
+                        max_episode_timesteps, environment.max_episode_timesteps()
+                    )
                 )
             if len(kwargs) > 0:
                 raise TensorforceError.invalid(

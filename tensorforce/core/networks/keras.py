@@ -52,8 +52,8 @@ class KerasNetwork(Network):
         else:
             raise TensorforceError.value(name='KerasNetwork', argument='model', value=model)
 
-        if self.keras_model.inputs is not None:
-            assert False
+        # if self.keras_model.inputs is not None:
+        #     assert False
 
     def output_spec(self):
         assert self.keras_model.compute_dtype in (tf.float32, tf.float64)

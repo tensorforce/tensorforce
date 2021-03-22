@@ -122,4 +122,4 @@ Special layers
 Keras layer
 -----------
 
-.. autoclass:: tensorforce.core.layers.Keras
+.. autoclass:: tensorforce.core.layers.KerasLayer

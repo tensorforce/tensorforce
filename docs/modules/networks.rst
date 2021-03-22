@@ -54,3 +54,5 @@ Note that the final action/value layer of the policy/baseline network is implici
 .. autoclass:: tensorforce.core.networks.AutoNetwork
 
 .. autoclass:: tensorforce.core.networks.LayeredNetwork
+
+.. autoclass:: tensorforce.core.networks.KerasNetwork

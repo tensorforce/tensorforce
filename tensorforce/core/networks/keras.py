@@ -13,12 +13,10 @@
 # limitations under the License.
 # ==============================================================================
 
-from collections import Counter
-
 import tensorflow as tf
 
 from tensorforce import TensorforceError
-from tensorforce.core import TensorDict, TensorSpec, TensorsSpec, tf_function, tf_util
+from tensorforce.core import TensorSpec, tf_function, tf_util
 from tensorforce.core.networks import Network
 
 
@@ -70,16 +68,6 @@ class KerasNetwork(Network):
 
         return TensorSpec(type='float', shape=(output_shape[1],))
 
-    # @property
-    # def internals_spec(self):
-    #     return TensorsSpec()
-
-    # def internals_init(self):
-    #     return ArrayDict()
-
-    # def max_past_horizon(self, *, on_policy):
-    #     return 0
-
     def initialize(self):
         super().initialize()
 
@@ -98,10 +86,6 @@ class KerasNetwork(Network):
             regularization_loss += tf.math.add_n(inputs=self.keras_model.losses)
 
         return regularization_loss
-
-    # @tf_function(num_args=0)
-    # def past_horizon(self, *, on_policy):
-    #     return tf_util.constant(value=0, dtype='int')
 
     @tf_function(num_args=4)
     def apply(self, *, x, horizons, internals, deterministic, independent):

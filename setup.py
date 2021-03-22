@@ -24,6 +24,8 @@ cd docs; make html; cd ..;
 pip install --upgrade -r requirements-all.txt
   ... update requirements.txt and setup.py ...
 
+# Update __version__ in tensorforce/__init__.py, and UPDATE_NOTES.md
+
 rm -r build
 rm -r dist
 rm -r docs/_*
@@ -32,6 +34,9 @@ python setup.py sdist bdist_wheel
 
 twine upload --repository-url https://test.pypi.org/legacy/ dist/Tensorforce-0.6.*
 
+deactivate
+source tensorforce-test-env/bin/activate
+pip install -r requirements.txt
 cd ..
 pip install --upgrade --index-url https://test.pypi.org/simple/ tensorforce
 python

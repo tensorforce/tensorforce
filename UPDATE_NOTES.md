@@ -4,6 +4,12 @@ This file records all major updates and new features, starting from version 0.5.
 
 
 
+### Latest changes
+
+
+---
+
+
 ### Version 0.6.3
 
 ##### Agents:

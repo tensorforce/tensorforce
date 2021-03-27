@@ -272,10 +272,11 @@ class ParametrizedValuePolicy(ValuePolicy, ParametrizedPolicy):
                 dependencies = self.track(label='action-value', name=n, data=fn_tracking)
 
                 with tf.control_dependencies(control_inputs=dependencies):
-                    mask = auxiliaries[name]['mask']
-                    min_float = tf_util.get_dtype(type='float').min
-                    min_float = tf.fill(dims=tf.shape(input=action_value), value=min_float)
-                    action_value = tf.where(condition=mask, x=action_value, y=min_float)
+                    if self.config.enable_int_action_masking:
+                        mask = auxiliaries[name]['mask']
+                        min_float = tf_util.get_dtype(type='float').min
+                        min_float = tf.fill(dims=tf.shape(input=action_value), value=min_float)
+                        action_value = tf.where(condition=mask, x=action_value, y=min_float)
                     return tf.math.argmax(input=action_value, axis=-1, output_type=spec.tf_type())
 
         actions = self.actions_spec.fmap(
@@ -409,10 +410,11 @@ class ParametrizedValuePolicy(ValuePolicy, ParametrizedPolicy):
                 if spec.type == 'bool':
                     return tf.math.maximum(x=action_value[..., 0], y=action_value[..., 1])
                 elif spec.type == 'int':
-                    mask = auxiliaries[name]['mask']
-                    min_float = tf_util.get_dtype(type='float').min
-                    min_float = tf.fill(dims=tf.shape(input=action_value), value=min_float)
-                    action_value = tf.where(condition=mask, x=action_value, y=min_float)
+                    if self.config.enable_int_action_masking:
+                        mask = auxiliaries[name]['mask']
+                        min_float = tf_util.get_dtype(type='float').min
+                        min_float = tf.fill(dims=tf.shape(input=action_value), value=min_float)
+                        action_value = tf.where(condition=mask, x=action_value, y=min_float)
                     return tf.math.reduce_max(input_tensor=action_value, axis=-1)
 
             return self.actions_spec.fmap(
@@ -436,10 +438,11 @@ class ParametrizedValuePolicy(ValuePolicy, ParametrizedPolicy):
                 if spec.type == 'bool':
                     return tf.math.maximum(x=action_value[..., 0], y=action_value[..., 1])
                 elif spec.type == 'int':
-                    mask = auxiliaries[name]['mask']
-                    min_float = tf_util.get_dtype(type='float').min
-                    min_float = tf.fill(dims=tf.shape(input=action_value), value=min_float)
-                    action_value = tf.where(condition=mask, x=action_value, y=min_float)
+                    if self.config.enable_int_action_masking:
+                        mask = auxiliaries[name]['mask']
+                        min_float = tf_util.get_dtype(type='float').min
+                        min_float = tf.fill(dims=tf.shape(input=action_value), value=min_float)
+                        action_value = tf.where(condition=mask, x=action_value, y=min_float)
                     return tf.math.reduce_max(input_tensor=action_value, axis=-1)
 
             return self.actions_spec.fmap(

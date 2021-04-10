@@ -174,7 +174,7 @@ class Gaussian(Distribution):
             stddev *= tf_util.constant(value=0.25, dtype='float')
 
         # Log stddev
-        log_stddev = tf.math.log(x=tf.maximum(x=stddev, y=epsilon))
+        log_stddev = tf.math.log(x=(stddev + epsilon))
 
         return TensorDict(mean=mean, stddev=stddev, log_stddev=log_stddev)
 
@@ -321,7 +321,7 @@ class Gaussian(Distribution):
         half_log_two_pi = tf_util.constant(value=(0.5 * np.log(2.0 * np.pi)), dtype='float')
 
         sq_mean_distance = tf.square(x=(action - mean))
-        sq_stddev = tf.maximum(x=tf.square(x=stddev), y=epsilon)
+        sq_stddev = tf.square(x=stddev) + epsilon
 
         log_prob = -half * sq_mean_distance / sq_stddev - log_stddev - half_log_two_pi
 
@@ -352,7 +352,7 @@ class Gaussian(Distribution):
         log_stddev_ratio = log_stddev2 - log_stddev1
         sq_mean_distance = tf.square(x=(mean1 - mean2))
         sq_stddev1 = tf.square(x=stddev1)
-        sq_stddev2 = tf.maximum(x=tf.square(x=stddev2), y=epsilon)
+        sq_stddev2 = tf.square(x=stddev2) + epsilon
 
         return log_stddev_ratio + half * (sq_stddev1 + sq_mean_distance) / sq_stddev2 - half
 
@@ -381,7 +381,7 @@ class Gaussian(Distribution):
         # TODO: why no e here, but for entropy?
 
         sq_mean_distance = tf.square(x=(action - mean))
-        sq_stddev = tf.maximum(x=tf.square(x=stddev), y=epsilon)
+        sq_stddev = tf.square(x=stddev) + epsilon
 
         action_value = -half * sq_mean_distance / sq_stddev - two * log_stddev - log_two_pi
 

@@ -15,7 +15,7 @@
 
 import tensorflow as tf
 
-from tensorforce import TensorforceError
+from tensorforce import TensorforceError, util
 from tensorforce.core import tf_util
 from tensorforce.core.parameters import Parameter
 
@@ -396,9 +396,9 @@ class Decaying(Parameter):
 
         if self.inverse:
             zero = tf_util.constant(value=0.0, dtype='float')
+            epsilon = tf_util.constant(value=util.epsilon, dtype='float')
             parameter = tf.where(
-                condition=(parameter > zero),
-                x=tf.maximum(x=parameter, y=epsilon), y=tf.minimum(x=parameter, y=-epsilon)
+                condition=(parameter > zero), x=(parameter + epsilon), y=(parameter - epsilon)
             )
             parameter = tf.math.reciprocal(x=parameter)
 

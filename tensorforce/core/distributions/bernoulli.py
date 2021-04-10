@@ -102,14 +102,9 @@ class Bernoulli(Distribution):
         # Sigmoid for corresponding probability
         probability = tf.sigmoid(x=logit)
 
-        # Clip probability for numerical stability
-        probability = tf.clip_by_value(
-            t=probability, clip_value_min=epsilon, clip_value_max=(one - epsilon)
-        )
-
         # "Normalized" logits
-        true_logit = tf.math.log(x=probability)
-        false_logit = tf.math.log(x=(one - probability))
+        true_logit = tf.math.log(x=(probability + epsilon))
+        false_logit = tf.math.log(x=(one - probability + epsilon))
 
         return TensorDict(
             true_logit=true_logit, false_logit=false_logit, probability=probability,
@@ -175,9 +170,9 @@ class Bernoulli(Distribution):
         def fn_sample():
             # Non-deterministic: sample true if >= uniform distribution
             # Exp numerically stable since logits <= 0.0
-            e_true_logit = tf.math.exp(x=(true_logit / tf.math.maximum(x=temperature, y=epsilon)))
-            e_false_logit = tf.math.exp(x=(false_logit / tf.math.maximum(x=temperature, y=epsilon)))
-            probability = e_true_logit / tf.math.maximum(x=(e_true_logit + e_false_logit), y=epsilon)
+            e_true_logit = tf.math.exp(x=(true_logit / (temperature + epsilon)))
+            e_false_logit = tf.math.exp(x=(false_logit / (temperature + epsilon)))
+            probability = e_true_logit / (e_true_logit + e_false_logit + epsilon)
             uniform = tf.random.uniform(
                 shape=tf.shape(input=probability), dtype=tf_util.get_dtype(type='float')
             )

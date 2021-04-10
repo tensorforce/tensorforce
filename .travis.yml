@@ -8,6 +8,9 @@ branches:
   only:
     - master
 
+before_install:
+  - sudo apt-get -y install swig
+
 install:
   - pip install .[tfa,tune,ale,gym,retro]
   - pip install pytest

@@ -17,7 +17,7 @@ import numpy as np
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-from tensorforce.core import layer_modules,  TensorDict, TensorSpec, TensorsSpec, tf_function, \
+from tensorforce.core import layer_modules, TensorDict, TensorSpec, TensorsSpec, tf_function, \
     tf_util
 from tensorforce.core.distributions import Distribution
 
@@ -101,7 +101,6 @@ class Beta(Distribution):
     def parametrize(self, *, x, conditions):
         # Softplus to ensure alpha and beta >= 1
         one = tf_util.constant(value=1.0, dtype='float')
-        epsilon = tf_util.constant(value=util.epsilon, dtype='float')
         log_epsilon = tf_util.constant(value=np.log(util.epsilon), dtype='float')
         shape = (-1,) + self.action_spec.shape
 
@@ -122,7 +121,7 @@ class Beta(Distribution):
             beta = tf.reshape(tensor=beta, shape=shape)
 
         # Alpha + Beta
-        alpha_beta = tf.maximum(x=(alpha + beta), y=epsilon)
+        alpha_beta = alpha + beta  # > 2.0 so no +epsilon required
 
         # Log norm
         log_norm = tf.math.lgamma(x=alpha) + tf.math.lgamma(x=beta) - tf.math.lgamma(x=alpha_beta)
@@ -207,7 +206,7 @@ class Beta(Distribution):
             # Non-deterministic: sample action using gamma distribution
             alpha_sample = tf.random.gamma(shape=(), alpha=alpha, dtype=tf_util.get_dtype(type='float'))
             beta_sample = tf.random.gamma(shape=(), alpha=beta, dtype=tf_util.get_dtype(type='float'))
-            return beta_sample / tf.maximum(x=(alpha_sample + beta_sample), y=epsilon)
+            return beta_sample / (alpha_sample + beta_sample)
 
         action = tf.cond(pred=(temperature < epsilon), true_fn=fn_mode, false_fn=fn_sample)
 
@@ -229,10 +228,8 @@ class Beta(Distribution):
         one = tf_util.constant(value=1.0, dtype='float')
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')
 
-        action = tf.minimum(x=action, y=(one - epsilon))
-
-        return tf.math.xlogy(x=(beta - one), y=tf.maximum(x=action, y=epsilon)) + \
-            (alpha - one) * tf.math.log1p(x=(-action)) - log_norm
+        return tf.math.xlogy(x=(beta - one), y=(action + epsilon)) + \
+            (alpha - one) * tf.math.log1p(x=(-action + epsilon)) - log_norm
 
     @tf_function(num_args=1)
     def entropy(self, *, parameters):

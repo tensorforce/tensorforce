@@ -166,15 +166,13 @@ class NaturalGradient(Optimizer):
             # lambda = sqrt(c' / c)
             lagrange_multiplier = tf.where(
                 condition=(constant > 0.0),
-                x=tf.math.sqrt(x=(constant / tf.math.maximum(x=learning_rate, y=epsilon))),
-                y=-tf.math.sqrt(x=(-constant / tf.math.maximum(x=learning_rate, y=epsilon)))
-            )
+                x=tf.math.sqrt(x=constant), y=-tf.math.sqrt(x=-constant)
+            ) / (learning_rate + epsilon)
 
             # delta = delta' / lambda
             lagrange_multiplier = tf.where(
                 condition=(lagrange_multiplier > 0.0),
-                x=tf.math.maximum(x=lagrange_multiplier, y=epsilon),
-                y=tf.math.minimum(x=lagrange_multiplier, y=-epsilon)
+                x=(lagrange_multiplier + epsilon), y=(lagrange_multiplier - epsilon)
             )
             estimated_deltas = deltas.fmap(function=(lambda delta: delta / lagrange_multiplier))
 

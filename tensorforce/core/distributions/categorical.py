@@ -201,7 +201,7 @@ class Categorical(Distribution):
         probabilities = tf.nn.softmax(logits=logits, axis=-1)
 
         # "Normalized" logits
-        logits = tf.math.log(x=tf.maximum(x=probabilities, y=epsilon))
+        logits = tf.math.log(x=(probabilities + epsilon))
         # Unstable
         # logits = tf.nn.log_softmax(logits=logits, axis=-1)
         # Doesn't take masking into account
@@ -322,7 +322,7 @@ class Categorical(Distribution):
         def fn_sample():
             # Set logits to minimal value
             min_float = tf.fill(dims=tf.shape(input=logits), value=tf_util.get_dtype(type='float').min)
-            temp_logits = logits / tf.math.maximum(x=temperature, y=epsilon)
+            temp_logits = logits / (temperature + epsilon)
             temp_logits = tf.where(condition=(probabilities < epsilon), x=min_float, y=temp_logits)
 
             # Non-deterministic: sample action using Gumbel distribution

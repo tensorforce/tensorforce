@@ -206,8 +206,7 @@ class ConjugateGradient(Iterative):
         epsilon = tf_util.constant(value=util.epsilon, dtype='float')
         conjugate_A_conjugate = tf.where(
             condition=(conjugate_A_conjugate > 0.0),
-            x=tf.math.maximum(x=conjugate_A_conjugate, y=epsilon),
-            y=tf.math.minimum(x=conjugate_A_conjugate, y=-epsilon)
+            x=(conjugate_A_conjugate + epsilon), y=(conjugate_A_conjugate - epsilon)
         )
         alpha = squared_residual / conjugate_A_conjugate
 
@@ -225,7 +224,7 @@ class ConjugateGradient(Iterative):
         )
 
         # \beta = r_{t+1}^2 / r_t^2
-        beta = next_squared_residual / tf.math.maximum(x=squared_residual, y=epsilon)
+        beta = next_squared_residual / (squared_residual + epsilon)
 
         # c_{t+1} := r_{t+1} + \beta * c_t
         next_conjugate = next_residual.fmap(

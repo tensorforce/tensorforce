@@ -98,6 +98,8 @@ class Parameter(Module):
 
         self.register_summary(label='parameters', name=('parameters/' + self.name))
 
+        self.register_tracking(label='parameters', name=self.name, spec=self.spec)
+
     def input_signature(self, *, function):
         if function == 'value':
             return SignatureDict()
@@ -135,6 +137,8 @@ class Parameter(Module):
         else:
             step = self.unit
         dependencies.extend(self.summary(label='parameters', name=name, data=parameter, step=step))
+
+        dependencies.extend(self.track(label='parameters', name=self.name, data=parameter))
 
         with tf.control_dependencies(control_inputs=dependencies):
             return tf_util.identity(input=parameter)

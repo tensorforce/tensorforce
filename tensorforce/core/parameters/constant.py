@@ -68,6 +68,9 @@ class Constant(Parameter):
     def final_value(self):
         return self.constant_value
 
+    def initialize(self):
+        super(Parameter, self).initialize()
+
     @tf_function(num_args=0)
     def value(self):
         return tf_util.constant(value=self.constant_value, dtype=self.spec.type)

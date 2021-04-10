@@ -23,6 +23,7 @@ from test.unittest_base import UnittestBase
 class TestSummaries(UnittestBase, unittest.TestCase):
 
     tracked_tensors = frozenset([
+        # distributions
         'agent/policy/bool_action_distribution/probability',
         'agent/policy/int_action1_distribution/probabilities',
         'agent/policy/int_action2_distribution/probabilities',
@@ -34,7 +35,11 @@ class TestSummaries(UnittestBase, unittest.TestCase):
         'agent/policy/gaussian_action2_distribution/mean',
         'agent/policy/gaussian_action2_distribution/stddev',
         'agent/policy/beta_action_distribution/alpha',
-        'agent/policy/beta_action_distribution/beta'
+        'agent/policy/beta_action_distribution/beta',
+        # parameters
+        'agent/policy_optimizer/policy_optimizer/learning_rate/learning_rate',
+        'agent/reward_horizon/reward_horizon',
+        'agent/exploration/exploration',
     ])
 
 
@@ -74,7 +79,7 @@ class TestSummaries(UnittestBase, unittest.TestCase):
                     self.assertEqual(set(agent.tracked_tensors()), self.__class__.tracked_tensors)
                 episodes += 1
 
-            # print(set(agent.tracked_tensors()))
+            # print(set(agent.tracked_tensors()) - self.__class__.tracked_tensors)
 
             agent.close()
             environment.close()

@@ -127,6 +127,8 @@ class Categorical(Distribution):
 
         prefix = 'distributions/' + self.name + '-probability'
         names = [prefix + str(n) for n in range(self.action_spec.num_values)]
+        if self.temperature_mode is not None:
+            names.append('distributions/' + self.name + '-temperature')
         self.register_summary(label='distribution', name=names)
 
         spec = self.parameters_spec['probabilities']
@@ -238,7 +240,8 @@ class Categorical(Distribution):
 
             prefix = 'distributions/' + self.name + '-probability'
             names = [prefix + str(n) for n in range(self.action_spec.num_values)]
-            names.append('distributions/' + self.name + '-temperature')
+            if self.temperature_mode is not None:
+                names.append('distributions/' + self.name + '-temperature')
             dependencies.extend(self.summary(
                 label='distribution', name=names, data=fn_summary, step='timesteps'
             ))

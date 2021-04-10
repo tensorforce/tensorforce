@@ -35,3 +35,8 @@ Loading and saving
 
 .. automethod:: tensorforce.agents.TensorforceAgent.load
 .. automethod:: tensorforce.agents.TensorforceAgent.save
+
+Tensor value tracking
+---------------------
+
+.. automethod:: tensorforce.agents.TensorforceAgent.tracked_tensors

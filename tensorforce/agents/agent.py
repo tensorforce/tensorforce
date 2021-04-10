@@ -16,6 +16,7 @@
 from collections import OrderedDict
 import importlib
 import json
+import logging
 import os
 import random
 
@@ -588,6 +589,10 @@ class Agent(Recorder):
                 spec['initial_internals'] = self.initial_internals()
                 json.dump(obj=spec, fp=fp, cls=TensorforceJSONEncoder)
         except BaseException:
+            logging.warning("Some agent argument could not be encoded to JSON as part of "
+                            "Agent.save(), likely a Python object or class. Either specify as "
+                            "module string or dictionary, or pass the full set of agent arguments "
+                            "when loading via Agent.load().")
             try:
                 with open(spec_path, 'w') as fp:
                     spec = OrderedDict()

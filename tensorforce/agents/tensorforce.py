@@ -86,8 +86,8 @@ class TensorforceAgent(Agent):
             size of update batch in number of units
             (<span style="color:#C00000"><b>required</b></span>).</li>
             <li><b>frequency</b>
-            (<i>"never" | <a href="../modules/parameters.html">parameter</a>, int > 0</i>) &ndash;
-            frequency of updates
+            (<i>"never" | <a href="../modules/parameters.html">parameter</a>, int > 0 | 0.0 < float <= 1.0</i>) &ndash;
+            frequency of updates, relative to batch_size if float
             (<span style="color:#00C000"><b>default</b></span>: batch_size).</li>
             <li><b>start</b>
             (<i><a href="../modules/parameters.html">parameter</a>, int >= batch_size</i>) &ndash;

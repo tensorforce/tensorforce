@@ -74,8 +74,8 @@ class ProximalPolicyOptimization(TensorforceAgent):
             (<span style="color:#00C000"><b>default</b></span>: minimum capacity, usually does not
             need to be changed).
 
-        update_frequency ("never" | <a href="../modules/parameters.html">parameter</a>, int > 0):
-            Frequency of updates
+        update_frequency ("never" | <a href="../modules/parameters.html">parameter</a>, int > 0 | 0.0 < float <= 1.0):
+            Frequency of updates, relative to batch_size if float
             (<span style="color:#00C000"><b>default</b></span>: batch_size).
         learning_rate (<a href="../modules/parameters.html">parameter</a>, float > 0.0): Optimizer
             learning rate
@@ -145,7 +145,7 @@ class ProximalPolicyOptimization(TensorforceAgent):
         # Memory
         memory='minimum',
         # Optimization
-        update_frequency='batch_size', learning_rate=1e-3, multi_step=10, subsampling_fraction=0.33,
+        update_frequency=1.0, learning_rate=1e-3, multi_step=10, subsampling_fraction=0.33,
         # Reward estimation
         likelihood_ratio_clipping=0.25, discount=0.99, predict_terminal_values=False,
         # Baseline
@@ -213,10 +213,7 @@ class ProximalPolicyOptimization(TensorforceAgent):
         else:
             memory = dict(type='recent', capacity=memory)
 
-        if update_frequency == 'batch_size':
-            update = dict(unit='episodes', batch_size=batch_size)
-        else:
-            update = dict(unit='episodes', batch_size=batch_size, frequency=update_frequency)
+        update = dict(unit='episodes', batch_size=batch_size, frequency=update_frequency)
 
         optimizer = dict(
             optimizer='adam', learning_rate=learning_rate, multi_step=multi_step,

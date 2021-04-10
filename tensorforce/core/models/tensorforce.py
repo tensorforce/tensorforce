@@ -245,6 +245,14 @@ class TensorforceModel(Model):
             frequency = update.get('frequency')
             if frequency is None:
                 frequency = update['batch_size']
+            elif isinstance(frequency, float):
+                if frequency <= 0.0 or frequency > 1.0:
+                    raise TensorforceError.value(
+                        name='agent', argument='update[frequency]', value=update['frequency'],
+                        hint='not in (0.0, 1.0]'
+                    )
+                else:
+                    frequency = max(1, int(frequency * update['batch_size']))
             self.update_frequency = self.submodule(
                 name='update_frequency', module=frequency, modules=parameter_modules,
                 is_trainable=False, dtype='int', min_value=1,
@@ -1495,7 +1503,7 @@ class TensorforceModel(Model):
                         y=self.baseline.past_horizon(on_policy=False)
                     )
                     unit = self.timesteps
-                    start = tf.math.maximum(x=start, y=(frequency + past_horizon))
+                    start = tf.math.maximum(x=start, y=(frequency + past_horizon + one))
                     if self.reward_horizon == 'episode':
                         min_start = tf.where(
                             condition=(self.episodes > zero), x=start, y=(unit + one)

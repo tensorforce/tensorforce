@@ -73,8 +73,8 @@ class DeterministicPolicyGradient(TensorforceAgent):
             actions by default.
             (<span style="color:#00C000"><b>default</b></span>: true).
 
-        update_frequency ("never" | <a href="../modules/parameters.html">parameter</a>, int > 0):
-            Frequency of updates
+        update_frequency ("never" | <a href="../modules/parameters.html">parameter</a>, int > 0 | 0.0 < float <= 1.0):
+            Frequency of updates, relative to batch_size if float
             (<span style="color:#00C000"><b>default</b></span>: batch_size).
         start_updating (<a href="../modules/parameters.html">parameter</a>, int >= batch_size):
             Number of timesteps before first update
@@ -137,7 +137,7 @@ class DeterministicPolicyGradient(TensorforceAgent):
         # Network
         network='auto', use_beta_distribution=True,
         # Optimization
-        update_frequency='batch_size', start_updating=None, learning_rate=1e-3,
+        update_frequency=1.0, start_updating=None, learning_rate=1e-3,
         # Reward estimation
         horizon=1, discount=0.99, predict_terminal_values=False,
         # Critic
@@ -187,11 +187,10 @@ class DeterministicPolicyGradient(TensorforceAgent):
 
         memory = dict(type='replay', capacity=memory)
 
-        update = dict(unit='timesteps', batch_size=batch_size)
-        if update_frequency != 'batch_size':
-            update['frequency'] = update_frequency
-        if start_updating is not None:
-            update['start'] = start_updating
+        update = dict(
+            unit='timesteps', batch_size=batch_size, frequency=update_frequency,
+            start=start_updating
+        )
 
         optimizer = dict(type='adam', learning_rate=learning_rate)
         objective = 'deterministic_policy_gradient'

@@ -83,8 +83,8 @@ class Categorical(Distribution):
                 input_spec=input_spec
             )
             if self.temperature_mode == 'predicted':
-                self.softplus_temperature = self.submodule(
-                    name='softplus_temperature', module='linear', modules=layer_modules,
+                self.temperature = self.submodule(
+                    name='temperature', module='linear', modules=layer_modules,
                     size=self.action_spec.size, initialization_scale=0.01,
                     input_spec=self.input_spec
                 )
@@ -110,18 +110,24 @@ class Categorical(Distribution):
                 size=(size * num_values), initialization_scale=0.01, input_spec=input_spec
             )
             if self.temperature_mode == 'predicted':
-                self.softplus_temperature = self.submodule(
-                    name='softplus_temperature', module='linear', modules=layer_modules, size=size,
+                self.temperature = self.submodule(
+                    name='temperature', module='linear', modules=layer_modules, size=size,
                     initialization_scale=0.01, input_spec=self.input_spec
                 )
+
+    def get_architecture(self):
+        architecture = 'Logits:  {}'.format(self.action_values.get_architecture())
+        if self.temperature_mode == 'predicted':
+            architecture += '\nTemperature:  {}'.format(self.temperature.get_architecture())
+        return architecture
 
     def initialize(self):
         super().initialize()
 
         if self.temperature_mode == 'global':
             spec = TensorSpec(type='float', shape=((1,) + self.action_spec.shape + (1,)))
-            self.softplus_temperature = self.variable(
-                name='softplus_temperature', spec=spec, initializer='zeros', is_trainable=True,
+            self.temperature = self.variable(
+                name='temperature', spec=spec, initializer='zeros', is_trainable=True,
                 is_saved=True
             )
 
@@ -152,9 +158,9 @@ class Categorical(Distribution):
         # Softplus standard deviation
         if self.temperature_mode == 'global':
             multiples = (tf.shape(input=x)[0],) + tuple(1 for _ in range(self.action_spec.rank + 1))
-            softplus_temperature = tf.tile(input=self.softplus_temperature, multiples=multiples)
+            softplus_temperature = tf.tile(input=self.temperature, multiples=multiples)
         elif self.temperature_mode == 'predicted':
-            softplus_temperature = self.softplus_temperature.apply(x=x)
+            softplus_temperature = self.temperature.apply(x=x)
             shape = (-1,) + self.action_spec.shape + (1,)
             softplus_temperature = tf.reshape(tensor=softplus_temperature, shape=shape)
 

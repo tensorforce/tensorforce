@@ -117,6 +117,22 @@ class ParametrizedDistributions(StochasticPolicy, ValuePolicy, ParametrizedPolic
             function=(lambda x: x.parameters_spec), cls=TensorsSpec
         )
 
+    def get_architecture(self):
+        architecture = 'Network:  {}'.format(
+            self.network.get_architecture().replace('\n', '\n    ')
+        )
+        if self.distributions.is_singleton():
+            architecture += '\nAction-distribution:\n    {}'.format(
+                self.distributions.singleton().get_architecture().replace('\n', '\n    ')
+            )
+        else:
+            architecture += '\nAction-distributions:'
+            for name, distribution in self.distributions.items():
+                architecture += '\n    {}:\n        {}'.format(
+                    name, distribution.get_architecture().replace('\n', '\n        ')
+                )
+        return architecture
+
     def input_signature(self, *, function):
         try:
             return StochasticPolicy.input_signature(self=self, function=function)

@@ -58,6 +58,9 @@ class LinearNormalization(Layer):
 
         super().__init__(name=name, input_spec=input_spec)
 
+        self.architecture_kwargs['min_value'] = str(min_value)
+        self.architecture_kwargs['max_value'] = str(max_value)
+
     def default_input_spec(self):
         return TensorSpec(
             type='float', shape=None, min_value=self.min_value, max_value=self.max_value
@@ -124,6 +127,12 @@ class ExponentialNormalization(StatefulLayer):
         assert not only_mean or min_variance == 1e-4
         self.only_mean = only_mean
         self.min_variance = min_variance
+
+        self.architecture_kwargs['decay'] = str(decay)
+        self.architecture_kwargs['axes'] = str(self.axes)
+        if only_mean:
+            self.architecture_kwargs['only_mean'] = str(only_mean)
+        self.architecture_kwargs['min_variance'] = str(min_variance)
 
     def default_input_spec(self):
         return TensorSpec(type='float', shape=None)
@@ -237,6 +246,11 @@ class InstanceNormalization(Layer):
         self.only_mean = only_mean
         self.min_variance = min_variance
 
+        self.architecture_kwargs['axes'] = str(self.axes)
+        if only_mean:
+            self.architecture_kwargs['only_mean'] = str(only_mean)
+        self.architecture_kwargs['min_variance'] = str(min_variance)
+
     def default_input_spec(self):
         return TensorSpec(type='float', shape=None)
 
@@ -289,6 +303,11 @@ class BatchNormalization(Layer):
         assert not only_mean or min_variance == 1e-4
         self.only_mean = only_mean
         self.min_variance = min_variance
+
+        self.architecture_kwargs['axes'] = str(self.axes)
+        if only_mean:
+            self.architecture_kwargs['only_mean'] = str(only_mean)
+        self.architecture_kwargs['min_variance'] = str(min_variance)
 
     def default_input_spec(self):
         return TensorSpec(type='float', shape=None)

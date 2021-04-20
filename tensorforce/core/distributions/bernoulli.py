@@ -76,6 +76,9 @@ class Bernoulli(Distribution):
                 initialization_scale=0.01, input_spec=self.input_spec
             )
 
+    def get_architecture(self):
+        return 'Logit:  {}'.format(self.logit.get_architecture())
+
     def initialize(self):
         super().initialize()
 

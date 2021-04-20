@@ -80,6 +80,19 @@ class Rnn(TemporalLayer, TransformationBase):
                 name='Rnn', argument='cell', value=self.cell_type, hint='not in {gru,lstm}'
             )
 
+        self.architecture_kwargs['cell'] = cell
+        self.architecture_kwargs['size'] = str(size)
+        self.architecture_kwargs['horizon'] = str(horizon)
+        self.architecture_kwargs['bias'] = str(bias)
+        if activation is not None:
+            self.architecture_kwargs['activation'] = str(activation)
+        if dropout != 0.0:
+            self.architecture_kwargs['dropout'] = str(dropout)
+        if not vars_trainable:
+            self.architecture_kwargs['trainable'] = str(vars_trainable)
+        if l2_regularization is not None:
+            self.architecture_kwargs['l2_regularization'] = str(l2_regularization)
+
     def default_input_spec(self):
         return TensorSpec(type='float', shape=(0,))
 

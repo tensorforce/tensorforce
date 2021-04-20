@@ -40,6 +40,8 @@ class Pooling(Layer):
 
         super().__init__(name=name, input_spec=input_spec)
 
+        self.architecture_kwargs['reduction'] = reduction
+
     def default_input_spec(self):
         return TensorSpec(type='float', shape=None)
 
@@ -123,7 +125,11 @@ class Pool1d(Layer):
         input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(self, *, reduction, window=2, stride=2, padding='same', name=None,input_spec=None):
+    def __init__(
+        self, *, reduction, window=2, stride=2, padding='same', name=None, input_spec=None
+    ):
+        if reduction not in ('average', 'max'):
+            raise TensorforceError.value(name='pool1d', argument='reduction', value=reduction)
         self.reduction = reduction
 
         if isinstance(window, int):
@@ -139,6 +145,11 @@ class Pool1d(Layer):
         self.padding = padding
 
         super().__init__(name=name, input_spec=input_spec)
+
+        self.architecture_kwargs['reduction'] = reduction
+        self.architecture_kwargs['window'] = str(window)
+        self.architecture_kwargs['stride'] = str(stride)
+        self.architecture_kwargs['padding'] = padding
 
     def default_input_spec(self):
         return TensorSpec(type='float', shape=(0, 0))
@@ -194,7 +205,11 @@ class Pool2d(Layer):
         input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
 
-    def __init__(self, *, reduction, window=2, stride=2, padding='same', name=None,input_spec=None):
+    def __init__(
+        self, *, reduction, window=2, stride=2, padding='same', name=None, input_spec=None
+    ):
+        if reduction not in ('average', 'max'):
+            raise TensorforceError.value(name='pool1d', argument='reduction', value=reduction)
         self.reduction = reduction
 
         if isinstance(window, int):
@@ -214,6 +229,11 @@ class Pool2d(Layer):
         self.padding = padding
 
         super().__init__(name=name, input_spec=input_spec)
+
+        self.architecture_kwargs['reduction'] = reduction
+        self.architecture_kwargs['window'] = str(window)
+        self.architecture_kwargs['stride'] = str(stride)
+        self.architecture_kwargs['padding'] = padding
 
     def default_input_spec(self):
         return TensorSpec(type='float', shape=(0, 0, 0))

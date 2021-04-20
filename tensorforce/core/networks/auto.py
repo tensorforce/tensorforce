@@ -21,8 +21,8 @@ from tensorforce.core.networks import LayeredNetwork
 
 class AutoNetwork(LayeredNetwork):
     """
-    Network which is automatically configured based on its input tensors, offering high-level
-    customization (specification key: `auto`).
+    Network whose architecture is automatically configured based on input types and shapes,
+    offering high-level customization (specification key: `auto`).
 
     Args:
         size (int > 0): Layer size, before concatenation if multiple states
@@ -77,8 +77,11 @@ class AutoNetwork(LayeredNetwork):
 
         layers = list()
         for input_name, spec in inputs_spec.items():
-            state_layers = list()
-            layers.append(state_layers)
+            if len(inputs_spec) == 1:
+                state_layers = layers
+            else:
+                state_layers = list()
+                layers.append(state_layers)
 
             # Retrieve input state
             if input_name is None:
@@ -140,10 +143,13 @@ class AutoNetwork(LayeredNetwork):
                 ))
 
         # Final combined layers
-        final_layers = list()
-        layers.append(final_layers)
+        if len(inputs_spec) == 1:
+            final_layers = layers
 
-        if len(inputs_spec) > 1:
+        else:
+            final_layers = list()
+            layers.append(final_layers)
+
             # Retrieve state-specific embeddings
             final_layers.append(dict(
                 type='retrieve', name='retrieve',

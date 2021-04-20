@@ -43,6 +43,10 @@ class KerasLayer(Layer):
             name=name, dtype=tf_util.get_dtype(type='float'), input_shape=input_spec.shape, **kwargs
         )
 
+        self.architecture_kwargs['layer'] = str(layer)
+        if l2_regularization is not None:
+            self.architecture_kwargs['l2_regularization'] = str(l2_regularization)
+
     def output_spec(self):
         output_spec = super().output_spec()
 

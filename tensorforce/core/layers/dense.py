@@ -56,6 +56,19 @@ class Dense(TransformationBase):
 
         self.initialization_scale = initialization_scale
 
+        self.architecture_kwargs['size'] = str(size)
+        self.architecture_kwargs['bias'] = str(bias)
+        if activation is not None:
+            self.architecture_kwargs['activation'] = str(activation)
+        if dropout != 0.0:
+            self.architecture_kwargs['dropout'] = str(dropout)
+        if initialization_scale != 1.0:
+            self.architecture_kwargs['initialization_scale'] = str(initialization_scale)
+        if not vars_trainable:
+            self.architecture_kwargs['trainable'] = str(vars_trainable)
+        if l2_regularization is not None:
+            self.architecture_kwargs['l2_regularization'] = str(l2_regularization)
+
     def default_input_spec(self):
         return TensorSpec(type='float', shape=(0,))
 

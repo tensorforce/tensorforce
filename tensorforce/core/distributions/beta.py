@@ -86,6 +86,11 @@ class Beta(Distribution):
                 initialization_scale=0.01, input_spec=self.input_spec
             )
 
+    def get_architecture(self):
+        return 'Alpha:  {}\nBeta:  {}'.format(
+            self.alpha.get_architecture(), self.beta.get_architecture()
+        )
+
     def initialize(self):
         super().initialize()
 

@@ -67,11 +67,30 @@ class Conv1d(TransformationBase):
 
         super().__init__(
             size=size, bias=bias, activation=activation, dropout=dropout,
-            vars_trainable=vars_trainable,  l2_regularization=l2_regularization, name=name,
+            vars_trainable=vars_trainable, l2_regularization=l2_regularization, name=name,
             input_spec=input_spec
         )
 
         self.initialization_scale = initialization_scale
+
+        self.architecture_kwargs['size'] = str(size)
+        self.architecture_kwargs['window'] = str(window)
+        self.architecture_kwargs['padding'] = str(padding)
+        if stride != 1:
+            self.architecture_kwargs['stride'] = str(stride)
+        if dilation != 1:
+            self.architecture_kwargs['dilation'] = str(dilation)
+        self.architecture_kwargs['bias'] = str(bias)
+        if activation is not None:
+            self.architecture_kwargs['activation'] = str(activation)
+        if dropout != 0.0:
+            self.architecture_kwargs['dropout'] = str(dropout)
+        if initialization_scale != 1.0:
+            self.architecture_kwargs['initialization_scale'] = str(initialization_scale)
+        if not vars_trainable:
+            self.architecture_kwargs['trainable'] = str(vars_trainable)
+        if l2_regularization is not None:
+            self.architecture_kwargs['l2_regularization'] = str(l2_regularization)
 
     def default_input_spec(self):
         return TensorSpec(type='float', shape=(0, 0))
@@ -189,6 +208,25 @@ class Conv2d(TransformationBase):
 
         self.initialization_scale = initialization_scale
 
+        self.architecture_kwargs['size'] = str(size)
+        self.architecture_kwargs['window'] = str(window)
+        self.architecture_kwargs['padding'] = str(padding)
+        if stride != 1:
+            self.architecture_kwargs['stride'] = str(stride)
+        if dilation != 1:
+            self.architecture_kwargs['dilation'] = str(dilation)
+        self.architecture_kwargs['bias'] = str(bias)
+        if activation is not None:
+            self.architecture_kwargs['activation'] = str(activation)
+        if dropout != 0.0:
+            self.architecture_kwargs['dropout'] = str(dropout)
+        if initialization_scale != 1.0:
+            self.architecture_kwargs['initialization_scale'] = str(initialization_scale)
+        if not vars_trainable:
+            self.architecture_kwargs['trainable'] = str(vars_trainable)
+        if l2_regularization is not None:
+            self.architecture_kwargs['l2_regularization'] = str(l2_regularization)
+
     def default_input_spec(self):
         return TensorSpec(type='float', shape=(0, 0, 0))
 
@@ -298,6 +336,27 @@ class Conv1dTranspose(TransformationBase):
         )
 
         self.initialization_scale = initialization_scale
+
+        self.architecture_kwargs['size'] = str(size)
+        self.architecture_kwargs['window'] = str(window)
+        if output_width is not None:
+            self.architecture_kwargs['output_width'] = str(output_width)
+        self.architecture_kwargs['padding'] = str(padding)
+        if stride != 1:
+            self.architecture_kwargs['stride'] = str(stride)
+        if dilation != 1:
+            self.architecture_kwargs['dilation'] = str(dilation)
+        self.architecture_kwargs['bias'] = str(bias)
+        if activation is not None:
+            self.architecture_kwargs['activation'] = str(activation)
+        if dropout != 0.0:
+            self.architecture_kwargs['dropout'] = str(dropout)
+        if initialization_scale != 1.0:
+            self.architecture_kwargs['initialization_scale'] = str(initialization_scale)
+        if not vars_trainable:
+            self.architecture_kwargs['trainable'] = str(vars_trainable)
+        if l2_regularization is not None:
+            self.architecture_kwargs['l2_regularization'] = str(l2_regularization)
 
     def default_input_spec(self):
         return TensorSpec(type='float', shape=(0, 0))
@@ -441,6 +500,27 @@ class Conv2dTranspose(TransformationBase):
         )
 
         self.initialization_scale = initialization_scale
+
+        self.architecture_kwargs['size'] = str(size)
+        self.architecture_kwargs['window'] = str(window)
+        if output_shape is not None:
+            self.architecture_kwargs['output_width'] = str(output_shape)
+        self.architecture_kwargs['padding'] = str(padding)
+        if stride != 1:
+            self.architecture_kwargs['stride'] = str(stride)
+        if dilation != 1:
+            self.architecture_kwargs['dilation'] = str(dilation)
+        self.architecture_kwargs['bias'] = str(bias)
+        if activation is not None:
+            self.architecture_kwargs['activation'] = str(activation)
+        if dropout != 0.0:
+            self.architecture_kwargs['dropout'] = str(dropout)
+        if initialization_scale != 1.0:
+            self.architecture_kwargs['initialization_scale'] = str(initialization_scale)
+        if not vars_trainable:
+            self.architecture_kwargs['trainable'] = str(vars_trainable)
+        if l2_regularization is not None:
+            self.architecture_kwargs['l2_regularization'] = str(l2_regularization)
 
     def default_input_spec(self):
         return TensorSpec(type='float', shape=(0, 0, 0))

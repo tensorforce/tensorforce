@@ -197,6 +197,9 @@ class Model(Module):
         else:
             self.tracking = frozenset(tracking)
 
+    def get_architecture(self):
+        raise NotImplementedError
+
     @property
     def root(self):
         return self

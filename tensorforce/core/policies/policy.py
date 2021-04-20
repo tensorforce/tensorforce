@@ -32,6 +32,9 @@ class Policy(BasePolicy):
         actions_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
+    def get_architecture(self):
+        raise NotImplementedError
+
     def input_signature(self, *, function):
         if function == 'act':
             return SignatureDict(

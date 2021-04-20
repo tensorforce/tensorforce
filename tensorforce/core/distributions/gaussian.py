@@ -84,8 +84,8 @@ class Gaussian(Distribution):
                 initialization_scale=0.01, input_spec=self.input_spec
             )
             if self.stddev_mode == 'predicted':
-                self.softplus_stddev = self.submodule(
-                    name='softplus_stddev', module='linear', modules=layer_modules,
+                self.stddev = self.submodule(
+                    name='stddev', module='linear', modules=layer_modules,
                     size=self.action_spec.size, initialization_scale=0.01,
                     input_spec=self.input_spec
                 )
@@ -111,19 +111,24 @@ class Gaussian(Distribution):
                 initialization_scale=0.01, input_spec=self.input_spec
             )
             if self.stddev_mode == 'predicted':
-                self.softplus_stddev = self.submodule(
-                    name='softplus_stddev', module='linear', modules=layer_modules, size=size,
+                self.stddev = self.submodule(
+                    name='stddev', module='linear', modules=layer_modules, size=size,
                     initialization_scale=0.01, input_spec=self.input_spec
                 )
+
+    def get_architecture(self):
+        architecture = 'Mean:  {}'.format(self.mean.get_architecture())
+        if self.stddev_mode == 'predicted':
+            architecture += '\nStddev:  {}'.format(self.stddev.get_architecture())
+        return architecture
 
     def initialize(self):
         super().initialize()
 
         if self.stddev_mode == 'global':
             spec = TensorSpec(type='float', shape=((1,) + self.action_spec.shape))
-            self.softplus_stddev = self.variable(
-                name='softplus_stddev', spec=spec, initializer='zeros', is_trainable=True,
-                is_saved=True
+            self.stddev = self.variable(
+                name='stddev', spec=spec, initializer='zeros', is_trainable=True, is_saved=True
             )
 
         prefix = 'distributions/' + self.name
@@ -148,9 +153,9 @@ class Gaussian(Distribution):
         # Softplus standard deviation
         if self.stddev_mode == 'global':
             multiples = (tf.shape(input=x)[0],) + tuple(1 for _ in range(self.action_spec.rank))
-            softplus_stddev = tf.tile(input=self.softplus_stddev, multiples=multiples)
+            softplus_stddev = tf.tile(input=self.stddev, multiples=multiples)
         else:
-            softplus_stddev = self.softplus_stddev.apply(x=x)
+            softplus_stddev = self.stddev.apply(x=x)
             if self.input_spec.rank == 1:
                 softplus_stddev = tf.reshape(tensor=softplus_stddev, shape=shape)
 

@@ -86,6 +86,11 @@ class Clipping(Layer):
                 name='upper', module=upper, modules=parameter_modules, dtype='float'
             )
 
+        if lower is not None:
+            self.architecture_kwargs['lower'] = str(lower)
+        if upper is not None:
+            self.architecture_kwargs['upper'] = str(upper)
+
     def default_input_spec(self):
         return TensorSpec(type='float', shape=None)
 
@@ -127,6 +132,8 @@ class Deltafier(PreprocessingLayer):
         self.concatenate = concatenate
 
         super().__init__(name=name, input_spec=input_spec)
+
+        self.architecture_kwargs['concatenate'] = str(concatenate)
 
     def default_input_spec(self):
         return TensorSpec(type='float', shape=None)
@@ -221,6 +228,13 @@ class Image(Layer):
 
         super().__init__(name=name, input_spec=input_spec)
 
+        if height is not None:
+            self.architecture_kwargs['height'] = str(height)
+        if width is not None:
+            self.architecture_kwargs['width'] = str(width)
+        if grayscale:
+            self.architecture_kwargs['grayscale'] = str(grayscale)
+
     def default_input_spec(self):
         return TensorSpec(type='float', shape=(0, 0, 0))
 
@@ -281,6 +295,10 @@ class Sequence(PreprocessingLayer):
         self.concatenate = concatenate
 
         super().__init__(name=name, input_spec=input_spec)
+
+        self.architecture_kwargs['length'] = str(length)
+        self.architecture_kwargs['axis'] = str(axis)
+        self.architecture_kwargs['concatenate'] = str(concatenate)
 
     def output_spec(self):
         output_spec = super().output_spec()

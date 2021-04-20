@@ -572,6 +572,30 @@ class TensorforceModel(Model):
             min_value=0.0, max_value=1.0
         )
 
+    def get_architecture(self):
+        if self.state_preprocessing.is_singleton():
+            architecture = 'State-preprocessing:  {}\n'.format(
+                self.state_preprocessing.singleton().get_architecture().replace('\n', '\n    ')
+            )
+        else:
+            architecture = ''
+            for name, preprocessor in self.state_preprocessing.items():
+                architecture += '    {}:  {}\n'.format(
+                    name, preprocessor.get_architecture().replace('\n', '\n    ')
+                )
+            if len(architecture) > 0:
+                architecture = 'State-preprocessing:\n' + architecture
+        architecture = 'Policy:\n    {}'.format(
+            self.policy.get_architecture().replace('\n', '\n    ')
+        )
+        if self.separate_baseline:
+            architecture += '\nBaseline:\n    {}'.format(
+                self.baseline.get_architecture().replace('\n', '\n    ')
+            )
+        elif self.predict_horizon_values or self.baseline_objective is not None:
+            architecture += '\nBaseline:  policy used as baseline'
+        return architecture
+
     def initialize(self):
         super().initialize()
 

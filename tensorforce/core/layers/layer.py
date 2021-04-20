@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
+from collections import OrderedDict
+
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
@@ -50,6 +52,22 @@ class Layer(Module):
         self.input_spec = self.input_spec.unify(
             other=input_spec, name=(self.__class__.__name__ + ' input')
         )
+
+        self.architecture_kwargs = OrderedDict()
+        if name is not None:
+            self.architecture_kwargs['name'] = name
+
+    def get_architecture(self):
+        if len(self.architecture_kwargs) == 0:
+            return self.__class__.__name__
+        else:
+            assert all(
+                isinstance(key, str) and isinstance(value, str)
+                for key, value in self.architecture_kwargs.items()
+            )
+            return '{}({})'.format(self.__class__.__name__, ', '.join(
+                '{}={}'.format(key, value) for key, value in self.architecture_kwargs.items()
+            ))
 
     def default_input_spec(self):
         return TensorSpec(type=None, shape=None, overwrite=True)
@@ -103,6 +121,10 @@ class MultiInputLayer(Layer):
         super(Layer, self).__init__(l2_regularization=l2_regularization, name=name)
 
         Layer._REGISTERED_LAYERS[self.name] = self
+
+        self.architecture_kwargs = OrderedDict()
+        if name is not None:
+            self.architecture_kwargs['name'] = name
 
         if isinstance(tensors, str):
             pass
@@ -188,6 +210,8 @@ class Register(Layer):
 
         self.tensor = tensor
 
+        self.architecture_kwargs['tensor'] = tensor
+
 
 class Retrieve(MultiInputLayer):
     """
@@ -220,6 +244,13 @@ class Retrieve(MultiInputLayer):
 
         self.aggregation = aggregation
         self.axis = axis
+
+        if len(self.tensors) == 1:
+            self.architecture_kwargs['tensor'] = self.tensors[0]
+        else:
+            self.architecture_kwargs['tensors'] = '[{}]'.format(', '.join(self.tensors))
+            self.architecture_kwargs['aggregation'] = aggregation
+            self.architecture_kwargs['axis'] = str(axis)
 
     def output_spec(self):
         if len(self.tensors) == 1:
@@ -336,6 +367,8 @@ class Reuse(Layer):
         self.layer = layer
 
         super().__init__(name=name, input_spec=input_spec, l2_regularization=0.0)
+
+        self.architecture_kwargs['layer'] = layer
 
     @property
     def reused_layer(self):

@@ -53,6 +53,9 @@ class KerasNetwork(Network):
         # if self.keras_model.inputs is not None:
         #     assert False
 
+    def get_architecture(self):
+        return 'KerasNetwork(model={})'.format(self.keras_model.__class__.__name__)
+
     def output_spec(self):
         assert self.keras_model.compute_dtype in (tf.float32, tf.float64)
 

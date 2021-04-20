@@ -137,6 +137,7 @@ class UnittestBase(object):
         agent = self.agent_spec(**agent)
 
         agent = Agent.create(agent=agent, environment=environment)
+        assert isinstance(agent.model.get_architecture(), str)
 
         return agent, environment
 
@@ -173,6 +174,8 @@ class UnittestBase(object):
                 environment=environment, max_episode_timesteps=max_episode_timesteps
             )
             agent = Agent.create(agent=agent, environment=environment)
+            assert isinstance(agent.model.get_architecture(), str)
+
             for episode in range(num_updates if num_episodes is None else num_episodes):
                 episode_states = list()
                 episode_internals = list()

@@ -117,6 +117,37 @@ class ParametrizedValuePolicy(ValuePolicy, ParametrizedPolicy):
                 function=function, cls=ModuleDict, with_names=True
             )
 
+    def get_architecture(self):
+        architecture = 'Network:  {}'.format(
+            self.network.get_architecture().replace('\n', '\n    ')
+        )
+        if self.a_values.is_singleton():
+            architecture += 'Action-value:  {}'.format(
+                self.a_values.singleton().get_architecture().replace('\n', '\n    ')
+            )
+        else:
+            architecture += 'Action-values:'
+            for name, a_value in self.a_values.items():
+                architecture += '\n    {}:  {}'.format(
+                    name, a_value.get_architecture().replace('\n', '\n    ')
+                )
+        if self.state_value_mode == 'separate':
+            architecture += 'State-value:  {}'.format(
+                self.s_value.get_architecture().replace('\n', '\n    ')
+            )
+        elif self.state_value_mode == 'separate-per-action':
+            if self.s_values.is_singleton():
+                architecture += 'State-value:  {}'.format(
+                    self.s_values.singleton().get_architecture().replace('\n', '\n    ')
+                )
+            else:
+                architecture += 'State-values:'
+                for name, s_value in self.s_values.items():
+                    architecture += '\n    {}:  {}'.format(
+                        name, s_value.get_architecture().replace('\n', '\n    ')
+                    )
+        return architecture
+
     def initialize(self):
         super().initialize()
 

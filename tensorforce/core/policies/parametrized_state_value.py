@@ -56,6 +56,12 @@ class ParametrizedStateValue(StateValue, ParametrizedPolicy):
             name='value', module='linear', modules=layer_modules, size=0, input_spec=output_spec
         )
 
+    def get_architecture(self):
+        return 'Network:  {}\nState-value:  {}'.format(
+            self.network.get_architecture().replace('\n', '\n    '),
+            self.value.get_architecture().replace('\n', '\n    ')
+        )
+
     @tf_function(num_args=4)
     def state_value(self, *, states, horizons, internals, auxiliaries):
         deterministic = tf_util.constant(value=True, dtype='bool')

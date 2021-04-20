@@ -14,6 +14,8 @@ Default network: ``LayeredNetwork`` with default argument ``layers``, so a ``lis
         ...
     )
 
+Note that the final action/value layer of the policy/baseline network is implicitly added, so the network output can be of arbitrary size and use any activation function, and is only required to be a rank-one embedding vector, or optionally have the same shape as the action in the case of a higher-rank action shape.
+
 Multi-input and other non-sequential networks are specified as nested list of lists of layers, where each of the inner lists forms a sequential component of the overall network architecture. The following example illustrates how to specify such a more complex network, by using the `special layers <layers.html#tensorforce.core.layers.Register>`_ ``Register`` and ``Retrieve`` to combine the sequential network components:
 
 .. code-block:: python
@@ -48,7 +50,9 @@ Multi-input and other non-sequential networks are specified as nested list of li
         ...
     )
 
-Note that the final action/value layer of the policy/baseline network is implicitly added, so the network output can be of arbitrary size and use any activation function, and is only required to be a rank-one embedding vector, or optionally have the same shape as the action in the case of a higher-rank action shape.
+The ``AutoNetwork`` automatically configures a suitable network architecture based on input types and shapes, and offers high-level customization.
+
+Details about the network layer architecture (policy, baseline, state-preprocessing) can be accessed via ``agent.get_architecture()``.
 
 
 .. autoclass:: tensorforce.core.networks.AutoNetwork

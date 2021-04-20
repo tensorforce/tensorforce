@@ -65,6 +65,12 @@ class ParametrizedActionValue(ActionValue, ParametrizedPolicy):
             name='value', module='linear', modules=layer_modules, size=0, input_spec=output_spec
         )
 
+    def get_architecture(self):
+        return 'Network:  {}\nAction-value:  {}'.format(
+            self.network.get_architecture().replace('\n', '\n    '),
+            self.value.get_architecture().replace('\n', '\n    ')
+        )
+
     @tf_function(num_args=5)
     def next_internals(self, *, states, horizons, internals, actions, deterministic, independent):
         inputs = TensorDict()

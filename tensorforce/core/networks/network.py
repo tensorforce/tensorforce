@@ -43,6 +43,9 @@ class Network(Module):
 
         self.inputs_spec = inputs_spec
 
+    def get_architecture(self):
+        raise NotImplementedError
+
     def output_spec(self):
         raise NotImplementedError
 
@@ -256,12 +259,29 @@ class LayeredNetwork(LayerbasedNetwork):
             device=device, l2_regularization=l2_regularization, name=name, inputs_spec=inputs_spec
         )
 
-        self.layers = list(self._parse_layers_spec(spec=layers, counter=Counter()))
+        self.layers = self._parse_layers_spec(spec=layers, counter=Counter())
+
+    def get_architecture(self):
+        architecture = LayeredNetwork._recursive_get_architecture(layer=self.layers)
+        while '----\n----' in architecture:
+            architecture = architecture.replace('----\n----', '----')
+        if architecture.startswith('----'):
+            architecture = architecture[4:]
+        return architecture
+
+    @staticmethod
+    def _recursive_get_architecture(*, layer):
+        if isinstance(layer, list):
+            return '----\n' + '\n'.join(
+                LayeredNetwork._recursive_get_architecture(layer=layer) for layer in layer
+            )
+
+        else:
+            return layer.get_architecture()
 
     def _parse_layers_spec(self, *, spec, counter):
         if isinstance(spec, list):
-            for s in spec:
-                yield from self._parse_layers_spec(spec=s, counter=counter)
+            return [self._parse_layers_spec(spec=s, counter=counter) for s in spec]
 
         else:
             if callable(spec):
@@ -286,7 +306,7 @@ class LayeredNetwork(LayerbasedNetwork):
                 name = layer_type + str(counter[layer_type])
                 counter[layer_type] += 1
 
-            yield self.submodule(name=name, module=spec)
+            return self.submodule(name=name, module=spec)
 
     @tf_function(num_args=4)
     def apply(self, *, x, horizons, internals, deterministic, independent):
@@ -297,36 +317,57 @@ class LayeredNetwork(LayerbasedNetwork):
         x = x.value()
 
         temporal_layer_check = False
-        for layer in self.layers:
-            if isinstance(layer, Register):
-                if layer.tensor in registered_tensors:
-                    raise TensorforceError.exists(name='registered tensor', value=layer.tensor)
-                x = layer.apply(x=x)
-                registered_tensors[layer.tensor] = x
-
-            elif isinstance(layer, MultiInputLayer):
-                if layer.tensors not in registered_tensors:
-                    raise TensorforceError.exists_not(name='registered tensor', value=layer.tensors)
-                x = layer.apply(x=registered_tensors[layer.tensors])
-                temporal_layer_check = False
-
-            elif isinstance(layer, NondeterministicLayer):
-                x = layer.apply(x=x, deterministic=deterministic)
-
-            elif isinstance(layer, StatefulLayer):
-                x = layer.apply(x=x, independent=independent)
-
-            elif isinstance(layer, TemporalLayer):
-                if temporal_layer_check:
-                    raise TensorforceError(
-                        "Multiple successive temporal layers like RNNs are currently not supported."
-                    )
-                x, internals[layer.name] = layer.apply(
-                    x=x, horizons=horizons, internals=internals[layer.name]
-                )
-                temporal_layer_check = True
-
-            else:
-                x = layer.apply(x=x)
+        x, _ = LayeredNetwork._recursive_apply(
+            layer=self.layers, x=x, horizons=horizons, internals=internals,
+            deterministic=deterministic, independent=independent,
+            registered_tensors=registered_tensors, temporal_layer_check=temporal_layer_check
+        )
 
         return x, internals
+
+    @staticmethod
+    def _recursive_apply(
+        *, layer, x, horizons, internals, deterministic, independent, registered_tensors,
+        temporal_layer_check
+    ):
+        if isinstance(layer, list):
+            for layer in layer:
+                x, temporal_layer_check = LayeredNetwork._recursive_apply(
+                    layer=layer, x=x, horizons=horizons, internals=internals,
+                    deterministic=deterministic, independent=independent,
+                    registered_tensors=registered_tensors,
+                    temporal_layer_check=temporal_layer_check
+                )
+
+        elif isinstance(layer, Register):
+            if layer.tensor in registered_tensors:
+                raise TensorforceError.exists(name='registered tensor', value=layer.tensor)
+            x = layer.apply(x=x)
+            registered_tensors[layer.tensor] = x
+
+        elif isinstance(layer, MultiInputLayer):
+            if layer.tensors not in registered_tensors:
+                raise TensorforceError.exists_not(name='registered tensor', value=layer.tensors)
+            x = layer.apply(x=registered_tensors[layer.tensors])
+            temporal_layer_check = False
+
+        elif isinstance(layer, NondeterministicLayer):
+            x = layer.apply(x=x, deterministic=deterministic)
+
+        elif isinstance(layer, StatefulLayer):
+            x = layer.apply(x=x, independent=independent)
+
+        elif isinstance(layer, TemporalLayer):
+            if temporal_layer_check:
+                raise TensorforceError(
+                    "Multiple successive temporal layers like RNNs are currently not supported."
+                )
+            x, internals[layer.name] = layer.apply(
+                x=x, horizons=horizons, internals=internals[layer.name]
+            )
+            temporal_layer_check = True
+
+        else:
+            x = layer.apply(x=x)
+
+        return x, temporal_layer_check

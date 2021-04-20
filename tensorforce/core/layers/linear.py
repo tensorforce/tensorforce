@@ -69,6 +69,15 @@ class Linear(Layer):
                 name='Linear', argument='input rank', value=len(self.input_spec.shape), hint='<= 3'
             )
 
+        self.architecture_kwargs['size'] = str(size)
+        self.architecture_kwargs['bias'] = str(bias)
+        if initialization_scale != 1.0:
+            self.architecture_kwargs['initialization_scale'] = str(initialization_scale)
+        if not vars_trainable:
+            self.architecture_kwargs['trainable'] = str(vars_trainable)
+        if l2_regularization is not None:
+            self.architecture_kwargs['l2_regularization'] = str(l2_regularization)
+
     def default_input_spec(self):
         return TensorSpec(type='float', shape=None)
 

@@ -40,6 +40,9 @@ class Distribution(Module):
         self.parameters_spec = parameters_spec
         self.conditions_spec = conditions_spec
 
+    def get_architecture(self):
+        raise NotImplementedError
+
     def input_signature(self, *, function):
         if function == 'action_value':
             return SignatureDict(

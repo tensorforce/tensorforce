@@ -53,7 +53,7 @@ class Preprocessor(LayeredNetwork):
         self.is_preprocessing_layer_valid = is_preprocessing_layer_valid
 
         super().__init__(
-            layers=[layers], device=device, l2_regularization=l2_regularization, name=name,
+            layers=layers, device=device, l2_regularization=l2_regularization, name=name,
             inputs_spec=TensorsSpec(singleton=input_spec)
         )
 
@@ -103,16 +103,20 @@ class Preprocessor(LayeredNetwork):
 
     @tf_function(num_args=0)
     def reset(self):
-        operations = list()
-
-        for layer in self.layers:
-            if isinstance(layer, PreprocessingLayer):
-                operations.append(layer.reset())
-
+        operations = list(Preprocessor._recursive_reset(layer=self.layers))
         if len(operations) > 0:
             return tf.math.reduce_any(input_tensor=tf.stack(values=operations, axis=0), axis=0)
         else:
             return tf_util.constant(value=False, dtype='bool')
+
+    @staticmethod
+    def _recursive_reset(*, layer):
+        if isinstance(layer, list):
+            for layer in layer:
+                yield from Preprocessor._recursive_reset(layer=layer)
+
+        elif isinstance(layer, PreprocessingLayer):
+            yield layer.reset()
 
     @tf_function(num_args=2)
     def apply(self, *, x, deterministic, independent):
@@ -120,25 +124,40 @@ class Preprocessor(LayeredNetwork):
         x = x.singleton()
         registered_tensors = TensorDict(input=x)
 
-        for layer in self.layers:
-            if isinstance(layer, Register):
-                if layer.tensor in registered_tensors:
-                    raise TensorforceError.exists(name='registered tensor', value=layer.tensor)
-                x = layer.apply(x=x)
-                registered_tensors[layer.tensor] = x
+        x = Preprocessor._recursive_apply(
+            layer=self.layers, x=x, deterministic=deterministic, independent=independent,
+            registered_tensors=registered_tensors
+        )
 
-            elif isinstance(layer, MultiInputLayer):
-                if layer.tensors not in registered_tensors:
-                    raise TensorforceError.exists_not(name='registered tensor', value=layer.tensors)
-                x = layer.apply(x=registered_tensors[layer.tensors])
+        return x
 
-            elif isinstance(layer, NondeterministicLayer):
-                x = layer.apply(x=x, deterministic=deterministic)
+    @staticmethod
+    def _recursive_apply(*, layer, x, deterministic, independent, registered_tensors):
+        if isinstance(layer, list):
+            for layer in layer:
+                x = Preprocessor._recursive_apply(
+                    layer=layer, x=x, deterministic=deterministic, independent=independent,
+                    registered_tensors=registered_tensors
+                )
 
-            elif isinstance(layer, StatefulLayer):
-                x = layer.apply(x=x, independent=independent)
+        elif isinstance(layer, Register):
+            if layer.tensor in registered_tensors:
+                raise TensorforceError.exists(name='registered tensor', value=layer.tensor)
+            x = layer.apply(x=x)
+            registered_tensors[layer.tensor] = x
 
-            else:
-                x = layer.apply(x=x)
+        elif isinstance(layer, MultiInputLayer):
+            if layer.tensors not in registered_tensors:
+                raise TensorforceError.exists_not(name='registered tensor', value=layer.tensors)
+            x = layer.apply(x=registered_tensors[layer.tensors])
+
+        elif isinstance(layer, NondeterministicLayer):
+            x = layer.apply(x=x, deterministic=deterministic)
+
+        elif isinstance(layer, StatefulLayer):
+            x = layer.apply(x=x, independent=independent)
+
+        else:
+            x = layer.apply(x=x)
 
         return x

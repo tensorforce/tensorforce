@@ -37,7 +37,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
             actions = agent.act(states=states)
             states, terminal, reward = environment.execute(actions=actions)
             agent.observe(terminal=terminal, reward=reward)
-            weights0 = agent.model.policy.network.layers[1].weights.numpy()
+            weights0 = agent.model.policy.network.layers[0][1].weights.numpy()
             for module in agent.model.tensorforce_submodules:
                 path = module.save(directory=directory)
                 assert path == os.path.join(directory, module.full_name.replace('/', '.'))
@@ -53,7 +53,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
             agent.observe(terminal=terminal, reward=reward)
             for module in agent.model.tensorforce_submodules:
                 module.restore(directory=directory)
-            x = agent.model.policy.network.layers[1].weights.numpy()
+            x = agent.model.policy.network.layers[0][1].weights.numpy()
             self.assertTrue(np.allclose(x, weights0))
             actions = agent.act(states=states)
             states, terminal, reward = environment.execute(actions=actions)
@@ -85,7 +85,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
             states = environment.reset()
 
             # save: default checkpoint format
-            weights0 = agent.model.policy.network.layers[1].weights.numpy()
+            weights0 = agent.model.policy.network.layers[0][1].weights.numpy()
             agent.save(directory=directory)
             actions = agent.act(states=states)
             states, terminal, reward = environment.execute(actions=actions)
@@ -96,7 +96,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
             # load: only directory
             agent = Agent.load(directory=directory, environment=environment)
-            x = agent.model.policy.network.layers[1].weights.numpy()
+            x = agent.model.policy.network.layers[0][1].weights.numpy()
             self.assertTrue(np.allclose(x, weights0))
             self.assertEqual(agent.timesteps, 0)
             self.finished_test()
@@ -112,7 +112,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
             # load: numpy format and directory
             agent = Agent.load(directory=directory, format='numpy', environment=environment)
-            x = agent.model.policy.network.layers[1].weights.numpy()
+            x = agent.model.policy.network.layers[0][1].weights.numpy()
             self.assertTrue(np.allclose(x, weights0))
             self.assertEqual(agent.timesteps, 1)
             self.finished_test()
@@ -129,7 +129,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
             # load: numpy format and directory
             agent = Agent.load(directory=directory, format='numpy', environment=environment)
-            x = agent.model.policy.network.layers[1].weights.numpy()
+            x = agent.model.policy.network.layers[0][1].weights.numpy()
             self.assertTrue(np.allclose(x, weights0))
             self.assertEqual(agent.timesteps, 2)
             self.finished_test()
@@ -141,7 +141,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
                 agent.observe(terminal=terminal, reward=reward)
 
             # save: hdf5 format, filename, append episodes
-            weights1 = agent.model.policy.network.layers[1].weights.numpy()
+            weights1 = agent.model.policy.network.layers[0][1].weights.numpy()
             self.assertTrue(not np.allclose(weights1, weights0))
             self.assertEqual(agent.episodes, 1)
             agent.save(directory=directory, filename='agent2', format='hdf5', append='episodes')
@@ -161,7 +161,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
                 directory=directory, filename='agent2', environment=environment, update=update,
                 parallel_interactions=2
             )
-            x = agent.model.policy.network.layers[1].weights.numpy()
+            x = agent.model.policy.network.layers[0][1].weights.numpy()
             self.assertTrue(np.allclose(x, weights1))
             self.assertEqual(agent.episodes, 1)
             agent.close()
@@ -174,7 +174,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
                 directory=directory, format='checkpoint', environment=environment, update=update,
                 parallel_interactions=1
             )
-            x = agent.model.policy.network.layers[1].weights.numpy()
+            x = agent.model.policy.network.layers[0][1].weights.numpy()
             self.assertTrue(np.allclose(x, weights0))
             self.assertEqual(agent.timesteps, 0)
             self.assertEqual(agent.episodes, 0)
@@ -186,7 +186,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
                 directory=directory, filename='agent-1', format='numpy', environment=environment,
                 update=update, parallel_interactions=2
             )
-            x = agent.model.policy.network.layers[1].weights.numpy()
+            x = agent.model.policy.network.layers[0][1].weights.numpy()
             self.assertTrue(np.allclose(x, weights0))
             self.assertEqual(agent.timesteps, 1)
             self.assertEqual(agent.episodes, 0)
@@ -315,7 +315,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
                     device='CPU', eager_mode=False, create_debug_assertions=True, tf_log_level=20
                 )
             )
-            weights0 = agent.model.policy.network.layers[1].weights.numpy()
+            weights0 = agent.model.policy.network.layers[0][1].weights.numpy()
             states = environment.reset()
             actions = agent.act(states=states)
             states, terminal, reward = environment.execute(actions=actions)
@@ -325,7 +325,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
             # load: from given directory
             agent = Agent.load(directory=directory, environment=environment)
-            x = agent.model.policy.network.layers[1].weights.numpy()
+            x = agent.model.policy.network.layers[0][1].weights.numpy()
             self.assertTrue(np.allclose(x, weights0))
             self.assertEqual(agent.timesteps, 0)
             while not terminal:
@@ -333,7 +333,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
                 states, terminal, reward = environment.execute(actions=actions)
                 updated = agent.observe(terminal=terminal, reward=reward)
             self.assertTrue(updated)
-            weights1 = agent.model.policy.network.layers[1].weights.numpy()
+            weights1 = agent.model.policy.network.layers[0][1].weights.numpy()
             self.assertTrue(not np.allclose(weights1, weights0))
             timesteps = agent.timesteps
             agent.close()
@@ -341,7 +341,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
             # load: from given directory
             agent = Agent.load(directory=directory, environment=environment)
-            x = agent.model.policy.network.layers[1].weights.numpy()
+            x = agent.model.policy.network.layers[0][1].weights.numpy()
             self.assertTrue(np.allclose(x, weights1))
             self.assertEqual(agent.timesteps, timesteps)
             agent.close()
@@ -354,7 +354,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
                     device='CPU', eager_mode=False, create_debug_assertions=True, tf_log_level=20
                 )
             )
-            x = agent.model.policy.network.layers[1].weights.numpy()
+            x = agent.model.policy.network.layers[0][1].weights.numpy()
             self.assertTrue(not np.allclose(x, weights0))
             self.assertTrue(not np.allclose(x, weights1))
             self.assertEqual(agent.timesteps, 0)
@@ -365,13 +365,13 @@ class TestSaving(UnittestBase, unittest.TestCase):
                 states, terminal, reward = environment.execute(actions=actions)
                 updated = agent.observe(terminal=terminal, reward=reward)
             self.assertTrue(updated)
-            weights2 = agent.model.policy.network.layers[1].weights.numpy()
+            weights2 = agent.model.policy.network.layers[0][1].weights.numpy()
             agent.close()
             self.finished_test()
 
             # load: from given directory
             agent = Agent.load(directory=directory, environment=environment)
-            x = agent.model.policy.network.layers[1].weights.numpy()
+            x = agent.model.policy.network.layers[0][1].weights.numpy()
             self.assertTrue(np.allclose(x, weights2))
             agent.close()
             environment.close()

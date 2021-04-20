@@ -49,8 +49,7 @@ class Embedding(TransformationBase):
 
     def __init__(
         self, *, size, num_embeddings=None, max_norm=None, bias=True, activation='tanh',
-        dropout=0.0, vars_trainable=True, l2_regularization=None, name=None,
-        input_spec=None
+        dropout=0.0, vars_trainable=True, l2_regularization=None, name=None, input_spec=None
     ):
         super().__init__(
             size=size, bias=bias, activation=activation, dropout=dropout,
@@ -60,6 +59,20 @@ class Embedding(TransformationBase):
 
         self.num_embeddings = num_embeddings
         self.max_norm = max_norm
+
+        self.architecture_kwargs['size'] = str(size)
+        self.architecture_kwargs['num_embeddings'] = str(num_embeddings)
+        if max_norm is not None:
+            self.architecture_kwargs['max_norm'] = str(max_norm)
+        self.architecture_kwargs['bias'] = str(bias)
+        if activation is not None:
+            self.architecture_kwargs['activation'] = str(activation)
+        if dropout != 0.0:
+            self.architecture_kwargs['dropout'] = str(dropout)
+        if not vars_trainable:
+            self.architecture_kwargs['trainable'] = str(vars_trainable)
+        if l2_regularization is not None:
+            self.architecture_kwargs['l2_regularization'] = str(l2_regularization)
 
     def default_input_spec(self):
         return TensorSpec(type=('int', 'bool'), shape=None, num_values=0)
@@ -99,6 +112,8 @@ class Embedding(TransformationBase):
                         name='Embedding', argument='num_embeddings',
                         expected='>= input num_values'
                     )
+
+            self.architecture_kwargs['num_embeddings'] = str(self.num_embeddings)
 
         initializer = 'normal'
         if self.activation is not None and self.activation.nonlinearity == 'relu':

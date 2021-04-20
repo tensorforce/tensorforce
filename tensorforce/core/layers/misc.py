@@ -52,6 +52,8 @@ class Activation(Layer):
             )
         self.nonlinearity = nonlinearity
 
+        self.architecture_kwargs['nonlinearity'] = nonlinearity
+
     def default_input_spec(self):
         return TensorSpec(type='float', shape=None)
 
@@ -122,6 +124,13 @@ class Block(Layer):
 
         super().__init__(name=name, input_spec=input_spec)
 
+        if len(self.layers) == 0:
+            self.architecture_kwargs['layers'] = '[]'
+        else:
+            self.architecture_kwargs['layers'] = '[\n    {}\n]'.format('\n    '.join(
+                layer.get_architecture().replace('\n', '\n    ') for layer in self.layers
+            ))
+
     def default_input_spec(self):
         # if not isinstance(self.layers[0], Layer):
         layer_counter = Counter()
@@ -143,6 +152,7 @@ class Block(Layer):
                 input_spec=self._input_spec
             )
             self._input_spec = self.layers[n].output_spec()
+
 
         return self.layers[0].input_spec.copy()
 
@@ -177,6 +187,8 @@ class Dropout(NondeterministicLayer):
             name='rate', module=rate, modules=parameter_modules, dtype='float', min_value=0.0,
             max_value=1.0
         )
+
+        self.architecture_kwargs['rate'] = str(rate)
 
     def default_input_spec(self):
         return TensorSpec(type='float', shape=None)
@@ -229,6 +241,10 @@ class Function(Layer):
         else:
             self._output_spec = TensorSpec(**output_spec)
 
+        self.architecture_kwargs['function'] = str(function)
+        if l2_regularization is not None:
+            self.architecture_kwargs['l2_regularization'] = str(l2_regularization)
+
     def output_spec(self):
         if self._output_spec is None:
             return super().output_spec()
@@ -264,6 +280,8 @@ class Reshape(Layer):
             self.shape = (shape,)
         else:
             self.shape = tuple(shape)
+
+        self.architecture_kwargs['reshape'] = str(self.shape)
 
     def output_spec(self):
         output_spec = super().output_spec()

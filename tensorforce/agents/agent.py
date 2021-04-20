@@ -252,9 +252,19 @@ class Agent(Recorder):
     def __str__(self):
         return self.__class__.__name__
 
+    def get_architecture(self):
+        """
+        Returns a string representation of the network layer architecture (policy, baseline,
+        state-preprocessing).
+
+        Returns:
+            str: String representation of network architecture.
+        """
+        return self.model.get_architecture()
+
     def initialize(self):
         """
-        Initialize the agent. Automatically triggered as part of Agent.create/load.
+        Initializes the agent. Automatically triggered as part of Agent.create/load.
         """
         super().initialize()
 

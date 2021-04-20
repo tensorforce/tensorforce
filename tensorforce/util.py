@@ -50,7 +50,7 @@ class NullContext(object):
         pass
 
     def __getattr__(self, name):
-        raise NotImplementedError
+        raise AttributeError
 
     def __setattr__(self, name, value):
         raise NotImplementedError

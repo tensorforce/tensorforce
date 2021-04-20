@@ -13,6 +13,9 @@ This file records all major updates and new features, starting from version 0.5.
 ##### Parameters:
 - Support tracking of non-constant parameter values
 
+##### Buxfixes:
+- Customized device placement was not applied to most tensors
+
 
 ---
 

@@ -133,7 +133,8 @@ def tf_function(
                 graph_args = args
 
             # Apply function graph
-            output_args = function_graphs[str(graph_params)](*graph_args)
+            with self:
+                output_args = function_graphs[str(graph_params)](*graph_args)
             if not is_loop_body:
                 return output_signature.args_to_kwargs(
                     args=output_args, outer_tuple=True, from_dict=dict_interface

@@ -19,5 +19,5 @@
     "variable_noise": 0.0,
     "l2_regularization": 0.0,
     "entropy_regularization": 0.0011393096635237982,
-    "config": {"device": "CPU:0"}
+    "config": {"device": "CPU"}
 }

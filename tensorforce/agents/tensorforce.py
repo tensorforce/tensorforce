@@ -308,7 +308,7 @@ class TensorforceAgent(Agent):
         # Config, saver, summarizer, tracking, recorder
         config=None, saver=None, summarizer=None, tracking=None, recorder=None,
         # Deprecated
-        baseline_policy=None, name=None, buffer_observe=None, device=None, seed=None
+        **kwargs
     ):
         if 'estimate_actions' in reward_estimation:
             raise TensorforceError.deprecated(
@@ -324,26 +324,28 @@ class TensorforceAgent(Agent):
             raise TensorforceError.deprecated(
                 name='Agent', argument='summarizer[labels]', replacement='summarizer[summaries]'
             )
-        if baseline_policy is not None:
+        if 'baseline_policy' in kwargs:
             raise TensorforceError.deprecated(
                 name='Agent', argument='baseline_policy', replacement='baseline'
             )
-        if name is not None:
+        if 'name' in kwargs:
             raise TensorforceError.deprecated(
                 name='Agent', argument='name', replacement='config[name]'
             )
-        if buffer_observe is not None:
+        if 'buffer_observe' in kwargs:
             raise TensorforceError.deprecated(
                 name='Agent', argument='buffer_observe', replacement='config[buffer_observe]'
             )
-        if device is not None:
+        if 'device' in kwargs:
             raise TensorforceError.deprecated(
                 name='Agent', argument='device', replacement='config[device]'
             )
-        if seed is not None:
+        if 'seed' in kwargs:
             raise TensorforceError.deprecated(
                 name='Agent', argument='seed', replacement='config[seed]'
             )
+        if len(kwargs) > 0:
+            raise TensorforceError.invalid(name='Agent', argument=', '.join(kwargs))
 
         if not hasattr(self, 'spec'):
             self.spec = OrderedDict(

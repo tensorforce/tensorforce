@@ -161,26 +161,25 @@ class ProximalPolicyOptimization(TensorforceAgent):
         # Config, saver, summarizer, tracking, recorder
         config=None, saver=None, summarizer=None, tracking=None, recorder=None,
         # Deprecated
-        optimization_steps=None, estimate_terminal=None, critic_network=None, baseline_network=None,
-        critic_optimizer=None, **kwargs
+        **kwargs
     ):
-        if optimization_steps is not None:
+        if 'optimization_steps' in kwargs:
             raise TensorforceError.deprecated(
                 name='PPO', argument='optimization_steps', replacement='multi_step'
             )
-        if estimate_terminal is not None:
+        if 'estimate_terminal' in kwargs:
             raise TensorforceError.deprecated(
                 name='PPO', argument='estimate_terminal', replacement='predict_terminal_values'
             )
-        if critic_network is not None:
+        if 'critic_network' in kwargs:
             raise TensorforceError.deprecated(
                 name='PPO', argument='critic_network', replacement='baseline'
             )
-        if baseline_network is not None:
+        if 'baseline_network' in kwargs:
             raise TensorforceError.deprecated(
                 name='PPO', argument='baseline_network', replacement='baseline'
             )
-        if critic_optimizer is not None:
+        if 'critic_optimizer' in kwargs:
             raise TensorforceError.deprecated(
                 name='PPO', argument='critic_optimizer', replacement='baseline_optimizer'
             )
@@ -192,7 +191,7 @@ class ProximalPolicyOptimization(TensorforceAgent):
             network=network, use_beta_distribution=use_beta_distribution,
             memory=memory,
             update_frequency=update_frequency, learning_rate=learning_rate,
-            subsampling_fraction=subsampling_fraction, optimization_steps=optimization_steps,
+            multi_step=multi_step, subsampling_fraction=subsampling_fraction,
             likelihood_ratio_clipping=likelihood_ratio_clipping, discount=discount,
             predict_terminal_values=predict_terminal_values,
             baseline=baseline, baseline_optimizer=baseline_optimizer,

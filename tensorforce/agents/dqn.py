@@ -151,9 +151,9 @@ class DeepQNetwork(TensorforceAgent):
         # Config, saver, summarizer, tracking, recorder
         config=None, saver=None, summarizer=None, tracking=None, recorder=None,
         # Deprecated
-        estimate_terminal=None, **kwargs
+        **kwargs
     ):
-        if estimate_terminal is not None:
+        if 'estimate_terminal' in kwargs:
             raise TensorforceError.deprecated(
                 name='DQN', argument='estimate_terminal', replacement='predict_terminal_values'
             )

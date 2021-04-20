@@ -158,22 +158,21 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
         # Config, saver, summarizer, tracking, recorder
         config=None, saver=None, summarizer=None, tracking=None, recorder=None,
         # Deprecated
-        estimate_terminal=None, critic_network=None, baseline_network=None,
-        critic_optimizer=None, **kwargs
+        **kwargs
     ):
-        if estimate_terminal is not None:
+        if 'estimate_terminal' in kwargs:
             raise TensorforceError.deprecated(
                 name='TRPO', argument='estimate_terminal', replacement='predict_terminal_values'
             )
-        if critic_network is not None:
+        if 'critic_network' in kwargs:
             raise TensorforceError.deprecated(
                 name='TRPO', argument='critic_network', replacement='baseline'
             )
-        if baseline_network is not None:
+        if 'baseline_network' in kwargs:
             raise TensorforceError.deprecated(
                 name='TRPO', argument='baseline_network', replacement='baseline'
             )
-        if critic_optimizer is not None:
+        if 'critic_optimizer' in kwargs:
             raise TensorforceError.deprecated(
                 name='TRPO', argument='critic_optimizer', replacement='baseline_optimizer'
             )

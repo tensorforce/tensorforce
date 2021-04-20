@@ -21,6 +21,7 @@ os.rmdir('test/data/ppo-checkpoint')
 runner = Runner(
     agent=dict(
         agent='benchmarks/configs/ppo.json',
+        config=dict(device='CPU'),
         recorder=dict(directory='test/data/ppo-traces', start=80)
     ), environment='benchmarks/configs/cartpole.json'
 )

@@ -125,9 +125,9 @@ class Agent(Recorder):
 
             else:
                 # Library specification
-                agent = util.try_import_module(module=agent, parent_class=Agent)
-                if agent is not None:
-                    return Agent.create(agent=agent, environment=environment, **kwargs)
+                _agent = util.try_import_module(module=agent, parent_class=Agent)
+                if _agent is not None:
+                    return Agent.create(agent=_agent, environment=environment, **kwargs)
 
                 raise TensorforceError.value(name='Agent.create', argument='agent', value=agent)
 

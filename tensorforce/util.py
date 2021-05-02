@@ -83,9 +83,11 @@ def try_import_module(*, module, parent_class=None):
             if isinstance(cls, type) and issubclass(cls, parent_class):
                 classes.append(cls)
         if len(classes) > 1:
-            for n in range(len(classes) - 1, -1, -1):
-                if all(issubclass(cls, classes[n]) for cls in classes):
-                    classes.pop(n)
+            filter_classes = list()
+            for cls in classes:
+                if not all(issubclass(x, cls) for x in classes):  # check whether not super-class
+                    filter_classes.append(cls)
+            classes = filter_classes
         if len(classes) == 0:
             return None
         elif len(classes) > 1:

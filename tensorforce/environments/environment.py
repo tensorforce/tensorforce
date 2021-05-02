@@ -208,12 +208,12 @@ class Environment(object):
             else:
                 # Library specification
                 import gym
-                environment = util.try_import_module(
+                _environment = util.try_import_module(
                     module=environment, parent_class=(Environment, gym.Env)
                 )
-                if environment is not None:
+                if _environment is not None:
                     return Environment.create(
-                        environment=environment, max_episode_timesteps=max_episode_timesteps,
+                        environment=_environment, max_episode_timesteps=max_episode_timesteps,
                         reward_shaping=reward_shaping, **kwargs
                     )
 
@@ -231,9 +231,9 @@ class Environment(object):
 
         else:
             # Default: OpenAI Gym
-            from gym import Env
-            if isinstance(environment, Env) or \
-                    (isinstance(environment, type) and issubclass(environment, Env)):
+            import gym
+            if isinstance(environment, gym.Env) or \
+                    (isinstance(environment, type) and issubclass(environment, gym.Env)):
                 return Environment.create(
                     environment='gym', level=environment,
                     max_episode_timesteps=max_episode_timesteps, reward_shaping=reward_shaping,

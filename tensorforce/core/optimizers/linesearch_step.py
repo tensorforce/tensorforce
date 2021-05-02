@@ -84,10 +84,11 @@ class LinesearchStep(UpdateModifier):
                         with tf.control_dependencies(control_inputs=assignments):
                             return fn_loss(**arguments.to_kwargs())
 
-                    return self.line_search.solve(
+                    _deltas = self.line_search.solve(
                         arguments=arguments, x_init=_deltas, base_value=loss_before,
                         zero_value=loss_after, fn_x=evaluate_step
                     )
+                    return tuple(_deltas.values())
 
             num_nonzero = list()
             for delta in deltas:

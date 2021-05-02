@@ -159,7 +159,7 @@ class NaturalGradient(Optimizer):
 
         # Zero step if constant <= 0
         def no_step():
-            return deltas.fmap(function=tf.zeros_like)
+            return [tf.zeros_like(input=delta) for delta in deltas.values()]
 
         # Natural gradient step if constant > 0
         def apply_step():
@@ -187,7 +187,7 @@ class NaturalGradient(Optimizer):
                 #     tf.math.reduce_sum(input_tensor=(loss_grad * delta))
                 #     for loss_grad, delta in zip(loss_gradients, estimated_deltas.values())
                 # ])
-                return estimated_deltas.fmap(function=tf_util.identity)
+                return [tf_util.identity(input=delta) for delta in estimated_deltas.values()]
 
         if self.only_positive_updates:
             # Natural gradient step only works if constant > 0 (epsilon to avoid zero division)

@@ -39,7 +39,7 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
         self.finished_test()
 
         environment = Environment.create(
-            environment='test.data.custom_env.CustomEnvironment', max_episode_timesteps=10
+            environment='test.data.custom_env', max_episode_timesteps=10
         )
         self.finished_test()
 

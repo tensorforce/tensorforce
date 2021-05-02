@@ -14,6 +14,7 @@
 # ==============================================================================
 
 from datetime import datetime
+import importlib
 import logging
 
 import numpy as np
@@ -70,6 +71,49 @@ def overwrite_staticmethod(obj, function):
         raise TensorforceError(message="Function {}() is a static method.".format(qualname))
 
     setattr(obj, function, overwritten)
+
+
+def try_import_module(*, module, parent_class=None):
+    try:
+        module = importlib.import_module(name=module)
+        assert parent_class is not None
+        classes = list()
+        for cls in dir(module):
+            cls = getattr(module, cls)
+            if isinstance(cls, type) and issubclass(cls, parent_class):
+                classes.append(cls)
+        if len(classes) > 1:
+            for n in range(len(classes) - 1, -1, -1):
+                if all(issubclass(cls, classes[n]) for cls in classes):
+                    classes.pop(n)
+        if len(classes) == 0:
+            return None
+        elif len(classes) > 1:
+            raise TensorforceError(message="Ambiguous import modules: {}".format(
+                ', '.join(str(cls) for cls in classes)
+            ))
+        cls = classes[0]
+        if isinstance(parent_class, tuple):
+            assert all(cls != parent_cls for parent_cls in parent_class)
+        else:
+            assert cls != parent_class
+        return cls
+
+    except ImportError:
+        pass
+
+    if '.' not in module:
+        return None
+
+    module, class_name = module.rsplit('.', 1)
+    try:
+        module = importlib.import_module(name=module)
+        cls = getattr(module, class_name)
+        assert issubclass(cls, parent_class) and cls != parent_class
+        return cls
+
+    except ImportError:
+        return None
 
 
 def is_iterable(x):

@@ -790,7 +790,14 @@ class Runner(object):
 
     def handle_terminal(self, parallel):
         # Update experiment statistics
-        self.episode_rewards.append(self.episode_reward[parallel])
+        if self.num_vectorized is None:
+            actual_episode_reward = self.environments[parallel].episode_reward()
+        else:
+            actual_episode_reward = self.environments[0].episode_reward(parallel=parallel)
+        if actual_episode_reward is None:
+            self.episode_rewards.append(self.episode_reward[parallel])
+        else:
+            self.episode_rewards.append(actual_episode_reward)
         self.episode_timesteps.append(self.episode_timestep[parallel])
         self.episode_seconds.append(time.time() - self.episode_start[parallel])
         self.episode_agent_seconds.append(self.episode_agent_second[parallel])
@@ -818,7 +825,14 @@ class Runner(object):
 
     def handle_terminal_evaluation(self):
         # Update experiment statistics
-        self.evaluation_rewards.append(self.episode_reward[-1])
+        if self.num_vectorized is None:
+            actual_episode_reward = self.environments[-1].episode_reward()
+        else:
+            actual_episode_reward = self.environments[0].episode_reward(parallel=-1)
+        if actual_episode_reward is None:
+            self.evaluation_rewards.append(self.episode_reward[-1])
+        else:
+            self.evaluation_rewards.append(actual_episode_reward)
         self.evaluation_timesteps.append(self.episode_timestep[-1])
         self.evaluation_seconds.append(time.time() - self.evaluation_start)
         self.evaluation_agent_seconds.append(self.evaluation_agent_second)

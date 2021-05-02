@@ -72,7 +72,7 @@ class TestSpecifications(UnittestBase, unittest.TestCase):
 
         # module
         self.specification_unittest(
-            network='test.test_specifications.TestNetwork',
+            network='test.test_specifications',
             memory=dict(type='tensorforce.core.memories.Replay', capacity=100)
         )
 

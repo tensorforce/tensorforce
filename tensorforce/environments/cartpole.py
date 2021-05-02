@@ -155,6 +155,8 @@ class CartPole(Environment):
             return self.parallel_indices, self.state[:, self.state_indices]
 
     def execute(self, actions):
+        assert self.state.shape[0] > 0
+
         # Split state into components
         loc = self.state[:, 0]
         loc_vel = self.state[:, 1]
@@ -194,7 +196,9 @@ class CartPole(Environment):
         reward = np.ones_like(terminal, dtype=np.float32)
 
         if self.parallel_indices is None:
-            return self.state[0, self.state_indices], terminal.item(), reward.item()
+            state = self.state[0, self.state_indices]
+            self.state = self.state[~terminal]
+            return state, terminal.item(), reward.item()
         else:
             self.parallel_indices = self.parallel_indices[~terminal]
             self.state = self.state[~terminal]

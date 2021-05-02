@@ -14,7 +14,6 @@
 # ==============================================================================
 
 import functools
-import importlib
 import json
 import os
 import re
@@ -411,16 +410,6 @@ class Module(tf.Module):
                     disable_first_arg=True, **kwargs
                 )
 
-            elif '.' in module:
-                # Library module specification
-                library_name, module_name = module.rsplit('.', 1)
-                library = importlib.import_module(name=library_name)
-                module = getattr(library, module_name)
-                return Module.get_module_class_and_args(
-                    name=name, module=module, modules=modules, default_module=default_module,
-                    disable_first_arg=True, **kwargs
-                )
-
             elif modules is not None and module in modules:
                 # Keyword module specification
                 return Module.get_module_class_and_args(
@@ -428,26 +417,41 @@ class Module(tf.Module):
                     default_module=default_module, disable_first_arg=True, **kwargs
                 )
 
-            elif 'default' in modules or default_module is not None:
-                # Default module specification
-                if '_first_arg' in kwargs:
-                    raise TensorforceError.invalid(name='Module.add_module', argument='_first_arg')
-                if module is not None:
-                    if disable_first_arg:
-                        raise TensorforceError.value(
-                            name='Module.add_module', argument='module', value=module
-                        )
-                    kwargs['_first_arg'] = module
-                if default_module is None:
-                    default_module = modules['default']
-                return Module.get_module_class_and_args(
-                    name=name, module=default_module, modules=modules, **kwargs
-                )
-
             else:
-                raise TensorforceError.value(
-                    name='Module.add_module', argument='module', value=module
-                )
+                # Library module specification
+                assert modules is not None
+                parent_class = next(iter(modules.values()))
+                while len(parent_class.mro()) >= 4 and parent_class.mro()[1] != Module:
+                    parent_class = parent_class.mro()[1]
+                module = util.try_import_module(module=module, parent_class=parent_class)
+                if module is not None:
+                    return Module.get_module_class_and_args(
+                        name=name, module=module, modules=modules, default_module=default_module,
+                        disable_first_arg=True, **kwargs
+                    )
+
+                if 'default' in modules or default_module is not None:
+                    # Default module specification
+                    if '_first_arg' in kwargs:
+                        raise TensorforceError.invalid(
+                            name='Module.add_module', argument='_first_arg'
+                        )
+                    if module is not None:
+                        if disable_first_arg:
+                            raise TensorforceError.value(
+                                name='Module.add_module', argument='module', value=module
+                            )
+                        kwargs['_first_arg'] = module
+                    if default_module is None:
+                        default_module = modules['default']
+                    return Module.get_module_class_and_args(
+                        name=name, module=default_module, modules=modules, **kwargs
+                    )
+
+                else:
+                    raise TensorforceError.value(
+                        name='Module.add_module', argument='module', value=module
+                    )
 
         elif (not callable(module) or isinstance(module, tf.keras.Model) or (
             isinstance(module, type) and issubclass(module, tf.keras.Model)

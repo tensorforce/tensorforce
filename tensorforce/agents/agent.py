@@ -14,7 +14,6 @@
 # ==============================================================================
 
 from collections import OrderedDict
-import importlib
 import json
 import logging
 import os
@@ -119,19 +118,17 @@ class Agent(Recorder):
                     agent = json.load(fp=fp)
                 return Agent.create(agent=agent, environment=environment, **kwargs)
 
-            elif '.' in agent:
-                # Library specification
-                library_name, module_name = agent.rsplit('.', 1)
-                library = importlib.import_module(name=library_name)
-                agent = getattr(library, module_name)
-                return Agent.create(agent=agent, environment=environment, **kwargs)
-
             elif agent in tensorforce.agents.agents:
                 # Keyword specification
                 agent = tensorforce.agents.agents[agent]
                 return Agent.create(agent=agent, environment=environment, **kwargs)
 
             else:
+                # Library specification
+                agent = util.try_import_module(module=agent, parent_class=Agent)
+                if agent is not None:
+                    return Agent.create(agent=agent, environment=environment, **kwargs)
+
                 raise TensorforceError.value(name='Agent.create', argument='agent', value=agent)
 
         else:

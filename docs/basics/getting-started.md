@@ -89,11 +89,11 @@ environment = Environment.create(
 )
 ```
 
-or its module path:
+or its module path (e.g., assuming the class is defined in file `envs/custom_env.py`):
 
 ```python
 environment = Environment.create(
-    environment='custom_env.CustomEnvironment', max_episode_timesteps=100
+    environment='envs.custom_env', max_episode_timesteps=100
 )
 ```
 

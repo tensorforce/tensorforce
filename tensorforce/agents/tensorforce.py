@@ -126,8 +126,9 @@ class TensorforceAgent(Agent):
             <li><b>predict_action_values</b> (<i>bool</i>) &ndash; Whether to predict state-action-
             instead of state-values as horizon values and for advantage estimation
             (<span style="color:#00C000"><b>default</b></span>: false).</li>
-            <li><b>predict_terminal_values</b> (<i>bool</i>) &ndash; Whether to predict the value of
-            terminal states
+            <li><b>predict_terminal_values</b> (<i>bool</i>) &ndash; Whether to predict the value
+            of terminal states, usually not required since max_episode_timesteps terminals are
+            handled separately
             (<span style="color:#00C000"><b>default</b></span>: false).</li>
             <li><b>return_processing</b> (<i>specification</i>) &ndash; Return processing as layer
             or list of layers, see the [preprocessing documentation](../modules/preprocessing.html)
@@ -313,12 +314,12 @@ class TensorforceAgent(Agent):
         if 'estimate_actions' in reward_estimation:
             raise TensorforceError.deprecated(
                 name='Agent', argument='reward_estimation[estimate_actions]',
-                replacement='reward_estimation[estimate_action_values]'
+                replacement='reward_estimation[predict_action_values]'
             )
         if 'estimate_terminal' in reward_estimation:
             raise TensorforceError.deprecated(
                 name='Agent', argument='reward_estimation[estimate_terminal]',
-                replacement='reward_estimation[estimate_terminals]'
+                replacement='reward_estimation[predict_terminal_values]'
             )
         if summarizer is not None and 'labels' in summarizer:
             raise TensorforceError.deprecated(

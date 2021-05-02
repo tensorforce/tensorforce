@@ -89,7 +89,8 @@ class DoubleDQN(TensorforceAgent):
         discount (<a href="../modules/parameters.html">parameter</a>, 0.0 <= float <= 1.0): Discount
             factor for future rewards of discounted-sum reward estimation
             (<span style="color:#00C000"><b>default</b></span>: 0.99).
-        predict_terminal_values (bool): Whether to predict the value of terminal states
+        predict_terminal_values (bool): Whether to predict the value of terminal states, usually
+            not required since max_episode_timesteps terminals are handled separately
             (<span style="color:#00C000"><b>default</b></span>: false).
 
         target_update_weight (<a href="../modules/parameters.html">parameter</a>, 0.0 < float <= 1.0):

@@ -13,7 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-import importlib
 import json
 import math
 import os
@@ -198,16 +197,6 @@ class Environment(object):
                     reward_shaping=reward_shaping, **kwargs
                 )
 
-            elif '.' in environment:
-                # Library specification
-                library_name, module_name = environment.rsplit('.', 1)
-                library = importlib.import_module(name=library_name)
-                environment = getattr(library, module_name)
-                return Environment.create(
-                    environment=environment, max_episode_timesteps=max_episode_timesteps,
-                    reward_shaping=reward_shaping, **kwargs
-                )
-
             elif environment in tensorforce.environments.environments:
                 # Keyword specification
                 environment = tensorforce.environments.environments[environment]
@@ -217,6 +206,17 @@ class Environment(object):
                 )
 
             else:
+                # Library specification
+                import gym
+                environment = util.try_import_module(
+                    module=environment, parent_class=(Environment, gym.Env)
+                )
+                if environment is not None:
+                    return Environment.create(
+                        environment=environment, max_episode_timesteps=max_episode_timesteps,
+                        reward_shaping=reward_shaping, **kwargs
+                    )
+
                 # Default: OpenAI Gym
                 try:
                     return Environment.create(
@@ -320,6 +320,9 @@ class Environment(object):
         Closes the environment.
         """
         pass
+
+    def episode_reward(self, parallel=None):
+        return None
 
     def reset(self, num_parallel=None):
         """

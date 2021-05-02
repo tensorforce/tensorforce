@@ -44,7 +44,7 @@ class Network(Module):
         self.inputs_spec = inputs_spec
 
     def get_architecture(self):
-        raise NotImplementedError
+        return self.__class__.__name__
 
     def output_spec(self):
         raise NotImplementedError

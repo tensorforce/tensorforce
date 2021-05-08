@@ -217,12 +217,15 @@ class Gaussian(Distribution):
 
             # Bounded transformation
             if self.bounded_transform is not None:
+                one = tf_util.constant(value=1.0, dtype='float')
+
                 if self.bounded_transform == 'tanh':
                     action = tf.math.tanh(x=action)
+                elif self.bounded_transform == 'clipping':
+                    action = tf.clip_by_value(t=action, clip_value_min=-one, clip_value_max=one)
 
                 if self.action_spec.min_value is not None and \
                         self.action_spec.max_value is not None:
-                    one = tf_util.constant(value=1.0, dtype='float')
                     half = tf_util.constant(value=0.5, dtype='float')
                     min_value = tf_util.constant(value=self.action_spec.min_value, dtype='float')
                     max_value = tf_util.constant(value=self.action_spec.max_value, dtype='float')
@@ -282,12 +285,15 @@ class Gaussian(Distribution):
 
             # Bounded transformation
             if self.bounded_transform is not None:
+                one = tf_util.constant(value=1.0, dtype='float')
+
                 if self.bounded_transform == 'tanh':
                     action = tf.math.tanh(x=action)
+                elif self.bounded_transform == 'clipping':
+                    action = tf.clip_by_value(t=action, clip_value_min=-one, clip_value_max=one)
 
                 if self.action_spec.min_value is not None and \
                         self.action_spec.max_value is not None:
-                    one = tf_util.constant(value=1.0, dtype='float')
                     half = tf_util.constant(value=0.5, dtype='float')
                     min_value = tf_util.constant(value=self.action_spec.min_value, dtype='float')
                     max_value = tf_util.constant(value=self.action_spec.max_value, dtype='float')

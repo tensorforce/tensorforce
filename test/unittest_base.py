@@ -137,44 +137,23 @@ class UnittestBase(object):
         agent = self.agent_spec(**agent)
 
         agent = Agent.create(agent=agent, environment=environment)
-        assert isinstance(agent.model.get_architecture(), str)
+        assert agent.__class__.__name__ in ('ConstantAgent', 'RandomAgent') or \
+            isinstance(agent.model.get_architecture(), str)
 
         return agent, environment
 
-    def unittest(
-        self, environment=None, states=None, actions=None, num_episodes=None,
-        experience_update=None, **agent
-    ):
-        """
-        Generic unit-test.
-        """
-        if environment is None:
-            environment = self.environment_spec(states=states, actions=actions)
-            max_episode_timesteps = environment.pop('max_episode_timesteps')  # runner argument
-
-        else:
-            max_episode_timesteps = self.__class__.max_episode_timesteps
-
-        agent = self.agent_spec(**agent)
-
+    def execute(self, agent, environment, num_episodes=None, experience_update=None):
         if num_episodes is None:
             num_updates = 2
         else:
             num_updates = None
 
-        runner = Runner(
-            agent=agent, environment=environment, max_episode_timesteps=max_episode_timesteps
-        )
+        runner = Runner(agent=agent, environment=environment)
         runner.run(num_episodes=num_episodes, num_updates=num_updates, use_tqdm=False)
         runner.close()
 
         # Test experience-update, independent, deterministic
         if experience_update or (experience_update is None and self.__class__.experience_update):
-            environment = Environment.create(
-                environment=environment, max_episode_timesteps=max_episode_timesteps
-            )
-            agent = Agent.create(agent=agent, environment=environment)
-            assert isinstance(agent.model.get_architecture(), str)
 
             for episode in range(num_updates if num_episodes is None else num_episodes):
                 episode_states = list()
@@ -205,3 +184,19 @@ class UnittestBase(object):
                 agent.update()
 
         self.finished_test()
+
+    def unittest(
+        self, environment=None, states=None, actions=None, num_episodes=None,
+        experience_update=None, **agent
+    ):
+        """
+        Generic unit-test.
+        """
+        agent, environment = self.prepare(
+            environment=environment, states=states, actions=actions, **agent
+        )
+
+        self.execute(
+            agent=agent, environment=environment, num_episodes=num_episodes,
+            experience_update=experience_update
+        )

@@ -13,8 +13,10 @@
 # limitations under the License.
 # ==============================================================================
 
+from tempfile import TemporaryDirectory
 import unittest
 
+from tensorforce import Agent
 from test.unittest_base import UnittestBase
 
 
@@ -27,18 +29,38 @@ class TestAgents(UnittestBase, unittest.TestCase):
     def test_a2c(self):
         self.start_tests(name='A2C')
         # TODO: baseline horizon has to be equal to policy horizon
-        self.unittest(
+        agent, environment = self.prepare(
             agent='a2c', batch_size=4, network=dict(type='auto', size=8, depth=1, rnn=2),
             critic=dict(type='auto', size=7, depth=1, rnn=2)
         )
 
+        self.execute(agent=agent, environment=environment)
+
+        with TemporaryDirectory() as directory:
+            agent.save(directory=directory, format='numpy')
+            agent = Agent.load(directory=directory)
+            states = environment.reset()
+            agent.act(states=states)
+            agent.close()
+            environment.close()
+
     def test_ac(self):
         self.start_tests(name='AC')
         # TODO: baseline horizon has to be equal to policy horizon
-        self.unittest(
+        agent, environment = self.prepare(
             agent='ac', batch_size=4, network=dict(type='auto', size=8, depth=1, rnn=2),
             critic=dict(type='auto', size=7, depth=1, rnn=2)
         )
+
+        self.execute(agent=agent, environment=environment)
+
+        with TemporaryDirectory() as directory:
+            agent.save(directory=directory, format='numpy')
+            agent = Agent.load(directory=directory)
+            states = environment.reset()
+            agent.act(states=states)
+            agent.close()
+            environment.close()
 
     def test_constant(self):
         self.start_tests(name='Constant')
@@ -50,7 +72,7 @@ class TestAgents(UnittestBase, unittest.TestCase):
             gaussian_action1=dict(type='float', shape=(1, 2), min_value=1.0, max_value=2.0),
             gaussian_action2=dict(type='float', shape=(1,), min_value=-2.0, max_value=1.0)
         )
-        self.unittest(
+        agent, environment = self.prepare(
             actions=actions, agent='dpg', memory=100, batch_size=4,
             # TODO: no-RNN restriction can be removed
             network=dict(type='auto', size=8, depth=1, rnn=False),
@@ -58,37 +80,87 @@ class TestAgents(UnittestBase, unittest.TestCase):
             critic=dict(type='auto', size=7, depth=1, rnn=False)
         )
 
+        self.execute(agent=agent, environment=environment)
+
+        with TemporaryDirectory() as directory:
+            agent.save(directory=directory, format='numpy')
+            agent = Agent.load(directory=directory)
+            states = environment.reset()
+            agent.act(states=states)
+            agent.close()
+            environment.close()
+
     def test_double_dqn(self):
         self.start_tests(name='DoubleDQN')
-        self.unittest(
+        agent, environment = self.prepare(
             actions=dict(type='int', shape=(2,), num_values=4),
             agent='double_dqn', memory=100, batch_size=4,
             network=dict(type='auto', size=8, depth=1, rnn=2)
         )
 
+        self.execute(agent=agent, environment=environment)
+
+        with TemporaryDirectory() as directory:
+            agent.save(directory=directory, format='numpy')
+            agent = Agent.load(directory=directory)
+            states = environment.reset()
+            agent.act(states=states)
+            agent.close()
+            environment.close()
+
     def test_dqn(self):
         self.start_tests(name='DQN')
-        self.unittest(
+        agent, environment = self.prepare(
             actions=dict(type='int', shape=(2,), num_values=4),
             agent='dqn', memory=100, batch_size=4,
             network=dict(type='auto', size=8, depth=1, rnn=2)
         )
 
+        self.execute(agent=agent, environment=environment)
+
+        with TemporaryDirectory() as directory:
+            agent.save(directory=directory, format='numpy')
+            agent = Agent.load(directory=directory)
+            states = environment.reset()
+            agent.act(states=states)
+            agent.close()
+            environment.close()
+
     def test_dueling_dqn(self):
         self.start_tests(name='DuelingDQN')
-        self.unittest(
+        agent, environment = self.prepare(
             actions=dict(type='int', shape=(2,), num_values=4),
             agent='dueling_dqn', memory=100, batch_size=4,
             network=dict(type='auto', size=8, depth=1, rnn=2)
         )
 
+        self.execute(agent=agent, environment=environment)
+
+        with TemporaryDirectory() as directory:
+            agent.save(directory=directory, format='numpy')
+            agent = Agent.load(directory=directory)
+            states = environment.reset()
+            agent.act(states=states)
+            agent.close()
+            environment.close()
+
     def test_ppo(self):
         self.start_tests(name='PPO')
-        self.unittest(
+        agent, environment = self.prepare(
             agent='ppo', batch_size=2, network=dict(type='auto', size=8, depth=1, rnn=2),
             baseline=dict(type='auto', size=7, depth=1, rnn=1),
             baseline_optimizer=dict(optimizer='adam', learning_rate=1e-3)
         )
+
+        self.execute(agent=agent, environment=environment)
+
+        with TemporaryDirectory() as directory:
+            agent.save(directory=directory, format='numpy')
+            agent = Agent.load(directory=directory)
+            states = environment.reset()
+            agent.act(states=states)
+            agent.close()
+            environment.close()
 
     def test_random(self):
         self.start_tests(name='Random')
@@ -105,20 +177,50 @@ class TestAgents(UnittestBase, unittest.TestCase):
         )
 
         # Implicit
-        self.unittest(**UnittestBase.agent)
+        agent, environment = self.prepare(**UnittestBase.agent)
+
+        self.execute(agent=agent, environment=environment)
+
+        with TemporaryDirectory() as directory:
+            agent.save(directory=directory, format='numpy')
+            agent = Agent.load(directory=directory)
+            states = environment.reset()
+            agent.act(states=states)
+            agent.close()
+            environment.close()
 
     def test_trpo(self):
         self.start_tests(name='TRPO')
-        self.unittest(
+        agent, environment = self.prepare(
             agent='trpo', batch_size=2, network=dict(type='auto', size=8, depth=1, rnn=2),
             baseline=dict(type='auto', size=7, depth=1, rnn=1),
             baseline_optimizer=dict(optimizer='adam', learning_rate=1e-3)
         )
 
+        self.execute(agent=agent, environment=environment)
+
+        with TemporaryDirectory() as directory:
+            agent.save(directory=directory, format='numpy')
+            agent = Agent.load(directory=directory)
+            states = environment.reset()
+            agent.act(states=states)
+            agent.close()
+            environment.close()
+
     def test_vpg(self):
         self.start_tests(name='VPG')
-        self.unittest(
+        agent, environment = self.prepare(
             agent='vpg', batch_size=2, network=dict(type='auto', size=8, depth=1, rnn=2),
             baseline=dict(type='auto', size=7, depth=1, rnn=1),
             baseline_optimizer=dict(optimizer='adam', learning_rate=1e-3)
         )
+
+        self.execute(agent=agent, environment=environment)
+
+        with TemporaryDirectory() as directory:
+            agent.save(directory=directory, format='numpy')
+            agent = Agent.load(directory=directory)
+            states = environment.reset()
+            agent.act(states=states)
+            agent.close()
+            environment.close()

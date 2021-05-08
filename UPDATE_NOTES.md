@@ -11,11 +11,14 @@ This file records all major updates and new features, starting from version 0.5.
 - Changed default value for argument `update_frequency` from `1.0` to `0.25` for DQN, DoubleDQN, DuelingDQN agents
 - New function `Agent.get_architecture()` which returns a string representation of the network layer architecture
 
-##### Parameters:
-- Support tracking of non-constant parameter values
-
 ##### Modules:
 - Improved and simplified module specification, for instance: `network=my_module` instead of `network=my_module.TestNetwork`, or `environment=envs.custom_env` instead of `environment=envs.custom_env.CustomEnvironment` (module file needs to be in the same directory or a sub-directory)
+
+##### Networks:
+- `KerasNetwork` argument `model` now supports arbitrary functions as long as they return a `tf.keras.Model`
+
+##### Parameters:
+- Support tracking of non-constant parameter values
 
 ##### Buxfixes:
 - Customized device placement was not applied to most tensors

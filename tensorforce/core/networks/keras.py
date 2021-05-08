@@ -45,8 +45,11 @@ class KerasNetwork(Network):
 
         if isinstance(model, tf.keras.Model):
             self.keras_model = model
-        elif isinstance(model, type) and issubclass(model, tf.keras.Model):
+        elif (isinstance(model, type) and issubclass(model, tf.keras.Model)):
             self.keras_model = model(**kwargs)
+        elif callable(model):
+            self.keras_model = model(**kwargs)
+            assert isinstance(self.keras_model, tf.keras.Model)
         else:
             raise TensorforceError.value(name='KerasNetwork', argument='model', value=model)
 

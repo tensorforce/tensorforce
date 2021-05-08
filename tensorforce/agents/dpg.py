@@ -178,7 +178,7 @@ class DeterministicPolicyGradient(TensorforceAgent):
             exploration=exploration, variable_noise=variable_noise,
             l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
             parallel_interactions=parallel_interactions,
-            config=config, saver=saver, summarizer=summarizer, recorder=recorder
+            config=config, saver=saver, summarizer=summarizer, tracking=tracking, recorder=recorder
         )
 
         policy = dict(

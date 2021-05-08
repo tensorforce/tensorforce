@@ -211,11 +211,11 @@ class TestLayers(UnittestBase, unittest.TestCase):
 
         class Model(tf.keras.Model):
 
-            def __init__(self):
+            def __init__(self, size):
                 super().__init__()
                 self.layer1 = tf.keras.layers.Dense(4, activation=tf.nn.relu)
                 self.layer2 = tf.keras.layers.Embedding(4, 4)
-                self.layer3 = tf.keras.layers.Dense(5, activation=tf.nn.relu)
+                self.layer3 = tf.keras.layers.Dense(size, activation=tf.nn.relu)
 
             def call(self, inputs):
                 y = self.layer1(inputs[0])
@@ -226,4 +226,11 @@ class TestLayers(UnittestBase, unittest.TestCase):
             int_state=dict(type='int', shape=(), num_values=4),
             float_state=dict(type='float', shape=(3,), min_value=1.0, max_value=2.0)
         )
-        self.unittest(states=states, policy=Model)
+        self.unittest(states=states, policy=dict(network=dict(type='keras', model=Model, size=5)))
+
+        self.unittest(states=states, policy=Model(size=5))
+
+        def model(size):
+            return Model(size=size)
+
+        self.unittest(states=states, policy=dict(network=dict(type='keras', model=model, size=5)))

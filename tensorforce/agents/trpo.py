@@ -91,6 +91,12 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
         discount (<a href="../modules/parameters.html">parameter</a>, 0.0 <= float <= 1.0): Discount
             factor for future rewards of discounted-sum reward estimation
             (<span style="color:#00C000"><b>default</b></span>: 0.99).
+        return_processing (specification): Return processing as layer or list of layers, see the
+            [preprocessing documentation](../modules/preprocessing.html)
+            (<span style="color:#00C000"><b>default</b></span>: no return processing).
+        advantage_processing (specification): Advantage processing as layer or list of layers, see
+            the [preprocessing documentation](../modules/preprocessing.html)
+            (<span style="color:#00C000"><b>default</b></span>: no advantage processing).
         predict_terminal_values (bool): Whether to predict the value of terminal states, usually
             not required since max_episode_timesteps terminals are handled separately
             (<span style="color:#00C000"><b>default</b></span>: false).
@@ -145,7 +151,8 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
         update_frequency=1.0, learning_rate=1e-2, linesearch_iterations=10,
         subsampling_fraction=1.0,
         # Reward estimation
-        discount=0.99, predict_terminal_values=False,
+        discount=0.99, return_processing=None, advantage_processing=None,
+        predict_terminal_values=False,
         # Baseline
         baseline=None, baseline_optimizer=None,
         # Preprocessing
@@ -185,7 +192,9 @@ class TrustRegionPolicyOptimization(TensorforceAgent):
             network=network, use_beta_distribution=use_beta_distribution,
             memory=memory,
             update_frequency=update_frequency, learning_rate=learning_rate,
-            discount=discount, predict_terminal_values=predict_terminal_values,
+            discount=discount, return_processing=return_processing,
+            advantage_processing=advantage_processing,
+            predict_terminal_values=predict_terminal_values,
             baseline=baseline, baseline_optimizer=baseline_optimizer,
             state_preprocessing=state_preprocessing, reward_preprocessing=reward_preprocessing,
             exploration=exploration, variable_noise=variable_noise,

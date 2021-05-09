@@ -126,16 +126,16 @@ class TensorforceAgent(Agent):
             <li><b>predict_action_values</b> (<i>bool</i>) &ndash; Whether to predict state-action-
             instead of state-values as horizon values and for advantage estimation
             (<span style="color:#00C000"><b>default</b></span>: false).</li>
-            <li><b>predict_terminal_values</b> (<i>bool</i>) &ndash; Whether to predict the value
-            of terminal states, usually not required since max_episode_timesteps terminals are
-            handled separately
-            (<span style="color:#00C000"><b>default</b></span>: false).</li>
             <li><b>return_processing</b> (<i>specification</i>) &ndash; Return processing as layer
             or list of layers, see the [preprocessing documentation](../modules/preprocessing.html)
             (<span style="color:#00C000"><b>default</b></span>: no return processing).</li>
             <li><b>advantage_processing</b> (<i>specification</i>) &ndash; Advantage processing as
             layer or list of layers, see the [preprocessing documentation](../modules/preprocessing.html)
             (<span style="color:#00C000"><b>default</b></span>: no advantage processing).</li>
+            <li><b>predict_terminal_values</b> (<i>bool</i>) &ndash; Whether to predict the value
+            of terminal states, usually not required since max_episode_timesteps terminals are
+            handled separately
+            (<span style="color:#00C000"><b>default</b></span>: false).</li>
             </ul>
 
         baseline (specification): Baseline configuration, policy will be used as baseline if none,
@@ -190,7 +190,12 @@ class TensorforceAgent(Agent):
             saver default filename
             (<span style="color:#00C000"><b>default</b></span>: "agent").
             <li><b>device</b> (<i>string</i>) &ndash; Device name
-            (<span style="color:#00C000"><b>default</b></span>: TensorFlow default).
+            (<span style="color:#00C000"><b>default</b></span>: CPU). Different from (un)supervised
+            deep learning, RL does not always benefit from running on a GPU, depending on
+            environment and agent configuration. In particular for RL-typical environments with
+            low-dimensional state spaces (i.e., no images), one usually gets better performance by
+            running on CPU only. Consequently, Tensorforce is configured to run on CPU by default,
+            which can be changed, for instance, by setting this value to 'GPU' instead.
             <li><b>seed</b> (<i>int</i>) &ndash; Random seed to set for Python, NumPy (both set
             globally!) and TensorFlow, environment seed may have to be set separately for fully
             deterministic execution

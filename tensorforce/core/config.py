@@ -23,7 +23,7 @@ class TensorforceConfig(object):
         buffer_observe=False,
         create_debug_assertions=False,
         create_tf_assertions=True,
-        device=None,
+        device='CPU',
         eager_mode=False,
         enable_int_action_masking=True,
         name='agent',

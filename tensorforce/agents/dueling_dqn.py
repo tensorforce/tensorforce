@@ -87,6 +87,9 @@ class DuelingDQN(TensorforceAgent):
         discount (<a href="../modules/parameters.html">parameter</a>, 0.0 <= float <= 1.0): Discount
             factor for future rewards of discounted-sum reward estimation
             (<span style="color:#00C000"><b>default</b></span>: 0.99).
+        return_processing (specification): Return processing as layer or list of layers, see the
+            [preprocessing documentation](../modules/preprocessing.html)
+            (<span style="color:#00C000"><b>default</b></span>: no return processing).
         predict_terminal_values (bool): Whether to predict the value of terminal states, usually
             not required since max_episode_timesteps terminals are handled separately
             (<span style="color:#00C000"><b>default</b></span>: false).
@@ -137,7 +140,7 @@ class DuelingDQN(TensorforceAgent):
         # Optimization
         update_frequency=0.25, start_updating=None, learning_rate=1e-3, huber_loss=None,
         # Reward estimation
-        horizon=1, discount=0.99, predict_terminal_values=False,
+        horizon=1, discount=0.99, return_processing=None, predict_terminal_values=False,
         # Target network
         target_update_weight=1.0, target_sync_frequency=1,
         # Preprocessing
@@ -166,7 +169,8 @@ class DuelingDQN(TensorforceAgent):
             network=network,
             update_frequency=update_frequency, start_updating=start_updating,
             learning_rate=learning_rate, huber_loss=huber_loss,
-            horizon=horizon, discount=discount, predict_terminal_values=predict_terminal_values,
+            horizon=horizon, discount=discount, return_processing=return_processing,
+            predict_terminal_values=predict_terminal_values,
             target_update_weight=target_update_weight, target_sync_frequency=target_sync_frequency,
             state_preprocessing=state_preprocessing, reward_preprocessing=reward_preprocessing,
             exploration=exploration, variable_noise=variable_noise,

@@ -249,6 +249,15 @@ class Agent(Recorder):
     def __str__(self):
         return self.__class__.__name__
 
+    def get_specification(self):
+        """
+        Returns the agent specification.
+
+        Returns:
+            dict: Agent specification.
+        """
+        return dict(self.spec)
+
     def get_architecture(self):
         """
         Returns a string representation of the network layer architecture (policy, baseline,

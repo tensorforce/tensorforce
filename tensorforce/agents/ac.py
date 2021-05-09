@@ -86,6 +86,9 @@ class ActorCritic(TensorforceAgent):
         discount (<a href="../modules/parameters.html">parameter</a>, 0.0 <= float <= 1.0): Discount
             factor for future rewards of discounted-sum reward estimation
             (<span style="color:#00C000"><b>default</b></span>: 0.99).
+        return_processing (specification): Return processing as layer or list of layers, see the
+            [preprocessing documentation](../modules/preprocessing.html)
+            (<span style="color:#00C000"><b>default</b></span>: no return processing).
         predict_terminal_values (bool): Whether to predict the value of terminal states, usually
             not required since max_episode_timesteps terminals are handled separately
             (<span style="color:#00C000"><b>default</b></span>: false).
@@ -139,7 +142,7 @@ class ActorCritic(TensorforceAgent):
         # Optimization
         update_frequency=1.0, learning_rate=1e-3,
         # Reward estimation
-        horizon=1, discount=0.99, predict_terminal_values=False,
+        horizon=1, discount=0.99, return_processing=None, predict_terminal_values=False,
         # Critic
         critic='auto', critic_optimizer=1.0,
         # Preprocessing
@@ -171,7 +174,8 @@ class ActorCritic(TensorforceAgent):
             network=network, use_beta_distribution=use_beta_distribution,
             memory=memory,
             update_frequency=update_frequency, learning_rate=learning_rate,
-            horizon=horizon, discount=discount, predict_terminal_values=predict_terminal_values,
+            horizon=horizon, discount=discount, return_processing=return_processing,
+            predict_terminal_values=predict_terminal_values,
             critic=critic, critic_optimizer=critic_optimizer,
             state_preprocessing=state_preprocessing, reward_preprocessing=reward_preprocessing,
             exploration=exploration, variable_noise=variable_noise,

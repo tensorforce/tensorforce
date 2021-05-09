@@ -41,7 +41,8 @@ Tensor value tracking
 
 .. automethod:: tensorforce.agents.TensorforceAgent.tracked_tensors
 
-Network architecture
---------------------
+Specification and architecture
+------------------------------
 
+.. automethod:: tensorforce.agents.TensorforceAgent.get_specification
 .. automethod:: tensorforce.agents.TensorforceAgent.get_architecture

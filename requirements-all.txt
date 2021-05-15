@@ -1,6 +1,6 @@
 gym >= 0.18.0
 h5py ~= 3.1.0
-matplotlib >= 3.4.2
+matplotlib >= 3.3.4
 msgpack >= 1.0.2
 msgpack-numpy >= 0.4.7.1
 numpy == 1.19.5

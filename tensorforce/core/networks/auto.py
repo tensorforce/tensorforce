@@ -43,11 +43,12 @@ class AutoNetwork(LayeredNetwork):
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
         inputs_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        outputs (iter[string]): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     def __init__(
         self, *, size=64, depth=2, final_size=None, final_depth=1, rnn=False, device=None,
-        l2_regularization=None, name=None, inputs_spec=None,
+        l2_regularization=None, name=None, inputs_spec=None, outputs=None,
         # Deprecated
         internal_rnn=None
     ):
@@ -69,6 +70,11 @@ class AutoNetwork(LayeredNetwork):
         if len(inputs_spec) > 8:
             logging.warning("Large number of state components {} which may cause poor performance, "
                             "consider merging components where possible.".format(len(inputs_spec)))
+
+        if outputs is not None:
+            raise TensorforceError.invalid(
+                name='policy', argument='single_output', condition='AutoNetwork'
+            )
 
         if final_size is None:
             final_size = size
@@ -167,5 +173,5 @@ class AutoNetwork(LayeredNetwork):
 
         super().__init__(
             layers=layers, device=device, l2_regularization=l2_regularization, name=name,
-            inputs_spec=inputs_spec
+            inputs_spec=inputs_spec, outputs=outputs
         )

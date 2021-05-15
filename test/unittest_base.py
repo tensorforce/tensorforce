@@ -33,7 +33,7 @@ class UnittestBase(object):
         float_state=dict(type='float', shape=(), min_value=1.0, max_value=2.0)
     )
     actions = dict(
-        # Also in: test_agents, test_layers, test_objectives, test_optimizers,
+        # Also in: test_agents, test_layers, test_objectives, test_optimizers, test_policies,
         # test_reward_estimation, test_seed
         bool_action=dict(type='bool', shape=(1,)),
         int_action1=dict(type='int', shape=(), num_values=4),
@@ -49,7 +49,7 @@ class UnittestBase(object):
 
     # Agent
     agent = dict(
-        # Also in: test_reward_estimation
+        # Also in: test_policies, test_reward_estimation
         policy=dict(network=dict(type='auto', size=8, depth=1, rnn=2), distributions=dict(
             # As part of baseline also in: test_optimizers
             int_action2=dict(type='categorical', temperature_mode='predicted'),

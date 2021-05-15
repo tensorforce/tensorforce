@@ -31,6 +31,10 @@ class ParametrizedDistributions(StochasticPolicy, ValuePolicy, ParametrizedPolic
             [networks](../modules/networks.html)
             (<span style="color:#00C000"><b>default</b></span>: 'auto', automatically configured
             network).
+        single_output (bool): Whether the network returns a single embedding tensor or, in the case
+            of multiple action components, specifies additional outputs for some/all action
+            distributions, via registered tensors with name "[ACTION]-embedding"
+            (<span style="color:#00C000"><b>default</b></span>: single output).
         distributions (dict[specification]): Distributions configuration, see
             [distributions](../modules/distributions.html), specified per
             action-type or -name
@@ -56,17 +60,27 @@ class ParametrizedDistributions(StochasticPolicy, ValuePolicy, ParametrizedPolic
 
     # Network first
     def __init__(
-        self, network='auto', *, distributions=None, temperature=1.0, use_beta_distribution=False,
-        device=None, l2_regularization=None, name=None, states_spec=None, auxiliaries_spec=None,
-        internals_spec=None, actions_spec=None
+        self, network='auto', *, single_output=True, distributions=None, temperature=1.0,
+        use_beta_distribution=False, device=None, l2_regularization=None, name=None,
+        states_spec=None, auxiliaries_spec=None, internals_spec=None, actions_spec=None
     ):
         super().__init__(
             temperature=temperature, device=device, l2_regularization=l2_regularization, name=name,
             states_spec=states_spec, auxiliaries_spec=auxiliaries_spec, actions_spec=actions_spec
         )
 
-        ParametrizedPolicy.__init__(self=self, network=network, inputs_spec=self.states_spec)
+        if single_output:
+            outputs = None
+        elif self.actions_spec.is_singleton():
+            outputs = ('action-embedding',)
+        else:
+            outputs = tuple(name + '-embedding' for name in self.actions_spec)
+        ParametrizedPolicy.__init__(
+            self=self, network=network, inputs_spec=self.states_spec, outputs=outputs
+        )
         output_spec = self.network.output_spec()
+        if not isinstance(output_spec, TensorsSpec):
+            output_spec = TensorsSpec(embedding=output_spec)
 
         # Distributions
         self.distributions = ModuleDict()
@@ -105,12 +119,14 @@ class ParametrizedDistributions(StochasticPolicy, ValuePolicy, ParametrizedPolic
             if name is None:
                 self.distributions[name] = self.submodule(
                     name='action_distribution', module=module, modules=distribution_modules,
-                    default_module=default_module, action_spec=spec, input_spec=output_spec
+                    default_module=default_module, action_spec=spec,
+                    input_spec=output_spec.get('action-embedding', output_spec['embedding'])
                 )
             else:
                 self.distributions[name] = self.submodule(
                     name=(name + '_distribution'), module=module, modules=distribution_modules,
-                    default_module=default_module, action_spec=spec, input_spec=output_spec
+                    default_module=default_module, action_spec=spec,
+                    input_spec=output_spec.get(name + '-embedding', output_spec['embedding'])
                 )
 
         self.kldiv_reference_spec = self.distributions.fmap(
@@ -165,12 +181,18 @@ class ParametrizedDistributions(StochasticPolicy, ValuePolicy, ParametrizedPolic
             x=states, horizons=horizons, internals=internals, deterministic=deterministic,
             independent=independent
         )
+        if not isinstance(embedding, TensorDict):
+            embedding = TensorDict(embedding=embedding)
 
         def fn_mode():
 
             def function(name, distribution):
+                if name is None:
+                    x = embedding.get('action-embedding', embedding['embedding'])
+                else:
+                    x = embedding.get(name + '-embedding', embedding['embedding'])
                 conditions = auxiliaries.get(name, default=TensorDict())
-                parameters = distribution.parametrize(x=embedding, conditions=conditions)
+                parameters = distribution.parametrize(x=x, conditions=conditions)
                 return distribution.mode(parameters=parameters, independent=independent)
 
             return self.distributions.fmap(function=function, cls=TensorDict, with_names=True)
@@ -179,8 +201,12 @@ class ParametrizedDistributions(StochasticPolicy, ValuePolicy, ParametrizedPolic
             if isinstance(self.temperature, dict):
 
                 def function(name, distribution, temp):
+                    if name is None:
+                        x = embedding.get('action-embedding', embedding['embedding'])
+                    else:
+                        x = embedding.get(name + '-embedding', embedding['embedding'])
                     conditions = auxiliaries.get(name, default=TensorDict())
-                    parameters = distribution.parametrize(x=embedding, conditions=conditions)
+                    parameters = distribution.parametrize(x=x, conditions=conditions)
                     return distribution.sample(
                         parameters=parameters, temperature=temp, independent=independent
                     )
@@ -194,8 +220,12 @@ class ParametrizedDistributions(StochasticPolicy, ValuePolicy, ParametrizedPolic
                 temperature = self.temperature.value()
 
                 def function(name, distribution):
+                    if name is None:
+                        x = embedding.get('action-embedding', embedding['embedding'])
+                    else:
+                        x = embedding.get(name + '-embedding', embedding['embedding'])
                     conditions = auxiliaries.get(name, default=TensorDict())
-                    parameters = distribution.parametrize(x=embedding, conditions=conditions)
+                    parameters = distribution.parametrize(x=x, conditions=conditions)
                     return distribution.sample(
                         parameters=parameters, temperature=temperature, independent=independent
                     )
@@ -218,12 +248,18 @@ class ParametrizedDistributions(StochasticPolicy, ValuePolicy, ParametrizedPolic
             x=states, horizons=horizons, internals=internals, deterministic=deterministic,
             independent=independent
         )
+        if not isinstance(embedding, TensorDict):
+            embedding = TensorDict(embedding=embedding)
 
         def fn_mode():
 
             def function(name, distribution):
+                if name is None:
+                    x = embedding.get('action-embedding', embedding['embedding'])
+                else:
+                    x = embedding.get(name + '-embedding', embedding['embedding'])
                 conditions = auxiliaries.get(name, default=TensorDict())
-                parameters = distribution.parametrize(x=embedding, conditions=conditions)
+                parameters = distribution.parametrize(x=x, conditions=conditions)
                 mode = distribution.mode(parameters=parameters, independent=independent)
                 entropy = distribution.entropy(parameters=parameters)
                 return mode, entropy
@@ -234,8 +270,12 @@ class ParametrizedDistributions(StochasticPolicy, ValuePolicy, ParametrizedPolic
             if isinstance(self.temperature, dict):
 
                 def function(name, distribution, temp):
+                    if name is None:
+                        x = embedding.get('action-embedding', embedding['embedding'])
+                    else:
+                        x = embedding.get(name + '-embedding', embedding['embedding'])
                     conditions = auxiliaries.get(name, default=TensorDict())
-                    parameters = distribution.parametrize(x=embedding, conditions=conditions)
+                    parameters = distribution.parametrize(x=x, conditions=conditions)
                     sample = distribution.sample(
                         parameters=parameters, temperature=temp, independent=independent
                     )
@@ -251,8 +291,12 @@ class ParametrizedDistributions(StochasticPolicy, ValuePolicy, ParametrizedPolic
                 temperature = self.temperature.value()
 
                 def function(name, distribution):
+                    if name is None:
+                        x = embedding.get('action-embedding', embedding['embedding'])
+                    else:
+                        x = embedding.get(name + '-embedding', embedding['embedding'])
                     conditions = auxiliaries.get(name, default=TensorDict())
-                    parameters = distribution.parametrize(x=embedding, conditions=conditions)
+                    parameters = distribution.parametrize(x=x, conditions=conditions)
                     sample = distribution.sample(
                         parameters=parameters, temperature=temperature, independent=independent
                     )
@@ -281,10 +325,16 @@ class ParametrizedDistributions(StochasticPolicy, ValuePolicy, ParametrizedPolic
             x=states, horizons=horizons, internals=internals, deterministic=deterministic,
             independent=True
         )
+        if not isinstance(embedding, TensorDict):
+            embedding = TensorDict(embedding=embedding)
 
         def function(name, distribution, action):
+            if name is None:
+                x = embedding.get('action-embedding', embedding['embedding'])
+            else:
+                x = embedding.get(name + '-embedding', embedding['embedding'])
             conditions = auxiliaries.get(name, default=TensorDict())
-            parameters = distribution.parametrize(x=embedding, conditions=conditions)
+            parameters = distribution.parametrize(x=x, conditions=conditions)
             return distribution.log_probability(parameters=parameters, action=action)
 
         return self.distributions.fmap(
@@ -298,10 +348,16 @@ class ParametrizedDistributions(StochasticPolicy, ValuePolicy, ParametrizedPolic
             x=states, horizons=horizons, internals=internals, deterministic=deterministic,
             independent=True
         )
+        if not isinstance(embedding, TensorDict):
+            embedding = TensorDict(embedding=embedding)
 
         def function(name, distribution):
+            if name is None:
+                x = embedding.get('action-embedding', embedding['embedding'])
+            else:
+                x = embedding.get(name + '-embedding', embedding['embedding'])
             conditions = auxiliaries.get(name, default=TensorDict())
-            parameters = distribution.parametrize(x=embedding, conditions=conditions)
+            parameters = distribution.parametrize(x=x, conditions=conditions)
             return distribution.entropy(parameters=parameters)
 
         return self.distributions.fmap(function=function, cls=TensorDict, with_names=True)
@@ -327,10 +383,16 @@ class ParametrizedDistributions(StochasticPolicy, ValuePolicy, ParametrizedPolic
             x=states, horizons=horizons, internals=internals, deterministic=deterministic,
             independent=True
         )
+        if not isinstance(embedding, TensorDict):
+            embedding = TensorDict(embedding=embedding)
 
         def function(name, distribution):
+            if name is None:
+                x = embedding.get('action-embedding', embedding['embedding'])
+            else:
+                x = embedding.get(name + '-embedding', embedding['embedding'])
             conditions = auxiliaries.get(name, default=TensorDict())
-            return distribution.parametrize(x=embedding, conditions=conditions)
+            return distribution.parametrize(x=x, conditions=conditions)
 
         return self.distributions.fmap(function=function, cls=TensorDict, with_names=True)
 
@@ -341,10 +403,16 @@ class ParametrizedDistributions(StochasticPolicy, ValuePolicy, ParametrizedPolic
             x=states, horizons=horizons, internals=internals, deterministic=deterministic,
             independent=True
         )
+        if not isinstance(embedding, TensorDict):
+            embedding = TensorDict(embedding=embedding)
 
         def function(name, distribution, action):
+            if name is None:
+                x = embedding.get('action-embedding', embedding['embedding'])
+            else:
+                x = embedding.get(name + '-embedding', embedding['embedding'])
             conditions = auxiliaries.get(name, default=TensorDict())
-            parameters = distribution.parametrize(x=embedding, conditions=conditions)
+            parameters = distribution.parametrize(x=x, conditions=conditions)
             return distribution.action_value(parameters=parameters, action=action)
 
         return self.distributions.fmap(
@@ -358,10 +426,16 @@ class ParametrizedDistributions(StochasticPolicy, ValuePolicy, ParametrizedPolic
             x=states, horizons=horizons, internals=internals, deterministic=deterministic,
             independent=True
         )
+        if not isinstance(embedding, TensorDict):
+            embedding = TensorDict(embedding=embedding)
 
         def function(name, distribution):
+            if name is None:
+                x = embedding.get('action-embedding', embedding['embedding'])
+            else:
+                x = embedding.get(name + '-embedding', embedding['embedding'])
             conditions = auxiliaries.get(name, default=TensorDict())
-            parameters = distribution.parametrize(x=embedding, conditions=conditions)
+            parameters = distribution.parametrize(x=x, conditions=conditions)
             return distribution.state_value(parameters=parameters)
 
         return self.distributions.fmap(function=function, cls=TensorDict, with_names=True)

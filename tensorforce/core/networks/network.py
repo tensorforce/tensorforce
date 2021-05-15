@@ -36,12 +36,24 @@ class Network(Module):
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
         inputs_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        outputs (iter[string]): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(self, *, device=None, l2_regularization=None, name=None, inputs_spec=None):
+    def __init__(
+        self, *, device=None, l2_regularization=None, name=None, inputs_spec=None, outputs=None
+    ):
         super().__init__(name=name, device=device, l2_regularization=l2_regularization)
 
         self.inputs_spec = inputs_spec
+
+        if outputs is None:
+            self.outputs = outputs
+        else:
+            self.outputs = tuple(outputs)
+            if any(not isinstance(output, str) for output in self.outputs):
+                raise TensorforceError.value(
+                    name='LayerbasedNetwork', argument='outputs', value=self.outputs
+                )
 
     def get_architecture(self):
         return self.__class__.__name__
@@ -103,7 +115,7 @@ class LayerbasedNetwork(Network):
     Base class for networks using Tensorforce layers.
     """
 
-    def __init__(self, *, name, inputs_spec, device=None, l2_regularization=None):
+    def __init__(self, *, name, inputs_spec, device=None, l2_regularization=None, outputs=None):
         super().__init__(
             name=name, inputs_spec=inputs_spec, device=device, l2_regularization=l2_regularization
         )
@@ -119,7 +131,15 @@ class LayerbasedNetwork(Network):
         return (PreprocessingLayer,)
 
     def output_spec(self):
-        return self._output_spec
+        if self.outputs is None:
+            return self._output_spec
+        else:
+            self.outputs = tuple(
+                output for output in self.outputs if output in self.registered_tensors_spec
+            )
+            output_spec = TensorsSpec(embedding=self._output_spec)
+            output_spec.update(self.registered_tensors_spec[self.outputs])
+            return output_spec
 
     @property
     def internals_spec(self):
@@ -251,12 +271,17 @@ class LayeredNetwork(LayerbasedNetwork):
             (<span style="color:#00C000"><b>default</b></span>: inherit value of parent module).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
         inputs_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
+        outputs (iter[string]): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
     # (requires layers as first argument)
-    def __init__(self, layers, *, device=None, l2_regularization=None, name=None, inputs_spec=None):
+    def __init__(
+        self, layers, *, device=None, l2_regularization=None, name=None, inputs_spec=None,
+        outputs=None
+    ):
         super().__init__(
-            device=device, l2_regularization=l2_regularization, name=name, inputs_spec=inputs_spec
+            device=device, l2_regularization=l2_regularization, name=name, inputs_spec=inputs_spec,
+            outputs=outputs
         )
 
         self.layers = self._parse_layers_spec(spec=layers, counter=Counter())
@@ -322,6 +347,10 @@ class LayeredNetwork(LayerbasedNetwork):
             deterministic=deterministic, independent=independent,
             registered_tensors=registered_tensors, temporal_layer_check=temporal_layer_check
         )
+
+        if self.outputs is not None:
+            x = TensorDict(embedding=x)
+            x.update(((output, registered_tensors[output]) for output in self.outputs))
 
         return x, internals
 

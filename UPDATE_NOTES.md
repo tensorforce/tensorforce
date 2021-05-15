@@ -17,6 +17,7 @@ This file records all major updates and new features, starting from version 0.5.
 - Improved and simplified module specification, for instance: `network=my_module` instead of `network=my_module.TestNetwork`, or `environment=envs.custom_env` instead of `environment=envs.custom_env.CustomEnvironment` (module file needs to be in the same directory or a sub-directory)
 
 ##### Networks:
+- New argument `single_output=True` for some policy types which, if `False`, allows the specification of additional network outputs for some/all actions via registered tensors
 - `KerasNetwork` argument `model` now supports arbitrary functions as long as they return a `tf.keras.Model`
 
 ##### Parameters:

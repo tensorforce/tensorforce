@@ -23,8 +23,8 @@ from test.unittest_base import UnittestBase
 
 class TestNetwork(LayerbasedNetwork):
 
-    def __init__(self, name, inputs_spec):
-        super().__init__(name=name, inputs_spec=inputs_spec)
+    def __init__(self, name, inputs_spec, outputs=None):
+        super().__init__(name=name, inputs_spec=inputs_spec, outputs=outputs)
 
         self.layer1 = self.submodule(name='dense0', module=dict(type='dense', size=8))
         self.layer2 = self.submodule(name='dense1', module=dict(type='dense', size=8))

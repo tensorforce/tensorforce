@@ -423,10 +423,10 @@ class Module(tf.Module):
                 parent_class = next(iter(modules.values()))
                 while len(parent_class.mro()) >= 4 and parent_class.mro()[1] != Module:
                     parent_class = parent_class.mro()[1]
-                module = util.try_import_module(module=module, parent_class=parent_class)
-                if module is not None:
+                _module = util.try_import_module(module=module, parent_class=parent_class)
+                if _module is not None:
                     return Module.get_module_class_and_args(
-                        name=name, module=module, modules=modules, default_module=default_module,
+                        name=name, module=_module, modules=modules, default_module=default_module,
                         disable_first_arg=True, **kwargs
                     )
 

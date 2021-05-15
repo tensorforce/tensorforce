@@ -235,7 +235,7 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
         )
         self.unittest(
             states=dict(
-                observation=dict(type='float', shape=(4, 4, 3), min_value=-1.0, max_value=2.0),
+                observation=dict(type='float', shape=(4, 4, 3), min_value=-1.0, max_value=1.0),
                 attributes=dict(type='int', shape=(4, 2), num_values=5)
             ),
             policy=[
@@ -325,6 +325,23 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
                     type='decaying', decay='exponential', unit='episodes',
                     num_steps=2, initial_value=0.01, decay_rate=0.5
                 )
+            )
+        )
+        self.unittest(
+            states=dict(type='float', shape=(2,), min_value=-1.0, max_value=2.0),
+            actions=dict(
+                action1=dict(type='int', shape=(), num_values=5),
+                action2=dict(type='float', shape=(), min_value=-1.0, max_value=1.0)
+            ),
+            policy=dict(
+                type='parametrized_distributions',
+                network=[
+                    dict(type='dense', size=64),
+                    dict(type='register', tensor='action1-embedding'),
+                    dict(type='dense', size=64)
+                    # Final output implicitly used for remaining actions
+                ],
+                single_output=False
             )
         )
 

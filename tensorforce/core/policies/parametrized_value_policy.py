@@ -16,8 +16,8 @@
 import tensorflow as tf
 
 from tensorforce import TensorforceError
-from tensorforce.core import layer_modules, ModuleDict, TensorDict, TensorSpec, tf_function, \
-    tf_util
+from tensorforce.core import layer_modules, ModuleDict, TensorDict, TensorSpec, TensorsSpec, \
+    tf_function, tf_util
 from tensorforce.core.policies import ParametrizedPolicy, ValuePolicy
 
 
@@ -32,6 +32,11 @@ class ParametrizedValuePolicy(ValuePolicy, ParametrizedPolicy):
             [networks](../modules/networks.html)
             (<span style="color:#00C000"><b>default</b></span>: 'auto', automatically configured
             network).
+        single_output (bool): Whether the network returns a single embedding tensor or, in the case
+            of multiple action components, specifies additional outputs for some/all action/state
+            value functions, via registered tensors with name "[ACTION]-embedding" or
+            "state-embedding"/"[ACTION]-state-embedding" depending on the state_value_mode argument
+            (<span style="color:#00C000"><b>default</b></span>: single output).
         state_value_mode ('implicit' | 'separate' | 'separate-per-action'): Whether to compute the
             state value implicitly as maximum action value (like DQN), or as either a single
             separate state-value function or a function per action (like DuelingDQN)
@@ -50,8 +55,9 @@ class ParametrizedValuePolicy(ValuePolicy, ParametrizedPolicy):
 
     # Network first
     def __init__(
-        self, network='auto', *, state_value_mode='separate', device=None, l2_regularization=None,
-        name=None, states_spec=None, auxiliaries_spec=None, internals_spec=None, actions_spec=None
+        self, network='auto', *, single_output=True, state_value_mode='separate', device=None,
+        l2_regularization=None, name=None, states_spec=None, auxiliaries_spec=None,
+        internals_spec=None, actions_spec=None
     ):
         super().__init__(
             device=device, l2_regularization=l2_regularization, name=name, states_spec=states_spec,
@@ -64,28 +70,6 @@ class ParametrizedValuePolicy(ValuePolicy, ParametrizedPolicy):
                 hint='types not bool/int'
             )
 
-        ParametrizedPolicy.__init__(self=self, network=network, inputs_spec=self.states_spec)
-        output_spec = self.network.output_spec()
-
-        # Action values
-        def function(name, spec):
-            if name is None:
-                name = 'action_value'
-            else:
-                name = name + '_action_value'
-            if spec.type == 'bool':
-                return self.submodule(
-                    name=name, module='linear', modules=layer_modules, size=(spec.size * 2),
-                    input_spec=output_spec
-                )
-            elif spec.type == 'int':
-                return self.submodule(
-                    name=name, module='linear', modules=layer_modules,
-                    size=(spec.size * spec.num_values), input_spec=output_spec
-                )
-
-        self.a_values = self.actions_spec.fmap(function=function, cls=ModuleDict, with_names=True)
-
         # State value mode
         if state_value_mode not in ('implicit', 'separate', 'separate-per-action'):
             raise TensorforceError.value(
@@ -94,10 +78,53 @@ class ParametrizedValuePolicy(ValuePolicy, ParametrizedPolicy):
             )
         self.state_value_mode = state_value_mode
 
+        if single_output:
+            outputs = None
+        elif self.actions_spec.is_singleton():
+            if self.state_value_mode == 'implicit':
+                outputs = ('action-embedding',)
+            else:
+                outputs = ('action-embedding', 'state-embedding')
+        else:
+            outputs = tuple(name + '-embedding' for name in self.actions_spec)
+            if self.state_value_mode == 'separate':
+                outputs += ('state-embedding',)
+            elif self.state_value_mode == 'separate-per-action':
+                outputs += tuple(name + '-state-embedding' for name in self.actions_spec)
+        ParametrizedPolicy.__init__(
+            self=self, network=network, inputs_spec=self.states_spec, outputs=outputs
+        )
+        output_spec = self.network.output_spec()
+        if not isinstance(output_spec, TensorsSpec):
+            output_spec = TensorsSpec(embedding=output_spec)
+
+        # Action values
+        def function(name, spec):
+            if name is None:
+                input_name = 'action-embedding'
+                name = 'action_value'
+            else:
+                input_name = name + '-embedding'
+                name = name + '_action_value'
+            if spec.type == 'bool':
+                return self.submodule(
+                    name=name, module='linear', modules=layer_modules, size=(spec.size * 2),
+                    input_spec=output_spec.get(input_name, output_spec['embedding'])
+                )
+            elif spec.type == 'int':
+                return self.submodule(
+                    name=name, module='linear', modules=layer_modules,
+                    size=(spec.size * spec.num_values),
+                    input_spec=output_spec.get(input_name, output_spec['embedding'])
+                )
+
+        self.a_values = self.actions_spec.fmap(function=function, cls=ModuleDict, with_names=True)
+
         if self.state_value_mode == 'separate':
             # State value
             self.s_value = self.submodule(
-                name='value', module='linear', modules=layer_modules, size=0, input_spec=output_spec
+                name='value', module='linear', modules=layer_modules, size=0,
+                input_spec=output_spec.get('state-embedding', output_spec['embedding'])
             )
 
         elif self.state_value_mode == 'separate-per-action':
@@ -105,12 +132,14 @@ class ParametrizedValuePolicy(ValuePolicy, ParametrizedPolicy):
 
             def function(name, spec):
                 if name is None:
+                    input_name = 'state-embedding'
                     name = 'state_value'
                 else:
+                    input_name = name + '-state-embedding'
                     name = name + '_state_value'
                 return self.submodule(
                     name=name, module='linear', modules=layer_modules, size=spec.size,
-                    input_spec=output_spec
+                    input_spec=output_spec.get(input_name, output_spec['embedding'])
                 )
 
             self.s_values = self.states_spec.fmap(
@@ -198,11 +227,17 @@ class ParametrizedValuePolicy(ValuePolicy, ParametrizedPolicy):
             x=states, horizons=horizons, internals=internals, deterministic=deterministic,
             independent=independent
         )
+        if not isinstance(embedding, TensorDict):
+            embedding = TensorDict(embedding=embedding)
 
         if self.state_value_mode == 'implicit':
 
-            def function(spec, a_value):
-                action_value = a_value.apply(x=embedding)
+            def function(name, spec, a_value):
+                if name is None:
+                    x = embedding.get('action-embedding', embedding['embedding'])
+                else:
+                    x = embedding.get(name + '-embedding', embedding['embedding'])
+                action_value = a_value.apply(x=x)
                 if spec.type == 'bool':
                     shape = (-1,) + spec.shape + (2,)
                 elif spec.type == 'int':
@@ -210,14 +245,20 @@ class ParametrizedValuePolicy(ValuePolicy, ParametrizedPolicy):
                 return tf.reshape(tensor=action_value, shape=shape)
 
             action_values = self.actions_spec.fmap(
-                function=function, cls=TensorDict, zip_values=(self.a_values,)
+                function=function, cls=TensorDict, with_names=True, zip_values=(self.a_values,)
             )
 
         elif self.state_value_mode == 'separate':
-            state_value = self.s_value.apply(x=embedding)
+            state_value = self.s_value.apply(
+                x=embedding.get('state-embedding', embedding['embedding'])
+            )
 
-            def function(spec, a_value):
-                advantage_value = a_value.apply(x=embedding)
+            def function(name, spec, a_value):
+                if name is None:
+                    x = embedding.get('action-embedding', embedding['embedding'])
+                else:
+                    x = embedding.get(name + '-embedding', embedding['embedding'])
+                advantage_value = a_value.apply(x=x)
                 if spec.type == 'bool':
                     shape = (-1,) + spec.shape + (2,)
                 elif spec.type == 'int':
@@ -229,14 +270,26 @@ class ParametrizedValuePolicy(ValuePolicy, ParametrizedPolicy):
                 return _state_value + (advantage_value - mean)
 
             action_values = self.actions_spec.fmap(
-                function=function, cls=TensorDict, zip_values=(self.a_values,)
+                function=function, cls=TensorDict, with_names=True, zip_values=(self.a_values,)
             )
 
         elif self.state_value_mode == 'separate-per-action':
 
-            def function(spec, s_value, a_value):
-                state_value = s_value.apply(x=embedding)
-                advantage_value = a_value.apply(x=embedding)
+            def function(name, spec, s_value, a_value):
+                if name is None:
+                    state_value = s_value.apply(
+                        x=embedding.get('state-embedding', embedding['embedding'])
+                    )
+                    advantage_value = a_value.apply(
+                        x=embedding.get('action-embedding', embedding['embedding'])
+                    )
+                else:
+                    state_value = s_value.apply(
+                        x=embedding.get(name + '-state-embedding', embedding['embedding'])
+                    )
+                    advantage_value = a_value.apply(
+                        x=embedding.get(name + '-embedding', embedding['embedding'])
+                    )
                 if spec.type == 'bool':
                     shape = (-1,) + spec.shape + (2,)
                 elif spec.type == 'int':
@@ -246,7 +299,8 @@ class ParametrizedValuePolicy(ValuePolicy, ParametrizedPolicy):
                 return tf.expand_dims(input=state_value, axis=-1) + (advantage_value - mean)
 
             action_values = self.actions_spec.fmap(
-                function=function, cls=TensorDict, zip_values=(self.s_values, self.a_values)
+                function=function, cls=TensorDict, with_names=True,
+                zip_values=(self.s_values, self.a_values)
             )
 
         def function(name, spec, action_value):
@@ -324,8 +378,10 @@ class ParametrizedValuePolicy(ValuePolicy, ParametrizedPolicy):
                 x=states, horizons=horizons, internals=internals, deterministic=deterministic,
                 independent=True
             )
+            if not isinstance(embedding, TensorDict):
+                embedding = TensorDict(embedding=embedding)
 
-            return self.s_value.apply(x=embedding)
+            return self.s_value.apply(x=embedding.get('state-embedding', embedding['embedding']))
 
         else:
             return super().state_value(
@@ -339,11 +395,17 @@ class ParametrizedValuePolicy(ValuePolicy, ParametrizedPolicy):
             x=states, horizons=horizons, internals=internals, deterministic=deterministic,
             independent=True
         )
+        if not isinstance(embedding, TensorDict):
+            embedding = TensorDict(embedding=embedding)
 
         if self.state_value_mode == 'implicit':
 
-            def function(spec, a_value, action):
-                action_value = a_value.apply(x=embedding)
+            def function(name, spec, a_value, action):
+                if name is None:
+                    x = embedding.get('action-embedding', embedding['embedding'])
+                else:
+                    x = embedding.get(name + '-embedding', embedding['embedding'])
+                action_value = a_value.apply(x=x)
                 if spec.type == 'bool':
                     shape = (-1,) + spec.shape + (2,)
                 elif spec.type == 'int':
@@ -361,14 +423,21 @@ class ParametrizedValuePolicy(ValuePolicy, ParametrizedPolicy):
                     return tf.squeeze(input=action_value, axis=(spec.rank + 1))
 
             return self.actions_spec.fmap(
-                function=function, cls=TensorDict, zip_values=(self.a_values, actions)
+                function=function, cls=TensorDict, with_names=True,
+                zip_values=(self.a_values, actions)
             )
 
         elif self.state_value_mode == 'separate':
-            state_value = self.s_value.apply(x=embedding)
+            state_value = self.s_value.apply(
+                x=embedding.get('state-embedding', embedding['embedding'])
+            )
 
-            def function(spec, a_value, action):
-                advantage_value = a_value.apply(x=embedding)
+            def function(name, spec, a_value, action):
+                if name is None:
+                    x = embedding.get('action-embedding', embedding['embedding'])
+                else:
+                    x = embedding.get(name + '-embedding', embedding['embedding'])
+                advantage_value = a_value.apply(x=x)
                 if spec.type == 'bool':
                     shape = (-1,) + spec.shape + (2,)
                 elif spec.type == 'int':
@@ -390,14 +459,27 @@ class ParametrizedValuePolicy(ValuePolicy, ParametrizedPolicy):
                     return tf.squeeze(input=action_value, axis=(spec.rank + 1))
 
             return self.actions_spec.fmap(
-                function=function, cls=TensorDict, zip_values=(self.a_values, actions)
+                function=function, cls=TensorDict, with_names=True,
+                zip_values=(self.a_values, actions)
             )
 
         elif self.state_value_mode == 'separate-per-action':
 
-            def function(spec, s_value, a_value, action):
-                state_value = s_value.apply(x=embedding)
-                advantage_value = a_value.apply(x=embedding)
+            def function(name, spec, s_value, a_value, action):
+                if name is None:
+                    state_value = s_value.apply(
+                        x=embedding.get('state-embedding', embedding['embedding'])
+                    )
+                    advantage_value = a_value.apply(
+                        x=embedding.get('action-embedding', embedding['embedding'])
+                    )
+                else:
+                    state_value = s_value.apply(
+                        x=embedding.get(name + '-state-embedding', embedding['embedding'])
+                    )
+                    advantage_value = a_value.apply(
+                        x=embedding.get(name + '-embedding', embedding['embedding'])
+                    )
                 if spec.type == 'bool':
                     shape = (-1,) + spec.shape + (2,)
                 elif spec.type == 'int':
@@ -417,7 +499,7 @@ class ParametrizedValuePolicy(ValuePolicy, ParametrizedPolicy):
                     return tf.squeeze(input=action_value, axis=(spec.rank + 1))
 
             return self.actions_spec.fmap(
-                function=function, cls=TensorDict,
+                function=function, cls=TensorDict, with_names=True,
                 zip_values=(self.s_values, self.a_values, actions)
             )
 
@@ -428,11 +510,17 @@ class ParametrizedValuePolicy(ValuePolicy, ParametrizedPolicy):
             x=states, horizons=horizons, internals=internals, deterministic=deterministic,
             independent=True
         )
+        if not isinstance(embedding, TensorDict):
+            embedding = TensorDict(embedding=embedding)
 
         if self.state_value_mode == 'implicit':
 
             def function(name, spec, a_value):
-                action_value = a_value.apply(x=embedding)
+                if name is None:
+                    x = embedding.get('action-embedding', embedding['embedding'])
+                else:
+                    x = embedding.get(name + '-embedding', embedding['embedding'])
+                action_value = a_value.apply(x=x)
                 if spec.type == 'bool':
                     shape = (-1,) + spec.shape + (2,)
                 elif spec.type == 'int':
@@ -453,10 +541,16 @@ class ParametrizedValuePolicy(ValuePolicy, ParametrizedPolicy):
             )
 
         elif self.state_value_mode == 'separate':
-            state_value = self.s_value.apply(x=embedding)
+            state_value = self.s_value.apply(
+                x=embedding.get('state-embedding', embedding['embedding'])
+            )
 
             def function(name, spec, a_value):
-                advantage_value = a_value.apply(x=embedding)
+                if name is None:
+                    x = embedding.get('action-embedding', embedding['embedding'])
+                else:
+                    x = embedding.get(name + '-embedding', embedding['embedding'])
+                advantage_value = a_value.apply(x=x)
                 if spec.type == 'bool':
                     shape = (-1,) + spec.shape + (2,)
                 elif spec.type == 'int':
@@ -483,7 +577,11 @@ class ParametrizedValuePolicy(ValuePolicy, ParametrizedPolicy):
         elif self.state_value_mode == 'separate-per-action':
 
             def function(name, spec, s_value):
-                state_value = s_value.apply(x=embedding)
+                if name is None:
+                    x = embedding.get('state-embedding', embedding['embedding'])
+                else:
+                    x = embedding.get(name + '-state-embedding', embedding['embedding'])
+                state_value = s_value.apply(x=x)
                 if spec.type == 'bool':
                     shape = (-1,) + spec.shape
                 elif spec.type == 'int':

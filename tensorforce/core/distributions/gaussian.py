@@ -32,7 +32,8 @@ class Gaussian(Distribution):
             separate set of trainable weights
             (<span style="color:#00C000"><b>default</b></span>: "predicted").
         bounded_transform ("clipping" | "tanh"): Transformation to adjust sampled actions in case of
-            bounded action space
+            bounded action space, "tanh" transforms distribution (e.g. log probability computation)
+            accordingly whereas "clipping" does not
             (<span style="color:#00C000"><b>default</b></span>: tanh).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
         action_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.

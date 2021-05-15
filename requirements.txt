@@ -1,9 +1,9 @@
 gym >= 0.18.0
-h5py ~=2.10.0
-matplotlib >= 3.3.4
+h5py ~= 3.1.0
+matplotlib >= 3.4.2
 msgpack >= 1.0.2
 msgpack-numpy >= 0.4.7.1
 numpy == 1.19.5
 Pillow == 7.2.0
-tensorflow == 2.4.1
-tqdm >= 4.59.0
+tensorflow == 2.5.0
+tqdm >= 4.60.0

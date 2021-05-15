@@ -1,12 +1,12 @@
 gym >= 0.18.0
-h5py ~=2.10.0
-matplotlib >= 3.3.4
+h5py ~= 3.1.0
+matplotlib >= 3.4.2
 msgpack >= 1.0.2
 msgpack-numpy >= 0.4.7.1
 numpy == 1.19.5
 Pillow == 7.2.0
-tensorflow == 2.4.1
-tqdm >= 4.56.0
+tensorflow == 2.5.0
+tqdm >= 4.60.0
 tensorflow-addons >= 0.12.1
 hpbandster >= 0.7.4
 ale-py
@@ -17,5 +17,5 @@ vizdoom == 1.1.7
 m2r >= 0.2.1
 recommonmark >= 0.6.0
 sphinx >= 3.4.3
-sphinx-rtd-theme >= 0.5.1
-pytest >= 6.2.2
+sphinx-rtd-theme >= 0.5.2
+pytest >= 6.2.4

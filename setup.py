@@ -140,8 +140,8 @@ setup(
         tfa=['tensorflow-addons >= 0.12.1'],
         tune=['hpbandster >= 0.7.4'],
         envs=[
-            'ale-py', 'gym[atari,box2d,classic_control] >= 0.17.2', 'box2d >= 2.3.10',
-            'gym-retro >= 0.8.0', 'vizdoom >= 1.1.7'
+            'ale-py', 'gym[atari,box2d,classic_control] >= 0.18.0', 'box2d >= 2.3.10',
+            'gym-retro >= 0.8.0', 'vizdoom == 1.1.7'
         ],
         ale=['ale-py'],
         gym=['gym[atari,box2d,classic_control] >= 0.18.0', 'box2d >= 2.3.10'],
@@ -149,9 +149,9 @@ setup(
         vizdoom=['vizdoom == 1.1.7'],
         carla=['pygame', 'opencv-python'],
         docs=[
-            'm2r >= 0.2.1', 'recommonmark >= 0.6.0', 'sphinx >= 3.4.3', 'sphinx-rtd-theme >= 0.5.1'
+            'm2r >= 0.2.1', 'recommonmark >= 0.6.0', 'sphinx >= 3.4.3', 'sphinx-rtd-theme >= 0.5.2'
         ],
-        tests=['pytest >= 6.2.2']
+        tests=['pytest >= 6.2.4']
     ),
     zip_safe=False
 )

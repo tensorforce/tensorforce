@@ -57,6 +57,10 @@ class InputRnn(TransformationBase):
         self.cell_type = cell
         self.return_final_state = return_final_state
 
+        if self.return_final_state and self.cell_type == 'lstm':
+            assert size % 2 == 0
+            size = size // 2
+
         super().__init__(
             size=size, bias=bias, activation=activation, dropout=dropout,
             vars_trainable=vars_trainable, l2_regularization=l2_regularization, name=name,
@@ -68,12 +72,6 @@ class InputRnn(TransformationBase):
                 name='rnn', argument='return_final_state', value=return_final_state,
                 condition='size = 0'
             )
-
-        if self.return_final_state and self.cell_type == 'lstm':
-            assert size % 2 == 0
-            self.size = size // 2
-        else:
-            self.size = size
 
         if self.cell_type == 'gru':
             self.rnn = tf.keras.layers.GRU(

@@ -4,13 +4,13 @@ matplotlib >= 3.3.4
 msgpack >= 1.0.2
 msgpack-numpy >= 0.4.7.1
 numpy == 1.19.5
-Pillow == 7.2.0
+Pillow >= 8.2.0
 tensorflow == 2.5.0
 tqdm >= 4.60.0
 tensorflow-addons >= 0.13.0
 hpbandster >= 0.7.4
 ale-py
-gym[atari,box2d,classic_control] >= 0.18.0
+gym[atari,box2d,classic_control] >= 0.18.3
 box2d >= 2.3.10
 gym-retro >= 0.8.0
 vizdoom == 1.1.7

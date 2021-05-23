@@ -137,7 +137,7 @@ setup(
     ],
     install_requires=install_requires,
     extras_require=dict(
-        tfa=['tensorflow-addons >= 0.12.1'],
+        tfa=['tensorflow-addons >= 0.13.0'],
         tune=['hpbandster >= 0.7.4'],
         envs=[
             'ale-py', 'gym[atari,box2d,classic_control] >= 0.18.0', 'box2d >= 2.3.10',

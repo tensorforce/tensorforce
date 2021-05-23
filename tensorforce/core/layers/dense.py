@@ -102,6 +102,6 @@ class Dense(TransformationBase):
 
     @tf_function(num_args=1)
     def apply(self, *, x):
-        x = tf.matmul(a=x, b=self.weights)
+        x = tf.linalg.matmul(a=x, b=self.weights)
 
         return super().apply(x=x)

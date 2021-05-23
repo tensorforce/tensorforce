@@ -20,6 +20,23 @@ from test.unittest_base import UnittestBase
 
 class TestLayers(UnittestBase, unittest.TestCase):
 
+    def test_attention(self):
+        self.start_tests(name='attention')
+
+        states = dict(type='float', shape=(2, 3), min_value=1.0, max_value=2.0)
+        network = [
+            dict(type='self_attention', size=8),
+            dict(type='pooling', reduction='max')
+        ]
+        self.unittest(states=states, policy=network)
+
+        states = dict(type='float', shape=(2, 2, 3), min_value=1.0, max_value=2.0)
+        network = [
+            dict(type='self_attention', size=8, attention_size=7),
+            dict(type='pooling', reduction='max')
+        ]
+        self.unittest(states=states, policy=network)
+
     def test_convolution(self):
         self.start_tests(name='convolution')
 

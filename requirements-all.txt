@@ -7,7 +7,7 @@ numpy == 1.19.5
 Pillow == 7.2.0
 tensorflow == 2.5.0
 tqdm >= 4.60.0
-tensorflow-addons >= 0.12.1
+tensorflow-addons >= 0.13.0
 hpbandster >= 0.7.4
 ale-py
 gym[atari,box2d,classic_control] >= 0.18.0

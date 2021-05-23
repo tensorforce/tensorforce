@@ -20,6 +20,9 @@ This file records all major updates and new features, starting from version 0.5.
 - New argument `single_output=True` for some policy types which, if `False`, allows the specification of additional network outputs for some/all actions via registered tensors
 - `KerasNetwork` argument `model` now supports arbitrary functions as long as they return a `tf.keras.Model`
 
+##### Layers:
+- New layer type `SelfAttention` (specification key: `self_attention`)
+
 ##### Parameters:
 - Support tracking of non-constant parameter values
 

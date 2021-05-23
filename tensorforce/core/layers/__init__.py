@@ -33,6 +33,9 @@ from tensorforce.core.layers.rnn import Gru, Lstm, Rnn
 # Require Dense, Conv1d, Conv2d
 from tensorforce.core.layers.linear import Linear
 
+# Require Linear
+from tensorforce.core.layers.attention import SelfAttention
+
 
 layer_modules = dict(
     activation=Activation,
@@ -49,7 +52,7 @@ layer_modules = dict(
     linear=Linear, linear_normalization=LinearNormalization, lstm=Lstm,
     pooling=Pooling, pool1d=Pool1d, pool2d=Pool2d,
     register=Register, reshape=Reshape, retrieve=Retrieve, reuse=Reuse, rnn=Rnn,
-    sequence=Sequence
+    self_attention=SelfAttention, sequence=Sequence
 )
 
 

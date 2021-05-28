@@ -16,6 +16,8 @@ Besides `terminal=False` or `=0` for non-terminal and `terminal=True` or `=1` fo
 
 ### Action masking
 
+See also the [action-masking example](https://github.com/tensorforce/tensorforce/blob/master/examples/action_masking.py) for an environment implementation with built-in action masking.
+
 ```python
 agent = Agent.create(
     states=dict(type='float', shape=(10,)),

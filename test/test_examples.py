@@ -265,6 +265,68 @@ class TestExamples(UnittestBase, unittest.TestCase):
 
         self.finished_test()
 
+    def test_action_masking(self):
+        self.start_tests(name='action-masking')
+
+        # ====================
+
+        class EnvironmentWithMasking(Environment):
+            """
+            States: {0, 1, ..., 9, 10}
+            Actions: {-1, 0, 1}
+            Action masking: action = -1 invalid for state = 0, action = 1 invalid for state = 10
+            Reward:
+                - Positive: [state < 5, action = 1] or [state > 5, action = -1]
+                - Negative: [state < 5, action = -1] or [state > 5, action = 1]
+            """
+
+            def __init__(self):
+                super().__init__()
+
+            def states(self):
+                # States specification does not need to include action mask item
+                return dict(type=int, shape=(), num_values=11)
+
+            def actions(self):
+                # Only discrete actions can be masked
+                return dict(type=int, shape=(), num_values=3)
+
+            def reset(self):
+                # Initial state and associated action mask
+                self.state = np.random.randint(3, 7)
+                action_mask = np.asarray([self.state > 0, True, self.state < 10])
+
+                # Add action mask to states dictionary (mask item is "[NAME]_mask", here "action_mask")
+                states = dict(state=self.state, action_mask=action_mask)
+
+                return states
+
+            def execute(self, actions):
+                # Compute terminal and reward
+                terminal = False
+                if actions == 1:
+                    reward = -np.abs(self.state / 5.0 - 1.0)
+                else:
+                    reward = (1 - actions) * (self.state / 5.0 - 1.0)
+
+                # Compute next state and associated action mask
+                self.state += actions - 1
+                action_mask = np.asarray([self.state > 0, True, self.state < 10])
+
+                # Add action mask to states dictionary (mask item is "[NAME]_mask", here "action_mask")
+                states = dict(state=self.state, action_mask=action_mask)
+
+                return states, terminal, reward
+
+        agent = 'benchmarks/configs/ppo.json'
+        runner = Runner(agent=agent, environment=EnvironmentWithMasking, max_episode_timesteps=20)
+        runner.run(num_episodes=10)
+        runner.close()
+
+        # ====================
+
+        self.finished_test()
+
     def test_export_saved_model(self):
         self.start_tests(name='export-saved-model')
 

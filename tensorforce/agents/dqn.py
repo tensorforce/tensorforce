@@ -126,9 +126,15 @@ class DeepQNetwork(TensorforceAgent):
         variable_noise (<a href="../modules/parameters.html">parameter</a>, float >= 0.0):
             Add Gaussian noise with given standard deviation to all trainable variables, as
             alternative exploration mechanism
-            (<span style="color:#00C000"><b>default</b></span>: no variable noise).
+            (<span style="color:#00C000"><b>default</b></span>: no variable noise).<br/><br/>
 
-        others: See the [Tensorforce agent documentation](tensorforce.html).
+        >>>: For arguments below, see the [Tensorforce agent documentation](tensorforce.html).
+        parallel_interactions (int > 0)
+        config (specification)
+        saver (path | specification)
+        summarizer (path | specification)
+        tracking ("all" | iter[string])
+        recorder (path | specification)
     """
 
     def __init__(

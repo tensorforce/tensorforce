@@ -259,7 +259,7 @@ class Runner(object):
                 (<span style="color:#00C000"><b>default</b></span>: true), with the following
                 additional information (averaged over number of episodes given via mean_horizon):
                 <ul>
-                <li>reward &ndash; cumulative episode reward</li>
+                <li>return &ndash; cumulative episode return</li>
                 <li>ts/ep &ndash; timesteps per episode</li>
                 <li>sec/ep &ndash; seconds per episode</li>
                 <li>ms/ts &ndash; milliseconds per timestep</li>
@@ -276,7 +276,7 @@ class Runner(object):
                 (<span style="color:#00C000"><b>default</b></span>: best agent is not saved).
             evaluation_callback (int | callable[Runner -> float]): Callback function taking the
                 runner instance and returning an evaluation score
-                (<span style="color:#00C000"><b>default</b></span>: cumulative evaluation reward
+                (<span style="color:#00C000"><b>default</b></span>: cumulative evaluation return
                 averaged over mean_horizon episodes).
         """
         # General
@@ -356,14 +356,14 @@ class Runner(object):
             self.callback = boolean_callback
 
         # Experiment statistics
-        self.episode_rewards = list()
+        self.episode_returns = list()
         self.episode_timesteps = list()
         self.episode_seconds = list()
         self.episode_agent_seconds = list()
         if self.is_environment_remote:
             self.episode_env_seconds = list()
         if self.evaluation or evaluation:
-            self.evaluation_rewards = list()
+            self.evaluation_returns = list()
             self.evaluation_timesteps = list()
             self.evaluation_seconds = list()
             self.evaluation_agent_seconds = list()
@@ -371,7 +371,7 @@ class Runner(object):
                 self.evaluation_env_seconds = list()
             if self.num_environments == 1:
                 # for tqdm
-                self.episode_rewards = self.evaluation_rewards
+                self.episode_returns = self.evaluation_returns
                 self.episode_timesteps = self.evaluation_timesteps
                 self.episode_seconds = self.evaluation_seconds
                 self.episode_agent_seconds = self.evaluation_agent_seconds
@@ -379,7 +379,7 @@ class Runner(object):
                     self.episode_env_seconds = self.evaluation_env_seconds
         else:
             # for tqdm
-            self.evaluation_rewards = self.episode_rewards
+            self.evaluation_returns = self.episode_returns
             self.evaluation_timesteps = self.episode_timesteps
             self.evaluation_seconds = self.episode_seconds
             self.evaluation_agent_seconds = self.episode_agent_seconds
@@ -403,7 +403,7 @@ class Runner(object):
                 # Episode-based tqdm (default option if both num_episodes and num_timesteps set)
                 assert self.num_episodes != float('inf')
                 bar_format = (
-                    '{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}, reward={postfix[0]:.2f}, ts/ep='
+                    '{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}, return={postfix[0]:.2f}, ts/ep='
                     '{postfix[1]}, sec/ep={postfix[2]:.2f}, ms/ts={postfix[3]:.1f}, agent='
                     '{postfix[4]:.1f}%]'
                 )
@@ -419,9 +419,9 @@ class Runner(object):
                 self.tqdm_last_update = self.episodes
 
                 def tqdm_callback(runner, parallel):
-                    if len(runner.evaluation_rewards) > 0:
-                        mean_reward = float(np.mean(runner.evaluation_rewards[-mean_horizon:]))
-                        runner.tqdm.postfix[0] = mean_reward
+                    if len(runner.evaluation_returns) > 0:
+                        mean_return = float(np.mean(runner.evaluation_returns[-mean_horizon:]))
+                        runner.tqdm.postfix[0] = mean_return
                     if len(runner.episode_timesteps) > 0:
                         mean_ts_per_ep = int(np.mean(runner.episode_timesteps[-mean_horizon:]))
                         mean_sec_per_ep = float(np.mean(runner.episode_seconds[-mean_horizon:]))
@@ -447,15 +447,15 @@ class Runner(object):
                 # Timestep-based tqdm
                 self.tqdm = tqdm(
                     desc='Timesteps', total=self.num_timesteps, initial=self.timesteps,
-                    postfix=dict(mean_reward='n/a')
+                    postfix=dict(mean_return='n/a')
                 )
                 self.tqdm_last_update = self.timesteps
 
                 def tqdm_callback(runner, parallel):
-                    # sum_timesteps_reward = sum(runner.timestep_rewards[num_mean_reward:])
-                    # num_timesteps = min(num_mean_reward, runner.evaluation_timestep)
-                    # mean_reward = sum_timesteps_reward / num_episodes
-                    runner.tqdm.set_postfix(mean_reward='n/a')
+                    # sum_timesteps_return = sum(runner.timestep_returns[num_mean_return:])
+                    # num_timesteps = min(num_mean_return, runner.evaluation_timestep)
+                    # mean_return = sum_timesteps_return / num_episodes
+                    runner.tqdm.set_postfix(mean_return='n/a')
                     runner.tqdm.update(n=(runner.timesteps - runner.tqdm_last_update))
                     runner.tqdm_last_update = runner.timesteps
                     return inner_callback(runner, parallel)
@@ -476,18 +476,18 @@ class Runner(object):
         if self.save_best_agent is not None:
             inner_evaluation_callback = self.evaluation_callback
 
-            def mean_reward_callback(runner):
+            def mean_return_callback(runner):
                 result = inner_evaluation_callback(runner)
                 if result is None:
-                    return float(np.mean(runner.evaluation_rewards[-mean_horizon:]))
+                    return float(np.mean(runner.evaluation_returns[-mean_horizon:]))
                 else:
                     return result
 
-            self.evaluation_callback = mean_reward_callback
+            self.evaluation_callback = mean_return_callback
             self.best_evaluation_score = None
 
         # Episode statistics
-        self.episode_reward = [0.0 for _ in range(self.num_environments)]
+        self.episode_return = [0.0 for _ in range(self.num_environments)]
         self.episode_timestep = [0 for _ in range(self.num_environments)]
         # if self.batch_agent_calls:
         #     self.episode_agent_second = 0.0
@@ -744,7 +744,7 @@ class Runner(object):
 
     def handle_observe(self, parallel):
         # Update episode statistics
-        self.episode_reward[parallel] += self.rewards[parallel]
+        self.episode_return[parallel] += self.rewards[parallel]
 
         # Not terminal but finished
         if self.terminals[parallel] == 0 and self.terminate == 2:
@@ -781,7 +781,7 @@ class Runner(object):
 
     def handle_observe_evaluation(self):
         # Update episode statistics
-        self.episode_reward[-1] += self.rewards[-1]
+        self.episode_return[-1] += self.rewards[-1]
 
         # Reset agent if terminal
         if self.terminals[-1] > 0 or self.terminate == 2:
@@ -791,13 +791,13 @@ class Runner(object):
     def handle_terminal(self, parallel):
         # Update experiment statistics
         if self.num_vectorized is None:
-            actual_episode_reward = self.environments[parallel].episode_reward()
+            actual_episode_return = self.environments[parallel].episode_return()
         else:
-            actual_episode_reward = self.environments[0].episode_reward(parallel=parallel)
-        if actual_episode_reward is None:
-            self.episode_rewards.append(self.episode_reward[parallel])
+            actual_episode_return = self.environments[0].episode_return(parallel=parallel)
+        if actual_episode_return is None:
+            self.episode_returns.append(self.episode_return[parallel])
         else:
-            self.episode_rewards.append(actual_episode_reward)
+            self.episode_returns.append(actual_episode_return)
         self.episode_timesteps.append(self.episode_timestep[parallel])
         self.episode_seconds.append(time.time() - self.episode_start[parallel])
         self.episode_agent_seconds.append(self.episode_agent_second[parallel])
@@ -813,7 +813,7 @@ class Runner(object):
             self.terminate = 1
 
         # Reset episode statistics
-        self.episode_reward[parallel] = 0.0
+        self.episode_return[parallel] = 0.0
         self.episode_timestep[parallel] = 0
         self.episode_agent_second[parallel] = 0.0
         self.episode_start[parallel] = time.time()
@@ -826,13 +826,13 @@ class Runner(object):
     def handle_terminal_evaluation(self):
         # Update experiment statistics
         if self.num_vectorized is None:
-            actual_episode_reward = self.environments[-1].episode_reward()
+            actual_episode_return = self.environments[-1].episode_return()
         else:
-            actual_episode_reward = self.environments[0].episode_reward(parallel=-1)
-        if actual_episode_reward is None:
-            self.evaluation_rewards.append(self.episode_reward[-1])
+            actual_episode_return = self.environments[0].episode_return(parallel=-1)
+        if actual_episode_return is None:
+            self.evaluation_returns.append(self.episode_return[-1])
         else:
-            self.evaluation_rewards.append(actual_episode_reward)
+            self.evaluation_returns.append(actual_episode_return)
         self.evaluation_timesteps.append(self.episode_timestep[-1])
         self.evaluation_seconds.append(time.time() - self.evaluation_start)
         self.evaluation_agent_seconds.append(self.evaluation_agent_second)
@@ -863,7 +863,7 @@ class Runner(object):
                 self.terminate = 1
 
         # Reset episode statistics
-        self.episode_reward[-1] = 0.0
+        self.episode_return[-1] = 0.0
         self.episode_timestep[-1] = 0
         self.evaluation_agent_second = 0.0
         self.evaluation_start = time.time()

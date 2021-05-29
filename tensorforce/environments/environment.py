@@ -321,7 +321,7 @@ class Environment(object):
         """
         pass
 
-    def episode_reward(self, parallel=None):
+    def episode_return(self, parallel=None):
         return None
 
     def reset(self, num_parallel=None):

@@ -26,6 +26,9 @@ This file records all major updates and new features, starting from version 0.5.
 ##### Parameters:
 - Support tracking of non-constant parameter values
 
+##### Runner:
+- Rename TQDM status `reward` more appropriately as `return`
+
 ##### Examples:
 - Added `action_masking.py` example script to illustrate an environment implementation with built-in action masking.
 

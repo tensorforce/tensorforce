@@ -13,8 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
-from tensorforce.core.layers.layer import Layer, MultiInputLayer, NondeterministicLayer, Register, \
-    Retrieve, Reuse, StatefulLayer, TemporalLayer, TransformationBase
+from tensorforce.core.layers.layer import Block, Layer, MultiInputLayer, NondeterministicLayer, \
+    Register, Retrieve, Reuse, StatefulLayer, TemporalLayer, TransformationBase
 
 # Require Layer
 from tensorforce.core.layers.convolution import Conv1d, Conv2d, Conv1dTranspose, Conv2dTranspose
@@ -22,7 +22,7 @@ from tensorforce.core.layers.dense import Dense
 from tensorforce.core.layers.embedding import Embedding
 from tensorforce.core.layers.input_rnn import InputGru, InputLstm, InputRnn
 from tensorforce.core.layers.keras import KerasLayer
-from tensorforce.core.layers.misc import Activation, Block, Dropout, Function, Reshape
+from tensorforce.core.layers.misc import Activation, Dropout, Function, Reshape
 from tensorforce.core.layers.normalization import BatchNormalization, ExponentialNormalization, \
     InstanceNormalization, LinearNormalization
 from tensorforce.core.layers.pooling import Flatten, Pooling, Pool1d, Pool2d

@@ -91,4 +91,4 @@ class Linear(Layer):
 
         x = self.linear.apply(x=x)
 
-        return super().apply(x=x)
+        return x

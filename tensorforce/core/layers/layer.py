@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-from collections import OrderedDict
+from collections import Counter, OrderedDict
 
 import tensorflow as tf
 
@@ -99,7 +99,7 @@ class Layer(Module):
 
     @tf_function(num_args=1)
     def apply(self, *, x):
-        return x
+        raise NotImplementedError
 
 
 class MultiInputLayer(Layer):
@@ -211,6 +211,10 @@ class Register(Layer):
         self.tensor = tensor
 
         self.architecture_kwargs['tensor'] = tensor
+
+    @tf_function(num_args=1)
+    def apply(self, *, x):
+        return x
 
 
 class Retrieve(MultiInputLayer):
@@ -346,6 +350,74 @@ class Retrieve(MultiInputLayer):
         return x
 
 
+class Block(Layer):
+    """
+    Block of layers (specification key: `block`).
+
+    Args:
+        layers (iter[specification]): Layers configuration, see [layers](../modules/layers.html)
+            (<span style="color:#C00000"><b>required</b></span>).
+        name (string): Layer name
+            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
+        input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
+    """
+
+    def __init__(self, *, layers, name=None, input_spec=None):
+        # TODO: handle internal states and combine with layered network
+        if len(layers) == 0:
+            raise TensorforceError.value(
+                name='block', argument='layers', value=layers, hint='zero length'
+            )
+
+        self._input_spec = input_spec
+        self.layers_spec = list(layers)
+        self.layers = list()
+
+        super().__init__(name=name, input_spec=input_spec)
+
+        if len(self.layers_spec) == 0:
+            self.architecture_kwargs['layers'] = '[]'
+        else:
+            self.architecture_kwargs['layers'] = '[\n    {}\n]'.format('\n    '.join(
+                layer.get_architecture().replace('\n', '\n    ') for layer in self.layers
+            ))
+
+    def default_input_spec(self):
+        # if not isinstance(self.layers[0], Layer):
+        layer_counter = Counter()
+        for layer_spec in self.layers_spec:
+            if 'name' in layer_spec:
+                layer_spec = dict(layer_spec)
+                layer_name = layer_spec.pop('name')
+            else:
+                if isinstance(layer_spec.get('type'), str):
+                    layer_type = layer_spec['type']
+                else:
+                    layer_type = 'layer'
+                layer_name = layer_type + str(layer_counter[layer_type])
+                layer_counter[layer_type] += 1
+
+            # layer_name = self.name + '-' + layer_name
+            if layer_spec.get('type') == 'register':
+                raise TensorforceError.invalid(name='block-layer', argument='register-layer')
+            elif layer_spec.get('type') == 'retrieve':
+                raise TensorforceError.invalid(name='block-layer', argument='retrieve-layer')
+            layer = self.submodule(
+                name=layer_name, module=layer_spec, modules=tensorforce.core.layer_modules,
+                input_spec=self._input_spec
+            )
+            self.layers.append(layer)
+            self._input_spec = layer.output_spec()
+
+        return self.layers[0].input_spec.copy()
+
+    def output_spec(self):
+        return self.layers[-1].output_spec()
+
+    def apply(self, *, x):
+        raise NotImplementedError
+
+
 class Reuse(Layer):
     """
     Reuse layer (specification key: `reuse`).
@@ -357,8 +429,6 @@ class Reuse(Layer):
             (<span style="color:#00C000"><b>default</b></span>: internally chosen).
         input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
     """
-
-    # _TF_MODULE_IGNORED_PROPERTIES = Module._TF_MODULE_IGNORED_PROPERTIES | {'reused_layer'}
 
     def __init__(self, *, layer, name=None, input_spec=None):
         if layer not in Layer._REGISTERED_LAYERS:
@@ -380,9 +450,8 @@ class Reuse(Layer):
     def output_spec(self):
         return self.reused_layer.output_spec()
 
-    @tf_function(num_args=1)
     def apply(self, *, x):
-        return self.reused_layer.apply(x=x)
+        raise NotImplementedError
 
     # TODO: other Module functions?
     def get_available_summaries(self):

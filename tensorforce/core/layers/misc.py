@@ -13,7 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 
-from collections import Counter
 import math
 import random
 
@@ -21,7 +20,6 @@ import numpy as np
 import tensorflow as tf
 
 from tensorforce import TensorforceError, util
-import tensorforce.core
 from tensorforce.core import parameter_modules, TensorSpec, tf_function, tf_util
 from tensorforce.core.layers import Layer, NondeterministicLayer
 
@@ -96,74 +94,6 @@ class Activation(Layer):
 
         elif self.nonlinearity == 'tanh':
             x = tf.nn.tanh(x=x)
-
-        return x
-
-
-class Block(Layer):
-    """
-    Block of layers (specification key: `block`).
-
-    Args:
-        layers (iter[specification]): Layers configuration, see [layers](../modules/layers.html)
-            (<span style="color:#C00000"><b>required</b></span>).
-        name (string): Layer name
-            (<span style="color:#00C000"><b>default</b></span>: internally chosen).
-        input_spec (specification): <span style="color:#00C000"><b>internal use</b></span>.
-    """
-
-    def __init__(self, *, layers, name=None, input_spec=None):
-        # TODO: handle internal states and combine with layered network
-        if len(layers) == 0:
-            raise TensorforceError.value(
-                name='block', argument='layers', value=layers, hint='zero length'
-            )
-
-        self._input_spec = input_spec
-        self.layers_spec = list(layers)
-        self.layers = list()
-
-        super().__init__(name=name, input_spec=input_spec)
-
-        if len(self.layers_spec) == 0:
-            self.architecture_kwargs['layers'] = '[]'
-        else:
-            self.architecture_kwargs['layers'] = '[\n    {}\n]'.format('\n    '.join(
-                layer.get_architecture().replace('\n', '\n    ') for layer in self.layers
-            ))
-
-    def default_input_spec(self):
-        # if not isinstance(self.layers[0], Layer):
-        layer_counter = Counter()
-        for layer_spec in self.layers_spec:
-            if 'name' in layer_spec:
-                layer_spec = dict(layer_spec)
-                layer_name = layer_spec.pop('name')
-            else:
-                if isinstance(layer_spec.get('type'), str):
-                    layer_type = layer_spec['type']
-                else:
-                    layer_type = 'layer'
-                layer_name = layer_type + str(layer_counter[layer_type])
-                layer_counter[layer_type] += 1
-
-            # layer_name = self.name + '-' + layer_name
-            layer = self.submodule(
-                name=layer_name, module=layer_spec, modules=tensorforce.core.layer_modules,
-                input_spec=self._input_spec
-            )
-            self.layers.append(layer)
-            self._input_spec = layer.output_spec()
-
-        return self.layers[0].input_spec.copy()
-
-    def output_spec(self):
-        return self.layers[-1].output_spec()
-
-    @tf_function(num_args=1)
-    def apply(self, *, x):
-        for layer in self.layers:
-            x = layer.apply(x=x)
 
         return x
 

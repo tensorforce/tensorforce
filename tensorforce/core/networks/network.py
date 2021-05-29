@@ -20,8 +20,8 @@ import tensorflow as tf
 from tensorforce import TensorforceError
 from tensorforce.core import ArrayDict, Module, SignatureDict, TensorDict, TensorSpec, \
     TensorsSpec, tf_function, tf_util
-from tensorforce.core.layers import Layer, layer_modules, MultiInputLayer, NondeterministicLayer, \
-    PreprocessingLayer, Register, StatefulLayer, TemporalLayer
+from tensorforce.core.layers import Block, Layer, layer_modules, MultiInputLayer, \
+    NondeterministicLayer, PreprocessingLayer, Register, Reuse, StatefulLayer, TemporalLayer
 from tensorforce.core.parameters import Parameter
 
 
@@ -141,31 +141,47 @@ class LayerbasedNetwork(Network):
             output_spec.update(self.registered_tensors_spec[self.outputs])
             return output_spec
 
+    @staticmethod
+    def _recursive_temporal_layers(*, layer, fn):
+        if isinstance(layer, TemporalLayer):
+            fn(layer)
+        elif isinstance(layer, Block):
+            for block_layer in layer.this_submodules:
+                LayerbasedNetwork._recursive_temporal_layers(layer=block_layer, fn=fn)
+        elif isinstance(layer, Reuse):
+            LayerbasedNetwork._recursive_temporal_layers(layer=layer.reused_layer, fn=fn)
+
     @property
     def internals_spec(self):
         internals_spec = super().internals_spec
 
+        def fn(layer):
+            internals_spec[layer.name] = layer.internals_spec
+
         for layer in self.this_submodules:
-            if isinstance(layer, TemporalLayer):
-                internals_spec[layer.name] = layer.internals_spec
+            LayerbasedNetwork._recursive_temporal_layers(layer=layer, fn=fn)
 
         return internals_spec
 
     def internals_init(self):
         internals_init = super().internals_init()
 
+        def fn(layer):
+            internals_init[layer.name] = layer.internals_init()
+
         for layer in self.this_submodules:
-            if isinstance(layer, TemporalLayer):
-                internals_init[layer.name] = layer.internals_init()
+            LayerbasedNetwork._recursive_temporal_layers(layer=layer, fn=fn)
 
         return internals_init
 
     def max_past_horizon(self, *, on_policy):
         past_horizons = [super().max_past_horizon(on_policy=on_policy)]
 
+        def fn(layer):
+            past_horizons.append(layer.max_past_horizon(on_policy=on_policy))
+
         for layer in self.this_submodules:
-            if isinstance(layer, TemporalLayer):
-                past_horizons.append(layer.max_past_horizon(on_policy=on_policy))
+            LayerbasedNetwork._recursive_temporal_layers(layer=layer, fn=fn)
 
         return max(past_horizons)
 
@@ -173,9 +189,11 @@ class LayerbasedNetwork(Network):
     def past_horizon(self, *, on_policy):
         past_horizons = [super().past_horizon(on_policy=on_policy)]
 
+        def fn(layer):
+            past_horizons.append(layer.past_horizon(on_policy=on_policy))
+
         for layer in self.this_submodules:
-            if isinstance(layer, TemporalLayer):
-                past_horizons.append(layer.past_horizon(on_policy=on_policy))
+            LayerbasedNetwork._recursive_temporal_layers(layer=layer, fn=fn)
 
         return tf.math.reduce_max(input_tensor=tf.stack(values=past_horizons, axis=0), axis=0)
 
@@ -367,6 +385,23 @@ class LayeredNetwork(LayerbasedNetwork):
                     registered_tensors=registered_tensors,
                     temporal_layer_check=temporal_layer_check
                 )
+
+        elif isinstance(layer, Block):
+            for layer in layer.layers:
+                x, temporal_layer_check = LayeredNetwork._recursive_apply(
+                    layer=layer, x=x, horizons=horizons, internals=internals,
+                    deterministic=deterministic, independent=independent,
+                    registered_tensors=registered_tensors,
+                    temporal_layer_check=temporal_layer_check
+                )
+
+        elif isinstance(layer, Reuse):
+            x, temporal_layer_check = LayeredNetwork._recursive_apply(
+                layer=layer.reused_layer, x=x, horizons=horizons, internals=internals,
+                deterministic=deterministic, independent=independent,
+                registered_tensors=registered_tensors,
+                temporal_layer_check=temporal_layer_check
+            )
 
         elif isinstance(layer, Register):
             if layer.tensor in registered_tensors:

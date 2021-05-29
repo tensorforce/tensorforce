@@ -20,6 +20,42 @@ from test.unittest_base import UnittestBase
 
 class TestLayers(UnittestBase, unittest.TestCase):
 
+    def test_layers(self):
+        self.start_tests(name='layers')
+
+        states = dict(type='float', shape=(3,), min_value=1.0, max_value=2.0)
+        network = [
+            dict(type='register', tensor='test'),
+            dict(type='retrieve', tensors='test'),
+            dict(type='retrieve', tensors=('state', 'test'), aggregation='product')
+        ]
+        self.unittest(states=states, policy=network)
+
+        states = dict(
+            int_state=dict(type='int', shape=(1, 2), num_values=4),
+            float_state=dict(type='float', shape=(3,), min_value=1.0, max_value=2.0)
+        )
+        network = [
+            dict(type='retrieve', tensors='float_state'),
+            dict(type='block', name='test1', layers=[
+                dict(type='dense', size=4),
+                dict(type='block', name='test2', layers=[
+                    dict(type='dense', size=4)
+                ]),
+                dict(type='reuse', layer='test2'),
+                dict(type='block', name='test3', layers=[
+                    dict(type='lstm', size=4, horizon=2)
+                ]),
+                dict(type='reuse', layer='test2')
+            ])
+        ]
+        baseline = [
+            dict(type='retrieve', tensors='float_state'),
+            dict(type='reuse', layer='test1'),
+            dict(type='reuse', layer='test2')
+        ]
+        self.unittest(states=states, policy=network, baseline=baseline)
+
     def test_attention(self):
         self.start_tests(name='attention')
 
@@ -115,23 +151,6 @@ class TestLayers(UnittestBase, unittest.TestCase):
                 type='function', function=(lambda x: x[:, :2]),
                 output_spec=dict(type='float', shape=(2,))
             )
-        ]
-        self.unittest(states=states, policy=network)
-
-        states = dict(type='float', shape=(3,), min_value=1.0, max_value=2.0)
-        network = [
-            dict(type='block', name='test', layers=[
-                dict(type='dense', size=4), dict(type='dense', size=3)
-            ]),
-            dict(type='reuse', layer='test')
-        ]
-        self.unittest(states=states, policy=network)
-
-        states = dict(type='float', shape=(3,), min_value=1.0, max_value=2.0)
-        network = [
-            dict(type='register', tensor='test'),
-            dict(type='retrieve', tensors='test'),
-            dict(type='retrieve', tensors=('state', 'test'), aggregation='product')
         ]
         self.unittest(states=states, policy=network)
 

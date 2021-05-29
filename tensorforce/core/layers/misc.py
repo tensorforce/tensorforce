@@ -120,11 +120,12 @@ class Block(Layer):
             )
 
         self._input_spec = input_spec
-        self.layers = list(layers)
+        self.layers_spec = list(layers)
+        self.layers = list()
 
         super().__init__(name=name, input_spec=input_spec)
 
-        if len(self.layers) == 0:
+        if len(self.layers_spec) == 0:
             self.architecture_kwargs['layers'] = '[]'
         else:
             self.architecture_kwargs['layers'] = '[\n    {}\n]'.format('\n    '.join(
@@ -134,7 +135,7 @@ class Block(Layer):
     def default_input_spec(self):
         # if not isinstance(self.layers[0], Layer):
         layer_counter = Counter()
-        for n, layer_spec in enumerate(self.layers):
+        for layer_spec in self.layers_spec:
             if 'name' in layer_spec:
                 layer_spec = dict(layer_spec)
                 layer_name = layer_spec.pop('name')
@@ -147,12 +148,12 @@ class Block(Layer):
                 layer_counter[layer_type] += 1
 
             # layer_name = self.name + '-' + layer_name
-            self.layers[n] = self.submodule(
+            layer = self.submodule(
                 name=layer_name, module=layer_spec, modules=tensorforce.core.layer_modules,
                 input_spec=self._input_spec
             )
-            self._input_spec = self.layers[n].output_spec()
-
+            self.layers.append(layer)
+            self._input_spec = layer.output_spec()
 
         return self.layers[0].input_spec.copy()
 

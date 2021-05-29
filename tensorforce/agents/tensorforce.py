@@ -111,18 +111,18 @@ class TensorforceAgent(Agent):
             (<i><a href="../modules/parameters.html">parameter</a>, 0.0 <= float <= 1.0</i>) &ndash;
             Discount factor of future rewards for discounted-sum return estimation
             (<span style="color:#00C000"><b>default</b></span>: 1.0).</li>
-            <li><b>estimate_advantage</b> (<i>bool | "early" | "late"</i>) &ndash; Whether to use an
-            estimate of the advantage (return minus baseline value prediction) instead of the return
-            as learning signal, and whether to do so late after the baseline update (default) or
-            early before the baseline update
-            (<span style="color:#00C000"><b>default</b></span>: false, unless baseline_policy is
-            specified but baseline_objective/optimizer are not).</li>
             <li><b>predict_horizon_values</b> (<i>false | "early" | "late"</i>) &ndash; Whether to
             include a baseline prediction of the horizon value as part of the return estimation, and
             if so, whether to compute the horizon value prediction "early" when experiences are
             stored to memory, or "late" when batches of experience are retrieved for the update
             (<span style="color:#00C000"><b>default</b></span>: "late" if baseline_policy or
             baseline_objective are specified, else false).</li>
+            <li><b>estimate_advantage</b> (<i>bool | "early" | "late"</i>) &ndash; Whether to use an
+            estimate of the advantage (return minus baseline value prediction) instead of the return
+            as learning signal, and whether to do so late after the baseline update (default) or
+            early before the baseline update
+            (<span style="color:#00C000"><b>default</b></span>: false, unless baseline_policy is
+            specified but baseline_objective/optimizer are not).</li>
             <li><b>predict_action_values</b> (<i>bool</i>) &ndash; Whether to predict state-action-
             instead of state-values as horizon values and for advantage estimation
             (<span style="color:#00C000"><b>default</b></span>: false).</li>

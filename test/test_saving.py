@@ -396,7 +396,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
         )
         runner = Runner(agent=agent, environment=environment)
         runner.run(num_episodes=10, use_tqdm=False, evaluation=True)
-        self.assertTrue(all(episode_reward == 500.0 for episode_reward in runner.episode_rewards))
+        self.assertTrue(all(episode_return == 500.0 for episode_return in runner.episode_returns))
         runner.close()
         agent.close()
         self.finished_test()
@@ -407,7 +407,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
         )
         runner = Runner(agent=agent, environment=environment)
         runner.run(num_episodes=10, use_tqdm=False, evaluation=True)
-        self.assertTrue(all(episode_reward == 500.0 for episode_reward in runner.episode_rewards))
+        self.assertTrue(all(episode_return == 500.0 for episode_return in runner.episode_returns))
         runner.close()
         agent.close()
         self.finished_test()
@@ -418,7 +418,7 @@ class TestSaving(UnittestBase, unittest.TestCase):
         )
         runner = Runner(agent=agent, environment=environment)
         runner.run(num_episodes=10, use_tqdm=False, evaluation=True)
-        self.assertTrue(all(episode_reward == 500.0 for episode_reward in runner.episode_rewards))
+        self.assertTrue(all(episode_return == 500.0 for episode_return in runner.episode_returns))
         runner.close()
         agent.close()
         self.finished_test()
@@ -429,15 +429,15 @@ class TestSaving(UnittestBase, unittest.TestCase):
         for _ in range(10):
             states = environment.reset()
             terminal = False
-            episode_reward = 0.0
+            episode_return = 0.0
             while not terminal:
                 states = np.expand_dims(states, axis=0)
                 auxiliaries = dict(mask=np.ones(shape=(1, 2), dtype=bool))
                 actions = agent.act(states, auxiliaries, True)
                 actions = actions.numpy().item()
                 states, terminal, reward = environment.execute(actions=actions)
-                episode_reward += reward
-            self.assertEqual(episode_reward, 500.0)
+                episode_return += reward
+            self.assertEqual(episode_return, 500.0)
 
         environment.close()
         self.finished_test()

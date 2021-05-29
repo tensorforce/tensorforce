@@ -1,0 +1,77 @@
+{
+    "agent": "tensorforce",
+    "policy": {
+        "type": "parametrized_value_policy",
+        "network": {
+            "type": "auto",
+            "size": 64,
+            "depth": 2,
+            "final_size": null,
+            "final_depth": 1,
+            "rnn": false
+        },
+        "single_output": true,
+        "state_value_mode": "implicit" 
+    },
+    "memory": {
+        "type": "replay",
+        "capacity": 10000,
+        "device": "CPU"
+    },
+    "update": {
+        "unit": "timesteps",
+        "batch_size": 32,
+        "frequency": 0.25,
+        "start": null
+    },
+    "optimizer": {
+        "optimizer": "adam",
+        "learning_rate": 0.001,
+        "gradient_norm_clipping": null,
+        "clipping_threshold": null,
+        "multi_step": 1,
+        "subsampling_fraction": 1.0,
+        "linesearch_iterations": 0,
+        "doublecheck_update": false
+    },
+    "objective": {
+        "type": "action_value",
+        "huber_loss": null,
+        "early_reduce": true
+    },
+    "reward_estimation": {
+        "horizon": 1,
+        "discount": 0.99,
+        "predict_horizon_values": "late",
+        "estimate_advantage": false,
+        "predict_action_values": false,
+        "return_processing": null,
+        "advantage_processing": null,
+        "predict_terminal_values": false
+    },
+    "baseline": {
+        "type": "parametrized_value_policy",
+        "network": {
+            "type": "auto",
+            "size": 64,
+            "depth": 2,
+            "final_size": null,
+            "final_depth": 1,
+            "rnn": false
+        },
+        "single_output": true,
+        "state_value_mode": "implicit" 
+    },
+    "baseline_optimizer": {
+        "optimizer": "synchronization",
+        "update_weight": 1.0,
+        "sync_frequency": 1
+    },
+    "baseline_objective": null,
+    "l2_regularization": 0.0,
+    "entropy_regularization": 0.0,
+    "state_preprocessing": "linear_normalization",
+    "reward_preprocessing": null,
+    "exploration": 0.0,
+    "variable_noise": 0.0
+}

@@ -199,12 +199,12 @@ class DoubleDQN(TensorforceAgent):
         )
 
         optimizer = dict(type='adam', learning_rate=learning_rate)
-        objective = dict(type='value', value='action', huber_loss=huber_loss)
+        objective = dict(type='action_value', huber_loss=huber_loss)
 
         reward_estimation = dict(
             horizon=horizon, discount=discount, predict_horizon_values='late',
             estimate_advantage=False, predict_action_values=True,
-            predict_terminal_values=predict_terminal_values
+            return_processing=return_processing, predict_terminal_values=predict_terminal_values
         )
 
         baseline = policy

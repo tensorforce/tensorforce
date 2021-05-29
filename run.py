@@ -146,7 +146,7 @@ def main():
         agent_seconds = [list() for _ in range(args.episodes)]
 
         def callback(r, p):
-            rewards[r.episodes - 1].append(float(r.episode_rewards[-1]))
+            rewards[r.episodes - 1].append(float(r.episode_returns[-1]))
             timesteps[r.episodes - 1].append(int(r.episode_timesteps[-1]))
             seconds[r.episodes - 1].append(float(r.episode_seconds[-1]))
             agent_seconds[r.episodes - 1].append(float(r.episode_agent_seconds[-1]))

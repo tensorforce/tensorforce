@@ -214,11 +214,11 @@ class AdvantageActorCritic(TensorforceAgent):
         reward_estimation = dict(
             horizon=horizon, discount=discount, predict_horizon_values='early',
             estimate_advantage=True, predict_action_values=False,
-            predict_terminal_values=predict_terminal_values
+            return_processing=return_processing, predict_terminal_values=predict_terminal_values
         )
 
         baseline = dict(type='parametrized_state_value', network=critic)
-        baseline_objective = dict(type='value', value='state')
+        baseline_objective = dict(type='state_value')
 
         super().__init__(
             # Agent

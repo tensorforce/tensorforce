@@ -209,12 +209,12 @@ class DeterministicPolicyGradient(TensorforceAgent):
         reward_estimation = dict(
             horizon=horizon, discount=discount, predict_horizon_values='late',
             estimate_advantage=False, predict_action_values=True,
-            predict_terminal_values=predict_terminal_values
+            return_processing=return_processing, predict_terminal_values=predict_terminal_values
         )
 
         baseline = dict(type='parametrized_action_value', network=critic)
         baseline_optimizer = critic_optimizer
-        baseline_objective = dict(type='value', value='action')
+        baseline_objective = dict(type='action_value')
 
         super().__init__(
             # Agent

@@ -37,7 +37,7 @@ class Queue(Memory):
 
     # (requires capacity as first argument)
     def __init__(
-        self, capacity=None, *, device='CPU:0', name=None, values_spec=None, min_capacity=None
+        self, capacity=None, *, device='CPU', name=None, values_spec=None, min_capacity=None
     ):
         super().__init__(
             device=device, name=name, values_spec=values_spec, min_capacity=min_capacity

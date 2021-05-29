@@ -615,8 +615,8 @@ class TensorforceModel(Model):
 
         # Preprocessed episode reward
         if self.reward_preprocessing is not None:
-            self.preprocessed_episode_reward = self.variable(
-                name='preprocessed-episode-reward',
+            self.preprocessed_episode_return = self.variable(
+                name='preprocessed-episode-return',
                 spec=TensorSpec(type=self.reward_spec.type, shape=(self.parallel_interactions,)),
                 initializer='zeros', is_trainable=False, is_saved=False
             )
@@ -1446,23 +1446,23 @@ class TensorforceModel(Model):
                 dependencies = list()
                 if self.summaries == 'all' or 'reward' in self.summaries:
                     with self.summarizer.as_default():
-                        x = tf.gather(params=self.preprocessed_episode_reward, indices=parallel)
+                        x = tf.gather(params=self.preprocessed_episode_return, indices=parallel)
                         dependencies.append(tf.summary.scalar(
-                            name='preprocessed-episode-reward', data=x, step=self.episodes
+                            name='preprocessed-episode-return', data=x, step=self.episodes
                         ))
 
                 # Reset preprocessed episode reward
                 with tf.control_dependencies(control_inputs=dependencies):
                     zeros = tf_util.zeros(shape=(1,), dtype='float')
                     value = tf.tensor_scatter_nd_update(
-                        tensor=self.preprocessed_episode_reward, indices=expanded_parallel,
+                        tensor=self.preprocessed_episode_return, indices=expanded_parallel,
                         updates=zeros
                     )
-                    operations.append(self.preprocessed_episode_reward.assign(value=value))
+                    operations.append(self.preprocessed_episode_return.assign(value=value))
                     # zero_float = tf_util.constant(value=0.0, dtype='float')
                     # sparse_delta = tf.IndexedSlices(values=zero_float, indices=parallel)
                     # operations.append(
-                    #     self.preprocessed_episode_reward.scatter_update(sparse_delta=sparse_delta)
+                    #     self.preprocessed_episode_return.scatter_update(sparse_delta=sparse_delta)
                     # )
 
             # Reset preprocessors
@@ -1494,14 +1494,14 @@ class TensorforceModel(Model):
                 # Update preprocessed episode reward
                 sum_reward = tf.math.reduce_sum(input_tensor=reward, keepdims=True)
                 value = tf.tensor_scatter_nd_add(
-                    tensor=self.preprocessed_episode_reward, indices=expanded_parallel,
+                    tensor=self.preprocessed_episode_return, indices=expanded_parallel,
                     updates=sum_reward
                 )
-                dependencies.append(self.preprocessed_episode_reward.assign(value=value))
+                dependencies.append(self.preprocessed_episode_return.assign(value=value))
                 # sum_reward = tf.math.reduce_sum(input_tensor=reward)
                 # sparse_delta = tf.IndexedSlices(values=sum_reward, indices=parallel)
                 # dependencies.append(
-                #     self.preprocessed_episode_reward.scatter_add(sparse_delta=sparse_delta)
+                #     self.preprocessed_episode_return.scatter_add(sparse_delta=sparse_delta)
                 # )
 
         # Handle terminal vs non-terminal (after preprocessed episode reward)

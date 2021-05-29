@@ -138,9 +138,9 @@ class TensorforceWorker(Worker):
                 )
             runner.close()
 
-            average_reward.append(float(np.mean(runner.episode_rewards, axis=0)))
-            final_reward.append(float(np.mean(runner.episode_rewards[-20:], axis=0)))
-            rewards.append(list(runner.episode_rewards))
+            average_reward.append(float(np.mean(runner.episode_returns, axis=0)))
+            final_reward.append(float(np.mean(runner.episode_returns[-20:], axis=0)))
+            rewards.append(list(runner.episode_returns))
 
         mean_average_reward = float(np.mean(average_reward, axis=0))
         mean_final_reward = float(np.mean(final_reward, axis=0))

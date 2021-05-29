@@ -568,7 +568,7 @@ class TestExamples(UnittestBase, unittest.TestCase):
             runner = Runner(agent=agent, environment=environment)
             runner.run(num_episodes=10, evaluation=True)
             self.assertTrue(
-                all(episode_reward == 500.0 for episode_reward in runner.episode_rewards)
+                all(episode_return == 500.0 for episode_return in runner.episode_returns)
             )
             runner.close()
             agent.close()

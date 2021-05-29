@@ -242,7 +242,7 @@ class ProximalPolicyOptimization(TensorforceAgent):
             assert not predict_terminal_values
             reward_estimation = dict(
                 horizon='episode', discount=discount, predict_horizon_values=False,
-                estimate_advantage=False
+                estimate_advantage=False, return_processing=return_processing
             )
             assert baseline_optimizer is None
             baseline_objective = None
@@ -251,7 +251,7 @@ class ProximalPolicyOptimization(TensorforceAgent):
             reward_estimation = dict(
                 horizon='episode', discount=discount, predict_horizon_values='early',
                 estimate_advantage=True, predict_action_values=False,
-                predict_terminal_values=predict_terminal_values
+                return_processing=return_processing, predict_terminal_values=predict_terminal_values
             )
             baseline = dict(type='parametrized_state_value', network=baseline)
             assert baseline_optimizer is not None

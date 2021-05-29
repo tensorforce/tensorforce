@@ -353,13 +353,13 @@ class Model(Module):
             is_saved=True
         )
 
-        # Episode length/reward
+        # Episode length/return
         self.episode_length = self.variable(
             name='episode-length', spec=TensorSpec(type='int', shape=(self.parallel_interactions,)),
             initializer='zeros', is_trainable=False, is_saved=False
         )
-        self.episode_reward = self.variable(
-            name='episode-reward',
+        self.episode_return = self.variable(
+            name='episode-return',
             spec=TensorSpec(type=self.reward_spec.type, shape=(self.parallel_interactions,)),
             initializer='zeros', is_trainable=False, is_saved=False
         )
@@ -699,12 +699,12 @@ class Model(Module):
             # dependencies.append(self.episode_length.scatter_add(sparse_delta=sparse_delta))
             sum_reward = tf.math.reduce_sum(input_tensor=reward, keepdims=True)
             value = tf.tensor_scatter_nd_add(
-                tensor=self.episode_reward, indices=expanded_parallel, updates=sum_reward
+                tensor=self.episode_return, indices=expanded_parallel, updates=sum_reward
             )
-            dependencies.append(self.episode_reward.assign(value=value))
+            dependencies.append(self.episode_return.assign(value=value))
             # sum_reward = tf.math.reduce_sum(input_tensor=reward)
             # sparse_delta = tf.IndexedSlices(values=sum_reward, indices=parallel)
-            # dependencies.append(self.episode_reward.scatter_add(sparse_delta=sparse_delta))
+            # dependencies.append(self.episode_return.scatter_add(sparse_delta=sparse_delta))
 
             # Core observe (before terminal handling)
             updated = self.core_observe(terminal=terminal, reward=reward, parallel=parallel)
@@ -740,9 +740,9 @@ class Model(Module):
                         dependencies.append(
                             tf.summary.scalar(name='episode-length', data=x, step=self.episodes)
                         )
-                        x = tf.gather(params=self.episode_reward, indices=parallel)
+                        x = tf.gather(params=self.episode_return, indices=parallel)
                         dependencies.append(
-                            tf.summary.scalar(name='episode-reward', data=x, step=self.episodes)
+                            tf.summary.scalar(name='episode-return', data=x, step=self.episodes)
                         )
 
                 # Reset episode length/reward
@@ -756,12 +756,12 @@ class Model(Module):
                     # operations.append(self.episode_length.scatter_update(sparse_delta=sparse_delta))
                     zeros = tf_util.zeros(shape=(1,), dtype='float')
                     value = tf.tensor_scatter_nd_update(
-                        tensor=self.episode_reward, indices=expanded_parallel, updates=zeros
+                        tensor=self.episode_return, indices=expanded_parallel, updates=zeros
                     )
-                    operations.append(self.episode_reward.assign(value=value))
+                    operations.append(self.episode_return.assign(value=value))
                     # zero_float = tf_util.constant(value=0.0, dtype='float')
                     # sparse_delta = tf.IndexedSlices(values=zero_float, indices=parallel)
-                    # operations.append(self.episode_reward.scatter_update(sparse_delta=sparse_delta))
+                    # operations.append(self.episode_return.scatter_update(sparse_delta=sparse_delta))
 
                 # Increment episodes counter
                 operations.append(self.episodes.assign_add(delta=one, read_value=False))
@@ -890,7 +890,11 @@ class Model(Module):
         elif format == 'numpy':
             variables = dict()
             for variable in self.saved_variables:
-                variables[variable.name[len(self.name) + 1: -2]] = variable.numpy()
+                assert variable.name[-2] == ':'
+                if variable.name.startswith(self.name + '/'):
+                    variables[variable.name[len(self.name) + 1: -2]] = variable.numpy()
+                else:
+                    variables[variable.name[:-2]] = variable.numpy()
             path = os.path.join(directory, filename) + '.npz'
             np.savez(file=path, **variables)
             return path
@@ -899,8 +903,13 @@ class Model(Module):
             path = os.path.join(directory, filename) + '.hdf5'
             with h5py.File(name=path, mode='w') as filehandle:
                 for variable in self.saved_variables:
-                    name = variable.name[len(self.name) + 1: -2]
-                    filehandle.create_dataset(name=name, data=variable.numpy())
+                    assert variable.name[-2] == ':'
+                    if variable.name.startswith(self.name + '/'):
+                        filehandle.create_dataset(
+                            name=variable.name[len(self.name) + 1: -2], data=variable.numpy()
+                        )
+                    else:
+                        filehandle.create_dataset(name=variable.name[:-2], data=variable.numpy())
             return path
 
         else:
@@ -936,7 +945,10 @@ class Model(Module):
                 )
             variables = np.load(file=(os.path.join(directory, filename) + '.npz'))
             for variable in self.saved_variables:
-                variable.assign(value=variables[variable.name[len(self.name) + 1: -2]])
+                if variable.name.startswith(self.name + '/'):
+                    variable.assign(value=variables[variable.name[len(self.name) + 1: -2]])
+                else:
+                    variable.assign(value=variables[variable.name[:-2]])
 
         elif format == 'hdf5':
             if directory is None:
@@ -954,7 +966,10 @@ class Model(Module):
                 path = path + '.h5'
             with h5py.File(name=path, mode='r') as filehandle:
                 for variable in self.saved_variables:
-                    variable.assign(value=filehandle[variable.name[len(self.name) + 1: -2]])
+                    if variable.name.startswith(self.name + '/'):
+                        variable.assign(value=filehandle[variable.name[len(self.name) + 1: -2]])
+                    else:
+                        variable.assign(value=filehandle[variable.name[:-2]])
 
         else:
             raise TensorforceError.value(name='Model.load', argument='format', value=format)

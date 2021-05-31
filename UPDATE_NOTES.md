@@ -28,6 +28,7 @@ This file records all major updates and new features, starting from version 0.5.
 
 ##### Runner:
 - Rename attribute `episode_rewards` as `episode_returns`, and TQDM status `reward` as `return`
+- Extend argument `agent` to support `Agent.load()` keyword arguments to load an existing agent instead of creating a new one.
 
 ##### Examples:
 - Added `action_masking.py` example script to illustrate an environment implementation with built-in action masking.

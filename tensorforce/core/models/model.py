@@ -796,14 +796,11 @@ class Model(Module):
         if directory is None:
             raise TensorforceError.required(name='Model.save', argument='directory')
 
-        if append is not None:
-            append_value = self.units[append].numpy().item()
-
         if filename is None:
             filename = self.name
 
         if append is not None:
-            filename = filename + '-' + str(append_value)
+            filename = filename + '-' + str(self.units[append].numpy().item())
 
         if format == 'saved-model':
             if filename != self.name:
@@ -922,8 +919,10 @@ class Model(Module):
                     raise TensorforceError.required(name='Model.save', argument='directory')
                 directory = self.saver_directory
             if filename is None:
-                filename = tf.train.latest_checkpoint(checkpoint_dir=directory)
-                _directory, filename = os.path.split(filename)
+                path = tf.train.latest_checkpoint(checkpoint_dir=directory)
+                if not path:
+                    raise TensorforceError.exists_not(name='Checkpoint', value=directory)
+                _directory, filename = os.path.split(path)
                 assert _directory == directory
             super().restore(directory=directory, filename=filename)
 

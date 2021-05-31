@@ -390,37 +390,25 @@ class TestSaving(UnittestBase, unittest.TestCase):
 
         environment = Environment.create(environment='CartPole-v1')
 
-        agent = Agent.load(
-            directory='test/data', filename='ppo-checkpoint', format='checkpoint',
-            environment=environment
-        )
+        agent = dict(directory='test/data', filename='ppo-checkpoint', format='checkpoint')
         runner = Runner(agent=agent, environment=environment)
         runner.run(num_episodes=10, use_tqdm=False, evaluation=True)
         self.assertTrue(all(episode_return == 500.0 for episode_return in runner.episode_returns))
         runner.close()
-        agent.close()
         self.finished_test()
 
-        agent = Agent.load(
-            directory='test/data', filename='ppo-checkpoint', format='numpy',
-            environment=environment
-        )
+        agent = dict(directory='test/data', filename='ppo-checkpoint', format='numpy')
         runner = Runner(agent=agent, environment=environment)
         runner.run(num_episodes=10, use_tqdm=False, evaluation=True)
         self.assertTrue(all(episode_return == 500.0 for episode_return in runner.episode_returns))
         runner.close()
-        agent.close()
         self.finished_test()
 
-        agent = Agent.load(
-            directory='test/data', filename='ppo-checkpoint', format='hdf5',
-            environment=environment
-        )
+        agent = dict(directory='test/data', filename='ppo-checkpoint', format='hdf5')
         runner = Runner(agent=agent, environment=environment)
         runner.run(num_episodes=10, use_tqdm=False, evaluation=True)
         self.assertTrue(all(episode_return == 500.0 for episode_return in runner.episode_returns))
         runner.close()
-        agent.close()
         self.finished_test()
 
         agent = tf.saved_model.load(export_dir='test/data/ppo-checkpoint')

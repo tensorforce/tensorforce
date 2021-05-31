@@ -444,6 +444,12 @@ class Reuse(Layer):
     def reused_layer(self):
         return Layer._REGISTERED_LAYERS[self.layer]
 
+    def get_architecture(self):
+        return '{}\n  > {}'.format(
+            super().get_architecture(),
+            self.reused_layer.get_architecture().replace('\n', '\n  > ')
+        )
+
     def default_input_spec(self):
         return self.reused_layer.input_spec.copy()
 

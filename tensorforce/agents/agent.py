@@ -144,8 +144,7 @@ class Agent(Recorder):
                 (<span style="color:#C00000"><b>required</b></span>, unless saver is specified).
             filename (str): Checkpoint filename, with or without append and extension
                 (<span style="color:#00C000"><b>default</b></span>: "agent").
-            format ("checkpoint" | "saved-model" | "numpy" | "hdf5"): File format, "saved-model" loads
-                an act-only agent based on a Protobuf model
+            format ("checkpoint" | "numpy" | "hdf5"): File format
                 (<span style="color:#00C000"><b>default</b></span>: format matching directory and
                 filename, required to be unambiguous).
             environment (Environment object): Environment which the agent is supposed to be trained
@@ -177,12 +176,13 @@ class Agent(Recorder):
             kwargs = dict()
 
         # Overwrite values
-        if environment is not None and environment.max_episode_timesteps() is not None:
-            if 'max_episode_timesteps' in kwargs:
-                assert kwargs['max_episode_timesteps'] >= environment.max_episode_timesteps()
-                agent['max_episode_timesteps'] = kwargs['max_episode_timesteps']
-            else:
-                agent['max_episode_timesteps'] = environment.max_episode_timesteps()
+        if agent.get('max_episode_timesteps') is None:
+            if environment is not None and environment.max_episode_timesteps() is not None:
+                if 'max_episode_timesteps' in kwargs:
+                    assert kwargs['max_episode_timesteps'] >= environment.max_episode_timesteps()
+                    agent['max_episode_timesteps'] = kwargs['max_episode_timesteps']
+                else:
+                    agent['max_episode_timesteps'] = environment.max_episode_timesteps()
         if 'parallel_interactions' in kwargs and kwargs['parallel_interactions'] > 1:
             agent['parallel_interactions'] = kwargs['parallel_interactions']
 
@@ -573,11 +573,13 @@ class Agent(Recorder):
             directory (str): Checkpoint directory
                 (<span style="color:#C00000"><b>required</b></span>).
             filename (str): Checkpoint filename, without extension
-                (<span style="color:#C00000"><b>required</b></span>, unless "saved-model" format).
-            format ("checkpoint" | "saved-model" | "numpy" | "hdf5"): File format, "checkpoint" uses
-                TensorFlow Checkpoint to save model, "saved-model" uses TensorFlow SavedModel to
-                save an optimized act-only model, whereas the others store only variables as
-                NumPy/HDF5 file
+                (<span style="color:#00C000"><b>default</b></span>: agent name).
+            format ("checkpoint" | "saved-model" | "numpy" | "hdf5"): File format, "checkpoint"
+                uses the [TensorFlow Checkpoint](https://www.tensorflow.org/guide/checkpoint) to
+                save the model, "saved-model" uses the
+                [TensorFlow SavedModel](https://www.tensorflow.org/guide/saved_model) to save an
+                optimized act-only model (use only if you really need TF's SavedModel format,
+                loading not supported), whereas the others store only variables as NumPy/HDF5 file
                 (<span style="color:#00C000"><b>default</b></span>: TensorFlow Checkpoint).
             append ("timesteps" | "episodes" | "updates"): Append timestep/episode/update to
                 checkpoint filename
@@ -628,11 +630,9 @@ class Agent(Recorder):
 
         Args:
             directory (str): Checkpoint directory
-                (<span style="color:#C00000"><b>required</b></span>, unless "saved-model" format and
-                saver specified).
+                (<span style="color:#C00000"><b>required</b></span>).
             filename (str): Checkpoint filename, with or without append and extension
-                (<span style="color:#C00000"><b>required</b></span>, unless "saved-model" format and
-                saver specified).
+                (<span style="color:#00C000"><b>default</b></span>: agent name).
             format ("checkpoint" | "numpy" | "hdf5"): File format
                 (<span style="color:#00C000"><b>default</b></span>: format matching directory and
                 filename, required to be unambiguous).
@@ -642,6 +642,9 @@ class Agent(Recorder):
 
         if not self.is_initialized:
             self.initialize()
+
+        if filename is None:
+            filename = self.model.name
 
         # format implicitly given if file exists
         if format is None and os.path.isfile(os.path.join(directory, filename)):
@@ -703,13 +706,13 @@ class Agent(Recorder):
                     format = 'checkpoint'
                 else:
                     assert format == 'checkpoint'
-                if filename is None or \
-                        not os.path.isfile(os.path.join(directory, filename + '.index')):
+                if not os.path.isfile(os.path.join(directory, filename + '.index')):
                     import tensorflow as tf
                     path = tf.train.latest_checkpoint(checkpoint_dir=directory)
                     if not path:
                         raise TensorforceError.exists_not(name='Checkpoint', value=directory)
-                    filename = os.path.basename(path)
+                    _directory, filename = os.path.split(path)
+                    assert _directory == directory
 
             else:
                 if format is None:

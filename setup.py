@@ -32,10 +32,11 @@ rm -r docs/_*
 pip install --upgrade pip setuptools wheel twine
 python setup.py sdist bdist_wheel
 
-twine upload --repository-url https://test.pypi.org/legacy/ dist/Tensorforce-0.6.*
+twine upload --repository-url https://test.pypi.org/legacy/ dist/Tensorforce-0.6.X*
 
 deactivate
-source tensorforce-test-env/bin/activate
+source ~/tensorforce-test-env/bin/activate
+
 pip install --upgrade -r requirements.txt
 cd ..
 pip install --upgrade --index-url https://test.pypi.org/simple/ tensorforce
@@ -44,8 +45,15 @@ python
   > print(tensorforce.__version__)
 python tensorforce/examples/quickstart.py
 
+deactivate
+source ~/tensorforce-env/bin/activate
+
 cd tensorforce
-twine upload dist/Tensorforce-0.6.*
+git status
+git add -u
+git commit -m "Fix PyPI version 0.6.X"
+git push origin master
+twine upload dist/Tensorforce-0.6.X*
   ... commit and fix GitHub version ...
 """
 

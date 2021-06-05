@@ -36,7 +36,7 @@ twine upload --repository-url https://test.pypi.org/legacy/ dist/Tensorforce-0.6
 
 deactivate
 source tensorforce-test-env/bin/activate
-pip install -r requirements.txt
+pip install --upgrade -r requirements.txt
 cd ..
 pip install --upgrade --index-url https://test.pypi.org/simple/ tensorforce
 python
@@ -149,7 +149,7 @@ setup(
         vizdoom=['vizdoom == 1.1.7'],
         carla=['pygame', 'opencv-python'],
         docs=[
-            'm2r >= 0.2.1', 'recommonmark >= 0.6.0', 'sphinx >= 3.4.3', 'sphinx-rtd-theme >= 0.5.2'
+            'm2r >= 0.2.1', 'recommonmark >= 0.7.1', 'sphinx >= 4.0.2', 'sphinx-rtd-theme >= 0.5.2'
         ],
         tests=['pytest >= 6.2.4']
     ),

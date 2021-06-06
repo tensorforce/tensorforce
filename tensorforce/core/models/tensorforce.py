@@ -690,18 +690,73 @@ class TensorforceModel(Model):
                 variables=self.baseline.trainable_variables
             )
 
-        # Summaries
+        # Summaries and tracking
         self.register_summary(label='loss', name='losses/policy-objective-loss')
+        self.register_tracking(
+            label='loss', name='policy-objective-loss', spec=TensorSpec(type='float')
+        )
         self.register_summary(label='loss', name='losses/policy-regularization-loss')
+        self.register_tracking(
+            label='loss', name='policy-regularization-loss', spec=TensorSpec(type='float')
+        )
         self.register_summary(label='loss', name='losses/policy-loss')
+        self.register_tracking(label='loss', name='policy-loss', spec=TensorSpec(type='float'))
         if self.baseline_optimizer is not None or (
             self.baseline_loss_weight is not None and
             not self.baseline_loss_weight.is_constant(value=0.0)
         ):
             self.register_summary(label='loss', name='losses/baseline-loss')
+            self.register_tracking(label='loss', name='baseline-loss', spec=TensorSpec(type='float'))
             if self.separate_baseline:
                 self.register_summary(label='loss', name='losses/baseline-objective-loss')
+                self.register_tracking(
+                    label='loss', name='baseline-objective-loss', spec=TensorSpec(type='float')
+                )
                 self.register_summary(label='loss', name='losses/baseline-regularization-loss')
+                self.register_tracking(
+                    label='loss', name='baseline-regularization-loss',
+                    spec=TensorSpec(type='float')
+                )
+
+        if self.reward_preprocessing is not None:
+            self.register_tracking(
+                label='reward', name='preprocessed-reward', spec=TensorSpec(type='float')
+            )
+            self.register_tracking(
+                label='reward', name='preprocessed-episode-return', spec=TensorSpec(type='float')
+            )
+        self.register_tracking(label='reward', name='update-return', spec=TensorSpec(type='float'))
+        if self.return_processing is not None:
+            self.register_tracking(
+                label='reward', name='update-processed-return', spec=TensorSpec(type='float')
+            )
+        if self.estimate_advantage is not False:
+            self.register_tracking(
+                label='reward', name='update-advantage', spec=TensorSpec(type='float')
+            )
+            if self.advantage_processing is not None:
+                self.register_tracking(
+                    label='reward', name='update-processed-advantage',
+                    spec=TensorSpec(type='float')
+                )
+        if not self.gae_decay.is_constant(value=0.0):
+            self.register_tracking(
+                label='reward', name='update-gae', spec=TensorSpec(type='float')
+            )
+
+        self.register_tracking(label='entropy', name='entropy', spec=TensorSpec(type='float'))
+        self.register_tracking(
+            label='kl-divergence', name='kl-divergence', spec=TensorSpec(type='float')
+        )
+        if len(self.actions_spec) > 1:
+            for name in self.actions_spec:
+                self.register_tracking(
+                    label='entropy', name=('entropies/' + name), spec=TensorSpec(type='float')
+                )
+                self.register_tracking(
+                    label='kl-divergence', name=('kl-divergences/' + name),
+                    spec=TensorSpec(type='float')
+                )
 
     def initialize_api(self):
         super().initialize_api()
@@ -1444,12 +1499,23 @@ class TensorforceModel(Model):
             # Preprocessed episode reward summaries (before preprocessed episode reward reset)
             if self.reward_preprocessing is not None:
                 dependencies = list()
-                if self.summaries == 'all' or 'reward' in self.summaries:
-                    with self.summarizer.as_default():
-                        x = tf.gather(params=self.preprocessed_episode_return, indices=parallel)
+                if self.summaries == 'all' or 'reward' in self.summaries or \
+                        self.tracking == 'all' or 'reward' in self.tracking:
+                    if self.summaries == 'all' or 'reward' in self.summaries:
+                        summarizer = self.summarizer.as_default()
+                        summarizer.__enter__()
+                    else:
+                        summarizer = None
+                    x = tf.gather(params=self.preprocessed_episode_return, indices=parallel)
+                    if summarizer is not None:
                         dependencies.append(tf.summary.scalar(
                             name='preprocessed-episode-return', data=x, step=self.episodes
                         ))
+                    dependencies.extend(self.track(
+                        label='reward', name='preprocessed-episode-return', data=x
+                    ))
+                    if summarizer is not None:
+                        summarizer.__exit__(None, None, None)
 
                 # Reset preprocessed episode reward
                 with tf.control_dependencies(control_inputs=dependencies):
@@ -1484,12 +1550,23 @@ class TensorforceModel(Model):
                 )
 
                 # Preprocessed reward summary
-                if self.summaries == 'all' or 'reward' in self.summaries:
-                    with self.summarizer.as_default():
-                        x = tf.math.reduce_mean(input_tensor=reward, axis=0)
+                if self.summaries == 'all' or 'reward' in self.summaries or \
+                        self.tracking == 'all' or 'reward' in self.tracking:
+                    if self.summaries == 'all' or 'reward' in self.summaries:
+                        summarizer = self.summarizer.as_default()
+                        summarizer.__enter__()
+                    else:
+                        summarizer = None
+                    x = tf.math.reduce_mean(input_tensor=reward, axis=0)
+                    if summarizer is not None:
                         dependencies.append(tf.summary.scalar(
                             name='preprocessed-reward', data=x, step=self.timesteps
                         ))
+                    dependencies.extend(self.track(
+                        label='reward', name='preprocessed-reward', data=x
+                    ))
+                    if summarizer is not None:
+                        summarizer.__exit__(None, None, None)
 
                 # Update preprocessed episode reward
                 sum_reward = tf.math.reduce_sum(input_tensor=reward, keepdims=True)
@@ -2135,12 +2212,21 @@ class TensorforceModel(Model):
             )
 
         dependencies = [reward]
-        if self.summaries == 'all' or 'reward' in self.summaries:
-            with self.summarizer.as_default():
-                x = tf.math.reduce_mean(input_tensor=reward, axis=0)
+        if self.summaries == 'all' or 'reward' in self.summaries or \
+                self.tracking == 'all' or 'reward' in self.tracking:
+            if self.summaries == 'all' or 'reward' in self.summaries:
+                summarizer = self.summarizer.as_default()
+                summarizer.__enter__()
+            else:
+                summarizer = None
+            x = tf.math.reduce_mean(input_tensor=reward, axis=0)
+            if summarizer is not None:
                 dependencies.append(tf.summary.scalar(
                     name='update-return', data=x, step=self.updates
                 ))
+            dependencies.extend(self.track(label='reward', name='update-return', data=x))
+            if summarizer is not None:
+                summarizer.__exit__(None, None, None)
 
         if self.return_processing is not None:
             with tf.control_dependencies(control_inputs=dependencies):
@@ -2149,12 +2235,23 @@ class TensorforceModel(Model):
                 )
 
                 dependencies = [reward]
-                if self.summaries == 'all' or 'reward' in self.summaries:
-                    with self.summarizer.as_default():
-                        x = tf.math.reduce_mean(input_tensor=reward, axis=0)
+                if self.summaries == 'all' or 'reward' in self.summaries or \
+                        self.tracking == 'all' or 'reward' in self.tracking:
+                    if self.summaries == 'all' or 'reward' in self.summaries:
+                        summarizer = self.summarizer.as_default()
+                        summarizer.__enter__()
+                    else:
+                        summarizer = None
+                    x = tf.math.reduce_mean(input_tensor=reward, axis=0)
+                    if summarizer is not None:
                         dependencies.append(tf.summary.scalar(
                             name='update-processed-return', data=x, step=self.updates
                         ))
+                    dependencies.extend(self.track(
+                        label='reward', name='update-processed-return', data=x
+                    ))
+                    if summarizer is not None:
+                        summarizer.__exit__(None, None, None)
 
         baseline_arguments = TensorDict(
             states=baseline_states, horizons=baseline_horizons, internals=baseline_internals,
@@ -2190,7 +2287,7 @@ class TensorforceModel(Model):
             except ValueError:
                 pass
 
-            dependencies += baseline_arguments.flatten()
+            dependencies.extend(baseline_arguments.flatten())
 
             # Optimization
             with tf.control_dependencies(control_inputs=dependencies):
@@ -2216,12 +2313,23 @@ class TensorforceModel(Model):
                 reward = reward - baseline_prediction
 
                 dependencies = [reward]
-                if self.summaries == 'all' or 'reward' in self.summaries:
-                    with self.summarizer.as_default():
-                        x = tf.math.reduce_mean(input_tensor=reward, axis=0)
+                if self.summaries == 'all' or 'reward' in self.summaries or \
+                        self.tracking == 'all' or 'reward' in self.tracking:
+                    if self.summaries == 'all' or 'reward' in self.summaries:
+                        summarizer = self.summarizer.as_default()
+                        summarizer.__enter__()
+                    else:
+                        summarizer = None
+                    x = tf.math.reduce_mean(input_tensor=reward, axis=0)
+                    if summarizer is not None:
                         dependencies.append(tf.summary.scalar(
                             name='update-advantage', data=x, step=self.updates
                         ))
+                    dependencies.extend(self.track(
+                        label='reward', name='update-advantage', data=x
+                    ))
+                    if summarizer is not None:
+                        summarizer.__exit__(None, None, None)
 
                 if self.advantage_processing is not None:
                     with tf.control_dependencies(control_inputs=dependencies):
@@ -2230,12 +2338,24 @@ class TensorforceModel(Model):
                         )
 
                         dependencies = [reward]
-                        if self.summaries == 'all' or 'reward' in self.summaries:
-                            with self.summarizer.as_default():
-                                x = tf.math.reduce_mean(input_tensor=reward, axis=0)
+                        if self.summaries == 'all' or 'reward' in self.summaries or \
+                                self.tracking == 'all' or 'reward' in self.tracking:
+                            if self.summaries == 'all' or 'reward' in self.summaries:
+                                summarizer = self.summarizer.as_default()
+                                summarizer.__enter__()
+                            else:
+                                summarizer = None
+                            x = tf.math.reduce_mean(input_tensor=reward, axis=0)
+                            if summarizer is not None:
                                 dependencies.append(tf.summary.scalar(
-                                    name='update-processed-advantage', data=x, step=self.updates
+                                    name='update-processed-advantage', data=x,
+                                    step=self.updates
                                 ))
+                            dependencies.extend(self.track(
+                                label='reward', name='update-processed-advantage', data=x
+                            ))
+                            if summarizer is not None:
+                                summarizer.__exit__(None, None, None)
 
                 if not self.gae_decay.is_constant(value=0.0):
                     with tf.control_dependencies(control_inputs=dependencies):
@@ -2258,12 +2378,23 @@ class TensorforceModel(Model):
                         )
 
                         dependencies = [reward]
-                        if self.summaries == 'all' or 'reward' in self.summaries:
-                            with self.summarizer.as_default():
-                                x = tf.math.reduce_mean(input_tensor=reward, axis=0)
+                        if self.summaries == 'all' or 'reward' in self.summaries or \
+                                self.tracking == 'all' or 'reward' in self.tracking:
+                            if self.summaries == 'all' or 'reward' in self.summaries:
+                                summarizer = self.summarizer.as_default()
+                                summarizer.__enter__()
+                            else:
+                                summarizer = None
+                            x = tf.math.reduce_mean(input_tensor=reward, axis=0)
+                            if summarizer is not None:
                                 dependencies.append(tf.summary.scalar(
                                     name='update-gae', data=x, step=self.updates
                                 ))
+                            dependencies.extend(self.track(
+                                label='reward', name='update-gae', data=x
+                            ))
+                            if summarizer is not None:
+                                summarizer.__exit__(None, None, None)
 
         if self.baseline_optimizer is None:
             policy_only_internals = policy_internals['policy']
@@ -2314,6 +2445,9 @@ class TensorforceModel(Model):
                     dependencies = self.summary(
                         label='reward', name='update-advantage', data=fn_summary1, step='updates'
                     )
+                    dependencies.extend(self.track(
+                        label='reward', name='update-advantage', data=fn_summary1
+                    ))
 
                     if self.advantage_processing is not None:
                         with tf.control_dependencies(control_inputs=dependencies):
@@ -2325,9 +2459,12 @@ class TensorforceModel(Model):
                                 return tf.math.reduce_mean(input_tensor=reward, axis=0)
 
                             dependencies = self.summary(
-                                label='reward', name='update-processed-advantage', data=fn_summary2,
-                                step='updates'
+                                label='reward', name='update-processed-advantage',
+                                data=fn_summary2, step='updates'
                             )
+                            dependencies.extend(self.track(
+                                label='reward', name='update-processed-advantage', data=fn_summary2
+                            ))
 
                 with tf.control_dependencies(control_inputs=dependencies):
                     return self.loss(
@@ -2367,17 +2504,18 @@ class TensorforceModel(Model):
         #     assert 'global_variables' not in kwargs
         #     kwargs['global_variables'] = tuple(self.global_model.trainable_variables)
 
-        dependencies += policy_arguments.flatten()
+        dependencies.extend(policy_arguments.flatten())
 
         # Hack: KL divergence summary: reference before update
         if isinstance(self.policy, StochasticPolicy) and (
-            self.summaries == 'all' or 'kl-divergence' in self.summaries
+            self.summaries == 'all' or 'kl-divergence' in self.summaries or
+            self.tracking == 'all' or 'kl-divergence' in self.tracking
         ):
             kldiv_reference = self.policy.kldiv_reference(
                 states=policy_states, horizons=policy_horizons, internals=policy_only_internals,
                 auxiliaries=auxiliaries
             )
-            dependencies += kldiv_reference.flatten()
+            dependencies.extend(kldiv_reference.flatten())
 
         # Optimization
         with tf.control_dependencies(control_inputs=dependencies):
@@ -2411,7 +2549,7 @@ class TensorforceModel(Model):
             except ValueError:
                 pass
 
-            dependencies += baseline_arguments.flatten()
+            dependencies.extend(baseline_arguments.flatten())
 
             # Optimization
             with tf.control_dependencies(control_inputs=dependencies):
@@ -2427,59 +2565,87 @@ class TensorforceModel(Model):
 
             # Entropy summaries
             if isinstance(self.policy, StochasticPolicy) and (
-                self.summaries == 'all' or 'entropy' in self.summaries
+                self.summaries == 'all' or 'entropy' in self.summaries or
+                self.tracking == 'all' or 'entropy' in self.tracking
             ):
-                with self.summarizer.as_default():
-                    if len(self.actions_spec) > 1:
-                        entropies = self.policy.entropies(
-                            states=policy_states, horizons=policy_horizons,
-                            internals=policy_only_internals, auxiliaries=auxiliaries
-                        )
-                        for name, spec in self.actions_spec.items():
-                            entropies[name] = tf.reshape(tensor=entropies[name], shape=(-1,))
-                            x = tf.math.reduce_mean(input_tensor=entropies[name], axis=0)
-                            dependencies.append(tf.summary.scalar(
-                                name=('entropies/' + name), data=x, step=self.updates
-                            ))
-                        entropy = tf.concat(values=tuple(entropies.values()), axis=0)
-                    else:
-                        entropy = self.policy.entropy(
-                            states=policy_states, horizons=policy_horizons,
-                            internals=policy_only_internals, auxiliaries=auxiliaries
-                        )
-                    x = tf.math.reduce_mean(input_tensor=entropy, axis=0)
-                    dependencies.append(
-                        tf.summary.scalar(name='entropy', data=x, step=self.updates)
+                if self.summaries == 'all' or 'entropy' in self.summaries:
+                    summarizer = self.summarizer.as_default()
+                    summarizer.__enter__()
+                else:
+                    summarizer = None
+                if len(self.actions_spec) > 1:
+                    entropies = self.policy.entropies(
+                        states=policy_states, horizons=policy_horizons,
+                        internals=policy_only_internals, auxiliaries=auxiliaries
                     )
+                    for name, spec in self.actions_spec.items():
+                        entropies[name] = tf.reshape(tensor=entropies[name], shape=(-1,))
+                        entropy = tf.math.reduce_mean(input_tensor=entropies[name], axis=0)
+                        if summarizer is not None:
+                            dependencies.append(tf.summary.scalar(
+                                name=('entropies/' + name), data=entropy, step=self.updates
+                            ))
+                        dependencies.extend(self.track(
+                            label='entropy', name=('entropies/' + name), data=entropy
+                        ))
+                    entropy = tf.concat(values=tuple(entropies.values()), axis=0)
+                else:
+                    entropy = self.policy.entropy(
+                        states=policy_states, horizons=policy_horizons,
+                        internals=policy_only_internals, auxiliaries=auxiliaries
+                    )
+                entropy = tf.math.reduce_mean(input_tensor=entropy, axis=0)
+                if summarizer is not None:
+                    dependencies.append(
+                        tf.summary.scalar(name='entropy', data=entropy, step=self.updates)
+                    )
+                dependencies.extend(self.track(label='entropy', name='entropy', data=entropy))
+                if summarizer is not None:
+                    summarizer.__exit__(None, None, None)
 
             # KL divergence summaries
             if isinstance(self.policy, StochasticPolicy) and (
-                self.summaries == 'all' or 'kl-divergence' in self.summaries
+                self.summaries == 'all' or 'kl-divergence' in self.summaries or
+                self.tracking == 'all' or 'kl-divergence' in self.tracking
             ):
-                with self.summarizer.as_default():
-                    if len(self.actions_spec) > 1:
-                        kl_divs = self.policy.kl_divergences(
-                            states=policy_states, horizons=policy_horizons,
-                            internals=policy_only_internals, auxiliaries=auxiliaries,
-                            reference=kldiv_reference
-                        )
-                        for name, spec in self.actions_spec.items():
-                            kl_divs[name] = tf.reshape(tensor=kl_divs[name], shape=(-1,))
-                            x = tf.math.reduce_mean(input_tensor=kl_divs[name], axis=0)
-                            dependencies.append(tf.summary.scalar(
-                                name=('kl-divergences/' + name), data=x, step=self.updates
-                            ))
-                        kl_divergence = tf.concat(values=tuple(kl_divs.values()), axis=0)
-                    else:
-                        kl_divergence = self.policy.kl_divergence(
-                            states=policy_states, horizons=policy_horizons,
-                            internals=policy_only_internals, auxiliaries=auxiliaries,
-                            reference=kldiv_reference
-                        )
-                    x = tf.math.reduce_mean(input_tensor=kl_divergence, axis=0)
-                    dependencies.append(
-                        tf.summary.scalar(name='kl-divergence', data=x, step=self.updates)
+                if self.summaries == 'all' or 'kl-divergence' in self.summaries:
+                    summarizer = self.summarizer.as_default()
+                    summarizer.__enter__()
+                else:
+                    summarizer = None
+                if len(self.actions_spec) > 1:
+                    kl_divs = self.policy.kl_divergences(
+                        states=policy_states, horizons=policy_horizons,
+                        internals=policy_only_internals, auxiliaries=auxiliaries,
+                        reference=kldiv_reference
                     )
+                    for name, spec in self.actions_spec.items():
+                        kl_divs[name] = tf.reshape(tensor=kl_divs[name], shape=(-1,))
+                        kl_div = tf.math.reduce_mean(input_tensor=kl_divs[name], axis=0)
+                        if summarizer is not None:
+                            dependencies.append(tf.summary.scalar(
+                                name=('kl-divergences/' + name), data=kl_div, step=self.updates
+                            ))
+                        dependencies.extend(self.track(
+                            label='kl-divergence', name=('kl-divergences/' + name), data=kl_div
+                        ))
+                    kl_div = tf.concat(values=tuple(kl_divs.values()), axis=0)
+                else:
+                    kl_div = self.policy.kl_divergence(
+                        states=policy_states, horizons=policy_horizons,
+                        internals=policy_only_internals, auxiliaries=auxiliaries,
+                        reference=kldiv_reference
+                    )
+                kl_div = tf.math.reduce_mean(input_tensor=kl_div, axis=0)
+                if summarizer is not None:
+                    dependencies.append(
+                        tf.summary.scalar(name='kl-divergence', data=kl_div, step=self.updates)
+                    )
+                dependencies.extend(
+                    self.track(label='kl-divergence', name='kl-divergence', data=kl_div)
+                )
+                if summarizer is not None:
+                    summarizer.__exit__(None, None, None)
 
         # Increment update
         with tf.control_dependencies(control_inputs=dependencies):
@@ -2657,14 +2823,18 @@ class TensorforceModel(Model):
         dependencies = self.summary(
             label='loss', name='losses/policy-objective-loss', data=loss, step='updates'
         )
+        dependencies.extend(self.track(label='loss', name='policy-objective-loss', data=loss))
 
         # Regularization losses
         regularization_loss = self.regularize(
             states=states, horizons=horizons, internals=policy_internals, auxiliaries=auxiliaries
         )
-        dependencies += self.summary(
+        dependencies.extend(self.summary(
             label='loss', name='losses/policy-regularization-loss', data=regularization_loss,
             step='updates'
+        ))
+        dependencies.extend(
+            self.track(label='loss', name='policy-regularization-loss', data=regularization_loss)
         )
         loss += regularization_loss
 
@@ -2699,9 +2869,10 @@ class TensorforceModel(Model):
                 true_fn=no_baseline_loss, false_fn=apply_baseline_loss
             )
 
-        dependencies += self.summary(
+        dependencies.extend(self.summary(
             label='loss', name='losses/policy-loss', data=loss, step='updates'
-        )
+        ))
+        dependencies.extend(self.track(label='loss', name='policy-loss', data=loss))
 
         with tf.control_dependencies(control_inputs=dependencies):
             return tf_util.identity(input=loss)
@@ -2747,21 +2918,28 @@ class TensorforceModel(Model):
 
         dependencies = list()
         if self.separate_baseline:
-            dependencies += self.summary(
+            dependencies.extend(self.summary(
                 label='loss', name='losses/baseline-objective-loss', data=loss, step='updates'
+            ))
+            dependencies.extend(
+                self.track(label='loss', name='baseline-objective-loss', data=loss)
             )
 
             # Regularization losses
             regularization_loss = self.baseline.regularize()
-            dependencies += self.summary(
+            dependencies.extend(self.summary(
                 label='loss', name='losses/baseline-regularization-loss',
                 data=regularization_loss, step='updates'
-            )
+            ))
+            dependencies.extend(self.track(
+                label='loss', name='baseline-regularization-loss', data=regularization_loss
+            ))
             loss += regularization_loss
 
-        dependencies += self.summary(
+        dependencies.extend(self.summary(
             label='loss', name='losses/baseline-loss', data=loss, step='updates'
-        )
+        ))
+        dependencies.extend(self.track(label='loss', name='baseline-loss', data=loss))
 
         with tf.control_dependencies(control_inputs=dependencies):
             return tf_util.identity(input=loss)

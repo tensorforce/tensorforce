@@ -57,17 +57,25 @@ class UnittestBase(object):
             gaussian_action2=dict(
                 type='gaussian', stddev_mode='global', bounded_transform='clipping'
             ), beta_action='beta'
-        )), update=4, optimizer=dict(optimizer='adam', learning_rate=1e-3),
-        objective='policy_gradient', reward_estimation=dict(
+        )),
+        update=4,
+        # Also in: test_summaries_tracking
+        optimizer=dict(optimizer='adam', learning_rate=1e-3),
+        objective='policy_gradient',
+        # Also in: test_summaries_tracking
+        reward_estimation=dict(
             horizon=3, estimate_advantage=True, predict_horizon_values='late',
             return_processing=dict(type='clipping', lower=-1.0, upper=1.0),
             advantage_processing='batch_normalization'
-        ), baseline=dict(network=dict(type='auto', size=7, depth=1, rnn=1)),
+        ),
+        baseline=dict(network=dict(type='auto', size=7, depth=1, rnn=1)),
         baseline_optimizer=dict(optimizer='adam', learning_rate=1e-3),
         baseline_objective='state_value', l2_regularization=0.01, entropy_regularization=0.01,
         state_preprocessing='linear_normalization',
         reward_preprocessing=dict(type='clipping', lower=-1.0, upper=1.0),
-        exploration=0.01, variable_noise=0.01,
+        # Also in: test_summaries_tracking
+        exploration=0.01,
+        variable_noise=0.01,
         # Config default changes need to be adapted everywhere (search "config=dict"):
         #   test_agents, test_examples, test_layers, test_precision,
         #   test_reward_estimation, test_saving, test_seed, test_summaries

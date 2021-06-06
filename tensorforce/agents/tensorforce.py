@@ -273,7 +273,7 @@ class TensorforceAgent(Agent):
             <li>"variables": mean of trainable variables tensors (update-based)</li>
             </ul>
         tracking ("all" | iter[string]): Which tensors to track, available values are a subset of
-            the values of summarizer[summaries] above, so far only "distribution" and "action-value"
+            the values of summarizer[summaries] above
             (<span style="color:#00C000"><b>default</b></span>: no tracking).
             The current value of tracked tensors can be retrieved via tracked_tensors() at any time,
             however, note that tensor values change at different timescales (timesteps, episodes,

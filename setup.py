@@ -22,7 +22,9 @@ import sys
 cd docs; make html; cd ..;
 
 pip install --upgrade -r requirements-all.txt
-  ... update requirements.txt and setup.py ...
+# ... update requirements.txt and setup.py ...
+
+# Check "before update" points
 
 # Update __version__ in tensorforce/__init__.py, and UPDATE_NOTES.md
 
@@ -35,7 +37,7 @@ python setup.py sdist bdist_wheel
 twine upload --repository-url https://test.pypi.org/legacy/ dist/Tensorforce-0.6.X*
 
 deactivate
-source ~/tensorforce-test-env/bin/activate
+source ...
 
 pip install --upgrade -r requirements.txt
 cd ..
@@ -46,15 +48,19 @@ python
 python tensorforce/examples/quickstart.py
 
 deactivate
-source ~/tensorforce-env/bin/activate
+source ...
 
 cd tensorforce
 git status
 git add -u
 git commit -m "Fix PyPI version 0.6.X"
 git push origin master
+
+# Wait for a while to check Travis is not failing right away (installation, first tests)
+
 twine upload dist/Tensorforce-0.6.X*
-  ... commit and fix GitHub version ...
+
+# Fix Github release
 """
 
 if sys.version_info.major != 3:

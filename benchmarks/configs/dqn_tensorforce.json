@@ -63,7 +63,7 @@
         "state_value_mode": "implicit" 
     },
     "baseline_optimizer": {
-        "optimizer": "synchronization",
+        "type": "synchronization",
         "update_weight": 1.0,
         "sync_frequency": 1
     },

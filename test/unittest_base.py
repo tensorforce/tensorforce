@@ -22,9 +22,7 @@ from test.unittest_environment import UnittestEnvironment
 
 
 class UnittestBase(object):
-    """
-    Unit-test base class.
-    """
+    """Unit-test base class."""
 
     # Environment
     states = dict(

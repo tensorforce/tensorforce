@@ -21,6 +21,8 @@ from test.unittest_base import UnittestBase
 class TestPolicies(UnittestBase, unittest.TestCase):
 
     def test_keras_network(self):
+        self.start_tests(name='keras network')
+
         import tensorflow as tf
 
         class Model(tf.keras.Model):
@@ -63,7 +65,8 @@ class TestPolicies(UnittestBase, unittest.TestCase):
 
         self.unittest(states=states, policy=dict(network=dict(type='keras', model=model, size=5)))
 
-    def test_policy_multi_output(self):
+    def test_multi_output(self):
+        self.start_tests(name='multi-output')
         self.unittest(
             states=dict(
                 state1=dict(type='float', shape=(2,), min_value=-1.0, max_value=2.0),
@@ -96,4 +99,15 @@ class TestPolicies(UnittestBase, unittest.TestCase):
                     dict(type='register', tensor='state-embedding')
                 ]
             ], single_output=False),
+        )
+
+    def test_categorical_skip_linear(self):
+        self.start_tests(name='categorical skip-linear')
+        self.unittest(
+            states=dict(type='float', shape=(3,), min_value=1.0, max_value=2.0),
+            actions=dict(type='int', shape=(2,), num_values=4),
+            policy=dict(
+                network=[dict(type='dense', size=8), dict(type='reshape', shape=(2, 4))],
+                distributions=dict(type='categorical', skip_linear=True)
+            )
         )

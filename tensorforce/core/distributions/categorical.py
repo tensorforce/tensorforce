@@ -31,13 +31,20 @@ class Categorical(Distribution):
             transformation of the state embedding, or to parametrize the temperature by a separate
             set of trainable weights
             (<span style="color:#00C000"><b>default</b></span>: default temperature of 1).
+        skip_linear (bool): Whether to not add the implicit linear logits layer, requires suitable
+            network output shape according to action space, not compatible with temperature_mode
+            (<span style="color:#00C000"><b>default</b></span>: false).
         name (string): <span style="color:#0000C0"><b>internal use</b></span>.
         action_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
         input_spec (specification): <span style="color:#0000C0"><b>internal use</b></span>.
     """
 
-    def __init__(self, *, temperature_mode=None, name=None, action_spec=None, input_spec=None):
+    def __init__(
+        self, *, temperature_mode=None, skip_linear=False, name=None, action_spec=None,
+        input_spec=None
+    ):
         assert action_spec.type == 'int' and action_spec.num_values is not None
+        assert not skip_linear or temperature_mode is None
 
         if temperature_mode is None:
             parameters_spec = TensorsSpec(
@@ -75,7 +82,25 @@ class Categorical(Distribution):
             )
 
         num_values = self.action_spec.num_values
-        if self.input_spec.rank == 1:
+        if skip_linear:
+            self.action_values = None
+            if self.input_spec.shape[:-1] != self.action_spec.shape or \
+                    self.input_spec.shape[-1] != self.action_spec.num_values:
+                raise TensorforceError.value(
+                    name=name, argument='input_spec.shape', value=self.input_spec.shape,
+                    hint='!= (*action_shape, num_values)'
+                )
+            if self.input_spec.shape[:-1] == self.action_spec.shape[:-1]:
+                size = self.action_spec.shape[-1]
+            elif self.input_spec.shape[:-1] == self.action_spec.shape:
+                size = 1
+            else:
+                raise TensorforceError.value(
+                    name=name, argument='input_spec.shape', value=self.input_spec.shape,
+                    hint='not flattened and incompatible with action shape'
+                )
+
+        elif self.input_spec.rank == 1:
             # Single embedding
             self.action_values = self.submodule(
                 name='action_values', module='linear', modules=layer_modules,
@@ -116,7 +141,9 @@ class Categorical(Distribution):
                 )
 
     def get_architecture(self):
-        architecture = 'Logits:  {}'.format(self.action_values.get_architecture())
+        architecture = ''
+        if self.action_values is not None:
+            architecture += 'Logits:  {}'.format(self.action_values.get_architecture())
         if self.temperature_mode == 'predicted':
             architecture += '\nTemperature:  {}'.format(self.temperature.get_architecture())
         return architecture
@@ -151,7 +178,10 @@ class Categorical(Distribution):
         log_two = tf_util.constant(value=np.log(2.0), dtype='float')
 
         # Action values
-        action_values = self.action_values.apply(x=x)
+        if self.action_values is None:
+            action_values = x
+        else:
+            action_values = self.action_values.apply(x=x)
         shape = (-1,) + self.action_spec.shape + (self.action_spec.num_values,)
         action_values = tf.reshape(tensor=action_values, shape=shape)
 

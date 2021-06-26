@@ -6,6 +6,9 @@ This file records all major updates and new features, starting from version 0.5.
 
 ### Latest changes
 
+##### Distributions
+- New `categorical` distribution argument `skip_linear` to not add the implicit linear logits layer
+
 
 ---
 

@@ -315,6 +315,15 @@ class Environment(object):
         """
         return False
 
+    def num_actors(self):
+        """
+        Returns the number of actors in this environment.
+
+        Returns:
+            int >= 1: The number of actors.
+        """
+        return 1
+
     def close(self):
         """
         Closes the environment.
@@ -470,6 +479,8 @@ class EnvironmentWrapper(Environment):
                 max_episode_timesteps is not None and \
                 environment.max_episode_timesteps() < max_episode_timesteps:
             raise TensorforceError.unexpected()
+        if environment.is_vectorizable() and environment.num_actors() > 1:
+            raise TensorforceError.unexpected()
 
         self._environment = environment
         if max_episode_timesteps is None:
@@ -497,17 +508,28 @@ class EnvironmentWrapper(Environment):
     def is_vectorizable(self):
         return self._environment.is_vectorizable()
 
+    def num_actors(self):
+        return self._environment.num_actors()
+
     def close(self):
         return self._environment.close()
 
     def reset(self, num_parallel=None):
         self._timestep = 0
         assert num_parallel is None or self.is_vectorizable()
-        self._num_parallel = num_parallel
-        if self._num_parallel is None:
-            states = self._environment.reset()
+        if self.num_actors() > 1:
+            self._num_parallel = self.num_actors()
         else:
-            parallel, states = self._environment.reset(num_parallel=self._num_parallel)
+            self._num_parallel = num_parallel
+        if self.num_actors() > 1:
+            parallel, states = self._environment.reset()
+            self._num_parallel = self.num_actors()
+        elif num_parallel is None:
+            states = self._environment.reset()
+            self._num_parallel = None
+        else:
+            parallel, states = self._environment.reset(num_parallel=num_parallel)
+            self._num_parallel = num_parallel
         if self._reset_output_check:
             self._check_states_output(states=states, function='reset')
             if self._num_parallel is not None:
@@ -554,10 +576,16 @@ class EnvironmentWrapper(Environment):
                     x=parallel, batched=True,
                     message='Environment.execute: invalid {issue} for parallel.'
                 )
-                TensorSpec(type='bool', shape=()).np_assert(
-                    x=terminal, batched=True,
-                    message='Environment.execute: invalid {issue} for terminal.'
-                )
+                try:
+                    TensorSpec(type='int', shape=(), num_values=3).np_assert(
+                        x=terminal, batched=True,
+                        message='Environment.execute: invalid {issue} for terminal.'
+                    )
+                except TensorforceError:
+                    TensorSpec(type='bool', shape=()).np_assert(
+                        x=terminal, batched=True,
+                        message='Environment.execute: invalid {issue} for terminal.'
+                    )
                 TensorSpec(type='float', shape=()).np_assert(
                     x=reward, batched=True,
                     message='Environment.execute: invalid {issue} for reward.'
@@ -804,6 +832,14 @@ class RemoteEnvironment(Environment):
     def max_episode_timesteps(self):
         self.send(function='max_episode_timesteps', kwargs=dict())
         return self.receive(function='max_episode_timesteps')
+
+    def is_vectorizable(self):
+        self.send(function='is_vectorizable', kwargs=dict())
+        return self.receive(function='is_vectorizable')
+
+    def num_actors(self):
+        self.send(function='num_actors', kwargs=dict())
+        return self.receive(function='num_actors')
 
     def close(self):
         if self._thread is not None:

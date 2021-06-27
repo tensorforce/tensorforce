@@ -9,6 +9,14 @@ This file records all major updates and new features, starting from version 0.5.
 ##### Distributions
 - New `categorical` distribution argument `skip_linear` to not add the implicit linear logits layer
 
+##### Environments
+- Support for multi-actor parallel environments via new function `Environment.num_actors()`
+    - `Runner` uses multi-actor parallelism by default if environment is multi-actor
+- New optional `Environment` function `episode_return()` which returns the true return of the last episode, if cumulative sum of environment rewards is not a good metric for runner display
+
+##### Examples:
+- New `vectorized_environment.py` and `multiactor_environment.py` script to illustrate how to setup a vectorized/multi-actor environment.
+
 
 ---
 

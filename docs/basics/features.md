@@ -79,6 +79,18 @@ python run.py --agent benchmarks/configs/ppo1.json --episodes 100 \
 
 
 
+### Vectorized environment
+
+See the [vectorized environment example](https://github.com/tensorforce/tensorforce/blob/master/examples/vectorized_environment.py) for details on how to use this feature.
+
+
+
+### Multi-actor environment
+
+See the [multi-actor environment example](https://github.com/tensorforce/tensorforce/blob/master/examples/multiactor_environment.py) for details on how to use this feature.
+
+
+
 ### Save & restore
 
 ##### TensorFlow saver (full model)

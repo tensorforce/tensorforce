@@ -48,87 +48,87 @@ class CartPole(Environment):
         # Physics parameters
         if isinstance(pole_mass, tuple):
             assert len(pole_mass) == 2 and 0.0 < pole_mass[0] < pole_mass[1]
-            self.pole_mass_range = (float(pole_mass[0]), float(pole_mass[1]))
+            self._pole_mass_range = (float(pole_mass[0]), float(pole_mass[1]))
         else:
             assert pole_mass > 0.0
-            self.pole_mass_range = (float(pole_mass), float(pole_mass))
+            self._pole_mass_range = (float(pole_mass), float(pole_mass))
         if isinstance(pole_length, tuple):
             assert len(pole_length) == 2 and 0.0 < pole_length[0] < pole_length[1]
-            self.pole_length_range = (float(pole_length[0]), float(pole_length[1]))
+            self._pole_length_range = (float(pole_length[0]), float(pole_length[1]))
         else:
             assert pole_length > 0.0
-            self.pole_length_range = (float(pole_length), float(pole_length))
+            self._pole_length_range = (float(pole_length), float(pole_length))
         if isinstance(cart_mass, tuple):
             assert len(cart_mass) == 2 and 0.0 < cart_mass[0] < cart_mass[1]
-            self.cart_mass_range = (float(cart_mass[0]), float(cart_mass[1]))
+            self._cart_mass_range = (float(cart_mass[0]), float(cart_mass[1]))
         else:
             assert cart_mass > 0.0
-            self.cart_mass_range = (float(cart_mass), float(cart_mass))
+            self._cart_mass_range = (float(cart_mass), float(cart_mass))
         if isinstance(relative_force, tuple):
             assert len(relative_force) == 2 and 0.0 < relative_force[0] < relative_force[1]
-            self.relative_force_range = (float(relative_force[0]), float(relative_force[1]))
+            self._relative_force_range = (float(relative_force[0]), float(relative_force[1]))
         else:
             assert relative_force > 0.0
-            self.relative_force_range = (float(relative_force), float(relative_force))
+            self._relative_force_range = (float(relative_force), float(relative_force))
         assert gravity > 0.0
-        self.gravity = float(gravity)
+        self._gravity = float(gravity)
 
         # State space
         state_indices = [2]
-        self.state_velocities = bool(state_velocities)
-        if self.state_velocities:
+        self._state_velocities = bool(state_velocities)
+        if self._state_velocities:
             state_indices.append(3)
             state_indices.append(1)
-        self.state_location = bool(state_location)
-        if self.state_location:
+        self._state_location = bool(state_location)
+        if self._state_location:
             state_indices.append(0)
-        self.state_indices = np.array(state_indices, np.int32)
-        self.state_initials = np.array([[
+        self._state_indices = np.array(state_indices, np.int32)
+        self._state_initials = np.array([[
             0.0, float(state_initial_max_velocity),
             float(state_initial_max_angle), float(state_initial_max_angle_velocity)
         ]], dtype=np.float32)
 
         # Action space
-        self.action_timedelta = float(action_timedelta)  # in seconds
+        self._action_timedelta = float(action_timedelta)  # in seconds
         assert not action_continuous or action_noop
-        self.action_continuous = bool(action_continuous)
-        self.action_noop = bool(action_noop)
+        self._action_continuous = bool(action_continuous)
+        self._action_noop = bool(action_noop)
 
         # State bounds
         angle_bound = float(np.pi) / 4.0
-        max_angle_acc_in_zero = self.relative_force_range[1] * self.gravity / \
-            (self.cart_mass_range[0] + self.pole_mass_range[0]) / \
-            self.pole_length_range[0] / \
-            (4.0 / 3.0 - self.pole_mass_range[1] / (self.cart_mass_range[0] + self.pole_mass_range[0]))
-        min_angle_acc_in_zero = self.relative_force_range[0] * self.gravity / \
-            (self.cart_mass_range[1] + self.pole_mass_range[1]) / \
-            self.pole_length_range[1] / \
-            (4.0 / 3.0 - self.pole_mass_range[0] / (self.cart_mass_range[1] + self.pole_mass_range[1]))
-        max_loc_acc_in_zero = (self.relative_force_range[1] * self.gravity - \
-            self.pole_mass_range[0] * self.pole_length_range[0] * min_angle_acc_in_zero) / \
-            (self.cart_mass_range[0] + self.pole_mass_range[0])
-        angle_vel_bound = max_angle_acc_in_zero * self.action_timedelta * 10.0
-        loc_vel_bound = max_loc_acc_in_zero * self.action_timedelta * 10.0
-        if self.state_location:
+        max_angle_acc_in_zero = self._relative_force_range[1] * self._gravity / \
+            (self._cart_mass_range[0] + self._pole_mass_range[0]) / \
+            self._pole_length_range[0] / \
+            (4.0 / 3.0 - self._pole_mass_range[1] / (self._cart_mass_range[0] + self._pole_mass_range[0]))
+        min_angle_acc_in_zero = self._relative_force_range[0] * self._gravity / \
+            (self._cart_mass_range[1] + self._pole_mass_range[1]) / \
+            self._pole_length_range[1] / \
+            (4.0 / 3.0 - self._pole_mass_range[0] / (self._cart_mass_range[1] + self._pole_mass_range[1]))
+        max_loc_acc_in_zero = (self._relative_force_range[1] * self._gravity - \
+            self._pole_mass_range[0] * self._pole_length_range[0] * min_angle_acc_in_zero) / \
+            (self._cart_mass_range[0] + self._pole_mass_range[0])
+        angle_vel_bound = max_angle_acc_in_zero * self._action_timedelta * 10.0
+        loc_vel_bound = max_loc_acc_in_zero * self._action_timedelta * 10.0
+        if self._state_location:
             loc_bound = loc_vel_bound
         else:
             loc_bound = np.inf
-        self.state_bounds = np.array(
+        self._state_bounds = np.array(
             [[loc_bound, loc_vel_bound, angle_bound, angle_vel_bound]], dtype=np.float32
         )
-        assert (self.state_bounds > 0.0).all()
+        assert (self._state_bounds > 0.0).all()
 
     def states(self):
         return dict(
-            type='float', shape=tuple(self.state_indices.shape),
-            min_value=-self.state_bounds[0, self.state_indices],
-            max_value=self.state_bounds[0, self.state_indices]
+            type='float', shape=tuple(self._state_indices.shape),
+            min_value=-self._state_bounds[0, self._state_indices],
+            max_value=self._state_bounds[0, self._state_indices]
         )
 
     def actions(self):
-        if self.action_continuous:
+        if self._action_continuous:
             return dict(type='float', shape=())
-        elif self.action_noop:
+        elif self._action_noop:
             return dict(type='int', shape=(), num_values=3)
         else:
             return dict(type='int', shape=(), num_values=2)
@@ -137,69 +137,67 @@ class CartPole(Environment):
         return True
 
     def reset(self, num_parallel=None):
-        # Physics parameters
-        self.pole_mass = float(np.random.uniform(low=self.pole_mass_range[0], high=self.pole_mass_range[1]))
-        self.pole_length = float(np.random.uniform(low=self.pole_length_range[0], high=self.pole_length_range[1]))
-        self.cart_mass = float(np.random.uniform(low=self.cart_mass_range[0], high=self.cart_mass_range[1]))
-        self.relative_force = float(np.random.uniform(low=self.relative_force_range[0], high=self.relative_force_range[1]))
-
-        if num_parallel is None:
-            initials = np.tile(self.state_initials, reps=(1, 1))
-            self.state = np.random.uniform(low=-initials, high=initials)
-            self.parallel_indices = None
-            return self.state[0, self.state_indices]
+        self._is_parallel = (num_parallel is not None)
+        if self._is_parallel:
+            self._parallel_indices = np.arange(num_parallel)
         else:
-            initials = np.tile(self.state_initials, reps=(num_parallel, 1))
-            self.state = np.random.uniform(low=-initials, high=initials)
-            self.parallel_indices = np.arange(num_parallel)
-            return self.parallel_indices, self.state[:, self.state_indices]
+            self._parallel_indices = np.arange(1)
+
+        # Physics parameters
+        self._pole_mass = float(np.random.uniform(low=self._pole_mass_range[0], high=self._pole_mass_range[1]))
+        self._pole_length = float(np.random.uniform(low=self._pole_length_range[0], high=self._pole_length_range[1]))
+        self._cart_mass = float(np.random.uniform(low=self._cart_mass_range[0], high=self._cart_mass_range[1]))
+        self._relative_force = float(np.random.uniform(low=self._relative_force_range[0], high=self._relative_force_range[1]))
+
+        # Initialize state
+        initials = np.tile(self._state_initials, reps=(self._parallel_indices.shape[0], 1))
+        self._states = np.random.uniform(low=-initials, high=initials)
+
+        if self._is_parallel:
+            return self._parallel_indices.copy(), self._states[:, self._state_indices]
+        else:
+            return self._states[0, self._state_indices]
 
     def execute(self, actions):
-        assert self.state.shape[0] > 0
+        if not self._is_parallel:
+            actions = np.expand_dims(actions, axis=0)
 
         # Split state into components
-        loc = self.state[:, 0]
-        loc_vel = self.state[:, 1]
-        angle = self.state[:, 2]
-        angle_vel = self.state[:, 3]
+        loc = self._states[:, 0]
+        loc_vel = self._states[:, 1]
+        angle = self._states[:, 2]
+        angle_vel = self._states[:, 3]
 
         # Make action continuous
-        actions = np.asarray(actions)
-        if self.parallel_indices is None:
-            actions = np.expand_dims(actions, axis=0)
-        else:
-            assert actions.shape[0] == self.parallel_indices.shape[0]
-        if self.action_continuous:
+        if self._action_continuous:
             force = actions
         else:
             force = np.where(actions == 2, 0.0, np.where(actions == 1, 1.0, -1.0))
-        force *= self.relative_force * self.gravity
+        force *= self._relative_force * self._gravity
 
         # Compute accelerations (https://coneural.org/florian/papers/05_cart_pole.pdf)
         cos_angle = np.cos(angle)
         sin_angle = np.sin(angle)
-        total_mass = self.cart_mass + self.pole_mass
-        pole_mass_length = self.pole_mass * self.pole_length
+        total_mass = self._cart_mass + self._pole_mass
+        pole_mass_length = self._pole_mass * self._pole_length
         bracket = (force + pole_mass_length * angle_vel * angle_vel * sin_angle) / total_mass
-        denom = self.pole_length * (4.0 / 3.0 - (self.pole_mass * cos_angle * cos_angle) / total_mass)
-        angle_acc = (self.gravity * sin_angle - cos_angle * bracket) / denom
+        denom = self._pole_length * (4.0 / 3.0 - (self._pole_mass * cos_angle * cos_angle) / total_mass)
+        angle_acc = (self._gravity * sin_angle - cos_angle * bracket) / denom
         loc_acc = bracket - pole_mass_length * angle_acc * cos_angle / total_mass
 
         # Integration
         deriv = np.stack([loc_vel, loc_acc, angle_vel, angle_acc], axis=1)
-        self.state += self.action_timedelta * deriv
+        self._states += self._action_timedelta * deriv
 
         # Terminal
-        terminal = (np.abs(self.state) > self.state_bounds).any(axis=1)
+        terminal = (np.abs(self._states) > self._state_bounds).any(axis=1)
 
         # Reward
         reward = np.ones_like(terminal, dtype=np.float32)
 
-        if self.parallel_indices is None:
-            state = self.state[0, self.state_indices]
-            self.state = self.state[~terminal]
-            return state, terminal.item(), reward.item()
+        if self._is_parallel:
+            self._parallel_indices = self._parallel_indices[~terminal]
+            self._states = self._states[~terminal]
+            return self._parallel_indices.copy(), self._states[:, self._state_indices], terminal, reward
         else:
-            self.parallel_indices = self.parallel_indices[~terminal]
-            self.state = self.state[~terminal]
-            return self.parallel_indices, self.state[:, self.state_indices], terminal, reward
+            return self._states[0, self._state_indices], terminal.item(), reward.item()

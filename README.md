@@ -61,8 +61,7 @@ git clone https://github.com/tensorforce/tensorforce.git
 pip3 install -e tensorforce
 ```
 
-**Note on installation on M1 Macs:** At the moment Tensorflow which is a core dependency of Tensorforce cannot be installed on M1 Macs directly. Follow the ["M1 Macs" section](https://tensorforce.readthedocs.io/en/latest/basics/installation.html) in the documentation for a workaround. 
-
+**Note on installation on M1 Macs:** At the moment Tensorflow, which is a core dependency of Tensorforce, cannot be installed on M1 Macs directly. Follow the ["M1 Macs" section](https://tensorforce.readthedocs.io/en/latest/basics/installation.html) in the documentation for a workaround.
 
 Environments require additional packages for which there are setup options available (`ale`, `gym`, `retro`, `vizdoom`, `carla`; or `envs` for all environments), however, some require additional tools to be installed separately (see [environments documentation](http://tensorforce.readthedocs.io)). Other setup options include `tfa` for [TensorFlow Addons](https://www.tensorflow.org/addons) and `tune` for [HpBandSter](https://github.com/automl/HpBandSter) required for the `tune.py` script.
 

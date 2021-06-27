@@ -415,6 +415,77 @@ class TestExamples(UnittestBase, unittest.TestCase):
 
         self.finished_test()
 
+    def test_multiactor_environment(self):
+        self.start_tests(name='multi-actor environment')
+
+        # ====================
+
+        class MultiactorEnvironment(Environment):
+            """
+            Example multi-actor environment, illustrating best-practice implementation pattern.
+
+            State space: position in [0, 10].
+            Action space: movement in {-1, 0, 1}.
+            Random start in [3, 7].
+            Actor 1 perspective as is, actor 2 perspective mirrored.
+            Positive reward for being closer to 10.
+            """
+
+            def __init__(self):
+                super().__init__()
+
+            def states(self):
+                return dict(type='int', num_values=11)
+
+            def actions(self):
+                return dict(type='int', num_values=3)
+
+            def num_actors(self):
+                return 2  # Indicates that environment has multiple actors
+
+            def reset(self):
+                # Always for multi-actor environments: initialize parallel indices
+                self._parallel_indices = np.arange(self.num_actors())
+
+                # Single shared environment logic, plus per-actor perspective
+                self._states = 3 + np.random.randint(5)
+                self.second_actor = True
+                states = np.stack([self._states, 10 - self._states], axis=0)
+
+                # Always for multi-actor environments: return per-actor values
+                return self._parallel_indices.copy(), states
+
+            def execute(self, actions):
+                # Single shared environment logic, plus per-actor perspective
+                if self.second_actor:
+                    self.second_actor = self.second_actor and not (np.random.random_sample() < 0.1)
+                    terminal = np.stack([False, not self.second_actor], axis=0)
+                    delta = (actions[0] - 1) - (actions[1] - 1)
+                    self._states = np.clip(self._states + delta, a_min=0, a_max=10)
+                    states = np.stack([self._states, 10 - self._states], axis=0)
+                else:
+                    terminal = np.stack([False], axis=0)
+                    delta = (actions[0] - 1)
+                    self._states = np.clip(self._states + delta, a_min=0, a_max=10)
+                    states = np.stack([self._states], axis=0)
+                reward = (states - 5.0) / 5.0
+
+                # Always for multi-actor environments: update parallel indices, and return per-actor values
+                self._parallel_indices = self._parallel_indices[~terminal]
+                return self._parallel_indices.copy(), states, terminal, reward
+
+        # Multi-actor runner, automatically if environment.num_actors() > 1
+        runner = Runner(
+            agent='benchmarks/configs/ppo.json',
+            environment=MultiactorEnvironment,
+            max_episode_timesteps=10
+        )
+        runner.run(num_episodes=10)
+
+        # ====================
+
+        self.finished_test()
+
     def test_parallelization(self):
         self.start_tests(name='parallelization')
 
@@ -873,6 +944,98 @@ class TestExamples(UnittestBase, unittest.TestCase):
         plt.ylabel('Temperature')
         plt.title('Temperature vs. Timestep')
         plt.show()
+
+        # ====================
+
+        self.finished_test()
+
+
+    def test_vectorized_environment(self):
+        self.start_tests(name='vectorized environment')
+
+        # ====================
+
+        class VectorizedEnvironment(Environment):
+            """
+            Example vectorized environment, illustrating best-practice implementation pattern.
+
+            State space: position in [0, 10].
+            Action space: movement in {-1, 0, 1}.
+            Random start in [0, 3] or [7, 10].
+            Positive reward for moving towards the center 5.
+            """
+
+            def __init__(self):
+                super().__init__()
+
+            def states(self):
+                return dict(type='int', num_values=11)
+
+            def actions(self):
+                return dict(type='int', num_values=3)
+
+            def is_vectorizable(self):
+                return True  # Indicates that environment is vectorizable
+
+            def reset(self, num_parallel=None):
+                # Always for vectorized environments: initialize parallel indices
+                self._is_parallel = (num_parallel is not None)
+                if self._is_parallel:
+                    self._parallel_indices = np.arange(num_parallel)
+                else:
+                    self._parallel_indices = np.arange(1)
+
+                # Vectorized environment logic
+                is_high = (np.random.random_sample(size=self._parallel_indices.shape) < 0.5)
+                offset = np.random.randint(4, size=self._parallel_indices.shape)
+                self._states = np.where(is_high, 10 - offset, offset)
+
+                # Always for vectorized environments: return un-/vectorized values
+                if self._is_parallel:
+                    return self._parallel_indices.copy(), self._states.copy()
+                else:
+                    return self._states[0]
+
+            def execute(self, actions):
+                # Always for vectorized environments: expand actions if non-vectorized
+                if not self._is_parallel:
+                    actions = np.expand_dims(actions, axis=0)
+
+                # Vectorized environment logic
+                reward = np.select(
+                    condlist=[self._states < 5, self._states > 5],
+                    choicelist=[(actions == 2).astype(np.float32), (actions == 0).astype(np.float32)],
+                    default=np.ones(shape=self._parallel_indices.shape, dtype=np.float32)
+                )
+                terminal = (np.random.random_sample(size=self._parallel_indices.shape) < 0.1)
+                self._states = np.clip(self._states + (actions - 1), a_min=0, a_max=10)
+
+                # Always for vectorized environments: update parallel indices and states,
+                #                                     and return un-/vectorized values
+                if self._is_parallel:
+                    self._parallel_indices = self._parallel_indices[~terminal]
+                    self._states = self._states[~terminal]
+                    return self._parallel_indices.copy(), self._states.copy(), terminal, reward
+                else:
+                    return self._states[0], terminal[0], reward[0]
+
+        # Non-vectorized runner
+        runner = Runner(
+            agent='benchmarks/configs/ppo.json',
+            environment=VectorizedEnvironment,
+            max_episode_timesteps=10
+        )
+        runner.run(num_episodes=10)
+
+        # Vectorized runner, automatically if num_parallel > 1 and environment.is_vectorizable()
+        # (and remote argument not specified)
+        runner = Runner(
+            agent='benchmarks/configs/ppo.json',
+            environment=VectorizedEnvironment,
+            max_episode_timesteps=10,
+            num_parallel=16
+        )
+        runner.run(num_episodes=10)
 
         # ====================
 

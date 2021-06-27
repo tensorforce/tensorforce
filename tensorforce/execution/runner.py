@@ -45,7 +45,8 @@ class Runner(object):
             (<span style="color:#00C000"><b>default</b></span>: environment default, invalid for
             "socket-client" remote mode).
         num_parallel (int >= 2): Number of environment instances to execute in parallel, usually
-            requires argument `remote` to be specified for proper parallel execution
+            requires argument `remote` to be specified for proper parallel execution unless
+            vectorizable environment
             (<span style="color:#00C000"><b>default</b></span>: no parallel execution, implicitly
             specified by `environments`).
         environments (list[specification | Environment object]): Environment specifications or
@@ -172,13 +173,17 @@ class Runner(object):
         states = environment.states()
         actions = environment.actions()
         self.environments.append(environment)
-        if remote is None and len(environments) > 1 and environment.is_vectorizable():
+        if remote is None and num_parallel > 1 and environment.is_vectorizable():
             self.num_vectorized = num_parallel
             environments = environments[:1]
             if evaluation:
                 raise TensorforceError.invalid(
                     name='Runner', argument='evaluation', condition='vectorized environment'
                 )
+        elif environment.num_actors() > 1:
+            assert num_parallel == 1
+            num_parallel = environment.num_actors()
+            self.num_vectorized = environment.num_actors()
         else:
             self.num_vectorized = None
 
@@ -236,9 +241,11 @@ class Runner(object):
         Run experiment.
 
         Args:
-            num_episodes (int > 0): Number of episodes to run experiment
+            num_episodes (int > 0): Number of episodes to run experiment, sum of episodes across all
+                parallel/vectorized environment(s) / actors in a multi-actor environment
                 (<span style="color:#00C000"><b>default</b></span>: no episode limit).
-            num_timesteps (int > 0): Number of timesteps to run experiment
+            num_timesteps (int > 0): Number of timesteps to run experiment, sum of timesteps across
+                all parallel/vectorized environment(s) / actors in a multi-actor environment
                 (<span style="color:#00C000"><b>default</b></span>: no timestep limit).
             num_updates (int > 0): Number of agent updates to run experiment
                 (<span style="color:#00C000"><b>default</b></span>: no update limit).
@@ -526,7 +533,10 @@ class Runner(object):
             for environment in self.environments:
                 environment.start_reset()
         else:
-            parallel, states = self.environments[0].reset(num_parallel=self.num_vectorized)
+            if self.environments[0].is_vectorizable():
+                parallel, states = self.environments[0].reset(num_parallel=self.num_vectorized)
+            else:
+                parallel, states = self.environments[0].reset()
             for i, n in enumerate(parallel):
                 self.states[n] = states[i]
                 self.prev_terminals[n] = -2
@@ -560,7 +570,7 @@ class Runner(object):
                     # Vectorized environment execute
                     if all(terminal >= -1 for terminal in self.prev_terminals):
                         parallel, states, terminals, rewards = self.environments[0].execute(
-                            actions=self.actions
+                            actions=np.asarray(self.actions)
                         )
                         i = 0
                         for n, terminal in enumerate(self.prev_terminals):
@@ -660,13 +670,18 @@ class Runner(object):
                     if self.evaluation_run and num_episodes_left > 0:
                         self.prev_terminals[-1] = -1
                         self.environments[-1].start_reset()
-                else:
-                    parallel, states = self.environments[0].reset(
-                        num_parallel=min(num_episodes_left, self.num_vectorized)
-                    )
+                elif num_episodes_left > 0:
+                    if self.environments[0].is_vectorizable():
+                        parallel, states = self.environments[0].reset(
+                            num_parallel=min(num_episodes_left, self.num_vectorized)
+                        )
+                    else:
+                        parallel, states = self.environments[0].reset()
                     for i, n in enumerate(parallel):
                         self.states[n] = states[i]
                         self.prev_terminals[n] = -2
+                else:
+                    self.prev_terminals = list()
 
             # Sleep if no environment was ready
             if no_environment_ready:

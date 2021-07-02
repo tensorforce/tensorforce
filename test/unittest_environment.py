@@ -139,7 +139,10 @@ class UnittestEnvironment(Environment):
 
     @classmethod
     def random_mask(cls, action_spec):
-        shape = action_spec['shape'] + (action_spec['num_values'],)
+        if 'shape' in action_spec:
+            shape = action_spec['shape'] + (action_spec['num_values'],)
+        else:
+            shape = (action_spec['num_values'],)
         mask = np.random.random_sample(size=shape)
         min_mask = np.amin(mask, -1, keepdims=True)
         max_mask = np.amax(mask, -1, keepdims=True)

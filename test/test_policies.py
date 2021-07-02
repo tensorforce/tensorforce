@@ -111,3 +111,14 @@ class TestPolicies(UnittestBase, unittest.TestCase):
                 distributions=dict(type='categorical', skip_linear=True)
             )
         )
+
+    def test_categorical_skip_linear_no_shape(self):
+        self.start_tests(name='categorical skip-linear empty shape')
+        self.unittest(
+            states=dict(type='float', shape=(3,), min_value=1.0, max_value=2.0),
+            actions=dict(type='int', num_values=4),
+            policy=dict(
+                network=[dict(type='dense', size=4)],
+                distributions=dict(type='categorical', skip_linear=True)
+            )
+        )

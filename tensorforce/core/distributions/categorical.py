@@ -90,11 +90,8 @@ class Categorical(Distribution):
                     name=name, argument='input_spec.shape', value=self.input_spec.shape,
                     hint='!= (*action_shape, num_values)'
                 )
-            if self.input_spec.shape[:-1] == self.action_spec.shape[:-1]:
-                size = self.action_spec.shape[-1]
-            elif self.input_spec.shape[:-1] == self.action_spec.shape:
-                size = 1
-            else:
+                
+            elif not (self.input_spec.shape[:-1] == self.action_spec.shape or self.input_spec.shape[:-1] == self.action_spec.shape[:-1]):
                 raise TensorforceError.value(
                     name=name, argument='input_spec.shape', value=self.input_spec.shape,
                     hint='not flattened and incompatible with action shape'

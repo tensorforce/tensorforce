@@ -161,7 +161,7 @@ class UnittestBase(object):
         # Test experience-update, independent, deterministic
         if experience_update or (experience_update is None and self.__class__.experience_update):
 
-            for episode in range(num_updates if num_episodes is None else num_episodes):
+            for episode in range(2 if num_episodes is None else num_episodes):
                 episode_states = list()
                 episode_internals = list()
                 episode_actions = list()

@@ -76,7 +76,7 @@ class CustomEnvironment(Environment):
 
     def execute(self, actions):
         next_state = np.random.random(size=(8,))
-        terminal = np.random.random() < 0.5
+        terminal = False  # Always False if no "natural" terminal state
         reward = np.random.random()
         return next_state, terminal, reward
 ```

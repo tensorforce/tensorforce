@@ -1604,14 +1604,18 @@ class TensorforceModel(Model):
                         y=self.baseline.past_horizon(on_policy=False)
                     )
                     unit = self.timesteps
-                    start = tf.math.maximum(x=start, y=(frequency + past_horizon + one))
+                    start = tf.math.maximum(x=start, y=(frequency + past_horizon))
                     if self.reward_horizon == 'episode':
                         min_start = tf.where(
                             condition=(self.episodes > zero), x=start, y=(unit + one)
                         )
                         start = tf.math.maximum(x=start, y=min_start)
                     else:
-                        start += self.reward_horizon.value()
+                        two = tf_util.constant(value=2, dtype='int')
+                        start = tf.where(
+                            condition=(self.episodes > zero), x=zero,
+                            y=(start + two * self.reward_horizon.value())
+                        )
                     if self.config.buffer_observe == 'episode':
                         min_start = tf.where(
                             condition=(self.episodes > zero), x=start, y=(unit + one)

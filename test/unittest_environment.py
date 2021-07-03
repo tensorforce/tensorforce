@@ -116,7 +116,7 @@ class UnittestEnvironment(Environment):
 
     @classmethod
     def random_state_function(cls, state_spec):
-        shape = state_spec['shape']
+        shape = state_spec.get('shape', ())
         dtype = state_spec.get('type', 'float')
 
         if dtype == 'bool':
@@ -139,10 +139,7 @@ class UnittestEnvironment(Environment):
 
     @classmethod
     def random_mask(cls, action_spec):
-        if 'shape' in action_spec:
-            shape = action_spec['shape'] + (action_spec['num_values'],)
-        else:
-            shape = (action_spec['num_values'],)
+        shape = action_spec.get('shape', ()) + (action_spec['num_values'],)
         mask = np.random.random_sample(size=shape)
         min_mask = np.amin(mask, -1, keepdims=True)
         max_mask = np.amax(mask, -1, keepdims=True)

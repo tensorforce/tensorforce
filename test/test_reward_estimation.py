@@ -28,7 +28,8 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
             gaussian_action3=dict(
                 type='gaussian', stddev_mode='global', bounded_transform='clipping'
             ), beta_action='beta'
-        )), update=4, optimizer=dict(optimizer='adam', learning_rate=1e-3),
+        )), update=dict(unit='timesteps', batch_size=4, frequency=0.5),
+        optimizer=dict(optimizer='adam', learning_rate=1e-3),
         objective='policy_gradient', reward_estimation=dict(
             horizon=3, estimate_advantage=True, predict_horizon_values='late',
             return_processing=dict(type='clipping', lower=-1.0, upper=1.0),

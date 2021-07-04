@@ -154,9 +154,12 @@ class Optimizer(Module):
             if self.root.summaries == 'all' or 'updates' in self.root.summaries:
                 with self.root.summarizer.as_default():
                     for var in variables:
-                        assert var.name.startswith(self.root.name + '/') and var.name[-2:] == ':0'
-                        mean_name = var.name[len(self.root.name) + 1: -2] + '-mean'
-                        var_name = var.name[len(self.root.name) + 1: -2] + '-variance'
+                        if var.name.startswith(self.root.name + '/') and var.name[-2:] == ':0':
+                            mean_name = var.name[len(self.root.name) + 1: -2] + '-mean'
+                            var_name = var.name[len(self.root.name) + 1: -2] + '-variance'
+                        else:
+                            mean_name = var.name[:-2] + '-mean'
+                            var_name = var.name[:-2] + '-variance'
                         mean, variance = tf.nn.moments(x=var, axes=list(range(tf_util.rank(x=var))))
                         dependencies.append(
                             tf.summary.scalar(name=mean_name, data=mean, step=self.root.updates)

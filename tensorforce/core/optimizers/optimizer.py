@@ -154,7 +154,8 @@ class Optimizer(Module):
             if self.root.summaries == 'all' or 'updates' in self.root.summaries:
                 with self.root.summarizer.as_default():
                     for var in variables:
-                        if var.name.startswith(self.root.name + '/') and var.name[-2:] == ':0':
+                        assert var.name[-2] == ':'
+                        if var.name.startswith(self.root.name + '/'):
                             mean_name = var.name[len(self.root.name) + 1: -2] + '-mean'
                             var_name = var.name[len(self.root.name) + 1: -2] + '-variance'
                         else:

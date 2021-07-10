@@ -604,7 +604,8 @@ class TensorforceModel(Model):
             with self.summarizer.as_default():
                 for variable in self.trainable_variables:
                     name = variable.name
-                    if name.startswith(self.name + '/') and name[-2:] == ':0':
+                    assert name[-2] == ':'
+                    if name.startswith(self.name + '/'):
                         # Add prefix self.name since otherwise different scope from later summaries
                         name = self.name + '/variables/' + name[len(self.name) + 1: -2]
                     else:
@@ -2665,7 +2666,8 @@ class TensorforceModel(Model):
                 with self.summarizer.as_default():
                     for variable in self.trainable_variables:
                         name = variable.name
-                        if name.startswith(self.name + '/') and name[-2:] == ':0':
+                        assert name[-2] == ':'
+                        if name.startswith(self.name + '/'):
                             name = 'variables/' + name[len(self.name) + 1: -2]
                         else:
                             name = name[:-2]

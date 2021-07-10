@@ -944,6 +944,7 @@ class Model(Module):
                 )
             variables = np.load(file=(os.path.join(directory, filename) + '.npz'))
             for variable in self.saved_variables:
+                assert variable.name[-2] == ':'
                 if variable.name.startswith(self.name + '/'):
                     variable.assign(value=variables[variable.name[len(self.name) + 1: -2]])
                 else:
@@ -965,6 +966,7 @@ class Model(Module):
                 path = path + '.h5'
             with h5py.File(name=path, mode='r') as filehandle:
                 for variable in self.saved_variables:
+                    assert variable.name[-2] == ':'
                     if variable.name.startswith(self.name + '/'):
                         variable.assign(value=filehandle[variable.name[len(self.name) + 1: -2]])
                     else:

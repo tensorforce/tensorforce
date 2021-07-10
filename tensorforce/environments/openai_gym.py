@@ -203,9 +203,6 @@ class OpenAIGym(Environment):
 
         self.actions_spec = OpenAIGym.specs_from_gym_space(space=self.environment.action_space)
 
-        # self.mins = np.ones(shape=(24,)) * np.inf
-        # self.maxs = np.ones(shape=(24,)) * (-np.inf)
-
     def __str__(self):
         return super().__str__() + '({})'.format(self.level)
 
@@ -229,17 +226,14 @@ class OpenAIGym(Environment):
             self.environment.stats_recorder.done = True
         states = self.environment.reset()
         self.timestep = 0
-        states = OpenAIGym.flatten_state(state=states, states_spec=self.states_spec)
+        states = OpenAIGym.flatten_state(
+            state=states, states_spec=self.states_spec, actions_spec=self.actions_spec
+        )
         if self.min_value is not None:
             states = np.clip(states, self.states_spec['min_value'], self.states_spec['max_value'])
         if self.drop_states_indices is not None:
             for index in reversed(self.drop_states_indices):
                 states = np.concatenate([states[:index], states[index + 1:]])
-
-        # self.mins = np.minimum(self.mins, states)
-        # self.maxs = np.maximum(self.maxs, states)
-        # print(self.mins)
-        # print(self.maxs)
 
         return states
 
@@ -248,9 +242,6 @@ class OpenAIGym(Environment):
             self.environment.render()
         actions = OpenAIGym.unflatten_action(action=actions)
         states, reward, terminal, _ = self.environment.step(actions)
-
-        # self.mins = np.minimum(self.mins, states)
-        # self.maxs = np.maximum(self.maxs, states)
 
         self.timestep += 1
         if self._max_episode_timesteps is not None and self.timestep == self._max_episode_timesteps:
@@ -263,7 +254,9 @@ class OpenAIGym(Environment):
             terminal = 1
         else:
             terminal = 0
-        states = OpenAIGym.flatten_state(state=states, states_spec=self.states_spec)
+        states = OpenAIGym.flatten_state(
+            state=states, states_spec=self.states_spec, actions_spec=self.actions_spec
+        )
         if self.min_value is not None:
             states = np.clip(states, self.states_spec['min_value'], self.states_spec['max_value'])
         if self.drop_states_indices is not None:
@@ -382,7 +375,7 @@ class OpenAIGym(Environment):
             raise TensorforceError('Unknown Gym space.')
 
     @staticmethod
-    def flatten_state(state, states_spec):
+    def flatten_state(state, states_spec, actions_spec=None):
         if isinstance(state, tuple):
             states = dict()
             for n, state in enumerate(state):
@@ -405,6 +398,11 @@ class OpenAIGym(Environment):
 
         elif isinstance(state, dict):
             states = dict()
+            if actions_spec is not None:
+                for action_name in actions_spec:
+                    action_name = '{}_mask'.format(action_name)
+                    if action_name in state:
+                        states[action_name] = state.pop(action_name)
             for state_name, state in state.items():
                 if state_name in states_spec:
                     spec = states_spec[state_name]

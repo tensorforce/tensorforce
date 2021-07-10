@@ -399,10 +399,14 @@ class OpenAIGym(Environment):
         elif isinstance(state, dict):
             states = dict()
             if actions_spec is not None:
-                for action_name in actions_spec:
-                    action_name = '{}_mask'.format(action_name)
-                    if action_name in state:
-                        states[action_name] = state.pop(action_name)
+                if 'type' in actions_spec:
+                    if 'action_mask' in state:
+                        states['action_mask'] = state.pop('action_mask')
+                else:
+                    for action_name in actions_spec:
+                        action_name = '{}_mask'.format(action_name)
+                        if action_name in state:
+                            states[action_name] = state.pop(action_name)
             for state_name, state in state.items():
                 if state_name in states_spec:
                     spec = states_spec[state_name]

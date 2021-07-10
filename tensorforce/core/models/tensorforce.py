@@ -604,9 +604,11 @@ class TensorforceModel(Model):
             with self.summarizer.as_default():
                 for variable in self.trainable_variables:
                     name = variable.name
-                    assert name.startswith(self.name + '/') and name[-2:] == ':0'
-                    # Add prefix self.name since otherwise different scope from later summaries
-                    name = self.name + '/variables/' + name[len(self.name) + 1: -2]
+                    if name.startswith(self.name + '/') and name[-2:] == ':0':
+                        # Add prefix self.name since otherwise different scope from later summaries
+                        name = self.name + '/variables/' + name[len(self.name) + 1: -2]
+                    else:
+                        name = name[:-2]
                     x = tf.math.reduce_mean(input_tensor=variable)
                     tf.summary.scalar(name=name, data=x, step=self.updates)
 
@@ -2663,8 +2665,10 @@ class TensorforceModel(Model):
                 with self.summarizer.as_default():
                     for variable in self.trainable_variables:
                         name = variable.name
-                        assert name.startswith(self.name + '/') and name[-2:] == ':0'
-                        name = 'variables/' + name[len(self.name) + 1: -2]
+                        if name.startswith(self.name + '/') and name[-2:] == ':0':
+                            name = 'variables/' + name[len(self.name) + 1: -2]
+                        else:
+                            name = name[:-2]
                         x = tf.math.reduce_mean(input_tensor=variable)
                         dependencies.append(tf.summary.scalar(name=name, data=x, step=self.updates))
 

@@ -198,7 +198,8 @@ class TensorforceAgent(Agent):
             which can be changed, for instance, by setting this value to 'GPU' instead.
             <li><b>seed</b> (<i>int</i>) &ndash; Random seed to set for Python, NumPy (both set
             globally!) and TensorFlow, environment seed may have to be set separately for fully
-            deterministic execution
+            deterministic execution, generally not recommended since results in a fully
+            deterministic setting are less meaningful/representative
             (<span style="color:#00C000"><b>default</b></span>: none).</li>
             <li><b>buffer_observe</b> (<i>false | "episode" | int > 0</i>) &ndash; Number of
             timesteps within an episode to buffer before calling the internal observe function, to

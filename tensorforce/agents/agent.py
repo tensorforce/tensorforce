@@ -393,11 +393,13 @@ class Agent(Recorder):
                 has internal states).
             parallel (int | iter[int]): Parallel execution index
                 (<span style="color:#00C000"><b>default</b></span>: 0).
-            independent (bool): Whether act is not part of the main agent-environment interaction,
-                and this call is thus not followed by observe()
+            independent (bool): Whether this act() call is not part of the training
+                agent-environment interaction and thus not followed by observe(), meaning its
+                inputs/outputs/internals are not stored in memory and not used in updates, e.g. for
+                independent evaluation episodes which should not be learned from
                 (<span style="color:#00C000"><b>default</b></span>: false).
             deterministic (bool): Whether action should be chosen deterministically, so no
-                sampling and no exploration, only valid in independent mode
+                action distribution sampling and no exploration, only valid in independent mode
                 (<span style="color:#00C000"><b>default</b></span>: true).
 
         Returns:

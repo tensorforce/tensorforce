@@ -73,7 +73,7 @@ class TensorforceWorker(Worker):
             predict_horizon_values = False
             estimate_advantage = False
             predict_action_values = False
-            baseline_policy = None
+            baseline = None
             baseline_optimizer = None
             baseline_objective = None
 
@@ -81,7 +81,7 @@ class TensorforceWorker(Worker):
             predict_horizon_values = 'early'
             estimate_advantage = (config['estimate_advantage'] == 'yes')
             predict_action_values = False
-            baseline_policy = None
+            baseline = None
             baseline_optimizer = config['baseline_weight']
             baseline_objective = dict(type='value', value='state')
 
@@ -89,7 +89,7 @@ class TensorforceWorker(Worker):
             predict_horizon_values = 'early'
             estimate_advantage = (config['estimate_advantage'] == 'yes')
             predict_action_values = False
-            baseline_policy = dict(network=dict(type='auto', size=64, depth=2, rnn=False))
+            baseline = dict(network=dict(type='auto', size=64, depth=2, rnn=False))
             baseline_optimizer = config['baseline_weight']
             baseline_objective = dict(type='value', value='state')
 
@@ -109,7 +109,7 @@ class TensorforceWorker(Worker):
 
         agent = dict(
             policy=policy, memory='recent', update=update, optimizer=optimizer, objective=objective,
-            reward_estimation=reward_estimation, baseline_policy=baseline_policy,
+            reward_estimation=reward_estimation, baseline=baseline,
             baseline_optimizer=baseline_optimizer, baseline_objective=baseline_objective,
             entropy_regularization=entropy_regularization
         )

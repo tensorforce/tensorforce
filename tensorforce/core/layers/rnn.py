@@ -210,7 +210,7 @@ class Gru(Rnn):
     """
 
     def __init__(
-        self, *, size, horizon, bias=False, activation=None, dropout=0.0, vars_trainable=True,
+        self, *, size, horizon, bias=True, activation='tanh', dropout=0.0, vars_trainable=True,
         l2_regularization=None, name=None, input_spec=None, **kwargs
     ):
         super().__init__(
@@ -250,7 +250,7 @@ class Lstm(Rnn):
     """
 
     def __init__(
-        self, *, size, horizon, bias=False, activation=None, dropout=0.0, vars_trainable=True,
+        self, *, size, horizon, bias=True, activation='tanh', dropout=0.0, vars_trainable=True,
         l2_regularization=None, name=None, input_spec=None, **kwargs
     ):
         super().__init__(

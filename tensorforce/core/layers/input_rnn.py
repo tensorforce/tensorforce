@@ -179,7 +179,7 @@ class InputGru(InputRnn):
     """
 
     def __init__(
-        self, *, size, return_final_state=True, bias=False, activation=None, dropout=0.0,
+        self, *, size, return_final_state=True, bias=True, activation='tanh', dropout=0.0,
         vars_trainable=True, l2_regularization=None, name=None, input_spec=None, **kwargs
     ):
         super().__init__(
@@ -218,7 +218,7 @@ class InputLstm(InputRnn):
     """
 
     def __init__(
-        self, *, size, return_final_state=True, bias=False, activation=None, dropout=0.0,
+        self, *, size, return_final_state=True, bias=True, activation='tanh', dropout=0.0,
         vars_trainable=True, l2_regularization=None, name=None, input_spec=None, **kwargs
     ):
         super().__init__(

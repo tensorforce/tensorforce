@@ -59,9 +59,9 @@ class TestSeed(UnittestBase, unittest.TestCase):
             print(actions['int_action'])
             print(actions['float_action'])
         else:
-            self.assertTrue(expr=np.allclose(a=actions['int_action'], b=np.asarray([0, 0])))
+            self.assertTrue(expr=np.allclose(a=actions['int_action'], b=np.asarray([3, 0])))
             self.assertTrue(expr=np.allclose(
-                a=actions['float_action'], b=np.asarray([1.5049707, 1.4608247])
+                a=actions['float_action'], b=np.asarray([1.5877049, 1.4052042])
             ))
 
         states, terminal, reward = environment.execute(actions=actions)
@@ -84,9 +84,9 @@ class TestSeed(UnittestBase, unittest.TestCase):
             print(actions['int_action'])
             print(actions['float_action'])
         else:
-            self.assertTrue(expr=np.allclose(a=actions['int_action'], b=np.asarray([3, 3])))
+            self.assertTrue(expr=np.allclose(a=actions['int_action'], b=np.asarray([3, 1])))
             self.assertTrue(expr=np.allclose(
-                a=actions['float_action'], b=np.asarray([1.5072203, 1.6714704])
+                a=actions['float_action'], b=np.asarray([1.5590835, 1.4156684])
             ))
 
         states, terminal, reward = environment.execute(actions=actions)
@@ -111,7 +111,7 @@ class TestSeed(UnittestBase, unittest.TestCase):
         else:
             self.assertTrue(expr=np.allclose(a=actions['int_action'], b=np.asarray([0, 3])))
             self.assertTrue(expr=np.allclose(
-                a=actions['float_action'], b=np.asarray([1.6693485, 1.7339616])
+                a=actions['float_action'], b=np.asarray([1.449745, 1.6435499])
             ))
 
         states, terminal, reward = environment.execute(actions=actions)

@@ -57,10 +57,6 @@ class InputRnn(TransformationBase):
         self.cell_type = cell
         self.return_final_state = return_final_state
 
-        if self.return_final_state and self.cell_type == 'lstm':
-            assert size % 2 == 0
-            size = size // 2
-
         super().__init__(
             size=size, bias=bias, activation=activation, dropout=dropout,
             vars_trainable=vars_trainable, l2_regularization=l2_regularization, name=name,
@@ -79,8 +75,13 @@ class InputRnn(TransformationBase):
                 input_shape=input_spec.shape, **kwargs  # , dtype=tf_util.get_dtype(type='float')
             )
         elif self.cell_type == 'lstm':
+            if self.return_final_state:
+                assert self.size % 2 == 0
+                size = self.size // 2
+            else:
+                size = self.size
             self.rnn = tf.keras.layers.LSTM(
-                units=self.size, return_sequences=True, return_state=True, name='rnn',
+                units=size, return_sequences=True, return_state=True, name='rnn',
                 input_shape=input_spec.shape, **kwargs  # , dtype=tf_util.get_dtype(type='float')
             )
         else:
@@ -111,10 +112,8 @@ class InputRnn(TransformationBase):
             output_spec.shape = output_spec.shape[:-1]
         elif not self.return_final_state:
             output_spec.shape = output_spec.shape[:-1] + (self.size,)
-        elif self.cell_type == 'gru':
+        else:
             output_spec.shape = output_spec.shape[:-2] + (self.size,)
-        elif self.cell_type == 'lstm':
-            output_spec.shape = output_spec.shape[:-2] + (2 * self.size,)
 
         output_spec.min_value = None
         output_spec.max_value = None

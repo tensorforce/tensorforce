@@ -199,15 +199,21 @@ class TestLayers(UnittestBase, unittest.TestCase):
             state_preprocessing=state_preprocessing, reward_preprocessing=reward_preprocessing
         )
 
-        states = dict(state=dict(type='float', shape=(4, 4, 3), min_value=1.0, max_value=2.0))
-        state_preprocessing = dict(state=[
-            dict(type='image', height=2, width=2, grayscale=True),
-            dict(type='deltafier', concatenate=0),
-            dict(type='sequence', length=4),
-            dict(type='linear_normalization')
-        ])
+        states = dict(
+            state1=dict(type='float', shape=(4, 4, 3), min_value=1.0, max_value=2.0),
+            state2=dict(type='float', shape=(), min_value=-1.0, max_value=2.0)
+        )
+        state_preprocessing = dict(
+            state1=[
+                dict(type='image', height=2, width=2, grayscale=True),
+                dict(type='deltafier', concatenate=0),
+                dict(type='sequence', length=4),
+                dict(type='linear_normalization')
+            ],
+            state2=None
+        )
         reward_preprocessing = dict(type='deltafier')
-        network = [dict(type='reshape', shape=32)]
+        network = [dict(type='retrieve', tensors='state1'), dict(type='reshape', shape=32)]
         # TODO: buffer_observe incompatible with Deltafier/Sequence expecting single-step inputs
         self.unittest(
             states=states, experience_update=False, policy=network,

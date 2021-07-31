@@ -55,7 +55,11 @@ class TensorforceModel(Model):
         self.state_preprocessing = ModuleDict()
         if state_preprocessing == 'linear_normalization':
             # Default handling, otherwise layer will be applied to all input types
-            state_preprocessing = None
+            state_preprocessing = {
+                name: ['linear_normalization'] for name, spec in self.states_spec.items()
+                if spec.type == 'float' and spec.min_value is not None and
+                spec.max_value is not None
+            }
         if not isinstance(state_preprocessing, dict) or \
                 any(name not in self.states_spec for name in state_preprocessing):
             state_preprocessing = {name: state_preprocessing for name in self.states_spec}
@@ -67,11 +71,6 @@ class TensorforceModel(Model):
                 layers = state_preprocessing[spec.type]
             else:
                 layers = None
-
-            # Normalize bounded inputs to [-2.0, 2.0]
-            if spec.type == 'float' and spec.min_value is not None and \
-                    spec.max_value is not None and layers is None:
-                layers = ['linear_normalization']
 
             if layers is None:
                 self.processed_states_spec[name] = self.states_spec[name]

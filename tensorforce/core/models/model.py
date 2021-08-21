@@ -629,8 +629,8 @@ class Model(Module):
 
         # Remember internals
         dependencies = list()
+        indices = tf.expand_dims(input=parallel, axis=1)
         for name, previous, internal in self.previous_internals.zip_items(internals):
-            indices = tf.expand_dims(input=parallel, axis=1)
             value = tf.tensor_scatter_nd_update(tensor=previous, indices=indices, updates=internal)
             dependencies.append(previous.assign(value=value))
             # sparse_delta = tf.IndexedSlices(values=internal, indices=parallel)

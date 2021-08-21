@@ -36,9 +36,10 @@ class RandomModel(Model):
         assert len(internals) == 0
 
         actions = TensorDict()
+        x = tf.shape(input=states.value())[:1]
         for name, spec in self.actions_spec.items():
             shape = tf.concat(values=(
-                tf_util.cast(x=tf.shape(input=states.value())[:1], dtype='int'),
+                tf_util.cast(x=x, dtype='int'),
                 tf_util.constant(value=spec.shape, dtype='int')
             ), axis=0)
 

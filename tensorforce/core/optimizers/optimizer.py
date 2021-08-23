@@ -110,6 +110,9 @@ class Optimizer(Module):
                 zero = tf_util.constant(value=0, dtype='int')
                 one = tf_util.constant(value=1, dtype='int')
                 zero_float = tf_util.constant(value=0.0, dtype='float')
+                y = tf.reduce_any(input_tensor=tf.math.not_equal(
+                            x=arguments['reward'], y=zero_float
+                        ))
                 for index, (delta, variable) in enumerate(zip(deltas, variables)):
                     if '_distribution/mean/linear/' in variable.name:
                         # Gaussian.state_value does not use mean
@@ -118,9 +121,7 @@ class Optimizer(Module):
                         x=tf.math.equal(x=tf.math.count_nonzero(
                             input=delta, dtype=tf_util.get_dtype(type='int')
                         ), y=zero),
-                        y=tf.reduce_any(input_tensor=tf.math.not_equal(
-                            x=arguments['reward'], y=zero_float
-                        ))
+                        y=y
                     )
                     index = tf_util.constant(value=index, dtype='int', shape=(1,))
                     index = tf.stack(values=(

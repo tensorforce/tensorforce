@@ -66,7 +66,7 @@ class DeterministicPolicyGradient(Objective):
         #     deterministic=deterministic, independent=True
         # )
 
-        return tf_util.zeros(shape=(tf.shape(input=actions.value())[0],), dtype='float')
+        return tf_util.zeros(shape=tf.shape(input=actions.value())[:1], dtype='float')
 
     def loss(
         self, *, states, horizons, internals, auxiliaries, actions, reward, reference, policy,

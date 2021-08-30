@@ -126,6 +126,10 @@ class TensorforceAgent(Agent):
             <li><b>predict_action_values</b> (<i>bool</i>) &ndash; Whether to predict state-action-
             instead of state-values as horizon values and for advantage estimation
             (<span style="color:#00C000"><b>default</b></span>: false).</li>
+            <li><b>reward_processing</b> (<i>specification)</i>) &ndash; Reward preprocessing as
+            layer or list of layers, see the
+            [preprocessing documentation](../modules/preprocessing.html)
+            (<span style="color:#00C000"><b>default</b></span>: no reward processing).</li>
             <li><b>return_processing</b> (<i>specification</i>) &ndash; Return processing as layer
             or list of layers, see the [preprocessing documentation](../modules/preprocessing.html)
             (<span style="color:#00C000"><b>default</b></span>: no return processing).</li>
@@ -167,9 +171,6 @@ class TensorforceAgent(Agent):
             specified per state-type or -name
             (<span style="color:#00C000"><b>default</b></span>: linear normalization of bounded
             float states to [-2.0, 2.0]).
-        reward_preprocessing (specification): Reward preprocessing as layer or list of layers,
-            see the [preprocessing documentation](../modules/preprocessing.html)
-            (<span style="color:#00C000"><b>default</b></span>: no reward preprocessing).
         exploration (<a href="../modules/parameters.html">parameter</a> | dict[<a href="../modules/parameters.html">parameter</a>], float >= 0.0):
             Exploration, defined as the probability for uniformly random output in case of `bool`
             and `int` actions, and the standard deviation of Gaussian noise added to every output in
@@ -307,7 +308,7 @@ class TensorforceAgent(Agent):
         # Regularization
         l2_regularization=0.0, entropy_regularization=0.0,
         # Preprocessing
-        state_preprocessing='linear_normalization', reward_preprocessing=None,
+        state_preprocessing='linear_normalization',
         # Exploration
         exploration=0.0, variable_noise=0.0,
         # Parallel interactions
@@ -334,6 +335,11 @@ class TensorforceAgent(Agent):
         if 'baseline_policy' in kwargs:
             raise TensorforceError.deprecated(
                 name='Agent', argument='baseline_policy', replacement='baseline'
+            )
+        if 'reward_preprocessing' in kwargs:
+            raise TensorforceError.deprecated(
+                name='Agent', argument='reward_preprocessing',
+                replacement='reward_estimation[reward_processing]'
             )
         if 'name' in kwargs:
             raise TensorforceError.deprecated(
@@ -368,7 +374,7 @@ class TensorforceAgent(Agent):
                 # Regularization
                 l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
                 # Preprocessing
-                state_preprocessing=state_preprocessing, reward_preprocessing=reward_preprocessing,
+                state_preprocessing=state_preprocessing,
                 # Exploration
                 exploration=exploration, variable_noise=variable_noise,
                 # Parallel interactions
@@ -445,7 +451,7 @@ class TensorforceAgent(Agent):
             baseline=baseline, baseline_optimizer=baseline_optimizer,
             baseline_objective=baseline_objective,
             l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
-            state_preprocessing=state_preprocessing, reward_preprocessing=reward_preprocessing,
+            state_preprocessing=state_preprocessing,
             exploration=exploration, variable_noise=variable_noise,
             parallel_interactions=self.parallel_interactions,
             config=self.config, saver=saver, summarizer=summarizer, tracking=tracking

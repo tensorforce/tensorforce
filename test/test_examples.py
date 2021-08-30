@@ -53,13 +53,14 @@ class TestExamples(UnittestBase, unittest.TestCase):
                 subsampling_fraction=0.33,
                 # Reward estimation
                 likelihood_ratio_clipping=0.2, discount=0.99, predict_terminal_values=False,
+                reward_processing=None,
                 # Baseline network and optimizer
                 baseline=dict(type='auto', size=32, depth=1),
                 baseline_optimizer=dict(optimizer='adam', learning_rate=1e-3, multi_step=10),
                 # Regularization
                 l2_regularization=0.0, entropy_regularization=0.0,
                 # Preprocessing
-                state_preprocessing='linear_normalization', reward_preprocessing=None,
+                state_preprocessing='linear_normalization',
                 # Exploration
                 exploration=0.0, variable_noise=0.0,
                 # Default additional config values

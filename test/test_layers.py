@@ -192,11 +192,17 @@ class TestLayers(UnittestBase, unittest.TestCase):
             dict(type='clipping', lower=-1.0, upper=1.0),
             dict(type='linear_normalization')
         ]
-        reward_preprocessing = [dict(type='clipping', upper=1.0)]
+        reward_processing = [dict(type='clipping', upper=1.0)]
         network = [dict(type='dense', size=8)]
         self.unittest(
             states=states, experience_update=False, policy=network,
-            state_preprocessing=state_preprocessing, reward_preprocessing=reward_preprocessing
+            reward_estimation=dict(
+                horizon=3, estimate_advantage=True, predict_horizon_values='late',
+                reward_processing=reward_processing,
+                return_processing=dict(type='clipping', lower=-1.0, upper=1.0),
+                advantage_processing='batch_normalization'
+            ),
+            state_preprocessing=state_preprocessing,
         )
 
         states = dict(
@@ -212,12 +218,18 @@ class TestLayers(UnittestBase, unittest.TestCase):
             ],
             state2=None
         )
-        reward_preprocessing = dict(type='deltafier')
+        reward_processing = dict(type='deltafier')
         network = [dict(type='retrieve', tensors='state1'), dict(type='reshape', shape=32)]
         # TODO: buffer_observe incompatible with Deltafier/Sequence expecting single-step inputs
         self.unittest(
             states=states, experience_update=False, policy=network,
-            state_preprocessing=state_preprocessing, reward_preprocessing=reward_preprocessing,
+            reward_estimation=dict(
+                horizon=3, estimate_advantage=True, predict_horizon_values='late',
+                reward_processing=reward_processing,
+                return_processing=dict(type='clipping', lower=-1.0, upper=1.0),
+                advantage_processing='batch_normalization'
+            ),
+            state_preprocessing=state_preprocessing,
             config=dict(
                 buffer_observe=1, device='CPU', eager_mode=True, create_debug_assertions=True,
                 tf_log_level=20

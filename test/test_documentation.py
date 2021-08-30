@@ -288,13 +288,19 @@ class TestDocumentation(UnittestBase, unittest.TestCase):
         )
 
         # preprocessing
+        reward_processing = dict(type='clipping', lower=-1.0, upper=1.0)
         self.unittest(
             states=dict(type='float', shape=(8, 8, 3), min_value=-1.0, max_value=2.0),
+            reward_estimation=dict(
+                horizon=3, estimate_advantage=True, predict_horizon_values='late',
+                reward_processing=reward_processing,
+                return_processing=dict(type='clipping', lower=-1.0, upper=1.0),
+                advantage_processing='batch_normalization'
+            ),
             state_preprocessing=[
                 dict(type='image', height=4, width=4, grayscale=True),
                 dict(type='exponential_normalization', decay=0.999)
-            ],
-            reward_preprocessing=dict(type='clipping', lower=-1.0, upper=1.0)
+            ]
         )
 
         # policy

@@ -7,11 +7,14 @@ Example of how to specify state and reward preprocessing:
 
     Agent.create(
         ...
+        reward_estimation=dict(
+            ...
+            reward_processing=dict(type='clipping', lower=-1.0, upper=1.0)
+        ),
         state_preprocessing=[
             dict(type='image', height=4, width=4, grayscale=True),
             dict(type='exponential_normalization', decay=0.999)
         ],
-        reward_preprocessing=dict(type='clipping', lower=-1.0, upper=1.0),
         ...
     )
 

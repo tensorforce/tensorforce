@@ -555,7 +555,7 @@ class Model(Module):
 
         with tf.control_dependencies(control_inputs=assertions):
             # Core act
-            parallel = tf_util.zeros(shape=(batch_size,), dtype='int')
+            parallel = tf_util.zeros(shape=tf.expand_dims(batch_size, axis=0), dtype='int')
             actions, internals = self.core_act(
                 states=states, internals=internals, auxiliaries=auxiliaries, parallel=parallel,
                 deterministic=deterministic, independent=True

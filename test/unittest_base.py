@@ -60,9 +60,10 @@ class UnittestBase(object):
         # Also in: test_summaries_tracking
         optimizer=dict(optimizer='adam', learning_rate=1e-3),
         objective='policy_gradient',
-        # Also in: test_summaries_tracking
+        # Also in: test_documentation, test_summaries_tracking
         reward_estimation=dict(
             horizon=3, estimate_advantage=True, predict_horizon_values='late',
+            reward_processing=dict(type='clipping', lower=-1.0, upper=1.0),
             return_processing=dict(type='clipping', lower=-1.0, upper=1.0),
             advantage_processing='batch_normalization'
         ),
@@ -70,7 +71,6 @@ class UnittestBase(object):
         baseline_optimizer=dict(optimizer='adam', learning_rate=1e-3),
         baseline_objective='state_value', l2_regularization=0.01, entropy_regularization=0.01,
         state_preprocessing='linear_normalization',
-        reward_preprocessing=dict(type='clipping', lower=-1.0, upper=1.0),
         # Also in: test_summaries_tracking
         exploration=0.01,
         variable_noise=0.01,

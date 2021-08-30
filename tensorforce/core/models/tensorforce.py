@@ -34,7 +34,7 @@ class TensorforceModel(Model):
         policy, memory, update, optimizer, objective, reward_estimation,
         baseline, baseline_optimizer, baseline_objective,
         l2_regularization, entropy_regularization,
-        state_preprocessing, reward_preprocessing,
+        state_preprocessing,
         exploration, variable_noise,
         parallel_interactions,
         config, saver, summarizer, tracking
@@ -105,20 +105,6 @@ class TensorforceModel(Model):
                                             '' if name is None else ' ' + name
                                         ))
 
-        # Reward preprocessing
-        if reward_preprocessing is None:
-            self.reward_preprocessing = None
-        else:
-            self.reward_preprocessing = self.submodule(
-                name='reward_preprocessing', module=Preprocessor, is_trainable=False,
-                input_spec=self.reward_spec, layers=reward_preprocessing
-            )
-            if self.reward_preprocessing.output_spec() != self.reward_spec:
-                raise TensorforceError.mismatch(
-                    name='reward_preprocessing', argument='output spec',
-                    value1=self.reward_preprocessing.output_spec(), value2=self.reward_spec
-                )
-
         # Action exploration
         if exploration is None:
             exploration = 0.0
@@ -163,13 +149,13 @@ class TensorforceModel(Model):
         if not all(key in (
             'advantage_processing', 'discount', 'estimate_advantage', 'gae_decay', 'horizon',
             'predict_action_values', 'predict_horizon_values', 'predict_terminal_values',
-            'return_processing', 'trace_decay'
+            'return_processing', 'reward_processing', 'trace_decay'
         ) for key in reward_estimation):
             raise TensorforceError.value(
                 name='agent', argument='reward_estimation', value=reward_estimation,
                 hint='not from {advantage_processing,discount,estimate_advantage,gae_decay,'
                      'horizon,predict_action_values,predict_horizon_values,predict_terminal_values,'
-                     'return_processing,trace_decay}'
+                     'return_processing,reward_processing,trace_decay}'
             )
 
         # Reward estimation
@@ -301,6 +287,21 @@ class TensorforceModel(Model):
             baseline_is_trainable = True
         else:
             baseline_is_trainable = False
+
+        # Reward processing
+        reward_processing = reward_estimation.get('reward_processing')
+        if reward_processing is None:
+            self.reward_processing = None
+        else:
+            self.reward_processing = self.submodule(
+                name='reward_processing', module=Preprocessor, is_trainable=False,
+                input_spec=self.reward_spec, layers=reward_processing
+            )
+            if self.reward_processing.output_spec() != self.reward_spec:
+                raise TensorforceError.mismatch(
+                    name='reward_estimation[reward_processing]', argument='output spec',
+                    value1=self.reward_processing.output_spec(), value2=self.reward_spec
+                )
 
         # Return processing
         return_processing = reward_estimation.get('return_processing')
@@ -616,7 +617,7 @@ class TensorforceModel(Model):
         super().core_initialize()
 
         # Preprocessed episode reward
-        if self.reward_preprocessing is not None:
+        if self.reward_processing is not None:
             self.preprocessed_episode_return = self.variable(
                 name='preprocessed-episode-return',
                 spec=TensorSpec(type=self.reward_spec.type, shape=(self.parallel_interactions,)),
@@ -720,7 +721,7 @@ class TensorforceModel(Model):
                     spec=TensorSpec(type='float')
                 )
 
-        if self.reward_preprocessing is not None:
+        if self.reward_processing is not None:
             self.register_tracking(
                 label='reward', name='preprocessed-reward', spec=TensorSpec(type='float')
             )
@@ -1009,8 +1010,8 @@ class TensorforceModel(Model):
                     states[name] = self.state_preprocessing[name].apply(
                         x=states[name], deterministic=true, independent=False
                     )
-            if self.reward_preprocessing is not None:
-                reward = self.reward_preprocessing.apply(
+            if self.reward_processing is not None:
+                reward = self.reward_processing.apply(
                     x=reward, deterministic=true, independent=False
                 )
 
@@ -1113,7 +1114,7 @@ class TensorforceModel(Model):
             # Policy act (after variable noise)
             batch_size = tf_util.cast(x=tf.shape(input=states.value())[0], dtype='int')
             starts = tf.range(batch_size, dtype=tf_util.get_dtype(type='int'))
-            lengths = tf_util.ones(shape=(batch_size,), dtype='int')
+            lengths = tf_util.ones(shape=tf.expand_dims(input=batch_size, axis=0), dtype='int')
             horizons = tf.stack(values=(starts, lengths), axis=1)
             next_internals = TensorDict()
             actions, next_internals['policy'] = self.policy.act(
@@ -1313,7 +1314,7 @@ class TensorforceModel(Model):
 
             # Increment buffer index (after buffer assignments)
             with tf.control_dependencies(control_inputs=assignments):
-                ones = tf_util.ones(shape=(batch_size,), dtype='int')
+                ones = tf_util.ones(shape=tf.expand_dims(input=batch_size, axis=0), dtype='int')
                 indices = tf.expand_dims(input=parallel, axis=1)
                 value = tf.tensor_scatter_nd_add(
                     tensor=self.buffer_index, indices=indices, updates=ones
@@ -1499,7 +1500,7 @@ class TensorforceModel(Model):
                 # operations.append(self.buffer_index.scatter_update(sparse_delta=sparse_delta))
 
             # Preprocessed episode reward summaries (before preprocessed episode reward reset)
-            if self.reward_preprocessing is not None:
+            if self.reward_processing is not None:
                 dependencies = list()
                 if self.summaries == 'all' or 'reward' in self.summaries or \
                         self.tracking == 'all' or 'reward' in self.tracking:
@@ -1536,18 +1537,18 @@ class TensorforceModel(Model):
             # Reset preprocessors
             for preprocessor in self.state_preprocessing.values():
                 operations.append(preprocessor.reset())
-            if self.reward_preprocessing is not None:
-                operations.append(self.reward_preprocessing.reset())
+            if self.reward_processing is not None:
+                operations.append(self.reward_processing.reset())
 
             return tf.group(*operations)
 
         # Reward preprocessing
         dependencies = assertions
-        if self.reward_preprocessing is not None:
+        if self.reward_processing is not None:
             with tf.control_dependencies(control_inputs=dependencies):
                 dependencies = list()
                 true = tf_util.constant(value=True, dtype='bool')
-                reward = self.reward_preprocessing.apply(
+                reward = self.reward_processing.apply(
                     x=reward, deterministic=true, independent=False
                 )
 
@@ -1661,7 +1662,9 @@ class TensorforceModel(Model):
         # Whether to predict horizon values now
         if self.predict_horizon_values != 'early':
             assert self.trace_decay.is_constant(value=1.0)
-            horizon_values = tf_util.zeros(shape=(num_complete,), dtype='float')
+            horizon_values = tf_util.zeros(
+                shape=tf.expand_dims(input=num_complete, axis=0), dtype='float'
+            )
 
         else:
             # Baseline horizon
@@ -1992,7 +1995,9 @@ class TensorforceModel(Model):
                 terminal_value = tf.where(condition=is_terminal, x=reward[-1], y=terminal_value)
 
             # Horizon-expanded rewards and values
-            horizon_values = tf_util.zeros(shape=(episode_length,), dtype='float')
+            horizon_values = tf_util.zeros(
+                shape=tf.expand_dims(input=episode_length, axis=0), dtype='float'
+            )
             reward = tf.concat(
                 values=(reward[:-1], [terminal_value], horizon_values[:reward_horizon]), axis=0
             )
@@ -2058,9 +2063,13 @@ class TensorforceModel(Model):
                 terminal_value = tf.where(condition=is_terminal, x=reward[-1], y=terminal_value)
 
             # Horizon-expanded rewards and values
-            zeros_reward_horizon = tf_util.zeros(shape=(reward_horizon - one,), dtype='float')
+            zeros_reward_horizon = tf_util.zeros(
+                shape=tf.expand_dims(input=(reward_horizon - one), axis=0), dtype='float'
+            )
             reward = tf.concat(values=(reward[:-1], [terminal_value], zeros_reward_horizon), axis=0)
-            zeros_reward_horizon = tf_util.zeros(shape=(reward_horizon,), dtype='float')
+            zeros_reward_horizon = tf_util.zeros(
+                shape=tf.expand_dims(reward_horizon, axis=0), dtype='float'
+            )
             values = tf.concat(values=(values, zeros_reward_horizon), axis=0)
 
             # Horizon values

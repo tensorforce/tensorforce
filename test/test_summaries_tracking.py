@@ -91,6 +91,7 @@ class TestSummaries(UnittestBase, unittest.TestCase):
                 optimizer=dict(optimizer='adam', learning_rate=learning_rate),
                 reward_estimation=dict(
                     horizon=horizon, estimate_advantage=True, predict_horizon_values='late',
+                    reward_processing=dict(type='clipping', lower=-1.0, upper=1.0),
                     return_processing=dict(type='clipping', lower=-1.0, upper=1.0),
                     advantage_processing='batch_normalization'
                 ),

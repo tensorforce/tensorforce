@@ -103,7 +103,7 @@ class Value(Objective):
         #         )
         #         value = tf.concat(values=tuple(value.values()), axis=1)
 
-        return tf_util.zeros(shape=(tf.shape(input=actions.value())[0],), dtype='float')
+        return tf_util.zeros(shape=tf.shape(input=actions.value())[:1], dtype='float')
 
     @tf_function(num_args=7)
     def loss(

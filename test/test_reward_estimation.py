@@ -32,11 +32,11 @@ class TestRewardEstimation(UnittestBase, unittest.TestCase):
         optimizer=dict(optimizer='adam', learning_rate=1e-3),
         objective='policy_gradient', reward_estimation=dict(
             horizon=3, estimate_advantage=True, predict_horizon_values='late',
+            reward_processing=dict(type='clipping', lower=-1.0, upper=1.0),
             return_processing=dict(type='clipping', lower=-1.0, upper=1.0),
             advantage_processing='batch_normalization'
         ), l2_regularization=0.01, entropy_regularization=0.01,
         state_preprocessing='linear_normalization',
-        reward_preprocessing=dict(type='clipping', lower=-1.0, upper=1.0),
         exploration=0.01, variable_noise=0.01,
         config=dict(device='CPU', eager_mode=True, create_debug_assertions=True, tf_log_level=20),
         tracking='all'

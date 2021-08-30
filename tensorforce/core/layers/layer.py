@@ -632,9 +632,10 @@ class TemporalLayer(Layer):
     def apply(self, *, x, horizons, internals):
         zero = tf_util.constant(value=0, dtype='int')
         one = tf_util.constant(value=1, dtype='int')
-        batch_size = tf_util.cast(x=tf.shape(input=horizons)[0], dtype='int')
-        zeros = tf_util.zeros(shape=(batch_size,), dtype='int')
-        ones = tf_util.ones(shape=(batch_size,), dtype='int')
+        batch_size = tf_util.cast(x=tf.shape(input=horizons)[:1], dtype='int')
+        zeros = tf_util.zeros(shape=batch_size, dtype='int')
+        ones = tf_util.ones(shape=batch_size, dtype='int')
+        batch_size = batch_size[0]
 
         # including 0th step
         horizon = self.horizon.value() + one
@@ -675,9 +676,11 @@ class TemporalLayer(Layer):
                 x, final_internals = self.iterative_apply(x=x, internals=internals)
 
             else:
-                initial_x = tf_util.zeros(
-                    shape=((batch_size,) + output_spec.shape), dtype=output_spec.type
-                )
+                shape = tf.concat(values=[
+                    tf.expand_dims(input=batch_size, axis=0),
+                    tf_util.constant(value=output_spec.shape, dtype='int')
+                ], axis=0)
+                initial_x = tf_util.zeros(shape=shape, dtype=output_spec.type)
 
                 signature = self.input_signature(function='iterative_body')
                 internals = signature['current_internals'].kwargs_to_args(kwargs=internals)
@@ -705,9 +708,10 @@ class TemporalLayer(Layer):
 
     @tf_function(num_args=5, is_loop_body=True)
     def iterative_body(self, x, indices, remaining, current_x, current_internals):
-        batch_size = tf_util.cast(x=tf.shape(input=current_x)[0], dtype='int')
-        zeros = tf_util.zeros(shape=(batch_size,), dtype='int')
-        ones = tf_util.ones(shape=(batch_size,), dtype='int')
+        batch_size = tf_util.cast(x=tf.shape(input=current_x)[:1], dtype='int')
+        zeros = tf_util.zeros(shape=batch_size, dtype='int')
+        ones = tf_util.ones(shape=batch_size, dtype='int')
+        batch_size = batch_size[0]
 
         current_x = tf.gather(params=x, indices=indices)
         next_x, next_internals = self.iterative_apply(

@@ -93,6 +93,9 @@ class VanillaPolicyGradient(TensorforceAgent):
         predict_terminal_values (bool): Whether to predict the value of terminal states, usually
             not required since max_episode_timesteps terminals are handled separately
             (<span style="color:#00C000"><b>default</b></span>: false).
+        reward_processing (specification): Reward preprocessing as layer or list of layers, see the
+            [preprocessing documentation](../modules/preprocessing.html)
+            (<span style="color:#00C000"><b>default</b></span>: no reward processing).
 
         baseline (specification): Baseline network configuration, see the
             [networks documentation](../modules/networks.html), main policy will be used as baseline
@@ -117,9 +120,6 @@ class VanillaPolicyGradient(TensorforceAgent):
             specified per state-type or -name
             (<span style="color:#00C000"><b>default</b></span>: linear normalization of bounded
             float states to [-2.0, 2.0]).
-        reward_preprocessing (specification): Reward preprocessing as layer or list of layers,
-            see the [preprocessing documentation](../modules/preprocessing.html)
-            (<span style="color:#00C000"><b>default</b></span>: no reward preprocessing).
         exploration (<a href="../modules/parameters.html">parameter</a> | dict[<a href="../modules/parameters.html">parameter</a>], float >= 0.0):
             Exploration, defined as the probability for uniformly random output in case of `bool`
             and `int` actions, and the standard deviation of Gaussian noise added to every output in
@@ -149,12 +149,12 @@ class VanillaPolicyGradient(TensorforceAgent):
         # Optimization
         update_frequency=1.0, learning_rate=1e-3,
         # Reward estimation
-        discount=0.99, return_processing=None, advantage_processing=None,
+        discount=0.99, reward_processing=None, return_processing=None, advantage_processing=None,
         predict_terminal_values=False,
         # Baseline
         baseline=None, baseline_optimizer=None,
         # Preprocessing
-        state_preprocessing='linear_normalization', reward_preprocessing=None,
+        state_preprocessing='linear_normalization',
         # Exploration
         exploration=0.0, variable_noise=0.0,
         # Regularization
@@ -186,7 +186,7 @@ class VanillaPolicyGradient(TensorforceAgent):
             advantage_processing=advantage_processing,
             predict_terminal_values=predict_terminal_values,
             baseline=baseline, baseline_optimizer=baseline_optimizer,
-            state_preprocessing=state_preprocessing, reward_preprocessing=reward_preprocessing,
+            state_preprocessing=state_preprocessing,
             exploration=exploration, variable_noise=variable_noise,
             l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
             parallel_interactions=parallel_interactions,
@@ -212,7 +212,8 @@ class VanillaPolicyGradient(TensorforceAgent):
             assert not predict_terminal_values
             reward_estimation = dict(
                 horizon='episode', discount=discount, predict_horizon_values=False,
-                estimate_advantage=False, return_processing=return_processing
+                estimate_advantage=False, reward_processing=reward_processing,
+                return_processing=return_processing
             )
             assert baseline_optimizer is None
             baseline_objective = None
@@ -221,7 +222,9 @@ class VanillaPolicyGradient(TensorforceAgent):
             reward_estimation = dict(
                 horizon='episode', discount=discount, predict_horizon_values='early',
                 estimate_advantage=True, predict_action_values=False,
-                return_processing=return_processing, predict_terminal_values=predict_terminal_values
+                reward_processing=reward_processing, return_processing=return_processing,
+                advantage_processing=advantage_processing,
+                predict_terminal_values=predict_terminal_values
             )
             baseline = dict(type='parametrized_state_value', network=baseline)
             assert baseline_optimizer is not None
@@ -237,7 +240,7 @@ class VanillaPolicyGradient(TensorforceAgent):
             baseline=baseline, baseline_optimizer=baseline_optimizer,
             baseline_objective=baseline_objective,
             l2_regularization=l2_regularization, entropy_regularization=entropy_regularization,
-            state_preprocessing=state_preprocessing, reward_preprocessing=reward_preprocessing,
+            state_preprocessing=state_preprocessing,
             exploration=exploration, variable_noise=variable_noise,
             saver=saver, summarizer=summarizer, tracking=tracking, **kwargs
         )

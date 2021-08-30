@@ -6,10 +6,13 @@ This file records all major updates and new features, starting from version 0.5.
 
 ### Latest changes
 
-##### Distributions
+##### Agents:
+- Renamed agent argument `reward_preprocessing` to `reward_processing`, and in case of Tensorforce agent moved to `reward_estimation[reward_processing]`
+
+##### Distributions:
 - New `categorical` distribution argument `skip_linear` to not add the implicit linear logits layer
 
-##### Environments
+##### Environments:
 - Support for multi-actor parallel environments via new function `Environment.num_actors()`
     - `Runner` uses multi-actor parallelism by default if environment is multi-actor
 - New optional `Environment` function `episode_return()` which returns the true return of the last episode, if cumulative sum of environment rewards is not a good metric for runner display

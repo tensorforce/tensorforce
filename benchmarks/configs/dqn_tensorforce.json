@@ -45,6 +45,7 @@
         "predict_horizon_values": "late",
         "estimate_advantage": false,
         "predict_action_values": false,
+        "reward_processing": null,
         "return_processing": null,
         "advantage_processing": null,
         "predict_terminal_values": false
@@ -71,7 +72,6 @@
     "l2_regularization": 0.0,
     "entropy_regularization": 0.0,
     "state_preprocessing": "linear_normalization",
-    "reward_preprocessing": null,
     "exploration": 0.0,
     "variable_noise": 0.0
 }

@@ -117,10 +117,10 @@ class TensorforceAgent(Agent):
             stored to memory, or "late" when batches of experience are retrieved for the update
             (<span style="color:#00C000"><b>default</b></span>: "late" if baseline_policy or
             baseline_objective are specified, else false).</li>
-            <li><b>estimate_advantage</b> (<i>bool | "early" | "late"</i>) &ndash; Whether to use an
-            estimate of the advantage (return minus baseline value prediction) instead of the return
-            as learning signal, and whether to do so late after the baseline update (default) or
-            early before the baseline update
+            <li><b>estimate_advantage</b> (<i>False | "early" | "late"</i>) &ndash; Whether to use
+            an estimate of the advantage (return minus baseline value prediction) instead of the
+            return as learning signal, and whether to do so late after the baseline update
+            (default) or early before the baseline update
             (<span style="color:#00C000"><b>default</b></span>: false, unless baseline_policy is
             specified but baseline_objective/optimizer are not).</li>
             <li><b>predict_action_values</b> (<i>bool</i>) &ndash; Whether to predict state-action-

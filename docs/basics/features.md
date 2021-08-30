@@ -4,7 +4,7 @@ Features
 
 ### Multi-input and non-sequential network architectures
 
-See [networks documentation](../modules.networks.html).
+See [networks documentation](../modules/networks.html).
 
 
 

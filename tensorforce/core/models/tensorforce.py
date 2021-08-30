@@ -289,7 +289,7 @@ class TensorforceModel(Model):
         if baseline is not None and baseline_objective is None and \
                 baseline_optimizer is None:
             if 'estimate_advantage' not in reward_estimation:
-                self.estimate_advantage = True
+                self.estimate_advantage = 'late'
             self.advantage_in_loss = True
         else:
             self.advantage_in_loss = False

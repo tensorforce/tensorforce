@@ -34,7 +34,8 @@ class OptimizerWrapper(UpdateModifier):
         multi_step (parameter, int >= 1): Number of optimization steps
             (<span style="color:#00C000"><b>default</b></span>: single step).
         subsampling_fraction (parameter, int > 0 | 0.0 < float <= 1.0): Absolute/relative fraction
-            of batch timesteps to subsample
+            of batch timesteps to subsample, update_frequency * multi_step should be at least 1 if
+            relative subsampling_fraction
             (<span style="color:#00C000"><b>default</b></span>: no subsampling).
         linesearch_iterations (parameter, int >= 0): Maximum number of line search iterations, using
             a backtracking factor of 0.75

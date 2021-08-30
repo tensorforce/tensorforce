@@ -66,7 +66,7 @@ class ArcadeLearningEnvironment(Environment):
             self.environment.setInt(b'random_seed', seed)
 
         # All set commands must be done before loading the ROM.
-        self.environment.loadROM(rom_file=self.rom_file.encode())
+        self.environment.loadROM(self.rom_file.encode())
         self.available_actions = tuple(self.environment.getLegalActionSet())
 
         # Full list of actions:
@@ -79,30 +79,30 @@ class ArcadeLearningEnvironment(Environment):
 
     def states(self):
         width, height = self.environment.getScreenDims()
-        return dict(type='float', shape=(height, width, 3), min_value=0.0, max_value=1.0)
+        return dict(type='float', shape=(width, height, 3), min_value=0.0, max_value=1.0)
 
     def actions(self):
         return dict(type='int', num_values=len(self.available_actions))
 
     def close(self):
-        # Causes "Segmentation fault (core dumped)"
-        # self.environment.__del__()
+        self.environment.__del__()
         self.environment = None
 
     def get_states(self):
-        screen = np.copy(self.environment.getScreenRGB(screen_data=self.screen))
+        # screen = np.copy(self.environment.getScreenRGB(self.screen))
+        screen = self.environment.getScreenRGB()
         screen = screen.astype(dtype=np.float32) / 255.0
         return screen
 
     def reset(self):
         self.environment.reset_game()
         width, height = self.environment.getScreenDims()
-        self.screen = np.empty((height, width, 3), dtype=np.uint8)
+        # self.screen = np.empty((width, height, 3), dtype=np.uint8)
         self.lives = self.environment.lives()
         return self.get_states()
 
     def execute(self, actions):
-        reward = self.environment.act(action=self.available_actions[actions])
+        reward = self.environment.act(self.available_actions[actions])
         terminal = self.environment.game_over()
         states = self.get_states()
 

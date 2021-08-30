@@ -37,10 +37,10 @@ python setup.py sdist bdist_wheel
 twine upload --repository-url https://test.pypi.org/legacy/ dist/Tensorforce-0.6.X*
 
 deactivate
-source ...
-
-pip install --upgrade -r requirements.txt
 cd ..
+source [XYZ]
+
+pip install --upgrade -r tensorforce/requirements.txt
 pip install --upgrade --index-url https://test.pypi.org/simple/ tensorforce
 python
   > import tensorforce
@@ -48,9 +48,9 @@ python
 python tensorforce/examples/quickstart.py
 
 deactivate
-source ...
-
+source [XYZ]
 cd tensorforce
+
 git status
 git add -u
 git commit -m "Fix PyPI version 0.6.X"

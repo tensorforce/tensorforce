@@ -45,6 +45,7 @@ pip install --upgrade --index-url https://test.pypi.org/simple/ tensorforce
 python
   > import tensorforce
   > print(tensorforce.__version__)
+  > quit()
 python tensorforce/examples/quickstart.py
 
 deactivate

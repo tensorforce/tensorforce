@@ -30,7 +30,7 @@ Then, since Tensorforce has `tensorflow` as its dependency and not `tensorflow-m
 
 In the end, install tensorforce while forcing pip to ignore its dependencies:
 ```
-pip3 install tensorforce==0.6.4 --no-deps
+pip3 install tensorforce --no-deps
 ```
 
 

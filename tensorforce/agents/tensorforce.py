@@ -513,6 +513,11 @@ class TensorforceAgent(Agent):
                 )
             elif not isinstance(actions[0], dict):
                 actions = ArrayDict(singleton=np.asarray(actions))
+            elif all(list(action) == ['action'] for action in actions):
+                actions = [ArrayDict(singleton=action['action']) for action in actions]
+                actions = actions[0].fmap(
+                    function=(lambda *xs: np.stack(xs, axis=0)), zip_values=actions[1:]
+                )
             else:
                 actions = [ArrayDict(action) for action in actions]
                 actions = actions[0].fmap(
@@ -535,13 +540,15 @@ class TensorforceAgent(Agent):
                 internals = ArrayDict(internals)
 
             # Actions
-            if not isinstance(actions, np.ndarray):
+            if isinstance(actions, np.ndarray):
                 actions = ArrayDict(singleton=actions)
             elif not isinstance(actions, dict):
                 raise TensorforceError.type(
                     name='Agent.experience', argument='actions', dtype=type(actions),
                     hint='is not dict'
                 )
+            elif list(actions) == ['action']:
+                actions = ArrayDict(singleton=actions['action'])
             else:
                 actions = ArrayDict(actions)
 

@@ -71,7 +71,7 @@ class TestEnvironments(UnittestBase, unittest.TestCase):
         self.unittest(environment='LunarLanderContinuous-v2', num_episodes=2)
         self.unittest(environment='BipedalWalker-v3', num_episodes=2)
         self.unittest(environment='BipedalWalkerHardcore-v3', num_episodes=2)
-        self.unittest(environment='CarRacing-v0', num_episodes=2)
+        # self.unittest(environment='CarRacing-v0', num_episodes=2)
 
         # Toy text
         above: self.unittest(environment='Blackjack-v1', num_episodes=2)

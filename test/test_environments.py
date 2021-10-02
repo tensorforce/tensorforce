@@ -45,18 +45,22 @@ class TestEnvironments(UnittestBase, unittest.TestCase):
         self.unittest(environment=dict(environment='gym', level='CartPole-v0'), num_episodes=2)
 
         # state: discrete, action: box
-        self.unittest(environment=dict(environment='gym', level='GuessingGame'), num_episodes=2)
+        # self.unittest(environment=dict(environment='gym', level='GuessingGame'), num_episodes=2)
 
         # state: discrete, action: tuple(discrete)
-        from gym.envs.algorithmic import ReverseEnv
-        self.unittest(environment=ReverseEnv, num_episodes=2)
+        # from gym.envs.algorithmic import ReverseEnv
+        # self.unittest(environment=ReverseEnv, num_episodes=2)
+
+        # state: discrete, action: discrete
+        from gym.envs.toy_text import FrozenLakeEnv
+        self.unittest(environment=FrozenLakeEnv, num_episodes=2)
 
         # state: tuple, action: discrete
         from gym.envs.toy_text import BlackjackEnv
         self.unittest(environment=BlackjackEnv(), num_episodes=2)
 
         # Classic control
-        # above: self.unittest(environment='CartPole-v1', num_episodes=2)
+        self.unittest(environment='CartPole-v1', num_episodes=2)
         self.unittest(environment='MountainCar-v0', num_episodes=2)
         self.unittest(environment='MountainCarContinuous-v0', num_episodes=2)
         self.unittest(environment='Pendulum-v0', num_episodes=2)
@@ -67,31 +71,14 @@ class TestEnvironments(UnittestBase, unittest.TestCase):
         self.unittest(environment='LunarLanderContinuous-v2', num_episodes=2)
         self.unittest(environment='BipedalWalker-v3', num_episodes=2)
         self.unittest(environment='BipedalWalkerHardcore-v3', num_episodes=2)
-        # below: self.unittest(environment='CarRacing-v0', num_episodes=2)
+        self.unittest(environment='CarRacing-v0', num_episodes=2)
 
         # Toy text
-        # above: self.unittest(environment='Blackjack-v0', num_episodes=2)
-        self.unittest(environment='KellyCoinflip-v0', num_episodes=2)
-        # TODO: out-of-bounds problems!
-        # self.unittest(environment=dict(
-        #     environment='KellyCoinflipGeneralized-v0', clip_distributions=True
-        # ), num_episodes=2)
+        above: self.unittest(environment='Blackjack-v1', num_episodes=2)
         self.unittest(environment='FrozenLake-v1', num_episodes=2)
         self.unittest(environment='FrozenLake8x8-v1', num_episodes=2)
         self.unittest(environment='CliffWalking-v0', num_episodes=2)
-        self.unittest(environment='NChain-v0', num_episodes=2)
-        self.unittest(environment='Roulette-v0', num_episodes=2)
         self.unittest(environment='Taxi-v3', num_episodes=2)
-        # above: self.unittest(environment='GuessingGame-v0', num_episodes=2)
-        self.unittest(environment='HotterColder-v0', num_episodes=2)
-
-        # Algorithmic
-        self.unittest(environment='Copy-v0', num_episodes=2)
-        self.unittest(environment='RepeatCopy-v0', num_episodes=2)
-        self.unittest(environment='ReversedAddition-v0', num_episodes=2)
-        self.unittest(environment='ReversedAddition3-v0', num_episodes=2)
-        self.unittest(environment='DuplicatedInput-v0', num_episodes=2)
-        # above: self.unittest(environment='Reverse-v0', num_episodes=2)
 
         # Unit test
         self.unittest(environment='CubeCrash-v0', num_episodes=2)

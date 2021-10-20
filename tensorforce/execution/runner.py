@@ -443,8 +443,14 @@ class Runner(object):
                         mean_agent_sec = float(
                             np.mean(runner.episode_agent_seconds[-mean_horizon:])
                         )
-                        mean_ms_per_ts = mean_sec_per_ep * 1000.0 / mean_ts_per_ep
-                        mean_rel_agent = mean_agent_sec * 100.0 / mean_sec_per_ep
+                        try:
+                            mean_ms_per_ts = mean_sec_per_ep * 1000.0 / mean_ts_per_ep
+                        except ZeroDivisionError:
+                            mean_ms_per_ts = 0.0
+                        try:
+                            mean_rel_agent = mean_agent_sec * 100.0 / mean_sec_per_ep
+                        except ZeroDivisionError:
+                            mean_rel_agent = 0.0
                         runner.tqdm.postfix[1] = mean_ts_per_ep
                         runner.tqdm.postfix[2] = mean_sec_per_ep
                         runner.tqdm.postfix[3] = mean_ms_per_ts

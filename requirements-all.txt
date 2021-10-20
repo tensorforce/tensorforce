@@ -1,4 +1,4 @@
-gym >= 0.20.0
+gym >= 0.21.0
 h5py ~= 3.1.0
 matplotlib >= 3.3.4  # keep fixed
 msgpack >= 1.0.2
@@ -10,7 +10,7 @@ tqdm >= 4.62.2
 tensorflow-addons >= 0.14.0
 hpbandster >= 0.7.4
 ale-py >= 0.7rc4
-gym[box2d,classic_control] >= 0.20.0
+gym[box2d,classic_control] >= 0.21.0
 box2d >= 2.3.10
 gym-retro >= 0.8.0
 vizdoom >= 1.1.8

@@ -26,6 +26,7 @@ import numpy as np
 
 from tensorforce import TensorforceError, util
 from tensorforce.core import TensorSpec, TensorsSpec
+from tensorforce.core.utils.dicts import ArrayDict
 import tensorforce.environments
 
 
@@ -457,7 +458,7 @@ class Environment(object):
                 _states = states
         else:
             states_spec = TensorsSpec(self.states())
-            _states = dict()
+            _states = ArrayDict()
             for name, state in states.items():
                 if name in states_spec:
                     _states[name] = state

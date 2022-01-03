@@ -141,12 +141,11 @@ setup(
     packages=packages,
     download_url='https://github.com/tensorforce/tensorforce/archive/{}.tar.gz'.format(version),
     license='Apache 2.0',
-    python_requires='>=3.5',
+    python_requires='>=3.7',
     classifiers=[
         'Natural Language :: English',
         'Topic :: Scientific/Engineering',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8'
     ],

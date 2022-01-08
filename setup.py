@@ -154,11 +154,11 @@ setup(
         tfa=['tensorflow-addons >= 0.15.0'],
         tune=['hpbandster >= 0.7.4'],
         envs=[
-            'ale-py', 'gym[atari,box2d,classic_control] >= 0.21.0', 'box2d >= 2.3.10',
-            'gym-retro >= 0.8.0', 'vizdoom == 1.1.7'
+            'ale-py >= 0.7.3', 'gym[atari,box2d,classic_control] >= 0.21.0', 'box2d >= 2.3.10',
+            'gym-retro >= 0.8.0', 'vizdoom == 1.1.11'
         ],
         ale=['ale-py >= 0.7.3'],
-        gym=['gym[box2d,classic_control] >= 0.21.0'],
+        gym=['gym[box2d,classic_control] >= 0.21.0, box2d >= 2.3.10'],
         retro=['gym-retro >= 0.8.0'],
         vizdoom=['vizdoom >= 1.1.11'],
         carla=['pygame', 'opencv-python'],

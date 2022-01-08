@@ -63,7 +63,7 @@ class TestEnvironments(UnittestBase, unittest.TestCase):
         self.unittest(environment='CartPole-v1', num_episodes=2)
         self.unittest(environment='MountainCar-v0', num_episodes=2)
         self.unittest(environment='MountainCarContinuous-v0', num_episodes=2)
-        self.unittest(environment='Pendulum-v0', num_episodes=2)
+        self.unittest(environment='Pendulum-v1', num_episodes=2)
         self.unittest(environment='Acrobot-v1', num_episodes=2)
 
         # Box2d
@@ -71,10 +71,10 @@ class TestEnvironments(UnittestBase, unittest.TestCase):
         self.unittest(environment='LunarLanderContinuous-v2', num_episodes=2)
         self.unittest(environment='BipedalWalker-v3', num_episodes=2)
         self.unittest(environment='BipedalWalkerHardcore-v3', num_episodes=2)
-        # self.unittest(environment='CarRacing-v0', num_episodes=2)
+        # below: self.unittest(environment='CarRacing-v0', num_episodes=2)
 
         # Toy text
-        above: self.unittest(environment='Blackjack-v1', num_episodes=2)
+        # above: self.unittest(environment='Blackjack-v1', num_episodes=2)
         self.unittest(environment='FrozenLake-v1', num_episodes=2)
         self.unittest(environment='FrozenLake8x8-v1', num_episodes=2)
         self.unittest(environment='CliffWalking-v0', num_episodes=2)

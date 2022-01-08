@@ -245,7 +245,10 @@ class TensorSpec(object):
             x = np.asarray(x)
         if isinstance(x, np.ndarray):
             if _normalize_type(dtype=x.dtype) != self.type and \
-                    (self.type != 'float' or _normalize_type(dtype=x.dtype) != 'int'):
+                    (self.type != 'float' or _normalize_type(dtype=x.dtype) != 'int') and \
+                    (self.type != 'int' or (
+                        _normalize_type(dtype=x.dtype) == 'bool' and self.num_values != 2
+                    )):
                 raise TensorforceError(
                     message.format(issue=('type {} != {}'.format(x.dtype, self.type)))
                 )

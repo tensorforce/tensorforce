@@ -1,4 +1,5 @@
 m2r
+mistune == 0.8.4  # temporary
 msgpack
 msgpack-numpy
 recommonmark

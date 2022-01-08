@@ -3,7 +3,7 @@ h5py >= 3.6.0
 matplotlib >= 3.5.1
 msgpack >= 1.0.3
 msgpack-numpy >= 0.4.7.1
-numpy >= 1.22.0
+numpy ~= 1.21.5
 Pillow >= 9.0.0
 tensorflow == 2.7.0
 tqdm >= 4.62.3

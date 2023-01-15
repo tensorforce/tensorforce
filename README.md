@@ -10,6 +10,8 @@
 [![Donate](https://img.shields.io/badge/donate-Liberapay-yellow)](https://liberapay.com/TensorforceTeam/donate)
 
 
+**This project is not maintained any longer!**
+
 
 #### Introduction
 

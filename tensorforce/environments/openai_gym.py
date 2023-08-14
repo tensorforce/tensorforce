@@ -113,7 +113,7 @@ class OpenAIGym(Environment):
         # Modified specification
         if requires_register:
             entry_point = gym.envs.registry.env_specs[level].entry_point
-            _kwargs = dict(gym.envs.registry.env_specs[level]._kwargs)
+            _kwargs = dict(gym.envs.registry.env_specs[level].kwargs)
             nondeterministic = gym.envs.registry.env_specs[level].nondeterministic
 
             if '-v' in level and level[level.rindex('-v') + 2:].isdigit():

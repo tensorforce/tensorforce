@@ -1,4 +1,4 @@
-gym >= 0.21.0
+gym >= 0.21.0, <0.23
 h5py >= 3.6.0
 matplotlib >= 3.5.1
 msgpack >= 1.0.3

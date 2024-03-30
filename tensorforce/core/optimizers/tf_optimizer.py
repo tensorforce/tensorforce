@@ -22,14 +22,14 @@ from tensorforce.core.optimizers import Optimizer
 
 
 tensorflow_optimizers = dict(
-    adadelta=tf.keras.optimizers.Adadelta,
-    adagrad=tf.keras.optimizers.Adagrad,
-    adam=tf.keras.optimizers.Adam,
-    adamax=tf.keras.optimizers.Adamax,
-    ftrl=tf.keras.optimizers.Ftrl,
-    nadam=tf.keras.optimizers.Nadam,
-    rmsprop=tf.keras.optimizers.RMSprop,
-    sgd=tf.keras.optimizers.SGD
+    adadelta=tf.keras.optimizers.legacy.Adadelta,
+    adagrad=tf.keras.optimizers.legacy.Adagrad,
+    adam=tf.keras.optimizers.legacy.Adam,
+    adamax=tf.keras.optimizers.legacy.Adamax,
+    ftrl=tf.keras.optimizers.legacy.Ftrl,
+    nadam=tf.keras.optimizers.legacy.Nadam,
+    rmsprop=tf.keras.optimizers.legacy.RMSprop,
+    sgd=tf.keras.optimizers.legacy.SGD
 )
 
 

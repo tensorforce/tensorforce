@@ -32,10 +32,7 @@ class TrackableNestedDict(NestedDict, AutoTrackable):
         )
 
     def __setattr__(self, name, value):
-        if name.startswith('_self_'):
-            super(NestedDict, self).__setattr__(name, value)
-        else:
-            super().__setattr__(name, value)
+        super(NestedDict, self).__setattr__(name, value)
 
     def __setitem__(self, key, value):
         if key is None:

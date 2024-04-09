@@ -275,6 +275,7 @@ class Runner(object):
                 additional information (averaged over number of episodes given via mean_horizon):
                 <ul>
                 <li>return &ndash; cumulative episode return</li>
+                <li>std &ndash; standard deviation of cumulative episode return</li>
                 <li>ts/ep &ndash; timesteps per episode</li>
                 <li>sec/ep &ndash; seconds per episode</li>
                 <li>ms/ts &ndash; milliseconds per timestep</li>
@@ -418,13 +419,13 @@ class Runner(object):
                 # Episode-based tqdm (default option if both num_episodes and num_timesteps set)
                 assert self.num_episodes != float('inf')
                 bar_format = (
-                    '{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}, return={postfix[0]:.2f}, ts/ep='
-                    '{postfix[1]}, sec/ep={postfix[2]:.2f}, ms/ts={postfix[3]:.1f}, agent='
-                    '{postfix[4]:.1f}%]'
+                    '{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}, return={postfix[0]:.2f}, stddev={postfix[1]:.2f}, ts/ep='
+                    '{postfix[2]}, sec/ep={postfix[3]:.2f}, ms/ts={postfix[4]:.1f}, agent='
+                    '{postfix[5]:.1f}%]'
                 )
-                postfix = [0.0, 0, 0.0, 0.0, 0.0]
+                postfix = [0.0, 0.0, 0, 0.0, 0.0, 0.0]
                 if self.is_environment_remote:
-                    bar_format = bar_format[:-1] + ', comm={postfix[5]:.1f}%]'
+                    bar_format = bar_format[:-1] + ', comm={postfix[6]:.1f}%]'
                     postfix.append(0.0)
 
                 self.tqdm = tqdm(
@@ -436,7 +437,9 @@ class Runner(object):
                 def tqdm_callback(runner, parallel):
                     if len(runner.evaluation_returns) > 0:
                         mean_return = float(np.mean(runner.evaluation_returns[-mean_horizon:]))
+                        std_return = float(np.std(runner.evaluation_returns[-mean_horizon:]))
                         runner.tqdm.postfix[0] = mean_return
+                        runner.tqdm.postfix[1] = std_return
                     if len(runner.episode_timesteps) > 0:
                         mean_ts_per_ep = int(np.mean(runner.episode_timesteps[-mean_horizon:]))
                         mean_sec_per_ep = float(np.mean(runner.episode_seconds[-mean_horizon:]))
@@ -451,15 +454,15 @@ class Runner(object):
                             mean_rel_agent = mean_agent_sec * 100.0 / mean_sec_per_ep
                         except ZeroDivisionError:
                             mean_rel_agent = 0.0
-                        runner.tqdm.postfix[1] = mean_ts_per_ep
-                        runner.tqdm.postfix[2] = mean_sec_per_ep
-                        runner.tqdm.postfix[3] = mean_ms_per_ts
-                        runner.tqdm.postfix[4] = mean_rel_agent
+                        runner.tqdm.postfix[2] = mean_ts_per_ep
+                        runner.tqdm.postfix[3] = mean_sec_per_ep
+                        runner.tqdm.postfix[4] = mean_ms_per_ts
+                        runner.tqdm.postfix[5] = mean_rel_agent
                     if runner.is_environment_remote and len(runner.episode_env_seconds) > 0:
                         mean_env_sec = float(np.mean(runner.episode_env_seconds[-mean_horizon:]))
                         mean_rel_comm = (mean_agent_sec + mean_env_sec) * 100.0 / mean_sec_per_ep
                         mean_rel_comm = 100.0 - mean_rel_comm
-                        runner.tqdm.postfix[5] = mean_rel_comm
+                        runner.tqdm.postfix[6] = mean_rel_comm
                     runner.tqdm.update(n=(runner.episodes - runner.tqdm_last_update))
                     runner.tqdm_last_update = runner.episodes
                     return inner_callback(runner, parallel)

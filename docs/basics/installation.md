@@ -26,7 +26,7 @@ Environments require additional packages for which there are setup options avail
 
 At the moment Tensorflow cannot be installed on M1 Macs directly. You need to follow [Apple's guide](https://developer.apple.com/metal/tensorflow-plugin/) to install `tensorflow-macos` instead.
 
-Then, since Tensorforce has `tensorflow` as its dependency and not `tensorflow-macos`, you need to install all Tensorforce's dependencies from [requirements.txt](https://github.com/tensorforce/tensorforce/blob/master/requirements.txt) manually (except for `tensorflow == 2.5.0` of course).
+Then, since Tensorforce has `tensorflow` as its dependency and not `tensorflow-macos`, you need to install all Tensorforce's dependencies from [requirements.txt](https://github.com/tensorforce/tensorforce/blob/master/requirements.txt) manually (except for `tensorflow == 2.12.1` of course).
 
 In the end, install tensorforce while forcing pip to ignore its dependencies:
 ```
